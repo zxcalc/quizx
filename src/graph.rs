@@ -4,7 +4,7 @@ use num_rational::Rational;
 pub type V = u32;
 pub type E = u32;
 
-#[derive(Debug,Copy,Clone)]
+#[derive(Debug,Copy,Clone,PartialEq,Eq)]
 pub enum VType {
     B, // Boundary
     Z, // Z-spider
@@ -12,7 +12,7 @@ pub enum VType {
     H, // H-box
 }
 
-#[derive(Debug,Copy,Clone)]
+#[derive(Debug,Copy,Clone,PartialEq,Eq)]
 pub struct VData {
     ty: VType,
     phase: Rational,
@@ -20,7 +20,7 @@ pub struct VData {
     row: i32,
 }
 
-#[derive(Debug,Copy,Clone)]
+#[derive(Debug,Copy,Clone,PartialEq,Eq)]
 pub enum EType {
     N, // normal edge
     H, // hadamard edge
@@ -28,7 +28,7 @@ pub enum EType {
 
 pub type AdjIter<'a> = std::collections::hash_map::Keys<'a,V,EType>;
 
-#[derive(Debug)]
+#[derive(Debug,Clone,PartialEq,Eq)]
 pub struct Graph {
     vdata: HashMap<V,VData>,
     edata: HashMap<V,HashMap<V,EType>>,
@@ -37,6 +37,29 @@ pub struct Graph {
     numv: usize,
     nume: usize,
     freshv: V,
+}
+
+pub struct EdgeIter<'a> {
+    outer: std::collections::hash_map::Iter<'a,V,HashMap<V,EType>>,
+    inner: Option<(V, std::collections::hash_map::Iter<'a,V,EType>)>,
+}
+
+impl Iterator for EdgeIter<'_> {
+    type Item = (V,V,EType);
+
+    fn next(&mut self) -> Option<Self::Item> {
+       match &mut self.inner {
+           Some((s, iter)) =>
+               match iter.next() {
+                   Some((t,ety)) => if *s <= *t { Some((*s,*t,*ety)) } else { self.next() }
+                   None => match self.outer.next() {
+                       Some((k,v)) => { self.inner = Some((*k,v.iter())); self.next() }
+                       None => None
+                   }
+               }
+           None => None
+       }
+    }
 }
 
 impl Graph {
@@ -73,27 +96,44 @@ impl Graph {
         v
     }
 
-    pub fn add_edge(&mut self, s: V, t: V, et: EType) {
+    pub fn add_edge(&mut self, s: V, t: V) {
+        self.add_edge_with_type(s, t, EType::N);
+    }
+
+    pub fn add_edge_with_type(&mut self, s: V, t: V, ety: EType) {
         self.nume += 1;
 
         self.edata.get_mut(&s)
             .expect("Source vertex not found")
-            .insert(t, et);
+            .insert(t, ety);
         self.edata.get_mut(&t)
             .expect("Target vertex not found")
-            .insert(s, et);
+            .insert(s, ety);
     }
 
-    pub fn add_edge_smart(&mut self, s: V, t: V, et: EType) {
+    pub fn remove_edge(&mut self, s: V, t: V) {
+        self.nume -= 1;
+
+        self.edata.get_mut(&s)
+            .expect("Source vertex not found")
+            .remove(&t);
+        self.edata.get_mut(&t)
+            .expect("Target vertex not found")
+            .remove(&s);
+    }
+
+    pub fn add_edge_smart(&mut self, s: V, t: V, ety: EType) {
         // TODO: scalars
-        if let Some(et0) = self.edata.get(&s).and_then(|x| x.get(&t)) {
+        if let Some(ety0) = self.edata.get(&s).and_then(|x| x.get(&t)) {
             let st = self.vdata.get(&s).expect("Source vertex not found").ty;
             let tt = self.vdata.get(&t).expect("Target vertex not found").ty;
             match (st, tt) {
                 (VType::Z, VType::Z) | (VType::X, VType::X) => {
-                    match (et0, et) {
-                        (EType::N, EType::N) => {}
-                        (EType::H, EType::H) => {}
+                    match (ety0, ety) {
+                        (EType::N, EType::N) => {} // ignore new edge
+                        (EType::H, EType::H) => {
+                            self.remove_edge(s, t);
+                        }
                         (EType::H, EType::N) => {
                             self.set_edge_type(s, t, EType::N);
                             self.add_to_phase(s, Rational::new(1,1));
@@ -104,11 +144,24 @@ impl Graph {
                     }
                 }
                 (VType::Z, VType::X) | (VType::X, VType::Z) => {
+                    match (ety0, ety) {
+                        (EType::N, EType::N) => {
+                            self.remove_edge(s, t);
+                        }
+                        (EType::N, EType::H) => {
+                            self.set_edge_type(s, t, EType::H);
+                            self.add_to_phase(s, Rational::new(1,1));
+                        }
+                        (EType::H, EType::N) => {
+                            self.add_to_phase(s, Rational::new(1,1));
+                        }
+                        (EType::H, EType::H) => {} // ignore new edge
+                    }
                 }
                 _ => panic!("Parallel edges only supported between Z and X vertices")
             }
         } else {
-            self.add_edge(s, t, et);
+            self.add_edge_with_type(s, t, ety);
         }
     }
 
@@ -142,15 +195,15 @@ impl Graph {
             .ty
     }
 
-    pub fn set_edge_type(&mut self, s: V, t: V, et: EType) {
-        *(self.edata.get_mut(&s)
+    pub fn set_edge_type(&mut self, s: V, t: V, ety: EType) {
+        *self.edata.get_mut(&s)
             .expect("Source vertex not found")
             .get_mut(&t)
-            .expect("Edge not found")) = et;
-        *(self.edata.get_mut(&t)
+            .expect("Edge not found") = ety;
+        *self.edata.get_mut(&t)
             .expect("Target vertex not found")
             .get_mut(&s)
-            .expect("Edge not found")) = et;
+            .expect("Edge not found") = ety;
     }
 
     pub fn edge_type(&self, s: V, t: V) -> Option<EType> {
@@ -215,6 +268,68 @@ mod tests {
         let g = Graph::new();
         assert_eq!(g.num_vertices(), 0);
         assert_eq!(g.num_edges(), 0);
+    }
+
+    fn simple_graph() -> Graph {
+        let mut g = Graph::new();
+        let vs = [
+            g.add_vertex(VType::B),
+            g.add_vertex(VType::B),
+            g.add_vertex(VType::Z),
+            g.add_vertex(VType::Z),
+            g.add_vertex(VType::X),
+            g.add_vertex(VType::X),
+            g.add_vertex(VType::B),
+            g.add_vertex(VType::B)];
+        g.add_edge(vs[0], vs[2]);
+        g.add_edge(vs[1], vs[3]);
+        g.add_edge(vs[2], vs[4]);
+        g.add_edge(vs[2], vs[5]);
+        g.add_edge(vs[3], vs[4]);
+        g.add_edge(vs[3], vs[5]);
+        g.add_edge(vs[4], vs[6]);
+        g.add_edge(vs[5], vs[7]);
+        g
+    }
+
+    #[test]
+    fn create_simple_graph() {
+        let g = simple_graph();
+        assert_eq!(g.num_vertices(), 8);
+        assert_eq!(g.num_edges(), 8);
+    }
+
+    #[test]
+    fn clone_graph() {
+       let g = simple_graph();
+       let h = g.clone();
+       assert!(g.num_vertices() == h.num_vertices());
+       assert!(g.num_edges() == h.num_edges());
+       assert!(g == h);
+    }
+
+    #[test]
+    fn smart_edges_zx() {
+        let mut g = Graph::new();
+        let vs = [
+            g.add_vertex(VType::B),
+            g.add_vertex(VType::Z),
+            g.add_vertex(VType::X),
+            g.add_vertex(VType::B)];
+        g.add_edge(vs[0], vs[1]);
+        g.add_edge(vs[2], vs[3]);
+
+        let mut h = g.clone();
+        h.add_edge_smart(vs[1], vs[2], EType::N);
+        h.add_edge_smart(vs[1], vs[2], EType::N);
+        assert_eq!(g.num_vertices(), 4);
+        assert_eq!(g.num_edges(), 2);
+
+        let mut h = g.clone();
+        h.add_edge_smart(vs[1], vs[2], EType::H);
+        h.add_edge_smart(vs[1], vs[2], EType::H);
+        assert_eq!(g.num_vertices(), 4);
+        assert_eq!(g.num_edges(), 3);
     }
 }
 
