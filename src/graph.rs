@@ -4,7 +4,7 @@ use num_rational::Rational;
 pub type V = u32;
 pub type E = u32;
 
-#[derive(Debug,Copy,Clone,PartialEq,Eq)]
+#[derive(Debug,Copy,Clone,PartialEq,Eq,PartialOrd,Ord)]
 pub enum VType {
     B, // Boundary
     Z, // Z-spider
@@ -20,7 +20,7 @@ pub struct VData {
     row: i32,
 }
 
-#[derive(Debug,Copy,Clone,PartialEq,Eq)]
+#[derive(Debug,Copy,Clone,PartialEq,Eq,PartialOrd,Ord)]
 pub enum EType {
     N, // normal edge
     H, // hadamard edge
@@ -45,6 +45,9 @@ pub struct EdgeIter<'a> {
 }
 
 impl Iterator for EdgeIter<'_> {
+    /// Iterate over the edges in a graph. An edge is returned as a triple
+    /// (s: V, t: V, ety: EType), where we enforce s <= t to avoid double-
+    /// counting edges.
     type Item = (V,V,EType);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -81,6 +84,15 @@ impl Graph {
 
     pub fn num_edges(&self) -> usize {
         self.nume
+    }
+
+    pub fn edges(&self) -> EdgeIter {
+        let mut outer = self.edata.iter();
+        let inner = match outer.next() {
+            Some((s, h)) => Some((*s, h.iter())),
+            None => None,
+        };
+        EdgeIter { outer, inner }
     }
 
     pub fn add_vertex(&mut self, ty: VType) -> V {
@@ -261,6 +273,7 @@ impl Graph {
 
 #[cfg(test)]
 mod tests {
+    use std::iter::FromIterator;
     use super::*;
 
     #[test]
@@ -270,9 +283,9 @@ mod tests {
         assert_eq!(g.num_edges(), 0);
     }
 
-    fn simple_graph() -> Graph {
+    fn simple_graph() -> (Graph,Vec<V>) {
         let mut g = Graph::new();
-        let vs = [
+        let vs = vec![
             g.add_vertex(VType::B),
             g.add_vertex(VType::B),
             g.add_vertex(VType::Z),
@@ -289,23 +302,45 @@ mod tests {
         g.add_edge(vs[3], vs[5]);
         g.add_edge(vs[4], vs[6]);
         g.add_edge(vs[5], vs[7]);
-        g
+        (g,vs)
     }
 
     #[test]
     fn create_simple_graph() {
-        let g = simple_graph();
+        let (g,_) = simple_graph();
         assert_eq!(g.num_vertices(), 8);
         assert_eq!(g.num_edges(), 8);
     }
 
     #[test]
     fn clone_graph() {
-       let g = simple_graph();
+       let (g,_) = simple_graph();
        let h = g.clone();
        assert!(g.num_vertices() == h.num_vertices());
        assert!(g.num_edges() == h.num_edges());
        assert!(g == h);
+    }
+
+    #[test]
+    fn edge_iterator() {
+        let (mut g, vs) = simple_graph();
+        g.set_edge_type(vs[1], vs[3], EType::H);
+
+        let mut edges = Vec::from_iter(g.edges());
+        let mut expected_edges = vec![
+            (vs[0], vs[2], EType::N),
+            (vs[1], vs[3], EType::H),
+            (vs[2], vs[4], EType::N),
+            (vs[2], vs[5], EType::N),
+            (vs[3], vs[4], EType::N),
+            (vs[3], vs[5], EType::N),
+            (vs[4], vs[6], EType::N),
+            (vs[5], vs[7], EType::N),
+        ];
+        
+        edges.sort();
+        expected_edges.sort();
+        assert_eq!(expected_edges, edges);
     }
 
     #[test]
