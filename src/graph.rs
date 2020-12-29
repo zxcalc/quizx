@@ -1,8 +1,9 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use num_rational::Rational;
 
 pub type V = u32;
 pub type E = u32;
+pub type VTab<T> = FxHashMap<V,T>;
 
 #[derive(Debug,Copy,Clone,PartialEq,Eq,PartialOrd,Ord)]
 pub enum VType {
@@ -26,12 +27,12 @@ pub enum EType {
     H, // hadamard edge
 }
 
-pub type AdjIter<'a> = std::collections::hash_map::Keys<'a,V,EType>;
+// pub type AdjIter<'a> = std::collections::hash_map::Keys<'a,V,EType>;
 
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub struct Graph {
-    vdata: HashMap<V,VData>,
-    edata: HashMap<V,HashMap<V,EType>>,
+    vdata: VTab<VData>,
+    edata: VTab<VTab<EType>>,
     inputs: Vec<V>,
     outputs: Vec<V>,
     numv: usize,
@@ -39,12 +40,23 @@ pub struct Graph {
     freshv: V,
 }
 
+pub struct VertexIter<'a> {
+    inner: std::collections::hash_map::Keys<'a,V,VData>,
+}
+
+impl<'a> Iterator for VertexIter<'a> {
+    type Item = V;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|x| *x)
+    }
+}
+
 pub struct EdgeIter<'a> {
-    outer: std::collections::hash_map::Iter<'a,V,HashMap<V,EType>>,
+    outer: std::collections::hash_map::Iter<'a,V,VTab<EType>>,
     inner: Option<(V, std::collections::hash_map::Iter<'a,V,EType>)>,
 }
 
-impl Iterator for EdgeIter<'_> {
+impl<'a> Iterator for EdgeIter<'a> {
     /// Iterate over the edges in a graph. An edge is returned as a triple
     /// (s: V, t: V, ety: EType), where we enforce s <= t to avoid double-
     /// counting edges.
@@ -68,8 +80,8 @@ impl Iterator for EdgeIter<'_> {
 impl Graph {
     pub fn new() -> Graph {
         Graph {
-            vdata: HashMap::new(),
-            edata: HashMap::new(),
+            vdata: FxHashMap::default(),
+            edata: FxHashMap::default(),
             inputs: Vec::new(),
             outputs: Vec::new(),
             numv: 0,
@@ -84,6 +96,24 @@ impl Graph {
 
     pub fn num_edges(&self) -> usize {
         self.nume
+    }
+
+    /// Iterator for the vertices in a graph.
+    /// ```
+    /// use quizx::graph::*;
+    ///
+    /// let mut g = Graph::new();
+    /// g.add_vertex(VType::Z);
+    /// g.add_vertex(VType::X);
+    /// let mut k = 0;
+    /// for _ in g.vertices() {
+    ///   k += 1;
+    /// }
+    ///
+    /// assert_eq!(k, 2);
+    ///
+    pub fn vertices(&self) -> VertexIter {
+        VertexIter { inner: self.vdata.keys() }
     }
 
     pub fn edges(&self) -> EdgeIter {
@@ -104,7 +134,7 @@ impl Graph {
         self.freshv += 1;
         self.numv += 1;
         self.vdata.insert(v, d);
-        self.edata.insert(v, HashMap::new());
+        self.edata.insert(v, FxHashMap::default());
         v
     }
 
@@ -218,8 +248,12 @@ impl Graph {
             .expect("Edge not found") = ety;
     }
 
-    pub fn edge_type(&self, s: V, t: V) -> Option<EType> {
-        self.edata.get(&s).and_then(|x| x.get(&t)).copied()
+    pub fn edge_type(&self, s: V, t: V) -> EType {
+        *self.edata.get(&s)
+            .expect("Source vertex not found")
+            .get(&t)
+            .expect("Edge not found")
+
     }
 
     pub fn set_coord(&mut self, v: V, coord: (i32,i32)) {
@@ -259,13 +293,13 @@ impl Graph {
             .contains_key(&v1)
     }
 
-    pub fn neighbors(&self, v: V) -> AdjIter {
-        self.edata.get(&v)
-            .expect("Vertex not found")
-            .keys()
-    }
+    // pub fn neighbors(&self, v: V) -> AdjIter {
+    //     self.edata.get(&v)
+    //         .expect("Vertex not found")
+    //         .keys()
+    // }
 
-    pub fn nhd(&self, v: V) -> &HashMap<V,EType> {
+    pub fn nhd(&self, v: V) -> &VTab<EType> {
         self.edata.get(&v)
             .expect("Vertex not found")
     }
@@ -322,6 +356,28 @@ mod tests {
     }
 
     #[test]
+    fn nhd() {
+        let (g,vs) = simple_graph();
+        let mut ws = Vec::from_iter(g.nhd(vs[2]));
+        ws.sort();
+        let mut expected_ws = vec![
+            (&vs[0], &EType::N),
+            (&vs[4], &EType::N),
+            (&vs[5], &EType::N)];
+        expected_ws.sort();
+        assert_eq!(expected_ws, ws);
+    }
+
+    #[test]
+    fn vertex_iterator() {
+        let (g, mut expected_vs) = simple_graph();
+        let mut vs = Vec::from_iter(g.vertices());
+        vs.sort();
+        expected_vs.sort();
+        assert_eq!(expected_vs, vs);
+    }
+
+    #[test]
     fn edge_iterator() {
         let (mut g, vs) = simple_graph();
         g.set_edge_type(vs[1], vs[3], EType::H);
@@ -337,7 +393,7 @@ mod tests {
             (vs[4], vs[6], EType::N),
             (vs[5], vs[7], EType::N),
         ];
-        
+
         edges.sort();
         expected_edges.sort();
         assert_eq!(expected_edges, edges);
@@ -357,14 +413,19 @@ mod tests {
         let mut h = g.clone();
         h.add_edge_smart(vs[1], vs[2], EType::N);
         h.add_edge_smart(vs[1], vs[2], EType::N);
-        assert_eq!(g.num_vertices(), 4);
-        assert_eq!(g.num_edges(), 2);
+        assert_eq!(h.num_vertices(), 4);
+        assert_eq!(h.num_edges(), 2,
+            "Wrong edges in NN test: {:?}",
+            Vec::from_iter(h.edges()));
 
         let mut h = g.clone();
         h.add_edge_smart(vs[1], vs[2], EType::H);
         h.add_edge_smart(vs[1], vs[2], EType::H);
-        assert_eq!(g.num_vertices(), 4);
-        assert_eq!(g.num_edges(), 3);
+        assert_eq!(h.num_vertices(), 4);
+        assert_eq!(h.num_edges(), 3,
+            "Wrong edges in HH test: {:?}",
+            Vec::from_iter(h.edges()));
+        assert_eq!(h.edge_type(vs[1], vs[2]), EType::H);
     }
 }
 

@@ -1,5 +1,5 @@
 [package]
-name = "ruzx"
+name = "quizx"
 version = "0.1.0"
 authors = ["Aleks Kissinger <aleks0@gmail.com>"]
 edition = "2018"
@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 num-rational = "0.3.2"
+rustc-hash = "1.1.0"

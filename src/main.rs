@@ -1,4 +1,4 @@
-use ruzx::graph::{Graph,VType,EType};
+use quizx::graph::*;
 
 fn main() {
     let mut g = Graph::new();
