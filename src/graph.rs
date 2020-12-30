@@ -1,5 +1,5 @@
 use rustc_hash::FxHashMap;
-use num_rational::Rational;
+use num::rational::Rational;
 
 pub type V = u32;
 pub type E = u32;
@@ -302,6 +302,10 @@ impl Graph {
     pub fn nhd(&self, v: V) -> &VTab<EType> {
         self.edata.get(&v)
             .expect("Vertex not found")
+    }
+
+    pub fn degree(&self, v: V) -> usize {
+        self.nhd(v).len()
     }
 }
 
