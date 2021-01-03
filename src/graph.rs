@@ -1,5 +1,6 @@
 use rustc_hash::FxHashMap;
 use num::rational::Rational;
+use crate::scalar::Scalar;
 
 pub type V = u32;
 pub type E = u32;
@@ -29,7 +30,7 @@ pub enum EType {
 
 // pub type AdjIter<'a> = std::collections::hash_map::Keys<'a,V,EType>;
 
-#[derive(Debug,Clone,PartialEq,Eq)]
+#[derive(Debug,Clone,PartialEq)]
 pub struct Graph {
     vdata: VTab<VData>,
     edata: VTab<VTab<EType>>,
@@ -38,6 +39,7 @@ pub struct Graph {
     numv: usize,
     nume: usize,
     freshv: V,
+    scalar: Scalar,
 }
 
 pub struct VertexIter<'a> {
@@ -87,6 +89,7 @@ impl Graph {
             numv: 0,
             nume: 0,
             freshv: 0,
+            scalar: Scalar::one(),
         }
     }
 

@@ -2,12 +2,13 @@ use num::complex::Complex;
 use num::rational::Rational;
 use num::integer;
 use std::fmt;
+use approx::AbsDiffEq;
 
 /// A type for exact and approximate representation of Scalars.
 /// Note that '==' is only reliable when the scalar is Exact
 /// and N is a power of 2.
 
-#[derive(Clone,PartialEq)]
+#[derive(Debug,Clone,PartialEq)]
 pub enum Scalar {
     // An exact representation of a scalar, which is given as
     // a power of sqrt(2) and an element of Z[omega], where
@@ -30,6 +31,14 @@ impl Scalar {
         Exact(0, vec![1])
     }
 
+    pub fn complex(re: f64, im: f64) -> Scalar {
+        Float(Complex::new(re, im))
+    }
+
+    pub fn real(re: f64) -> Scalar {
+        Float(Complex::new(re, 0.0))
+    }
+
     // fn raise_order(&mut self, k: usize) {
     //     match self {
     //         Exact(_, coeffs) => {
@@ -43,7 +52,7 @@ impl Scalar {
     //     }
     // }
 
-    pub fn as_float(&self) -> Complex<f64> {
+    pub fn float_value(&self) -> Complex<f64> {
         match self {
             Exact(pow, coeffs) => {
                 let omega = Complex::new(-1f64, 0f64).powf(1f64 / (coeffs.len() as f64));
@@ -59,34 +68,76 @@ impl Scalar {
         }
     }
 
-    pub fn str(&self) -> String {
+    pub fn to_float(&self) -> Scalar {
+        Float(self.float_value())
+    }
+
+    pub fn phase(p: Rational) -> Scalar {
+        let mut rnumer = *p.numer();
+        let mut rdenom = *p.denom();
+
+        if rdenom < 0 {
+            rnumer *= -1;
+            rdenom *= -1;
+        }
+
+        rnumer = rnumer.rem_euclid(2 * rdenom);
+        let sgn = if rnumer >= rdenom {
+            rnumer = rnumer - rdenom;
+            -1
+        } else {
+            1
+        };
+
+        let mut coeffs: Vec<isize> = vec![0; rdenom as usize];
+        coeffs[rnumer as usize] = sgn;
+
+        Scalar::Exact(0, coeffs)
+    }
+
+    pub fn one_plus_phase(p: Rational) -> Scalar {
+        let mut s = Scalar::phase(p);
+        if let Scalar::Exact(_,ref mut coeffs) = s { coeffs[0] += 1; }
+        s
+    }
+}
+
+impl fmt::Display for Scalar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Exact(pow,coeffs) => {
-                let mut s = format!("rt(2)^{} (", pow);
+                write!(f, "rt(2)^{} (", pow)?;
 
                 for (i,c) in coeffs.iter().enumerate() {
                     if i == 0 {
-                        s.push_str(&c.to_string());
+                        write!(f, "{}", c)?;
                     } else {
-                        s.push_str(&format!(" + {} * om^{}", c, i));
+                        write!(f, " + {} * om^{}", c, i)?;
                     }
                 }
 
-                s.push_str(")");
-
-                s
+                write!(f, ")")
             },
-            Float(c) => format!("{}", c),
+            Float(c) => write!(f, "{}", c),
         }
     }
+}
 
-    pub fn mult_with(&self, rhs: &Scalar) -> Scalar {
+// The main implementation of the Mul trait uses references, so we don't need
+// to make a copy of the scalars to multiply them.
+impl<'a, 'b> std::ops::Mul<&'b Scalar> for &'a Scalar {
+    type Output = Scalar;
+    fn mul(self, rhs: &Scalar) -> Self::Output {
         match (self,rhs) {
-            (Float(c), x) => Float(c * x.as_float()),
-            (x, Float(c)) => Float(x.as_float() * c),
+            (Float(c), x) => Float(c * x.float_value()),
+            (x, Float(c)) => Float(x.float_value() * c),
             (Exact(pow0, coeffs0), Exact(pow1, coeffs1)) => {
-                let lcm = integer::lcm(coeffs0.len(), coeffs1.len());
-                let (pad0, pad1) = (lcm / coeffs0.len(), lcm / coeffs1.len());
+                let (lcm, pad0, pad1) = if coeffs0.len() == coeffs1.len() {
+                    (coeffs0.len(), 1, 1)
+                } else {
+                    let lcm0 = integer::lcm(coeffs0.len(), coeffs1.len());
+                    (lcm0, lcm0 / coeffs0.len(), lcm0 / coeffs1.len())
+                };
                 let mut coeffs = vec![0; lcm];
 
                 for (i,x) in coeffs0.iter().enumerate() {
@@ -104,47 +155,138 @@ impl Scalar {
             },
         }
     }
-
-    pub fn phase(p: Rational) -> Scalar {
-        let mut rnumer = *p.numer();
-        let mut rdenom = *p.denom();
-
-        if rdenom < 0 {
-            rnumer *= -1;
-            rdenom *= -1;
-        }
-
-        rnumer = rnumer.rem_euclid(2 * rdenom);
-        let sgn = if rnumer > rdenom {
-            rnumer = rnumer - rdenom;
-            -1
-        } else {
-            1
-        };
-
-        let mut coeffs: Vec<isize> = vec![0; rdenom as usize];
-        coeffs[rnumer as usize] = sgn;
-
-        Scalar::Exact(0, coeffs)
-    }
-
-    pub fn one_plus_phase(p: Rational) -> Scalar {
-        let mut s = Scalar::phase(p);
-        if let Scalar::Exact(_,ref mut coeffs) = s { coeffs[0] = 1; }
-        s
-    }
 }
 
-impl fmt::Display for Scalar {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.str())
-    }
-}
-
-impl<'a, 'b> std::ops::Mul<&'a Scalar> for &'b Scalar {
+// These 3 variations take ownership of one or both args
+impl std::ops::Mul<Scalar> for Scalar {
     type Output = Scalar;
+    fn mul(self, rhs: Scalar) -> Self::Output { &self * &rhs }
+}
 
-    fn mul(self, rhs: &Scalar) -> Self::Output {
-        self.mult_with(rhs)
+impl<'a> std::ops::Mul<Scalar> for &'a Scalar {
+    type Output = Scalar;
+    fn mul(self, rhs: Scalar) -> Self::Output { self * &rhs }
+}
+
+impl<'a> std::ops::Mul<&'a Scalar> for Scalar {
+    type Output = Scalar;
+    fn mul(self, rhs: &Scalar) -> Self::Output { &self * rhs }
+}
+
+impl std::ops::MulAssign<Scalar> for Scalar {
+    fn mul_assign(&mut self, rhs: Scalar) {
+        *self = &*self * &rhs;
     }
 }
+
+impl<'a> std::ops::MulAssign<&'a Scalar> for Scalar {
+    fn mul_assign(&mut self, rhs: &Scalar) {
+        *self = &*self * rhs;
+    }
+}
+
+impl AbsDiffEq for Scalar {
+    type Epsilon = <f64 as AbsDiffEq>::Epsilon;
+
+    fn default_epsilon() -> Self::Epsilon {
+        0.0000000001f64 //f64::default_epsilon()
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        let c1 = self.float_value();
+        let c2 = other.float_value();
+        f64::abs_diff_eq(&c1.re, &c2.re, epsilon) &&
+        f64::abs_diff_eq(&c1.im, &c2.im, epsilon)
+    }
+}
+
+// impl RelativeEq for Scalar {
+//     fn default_max_relative() -> f64 {
+//         f64::default_max_relative()
+//     }
+
+//     fn relative_eq(&self, other: &Self, epsilon: f64, max_relative: f64) -> bool {
+//         let c1 = self.float_value();
+//         let c2 = other.float_value();
+//         f64::relative_eq(&c1.re, &c2.re, epsilon, max_relative) &&
+//         f64::relative_eq(&c1.im, &c2.im, epsilon, max_relative)
+//     }
+// }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_abs_diff_eq;
+
+    #[test]
+    fn approx_mul() {
+        let s = Scalar::real(f64::sqrt(0.3) * f64::sqrt(0.3) - 0.3);
+        let t = Scalar::zero();
+        assert_ne!(s, t);
+        assert_abs_diff_eq!(s, t);
+    }
+
+    #[test]
+    fn sqrt_i() {
+        let s = Scalar::Exact(0, vec![0, 1, 0, 0]);
+        assert_abs_diff_eq!(s.to_float(), Scalar::complex(1.0 / f64::sqrt(2.0), 1.0 / f64::sqrt(2.0)));
+    }
+
+    #[test]
+    fn mul_same_base() {
+        let s = Scalar::Exact(0, vec![1, 2, 3]);
+        let t = Scalar::Exact(0, vec![4, 5, 6]);
+        assert_abs_diff_eq!((&s * &t).to_float(), s.to_float() * t.to_float());
+
+        let s = Scalar::Exact(2, vec![1, 2, 3, 4, 5]);
+        let t = Scalar::Exact(2, vec![4, 5, 6, 7, 8]);
+        assert_abs_diff_eq!((&s * &t).to_float(), s.to_float() * t.to_float());
+    }
+
+    #[test]
+    fn mul_diff_base() {
+        let s = Scalar::Exact(-3, vec![1, 2]);
+        let t = Scalar::Exact(2, vec![3, 4, 5]);
+        assert_abs_diff_eq!((&s * &t).to_float(), s.to_float() * t.to_float());
+
+        let s = Scalar::Exact(10, vec![1, 2, 3, 4, 5, 6]);
+        let t = Scalar::Exact(-1, vec![7, 8]);
+        assert_abs_diff_eq!((&s * &t).to_float(), s.to_float() * t.to_float());
+    }
+    
+    #[test]
+    fn phases() {
+        assert_abs_diff_eq!(
+            Scalar::phase(Rational::new(4,3)) * Scalar::phase(Rational::new(2,5)),
+            Scalar::phase(Rational::new(4,3) + Rational::new(2,5))
+        );
+
+        assert_abs_diff_eq!(Scalar::phase(Rational::new(0,1)), Scalar::one());
+        assert_abs_diff_eq!(Scalar::phase(Rational::new(1,1)), Scalar::real(-1.0));
+        assert_abs_diff_eq!(Scalar::phase(Rational::new(1,2)), Scalar::complex(0.0, 1.0));
+        assert_abs_diff_eq!(Scalar::phase(Rational::new(-1,2)), Scalar::complex(0.0, -1.0));
+        assert_abs_diff_eq!(Scalar::phase(Rational::new(1,4)), Scalar::Exact(0, vec![0,1,0,0]));
+        assert_abs_diff_eq!(Scalar::phase(Rational::new(3,4)), Scalar::Exact(0, vec![0,0,0,1]));
+        assert_abs_diff_eq!(Scalar::phase(Rational::new(7,4)), Scalar::Exact(0, vec![0,0,0,-1]));
+    }
+
+    #[test]
+    fn one_plus_phases() {
+        assert_abs_diff_eq!(Scalar::one_plus_phase(Rational::new(1,1)), Scalar::zero());
+
+        let plus = Scalar::one_plus_phase(Rational::new(1,2));
+        let minus = Scalar::one_plus_phase(Rational::new(-1,2));
+        assert_abs_diff_eq!(plus * minus, Scalar::real(2.0));
+    }
+
+    #[test]
+    fn redundant_rep() {
+        // If order is not a power of 2, there is some redudancy in the Exact representation.
+        // This could be fixed by implementing a function that reduces to the Zumbroich basis.
+        // See e.g. https://github.com/CyclotomicFields/cyclotomic/blob/master/src/fields/dense/basis.rs
+        let s = Scalar::Exact(0, vec![1,-1,1]);
+        assert_ne!(s, Scalar::zero());
+        assert_abs_diff_eq!(s, Scalar::zero());
+    }
+}
+

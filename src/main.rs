@@ -1,16 +1,12 @@
 // use quizx::graph::*;
 use quizx::scalar::*;
-use num::rational::Rational;
+// use approx::{assert_relative_eq, assert_abs_diff_eq};
 
 fn main() {
-    let s = Scalar::one_plus_phase(Rational::new(1,4));
-    let t = Scalar::one_plus_phase(Rational::new(5,4));
-    let st = s.mult_with(&t);
-    let sf = s.as_float();
-    let tf = t.as_float();
-    println!("s: {}", s);
-    println!("t: {}", t);
-    println!("s*t: {}", &s * &t);
-    println!("float(s * t): {}", st.as_float());
-    println!("float(s) * float(t): {}", sf * tf);
+    let s = Scalar::one();
+    let t = Scalar::zero();
+    let mut u = &s * t;
+    u *= &s;
+    u *= s;
+    println!("eps: {}", f64::EPSILON);
 }

@@ -9,3 +9,5 @@ edition = "2018"
 [dependencies]
 num = "0.3.1"
 rustc-hash = "1.1.0"
+ndarray = "0.14.0"
+approx = "0.4.0"
