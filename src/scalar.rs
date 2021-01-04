@@ -14,7 +14,7 @@ pub enum Scalar {
     // a power of sqrt(2) and an element of Z[omega], where
     // omega is the 2N-th root of unity, represented by its
     // first N coefficients.
-    Exact(isize, Vec<isize>),
+    Exact(i32, Vec<i32>),
     // A floating-point representation of a scalar. We should
     // fall back to this if N^2 gets too big.
     Float(Complex<f64>),
@@ -39,19 +39,6 @@ impl Scalar {
         Float(Complex::new(re, 0.0))
     }
 
-    // fn raise_order(&mut self, k: usize) {
-    //     match self {
-    //         Exact(_, coeffs) => {
-    //             let mut new_coeffs = vec![0;k * coeffs.len()];
-    //             for (i,x) in coeffs.iter().enumerate() {
-    //                 new_coeffs[k*i] = *x;
-    //             }
-    //             *coeffs = new_coeffs;
-    //         }
-    //         _ => {}
-    //     }
-    // }
-
     pub fn float_value(&self) -> Complex<f64> {
         match self {
             Exact(pow, coeffs) => {
@@ -66,6 +53,21 @@ impl Scalar {
             },
             Float(c) => *c
         }
+    }
+
+    pub fn mul_rt2_pow(&mut self, p: i32) {
+        match self {
+            Exact(pow, _) => *pow += p,
+            Float(c) => {
+                let rt2_pow = f64::powi(f64::sqrt(2.0), p);
+                c.re *= rt2_pow;
+                c.im *= rt2_pow;
+            }
+        }
+    }
+
+    pub fn mul_phase(&mut self, phase: Rational) {
+        (*self) *= Scalar::phase(phase);
     }
 
     pub fn to_float(&self) -> Scalar {
@@ -89,7 +91,7 @@ impl Scalar {
             1
         };
 
-        let mut coeffs: Vec<isize> = vec![0; rdenom as usize];
+        let mut coeffs: Vec<i32> = vec![0; rdenom as usize];
         coeffs[rnumer as usize] = sgn;
 
         Scalar::Exact(0, coeffs)
@@ -99,6 +101,10 @@ impl Scalar {
         let mut s = Scalar::phase(p);
         if let Scalar::Exact(_,ref mut coeffs) = s { coeffs[0] += 1; }
         s
+    }
+
+    pub fn rt2_pow(p: i32) -> Scalar {
+        Scalar::Exact(p, vec![1])
     }
 }
 
@@ -127,6 +133,7 @@ impl fmt::Display for Scalar {
 // to make a copy of the scalars to multiply them.
 impl<'a, 'b> std::ops::Mul<&'b Scalar> for &'a Scalar {
     type Output = Scalar;
+
     fn mul(self, rhs: &Scalar) -> Self::Output {
         match (self,rhs) {
             (Float(c), x) => Float(c * x.float_value()),
@@ -188,6 +195,8 @@ impl<'a> std::ops::MulAssign<&'a Scalar> for Scalar {
 impl AbsDiffEq for Scalar {
     type Epsilon = <f64 as AbsDiffEq>::Epsilon;
 
+    // since this is mainly used for testing, we allow rounding errors much bigger than
+    // machine-epsilon
     fn default_epsilon() -> Self::Epsilon {
         0.0000000001f64 //f64::default_epsilon()
     }
