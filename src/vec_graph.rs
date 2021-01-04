@@ -1,6 +1,7 @@
 use crate::graph::*;
 use crate::scalar::Scalar;
 use num::rational::Rational;
+use std::iter::FromIterator;
 
 pub type VTab<T> = Vec<Option<T>>;
 
@@ -52,6 +53,17 @@ pub struct Graph {
 //     }
 // }
 
+pub struct NeighborIter<'a> {
+    inner: std::slice::Iter<'a,(V,EType)>
+}
+
+impl<'a> Iterator for NeighborIter<'a> {
+    type Item = V;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|&(v,_)| v)
+    }
+}
+
 impl Graph {
     pub fn new() -> Graph {
         Graph {
@@ -89,7 +101,9 @@ impl Graph {
     }
 }
 
-impl IsGraph for Graph {
+impl<'a> IsGraph<'a> for Graph {
+    type NeighborIter = NeighborIter<'a>;
+
     fn num_vertices(&self) -> usize {
         self.numv
     }
@@ -139,7 +153,7 @@ impl IsGraph for Graph {
     fn remove_vertex(&mut self, v: V) {
         self.numv -= 1;
 
-        for v1 in self.neighbors(v) {
+        for v1 in Vec::from_iter(self.neighbors(v)) {
             self.nume -= 1;
             self.remove_half_edge(v1,v);
         }
@@ -305,10 +319,9 @@ impl IsGraph for Graph {
             .expect("Vertex not found").row
     }
 
-    fn neighbors(&self, v: V) -> Vec<V> {
+    fn neighbors(&'a self, v: V) -> Self::NeighborIter {
         if let Some(Some(nhd)) = self.edata.get(v) {
-            let it = nhd.iter().map(|&(w,_)| w);
-            it.collect()
+            NeighborIter { inner: nhd.iter() }
         } else {
             panic!("Vertex not found")
         }

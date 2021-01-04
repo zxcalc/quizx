@@ -25,7 +25,8 @@ pub enum EType {
     H, // hadamard edge
 }
 
-pub trait IsGraph {
+pub trait IsGraph<'a> {
+    type NeighborIter: Iterator<Item=V>;
     fn num_vertices(&self) -> usize;
     fn num_edges(&self) -> usize;
     fn add_vertex(&mut self, ty: VType) -> V;
@@ -47,7 +48,7 @@ pub trait IsGraph {
     fn qubit(&mut self, v: V) -> i32;
     fn set_row(&mut self, v: V, row: i32);
     fn row(&mut self, v: V) -> i32;
-    fn neighbors(&self, v: V) -> Vec<V>;
+    fn neighbors(&'a self, v: V) -> Self::NeighborIter;
     fn incident_edges(&self, v: V) -> Vec<(V,EType)>;
     fn degree(&self, v: V) -> usize;
     fn scalar(&self) -> &Scalar;

@@ -2,6 +2,7 @@ use crate::graph::*;
 use crate::scalar::Scalar;
 use rustc_hash::FxHashMap;
 use num::rational::Rational;
+use std::iter::FromIterator;
 
 pub type VTab<T> = FxHashMap<V,T>;
 
@@ -31,6 +32,17 @@ impl<'a> Iterator for VertexIter<'a> {
 pub struct EdgeIter<'a> {
     outer: std::collections::hash_map::Iter<'a,V,VTab<EType>>,
     inner: Option<(V, std::collections::hash_map::Iter<'a,V,EType>)>,
+}
+
+pub struct NeighborIter<'a> {
+    inner: std::collections::hash_map::Keys<'a,V,EType>
+}
+
+impl<'a> Iterator for NeighborIter<'a> {
+    type Item = V;
+    fn next(&mut self) -> Option<V> {
+        self.inner.next().map(|k| *k)
+    }
 }
 
 impl<'a> Iterator for EdgeIter<'a> {
@@ -78,7 +90,9 @@ impl Graph {
     }
 }
 
-impl IsGraph for Graph {
+impl<'a> IsGraph<'a> for Graph {
+    type NeighborIter = NeighborIter<'a>;
+
     fn num_vertices(&self) -> usize {
         self.numv
     }
@@ -130,7 +144,7 @@ impl IsGraph for Graph {
     fn remove_vertex(&mut self, v: V) {
         self.numv -= 1;
 
-        for v1 in self.neighbors(v) {
+        for v1 in Vec::from_iter(self.neighbors(v)) {
             self.nume -= 1;
             self.remove_half_edge(v1,v);
         }
@@ -284,10 +298,12 @@ impl IsGraph for Graph {
             .expect("Vertex not found").row
     }
 
-    fn neighbors(&self, v: V) -> Vec<V> {
-        self.edata.get(&v)
-            .expect("Vertex not found")
-            .keys().map(|k| *k).collect()
+    fn neighbors(&'a self, v: V) -> Self::NeighborIter {
+        NeighborIter {
+            inner: self.edata.get(&v)
+                .expect("Vertex not found")
+                .keys()
+        }
     }
 
     fn incident_edges(&self, v: V) -> Vec<(V,EType)> {

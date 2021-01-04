@@ -1,12 +1,12 @@
 use crate::graph::*;
 
-pub fn check_spider_fusion<G: IsGraph>(g: &mut G, v0: V, v1: V) -> bool {
+pub fn check_spider_fusion<'a>(g: &impl IsGraph<'a>, v0: V, v1: V) -> bool {
     ((g.vertex_type(v0) == VType::Z && g.vertex_type(v1) == VType::Z) ||
      (g.vertex_type(v0) == VType::X && g.vertex_type(v1) == VType::X)) &&
         g.connected(v0,v1) && g.edge_type(v0,v1) == EType::N
 }
 
-pub fn spider_fusion_unsafe<G: IsGraph>(g: &mut G, v0: V, v1: V) {
+pub fn spider_fusion_unsafe<'a>(g: &mut impl IsGraph<'a>, v0: V, v1: V) {
     for (v,et) in g.incident_edges(v1) {
         if v != v0 {
             g.add_edge_smart(v0, v, et);
@@ -17,7 +17,7 @@ pub fn spider_fusion_unsafe<G: IsGraph>(g: &mut G, v0: V, v1: V) {
     g.remove_vertex(v1);
 }
 
-pub fn spider_fusion<G: IsGraph>(g: &mut G, v0: V, v1: V) -> bool {
+pub fn spider_fusion<'a>(g: &mut impl IsGraph<'a>, v0: V, v1: V) -> bool {
     if check_spider_fusion(g, v0, v1) {
         spider_fusion_unsafe(g, v0, v1); true
     } else { false }
@@ -27,7 +27,7 @@ pub fn spider_fusion<G: IsGraph>(g: &mut G, v0: V, v1: V) -> bool {
 mod tests {
     use super::*;
     use crate::scalar::Scalar;
-    use crate::dense_graph::Graph;
+    use crate::vec_graph::Graph;
     use num::Rational;
 
     #[test]
