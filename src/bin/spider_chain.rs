@@ -1,6 +1,6 @@
 use quizx::graph::*;
-// use quizx::vec_graph::Graph;
-use quizx::hash_graph::Graph;
+use quizx::vec_graph::Graph;
+// use quizx::hash_graph::Graph;
 use quizx::basic_rules::*;
 use std::time::Instant;
 
