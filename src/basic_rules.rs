@@ -77,7 +77,7 @@ pub fn pivot_unsafe(g: &mut impl IsGraph, v0: V, v1: V) {
     let ns1: Vec<V> = g.neighbors(v1).collect();
     let mut z: i32 = 0; // the number of neighbors of v0 and v1
     for &n0 in &ns0 {
-        g.add_to_phase(v0, p1);
+        g.add_to_phase(n0, p1);
         for &n1 in &ns1 {
             if n0 != v1 && n1 != v0 {
                 if n0 != n1 {
@@ -236,5 +236,52 @@ mod tests {
         let fail = local_comp(&mut g, 1);
         assert!(!fail, "Local comp should not match");
         assert_eq!(g,h);
+    }
+
+    #[test]
+    fn pivot_1() {
+        let mut g = Graph::new();
+
+        for _ in 0..7 { g.add_vertex(VType::Z); }
+        g.set_phase(3, Rational::new(1,1));
+        for i in 0..3 { g.add_edge_with_type(i, 3, EType::H); }
+        g.add_edge_with_type(3, 4, EType::H);
+        for i in 5..7 { g.add_edge_with_type(4, i, EType::H); }
+
+        assert_eq!(g.num_vertices(), 7);
+        assert_eq!(g.num_edges(), 6);
+
+        let success = pivot(&mut g, 3, 4);
+        assert!(success, "Pivot should match");
+
+        assert_eq!(g.num_vertices(), 5);
+        assert_eq!(g.num_edges(), 6);
+
+        assert_eq!(g.phase(0), Rational::new(0,1));
+        assert_eq!(g.phase(6), Rational::new(1,1));
+    }
+
+    #[test]
+    fn pivot_2() {
+        let mut g = Graph::new();
+
+        for _ in 0..7 { g.add_vertex(VType::Z); }
+        g.set_phase(3, Rational::new(1,1));
+        g.set_phase(4, Rational::new(1,1));
+        for i in 0..3 { g.add_edge_with_type(i, 3, EType::H); }
+        g.add_edge_with_type(3, 4, EType::H);
+        for i in 5..7 { g.add_edge_with_type(4, i, EType::H); }
+
+        assert_eq!(g.num_vertices(), 7);
+        assert_eq!(g.num_edges(), 6);
+
+        let success = pivot(&mut g, 3, 4);
+        assert!(success, "Pivot should match");
+
+        assert_eq!(g.num_vertices(), 5);
+        assert_eq!(g.num_edges(), 6);
+
+        assert_eq!(g.phase(0), Rational::new(1,1));
+        assert_eq!(g.phase(6), Rational::new(1,1));
     }
 }
