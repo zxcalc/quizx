@@ -4,6 +4,16 @@ use num::integer;
 use std::fmt;
 use approx::AbsDiffEq;
 
+pub trait Phase {
+    fn mod2(&self) -> Self;
+}
+
+impl Phase for Rational {
+    fn mod2(&self) -> Rational {
+       Rational::new(*self.numer() % (2 * *self.denom()), *self.denom())
+    }
+}
+
 /// A type for exact and approximate representation of Scalars.
 /// Note that '==' is only reliable when the scalar is Exact
 /// and N is a power of 2.
@@ -262,7 +272,7 @@ mod tests {
         let t = Scalar::Exact(-1, vec![7, 8]);
         assert_abs_diff_eq!((&s * &t).to_float(), s.to_float() * t.to_float());
     }
-    
+
     #[test]
     fn phases() {
         assert_abs_diff_eq!(

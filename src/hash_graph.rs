@@ -1,5 +1,5 @@
 use crate::graph::*;
-use crate::scalar::Scalar;
+use crate::scalar::*;
 use rustc_hash::FxHashMap;
 use num::rational::Rational;
 use std::iter::FromIterator;
@@ -77,20 +77,6 @@ impl IsGraph for Graph {
         self.nume
     }
 
-    /// Iterator for the vertices in a graph.
-    /// ```
-    /// use quizx::graph::*;
-    ///
-    /// let mut g = Graph::new();
-    /// g.add_vertex(VType::Z);
-    /// g.add_vertex(VType::X);
-    /// let mut k = 0;
-    /// for _ in g.vertices() {
-    ///   k += 1;
-    /// }
-    ///
-    /// assert_eq!(k, 2);
-    ///
     // fn vertices(&self) -> VertexIter {
     //     VertexIter { inner: self.vdata.keys() }
     // }
@@ -198,7 +184,7 @@ impl IsGraph for Graph {
     fn set_phase(&mut self, v: V, phase: Rational) {
         self.vdata.get_mut(&v)
             .expect("Vertex not found")
-            .phase = phase;
+            .phase = phase.mod2();
     }
 
     fn phase(&self, v: V) -> Rational {
@@ -208,9 +194,11 @@ impl IsGraph for Graph {
     }
 
     fn add_to_phase(&mut self, v: V, phase: Rational) {
-        self.vdata.get_mut(&v)
-            .expect("Vertex not found")
-            .phase += phase;
+        if let Some(d) = self.vdata.get_mut(&v) {
+            d.phase = (d.phase + phase).mod2();
+        } else {
+            panic!("Vertex not found");
+        }
     }
 
     fn set_vertex_type(&mut self, v: V, ty: VType) {
@@ -293,8 +281,8 @@ impl IsGraph for Graph {
             .expect("Vertex not found")
             .len()
     }
-    fn scalar(&self) -> &Scalar { &self.scalar }
-    fn set_scalar(&mut self, s: Scalar) { self.scalar = s; }
+
+    fn scalar(&mut self) -> &mut Scalar { &mut self.scalar }
 
     fn find_edge<F>(&self, f: F) -> Option<(V,V,EType)>
         where F : Fn(V,V,EType) -> bool

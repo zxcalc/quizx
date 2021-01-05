@@ -38,7 +38,17 @@ impl<'a> Iterator for NeighborIter<'a> {
             NeighborIter::Hash(inner) => inner.next().map(|&v| v)
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = match self {
+            NeighborIter::Vec(inner)  => inner.len(),
+            NeighborIter::Hash(inner) => inner.len(),
+        };
+        (len, Some(len))
+    }
 }
+
+impl<'a> ExactSizeIterator for NeighborIter<'a> {}
 
 
 pub enum IncidentEdgeIter<'a> {
@@ -54,7 +64,17 @@ impl<'a> Iterator for IncidentEdgeIter<'a> {
             IncidentEdgeIter::Hash(inner) => inner.next().map(|(&v,&et)| (v,et))
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = match self {
+            IncidentEdgeIter::Vec(inner)  => inner.len(),
+            IncidentEdgeIter::Hash(inner) => inner.len(),
+        };
+        (len, Some(len))
+    }
 }
+
+impl<'a> ExactSizeIterator for IncidentEdgeIter<'a> {}
 
 pub trait IsGraph {
     fn num_vertices(&self) -> usize;
@@ -81,8 +101,7 @@ pub trait IsGraph {
     fn neighbors(&self, v: V) -> NeighborIter;
     fn incident_edges(&self, v: V) -> IncidentEdgeIter;
     fn degree(&self, v: V) -> usize;
-    fn scalar(&self) -> &Scalar;
-    fn set_scalar(&mut self, s: Scalar);
+    fn scalar(&mut self) -> &mut Scalar;
     fn find_edge<F>(&self, f: F) -> Option<(V,V,EType)>
         where F : Fn(V,V,EType) -> bool;
     fn find_vertex<F>(&self, f: F) -> Option<V>

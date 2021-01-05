@@ -1,5 +1,5 @@
 use crate::graph::*;
-use crate::scalar::Scalar;
+use crate::scalar::*;
 use num::rational::Rational;
 use std::iter::FromIterator;
 
@@ -81,11 +81,11 @@ impl Graph {
     /// is used by remove_edge and remove_vertex to make the latter slightly
     /// more efficient.
     fn remove_half_edge(&mut self, s: V, t: V) {
-        if let Some(nhd) = self.edata.get_mut(s).expect("Source vertex not found") {
+        if let Some(Some(nhd)) = self.edata.get_mut(s) {
             let i = Graph::index(&nhd,t).expect("Target vertex not found");
             nhd.swap_remove(i);
         } else {
-            panic!("Source vertex deleted before half-edge");
+            panic!("Source vertex not found");
         }
     }
 }
@@ -99,20 +99,6 @@ impl IsGraph for Graph {
         self.nume
     }
 
-    /// Iterator for the vertices in a graph.
-    /// ```
-    /// use quizx::graph::*;
-    ///
-    /// let mut g = Graph::new();
-    /// g.add_vertex(VType::Z);
-    /// g.add_vertex(VType::X);
-    /// let mut k = 0;
-    /// for _ in g.vertices() {
-    ///   k += 1;
-    /// }
-    ///
-    /// assert_eq!(k, 2);
-    ///
     // fn vertices(&self) -> VertexIter {
     //     VertexIter { inner: self.vdata.keys() }
     // }
@@ -152,16 +138,16 @@ impl IsGraph for Graph {
     fn add_edge_with_type(&mut self, s: V, t: V, ety: EType) {
         self.nume += 1;
 
-        if let Some(nhd) = self.edata.get_mut(s).expect("Source vertex not found") {
+        if let Some(Some(nhd)) = self.edata.get_mut(s) {
             nhd.push((t,ety));
         } else {
-            panic!("Source vertex deleted");
+            panic!("Source vertex not found");
         }
 
-        if let Some(nhd) = self.edata.get_mut(t).expect("Target vertex not found") {
+        if let Some(Some(nhd)) = self.edata.get_mut(t) {
             nhd.push((s,ety));
         } else {
-            panic!("Target vertex deleted");
+            panic!("Target vertex not found");
         }
     }
 
@@ -221,9 +207,11 @@ impl IsGraph for Graph {
     }
 
     fn set_phase(&mut self, v: V, phase: Rational) {
-        self.vdata[v]
-            .expect("Vertex not found")
-            .phase = phase;
+        if let Some(Some(d)) = self.vdata.get_mut(v) {
+            d.phase = phase.mod2();
+        } else {
+            panic!("Vertex not found");
+        }
     }
 
     fn phase(&self, v: V) -> Rational {
@@ -233,15 +221,19 @@ impl IsGraph for Graph {
     }
 
     fn add_to_phase(&mut self, v: V, phase: Rational) {
-        self.vdata[v]
-            .expect("Vertex not found")
-            .phase += phase;
+        if let Some(Some(d)) = self.vdata.get_mut(v) {
+            d.phase = (d.phase + phase).mod2();
+        } else {
+            panic!("Vertex not found");
+        }
     }
 
     fn set_vertex_type(&mut self, v: V, ty: VType) {
-        self.vdata[v]
-            .expect("Vertex not found")
-            .ty = ty;
+        if let Some(Some(d)) = self.vdata.get_mut(v) {
+            d.ty = ty;
+        } else {
+            panic!("Vertex not found");
+        }
     }
 
     fn vertex_type(&self, v: V) -> VType {
@@ -251,18 +243,18 @@ impl IsGraph for Graph {
     }
 
     fn set_edge_type(&mut self, s: V, t: V, ety: EType) {
-        if let Some(nhd) = self.edata.get_mut(s).expect("Source vertex not found") {
+        if let Some(Some(nhd)) = self.edata.get_mut(s) {
             let i = Graph::index(&nhd, t).expect("Edge not found");
             nhd[i] = (t, ety);
         } else {
-            panic!("Source vertex deleted");
+            panic!("Source vertex not found");
         }
 
-        if let Some(nhd) = self.edata.get_mut(t).expect("Target vertex not found") {
+        if let Some(Some(nhd)) = self.edata.get_mut(t) {
             let i = Graph::index(&nhd, s).expect("Edge not found");
             nhd[i] = (s, ety);
         } else {
-            panic!("Target vertex deleted");
+            panic!("Target vertex not found");
         }
     }
 
@@ -276,9 +268,12 @@ impl IsGraph for Graph {
 
 
     fn set_coord(&mut self, v: V, coord: (i32,i32)) {
-        let mut d = self.vdata[v].expect("Vertex not found");
-        d.qubit = coord.0;
-        d.row = coord.1;
+        if let Some(Some(d)) = self.vdata.get_mut(v) {
+            d.qubit = coord.0;
+            d.row = coord.1;
+        } else {
+            panic!("Vertex not found")
+        }
     }
 
     fn coord(&mut self, v: V) -> (i32,i32) {
@@ -287,8 +282,11 @@ impl IsGraph for Graph {
     }
 
     fn set_qubit(&mut self, v: V, qubit: i32) {
-        self.vdata[v]
-            .expect("Vertex not found").qubit = qubit;
+        if let Some(Some(d)) = self.vdata.get_mut(v) {
+            d.qubit = qubit;
+        } else {
+            panic!("Vertex not found")
+        }
     }
 
     fn qubit(&mut self, v: V) -> i32 {
@@ -297,8 +295,11 @@ impl IsGraph for Graph {
     }
 
     fn set_row(&mut self, v: V, row: i32) {
-        self.vdata[v]
-            .expect("Vertex not found").row = row;
+        if let Some(Some(d)) = self.vdata.get_mut(v) {
+            d.row = row;
+        } else {
+            panic!("Vertex not found")
+        }
     }
 
     fn row(&mut self, v: V) -> i32 {
@@ -330,8 +331,7 @@ impl IsGraph for Graph {
         }
     }
 
-    fn scalar(&self) -> &Scalar { &self.scalar }
-    fn set_scalar(&mut self, s: Scalar) { self.scalar = s; }
+    fn scalar(&mut self) -> &mut Scalar { &mut self.scalar }
 
     fn find_edge<F>(&self, f: F) -> Option<(V,V,EType)>
         where F : Fn(V,V,EType) -> bool
@@ -346,7 +346,7 @@ impl IsGraph for Graph {
 
         None
     }
-    
+
     fn find_vertex<F>(&self, f: F) -> Option<V>
         where F : Fn(V) -> bool
     {
