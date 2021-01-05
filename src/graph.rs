@@ -25,8 +25,38 @@ pub enum EType {
     H, // hadamard edge
 }
 
-pub trait IsGraph<'a> {
-    type NeighborIter: Iterator<Item=V>;
+pub enum NeighborIter<'a> {
+    Vec(std::slice::Iter<'a,(V,EType)>),
+    Hash(std::collections::hash_map::Keys<'a,V,EType>)
+}
+
+impl<'a> Iterator for NeighborIter<'a> {
+    type Item = V;
+    fn next(&mut self) -> Option<V> {
+        match self {
+            NeighborIter::Vec(inner)  => inner.next().map(|&(v,_)| v),
+            NeighborIter::Hash(inner) => inner.next().map(|&v| v)
+        }
+    }
+}
+
+
+pub enum IncidentEdgeIter<'a> {
+    Vec(std::slice::Iter<'a,(V,EType)>),
+    Hash(std::collections::hash_map::Iter<'a,V,EType>)
+}
+
+impl<'a> Iterator for IncidentEdgeIter<'a> {
+    type Item = (V,EType);
+    fn next(&mut self) -> Option<(V,EType)> {
+        match self {
+            IncidentEdgeIter::Vec(inner)  => inner.next().map(|&x| x),
+            IncidentEdgeIter::Hash(inner) => inner.next().map(|(&v,&et)| (v,et))
+        }
+    }
+}
+
+pub trait IsGraph {
     fn num_vertices(&self) -> usize;
     fn num_edges(&self) -> usize;
     fn add_vertex(&mut self, ty: VType) -> V;
@@ -48,11 +78,15 @@ pub trait IsGraph<'a> {
     fn qubit(&mut self, v: V) -> i32;
     fn set_row(&mut self, v: V, row: i32);
     fn row(&mut self, v: V) -> i32;
-    fn neighbors(&'a self, v: V) -> Self::NeighborIter;
-    fn incident_edges(&self, v: V) -> Vec<(V,EType)>;
+    fn neighbors(&self, v: V) -> NeighborIter;
+    fn incident_edges(&self, v: V) -> IncidentEdgeIter;
     fn degree(&self, v: V) -> usize;
     fn scalar(&self) -> &Scalar;
     fn set_scalar(&mut self, s: Scalar);
+    fn find_edge<F>(&self, f: F) -> Option<(V,V,EType)>
+        where F : Fn(V,V,EType) -> bool;
+    fn find_vertex<F>(&self, f: F) -> Option<V>
+        where F : Fn(V) -> bool;
 
     fn add_edge(&mut self, s: V, t: V) {
         self.add_edge_with_type(s, t, EType::N);

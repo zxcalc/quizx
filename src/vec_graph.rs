@@ -53,17 +53,6 @@ pub struct Graph {
 //     }
 // }
 
-pub struct NeighborIter<'a> {
-    inner: std::slice::Iter<'a,(V,EType)>
-}
-
-impl<'a> Iterator for NeighborIter<'a> {
-    type Item = V;
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(|&(v,_)| v)
-    }
-}
-
 impl Graph {
     pub fn new() -> Graph {
         Graph {
@@ -101,9 +90,7 @@ impl Graph {
     }
 }
 
-impl<'a> IsGraph<'a> for Graph {
-    type NeighborIter = NeighborIter<'a>;
-
+impl IsGraph for Graph {
     fn num_vertices(&self) -> usize {
         self.numv
     }
@@ -319,18 +306,17 @@ impl<'a> IsGraph<'a> for Graph {
             .expect("Vertex not found").row
     }
 
-    fn neighbors(&'a self, v: V) -> Self::NeighborIter {
+    fn neighbors(&self, v: V) -> NeighborIter {
         if let Some(Some(nhd)) = self.edata.get(v) {
-            NeighborIter { inner: nhd.iter() }
+            NeighborIter::Vec(nhd.iter())
         } else {
             panic!("Vertex not found")
         }
     }
 
-    fn incident_edges(&self, v: V) -> Vec<(V,EType)> {
+    fn incident_edges(&self, v: V) -> IncidentEdgeIter {
         if let Some(Some(nhd)) = self.edata.get(v) {
-            let it = nhd.iter().map(|x| *x);
-            it.collect()
+            IncidentEdgeIter::Vec(nhd.iter())
         } else {
             panic!("Vertex not found")
         }
@@ -346,6 +332,30 @@ impl<'a> IsGraph<'a> for Graph {
 
     fn scalar(&self) -> &Scalar { &self.scalar }
     fn set_scalar(&mut self, s: Scalar) { self.scalar = s; }
+
+    fn find_edge<F>(&self, f: F) -> Option<(V,V,EType)>
+        where F : Fn(V,V,EType) -> bool
+    {
+        for (v0, nhd0) in self.edata.iter().enumerate() {
+            if let Some(nhd) = nhd0 {
+                for &(v1, et) in nhd.iter() {
+                    if v0 <= v1 && f(v0,v1,et) { return Some((v0,v1,et)); }
+                }
+            };
+        }
+
+        None
+    }
+    
+    fn find_vertex<F>(&self, f: F) -> Option<V>
+        where F : Fn(V) -> bool
+    {
+        for (v, d) in self.vdata.iter().enumerate() {
+            if d.is_some() && f(v) { return Some(v); }
+        }
+
+        None
+    }
 }
 
 #[cfg(test)]

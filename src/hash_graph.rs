@@ -18,31 +18,9 @@ pub struct Graph {
     pub scalar: Scalar,
 }
 
-pub struct VertexIter<'a> {
-    inner: std::collections::hash_map::Keys<'a,V,VData>,
-}
-
-impl<'a> Iterator for VertexIter<'a> {
-    type Item = V;
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(|x| *x)
-    }
-}
-
 pub struct EdgeIter<'a> {
     outer: std::collections::hash_map::Iter<'a,V,VTab<EType>>,
     inner: Option<(V, std::collections::hash_map::Iter<'a,V,EType>)>,
-}
-
-pub struct NeighborIter<'a> {
-    inner: std::collections::hash_map::Keys<'a,V,EType>
-}
-
-impl<'a> Iterator for NeighborIter<'a> {
-    type Item = V;
-    fn next(&mut self) -> Option<V> {
-        self.inner.next().map(|k| *k)
-    }
 }
 
 impl<'a> Iterator for EdgeIter<'a> {
@@ -90,9 +68,7 @@ impl Graph {
     }
 }
 
-impl<'a> IsGraph<'a> for Graph {
-    type NeighborIter = NeighborIter<'a>;
-
+impl IsGraph for Graph {
     fn num_vertices(&self) -> usize {
         self.numv
     }
@@ -298,18 +274,18 @@ impl<'a> IsGraph<'a> for Graph {
             .expect("Vertex not found").row
     }
 
-    fn neighbors(&'a self, v: V) -> Self::NeighborIter {
-        NeighborIter {
-            inner: self.edata.get(&v)
-                .expect("Vertex not found")
-                .keys()
-        }
+    fn neighbors(&self, v: V) -> NeighborIter {
+        NeighborIter::Hash(
+            self.edata.get(&v)
+            .expect("Vertex not found")
+            .keys())
     }
 
-    fn incident_edges(&self, v: V) -> Vec<(V,EType)> {
-        self.edata.get(&v)
+    fn incident_edges(&self, v: V) -> IncidentEdgeIter {
+        IncidentEdgeIter::Hash(
+            self.edata.get(&v)
             .expect("Vertex not found")
-            .iter().map(|(k,v)| (*k,*v)).collect()
+            .iter())
     }
 
     fn degree(&self, v: V) -> usize {
@@ -319,6 +295,28 @@ impl<'a> IsGraph<'a> for Graph {
     }
     fn scalar(&self) -> &Scalar { &self.scalar }
     fn set_scalar(&mut self, s: Scalar) { self.scalar = s; }
+
+    fn find_edge<F>(&self, f: F) -> Option<(V,V,EType)>
+        where F : Fn(V,V,EType) -> bool
+    {
+        for (&v0, tab) in self.edata.iter() {
+            for (&v1,&et) in tab.iter() {
+                if f(v0,v1,et) { return Some((v0,v1,et)); }
+            }
+        }
+        
+        None
+    }
+
+    fn find_vertex<F>(&self, f: F) -> Option<V>
+        where F : Fn(V) -> bool
+    {
+        for &v in self.vdata.keys() {
+            if f(v) { return Some(v); }
+        }
+
+        None
+    }
 }
 
 #[cfg(test)]

@@ -1,13 +1,14 @@
 use crate::graph::*;
+use std::iter::FromIterator;
 
-pub fn check_spider_fusion<'a>(g: &impl IsGraph<'a>, v0: V, v1: V) -> bool {
+pub fn check_spider_fusion(g: &impl IsGraph, v0: V, v1: V) -> bool {
     ((g.vertex_type(v0) == VType::Z && g.vertex_type(v1) == VType::Z) ||
      (g.vertex_type(v0) == VType::X && g.vertex_type(v1) == VType::X)) &&
         g.connected(v0,v1) && g.edge_type(v0,v1) == EType::N
 }
 
-pub fn spider_fusion_unsafe<'a>(g: &mut impl IsGraph<'a>, v0: V, v1: V) {
-    for (v,et) in g.incident_edges(v1) {
+pub fn spider_fusion_unsafe(g: &mut impl IsGraph, v0: V, v1: V) {
+    for (v,et) in Vec::from_iter(g.incident_edges(v1)) {
         if v != v0 {
             g.add_edge_smart(v0, v, et);
         }
@@ -17,7 +18,7 @@ pub fn spider_fusion_unsafe<'a>(g: &mut impl IsGraph<'a>, v0: V, v1: V) {
     g.remove_vertex(v1);
 }
 
-pub fn spider_fusion<'a>(g: &mut impl IsGraph<'a>, v0: V, v1: V) -> bool {
+pub fn spider_fusion(g: &mut impl IsGraph, v0: V, v1: V) -> bool {
     if check_spider_fusion(g, v0, v1) {
         spider_fusion_unsafe(g, v0, v1); true
     } else { false }
