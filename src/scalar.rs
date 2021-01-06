@@ -308,4 +308,3 @@ mod tests {
         assert_abs_diff_eq!(s, Scalar::zero());
     }
 }
-
