@@ -77,6 +77,10 @@ impl IsGraph for Graph {
         self.nume
     }
 
+    fn vertices(&self) -> VIter {
+        VIter::Hash(self.vdata.keys())
+    }
+
     // fn vertices(&self) -> VertexIter {
     //     VertexIter { inner: self.vdata.keys() }
     // }
@@ -292,7 +296,7 @@ impl IsGraph for Graph {
                 if f(v0,v1,et) { return Some((v0,v1,et)); }
             }
         }
-        
+
         None
     }
 

@@ -1,5 +1,5 @@
-use num::rational::Rational;
 use crate::scalar::Scalar;
+use num::rational::Rational;
 
 pub type V = usize;
 
@@ -24,6 +24,37 @@ pub enum EType {
     N, // normal edge
     H, // hadamard edge
 }
+
+pub enum VIter<'a> {
+    Vec(usize,std::iter::Enumerate<std::slice::Iter<'a,Option<VData>>>),
+    Hash(std::collections::hash_map::Keys<'a,V,VData>)
+}
+
+impl<'a> Iterator for VIter<'a> {
+    type Item = V;
+    fn next(&mut self) -> Option<V> {
+        match self {
+            VIter::Vec(_,inner)  => {
+                match inner.next() {
+                    Some((v, Some(_))) => Some(v),
+                    Some((_, None)) => self.next(),
+                    None => None
+                }
+            },
+            VIter::Hash(inner) => inner.next().map(|&v| v)
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = match self {
+            VIter::Vec(sz,_)  => *sz,
+            VIter::Hash(inner) => inner.len(),
+        };
+        (len, Some(len))
+    }
+}
+
+impl<'a> ExactSizeIterator for VIter<'a> {}
 
 pub enum NeighborIter<'a> {
     Vec(std::slice::Iter<'a,(V,EType)>),
@@ -79,6 +110,7 @@ impl<'a> ExactSizeIterator for IncidentEdgeIter<'a> {}
 pub trait IsGraph {
     fn num_vertices(&self) -> usize;
     fn num_edges(&self) -> usize;
+    fn vertices(&self) -> VIter;
     fn add_vertex(&mut self, ty: VType) -> V;
     fn add_vertex_with_data(&mut self, d: VData) -> V;
     fn remove_vertex(&mut self, v: V);

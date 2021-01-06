@@ -99,6 +99,10 @@ impl IsGraph for Graph {
         self.nume
     }
 
+    fn vertices(&self) -> VIter {
+        VIter::Vec(self.numv, self.vdata.iter().enumerate())
+    }
+
     // fn vertices(&self) -> VertexIter {
     //     VertexIter { inner: self.vdata.keys() }
     // }
