@@ -88,6 +88,25 @@ impl Graph {
             panic!("Source vertex not found");
         }
     }
+
+    // Here are some simpler implementations of the vertices and edges functions,
+    // but they can't be moved into the trait because they return "impl" types.
+    // pub fn vertices2(&self) -> impl Iterator<Item=V> + '_ {
+    //     self.vdata.iter().enumerate().filter_map(|(v,d)| d.map(|_| v))
+    // }
+
+    // pub fn edges2(&self) -> impl Iterator<Item=(V,V,EType)> + '_ {
+    //     self.edata
+    //         .iter()
+    //         .enumerate()
+    //         .filter_map(|(v,tab)| match tab {
+    //             Some(x) => Some(x.iter().filter_map(move |(v1,et)|
+    //                 if v <= *v1 { Some((v, *v1, *et)) } else { None }
+    //                 )),
+    //             None => None
+    //         })
+    //         .flatten()
+    // }
 }
 
 impl IsGraph for Graph {
@@ -101,6 +120,10 @@ impl IsGraph for Graph {
 
     fn vertices(&self) -> VIter {
         VIter::Vec(self.numv, self.vdata.iter().enumerate())
+    }
+
+    fn edges(&self) -> EIter {
+        EIter::Vec(self.nume, self.edata.iter().enumerate(), None)
     }
 
     // fn vertices(&self) -> VertexIter {
@@ -424,36 +447,36 @@ mod tests {
     //     assert_eq!(expected_ws, ws);
     // }
 
-    // #[test]
-    // fn vertex_iterator() {
-    //     let (g, mut expected_vs) = simple_graph();
-    //     let mut vs = Vec::from_iter(g.vertices());
-    //     vs.sort();
-    //     expected_vs.sort();
-    //     assert_eq!(expected_vs, vs);
-    // }
+    #[test]
+    fn vertex_iterator() {
+        let (g, mut expected_vs) = simple_graph();
+        let mut vs = Vec::from_iter(g.vertices());
+        vs.sort();
+        expected_vs.sort();
+        assert_eq!(expected_vs, vs);
+    }
 
-    // #[test]
-    // fn edge_iterator() {
-    //     let (mut g, vs) = simple_graph();
-    //     g.set_edge_type(vs[1], vs[3], EType::H);
+    #[test]
+    fn edge_iterator() {
+        let (mut g, vs) = simple_graph();
+        g.set_edge_type(vs[1], vs[3], EType::H);
 
-    //     let mut edges = Vec::from_iter(g.edges());
-    //     let mut expected_edges = vec![
-    //         (vs[0], vs[2], EType::N),
-    //         (vs[1], vs[3], EType::H),
-    //         (vs[2], vs[4], EType::N),
-    //         (vs[2], vs[5], EType::N),
-    //         (vs[3], vs[4], EType::N),
-    //         (vs[3], vs[5], EType::N),
-    //         (vs[4], vs[6], EType::N),
-    //         (vs[5], vs[7], EType::N),
-    //     ];
+        let mut edges = Vec::from_iter(g.edges());
+        let mut expected_edges = vec![
+            (vs[0], vs[2], EType::N),
+            (vs[1], vs[3], EType::H),
+            (vs[2], vs[4], EType::N),
+            (vs[2], vs[5], EType::N),
+            (vs[3], vs[4], EType::N),
+            (vs[3], vs[5], EType::N),
+            (vs[4], vs[6], EType::N),
+            (vs[5], vs[7], EType::N),
+        ];
 
-    //     edges.sort();
-    //     expected_edges.sort();
-    //     assert_eq!(expected_edges, edges);
-    // }
+        edges.sort();
+        expected_edges.sort();
+        assert_eq!(expected_edges, edges);
+    }
 
     #[test]
     fn smart_edges_zx() {

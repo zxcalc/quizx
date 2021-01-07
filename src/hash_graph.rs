@@ -81,18 +81,9 @@ impl IsGraph for Graph {
         VIter::Hash(self.vdata.keys())
     }
 
-    // fn vertices(&self) -> VertexIter {
-    //     VertexIter { inner: self.vdata.keys() }
-    // }
-
-    // fn edges(&self) -> EdgeIter {
-    //     let mut outer = self.edata.iter();
-    //     let inner = match outer.next() {
-    //         Some((s, h)) => Some((*s, h.iter())),
-    //         None => None,
-    //     };
-    //     EdgeIter { outer, inner }
-    // }
+    fn edges(&self) -> EIter {
+        EIter::Hash(self.nume, self.edata.iter(), None)
+    }
 
     fn add_vertex(&mut self, ty: VType) -> V {
         self.add_vertex_with_data(VData { ty, phase: Rational::new(0,1), qubit: 0, row: 0 })
@@ -373,36 +364,36 @@ mod tests {
     //     assert_eq!(expected_ws, ws);
     // }
 
-    // #[test]
-    // fn vertex_iterator() {
-    //     let (g, mut expected_vs) = simple_graph();
-    //     let mut vs = Vec::from_iter(g.vertices());
-    //     vs.sort();
-    //     expected_vs.sort();
-    //     assert_eq!(expected_vs, vs);
-    // }
+    #[test]
+    fn vertex_iterator() {
+        let (g, mut expected_vs) = simple_graph();
+        let mut vs = Vec::from_iter(g.vertices());
+        vs.sort();
+        expected_vs.sort();
+        assert_eq!(expected_vs, vs);
+    }
 
-    // #[test]
-    // fn edge_iterator() {
-    //     let (mut g, vs) = simple_graph();
-    //     g.set_edge_type(vs[1], vs[3], EType::H);
+    #[test]
+    fn edge_iterator() {
+        let (mut g, vs) = simple_graph();
+        g.set_edge_type(vs[1], vs[3], EType::H);
 
-    //     let mut edges = Vec::from_iter(g.edges());
-    //     let mut expected_edges = vec![
-    //         (vs[0], vs[2], EType::N),
-    //         (vs[1], vs[3], EType::H),
-    //         (vs[2], vs[4], EType::N),
-    //         (vs[2], vs[5], EType::N),
-    //         (vs[3], vs[4], EType::N),
-    //         (vs[3], vs[5], EType::N),
-    //         (vs[4], vs[6], EType::N),
-    //         (vs[5], vs[7], EType::N),
-    //     ];
+        let mut edges = Vec::from_iter(g.edges());
+        let mut expected_edges = vec![
+            (vs[0], vs[2], EType::N),
+            (vs[1], vs[3], EType::H),
+            (vs[2], vs[4], EType::N),
+            (vs[2], vs[5], EType::N),
+            (vs[3], vs[4], EType::N),
+            (vs[3], vs[5], EType::N),
+            (vs[4], vs[6], EType::N),
+            (vs[5], vs[7], EType::N),
+        ];
 
-    //     edges.sort();
-    //     expected_edges.sort();
-    //     assert_eq!(expected_edges, edges);
-    // }
+        edges.sort();
+        expected_edges.sort();
+        assert_eq!(expected_edges, edges);
+    }
 
     #[test]
     fn smart_edges_zx() {

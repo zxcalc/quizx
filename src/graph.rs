@@ -56,6 +56,81 @@ impl<'a> Iterator for VIter<'a> {
 
 impl<'a> ExactSizeIterator for VIter<'a> {}
 
+pub enum EIter<'a> {
+    Vec(usize,
+        std::iter::Enumerate<std::slice::Iter<'a,Option<Vec<(V,EType)>>>>,
+        Option<(V,std::slice::Iter<'a,(V,EType)>)>),
+    Hash(usize,
+         std::collections::hash_map::Iter<'a,V,rustc_hash::FxHashMap<V,EType>>,
+         Option<(V,std::collections::hash_map::Iter<'a,V,EType>)>)
+}
+
+impl<'a> Iterator for EIter<'a> {
+    type Item = (V,V,EType);
+    fn next(&mut self) -> Option<(V,V,EType)> {
+        match self {
+            EIter::Vec(_,outer,inner)  => {
+                match inner {
+                    Some((v, inner1)) => match inner1.next() {
+                        Some((v1,et)) =>
+                            if *v <= *v1 {
+                                Some((*v,*v1,*et))
+                            } else {
+                                self.next()
+                            },
+                        None => {
+                            *inner = None;
+                            self.next()
+                        }
+                    },
+                    None => match outer.next() {
+                        Some((v, Some(tab))) => {
+                            *inner = Some((v, tab.iter()));
+                            self.next()
+                        },
+                        Some((_, None)) => self.next(),
+                        None => None,
+                    }
+                }
+            },
+
+            EIter::Hash(_, outer, inner) => {
+                match inner {
+                    Some((v, inner1)) => match inner1.next() {
+                        Some((v1,et)) =>
+                            if *v <= *v1 {
+                                Some((*v,*v1,*et))
+                            } else {
+                                self.next()
+                            },
+                        None => {
+                            *inner = None;
+                            self.next()
+                        }
+                    },
+                    None => match outer.next() {
+                        Some((v, tab)) => {
+                            *inner = Some((*v, tab.iter()));
+                            self.next()
+                        },
+                        None => None
+                    }
+                }
+            }
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = match self {
+            EIter::Vec(sz, ..)  => *sz,
+            EIter::Hash(sz, ..) => *sz,
+        };
+        (len, Some(len))
+    }
+}
+
+impl<'a> ExactSizeIterator for EIter<'a> {}
+
 pub enum NeighborIter<'a> {
     Vec(std::slice::Iter<'a,(V,EType)>),
     Hash(std::collections::hash_map::Keys<'a,V,EType>)
@@ -111,6 +186,7 @@ pub trait IsGraph {
     fn num_vertices(&self) -> usize;
     fn num_edges(&self) -> usize;
     fn vertices(&self) -> VIter;
+    fn edges(&self) -> EIter;
     fn add_vertex(&mut self, ty: VType) -> V;
     fn add_vertex_with_data(&mut self, d: VData) -> V;
     fn remove_vertex(&mut self, v: V);
