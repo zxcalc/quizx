@@ -126,6 +126,11 @@ impl IsGraph for Graph {
         EIter::Vec(self.nume, self.edata.iter().enumerate(), None)
     }
 
+    fn inputs(&self) -> &Vec<V> { &self.inputs }
+    fn set_inputs(&mut self, inputs: Vec<V>) { self.inputs = inputs; }
+    fn outputs(&self) -> &Vec<V> { &self.outputs }
+    fn set_outputs(&mut self, outputs: Vec<V>) { self.outputs = outputs; }
+
     // fn vertices(&self) -> VertexIter {
     //     VertexIter { inner: self.vdata.keys() }
     // }

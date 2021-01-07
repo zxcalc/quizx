@@ -85,6 +85,11 @@ impl IsGraph for Graph {
         EIter::Hash(self.nume, self.edata.iter(), None)
     }
 
+    fn inputs(&self) -> &Vec<V> { &self.inputs }
+    fn set_inputs(&mut self, inputs: Vec<V>) { self.inputs = inputs; }
+    fn outputs(&self) -> &Vec<V> { &self.outputs }
+    fn set_outputs(&mut self, outputs: Vec<V>) { self.outputs = outputs; }
+
     fn add_vertex(&mut self, ty: VType) -> V {
         self.add_vertex_with_data(VData { ty, phase: Rational::new(0,1), qubit: 0, row: 0 })
     }

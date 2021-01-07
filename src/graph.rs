@@ -1,5 +1,6 @@
 use crate::scalar::Scalar;
 use num::rational::Rational;
+use std::iter::FromIterator;
 
 pub type V = usize;
 
@@ -187,6 +188,10 @@ pub trait IsGraph {
     fn num_edges(&self) -> usize;
     fn vertices(&self) -> VIter;
     fn edges(&self) -> EIter;
+    fn inputs(&self) -> &Vec<V>;
+    fn set_inputs(&mut self, inputs: Vec<V>);
+    fn outputs(&self) -> &Vec<V>;
+    fn set_outputs(&mut self, outputs: Vec<V>);
     fn add_vertex(&mut self, ty: VType) -> V;
     fn add_vertex_with_data(&mut self, d: VData) -> V;
     fn remove_vertex(&mut self, v: V);
@@ -227,5 +232,27 @@ pub trait IsGraph {
         self.edge_type_opt(v0, v1).is_some()
     }
 
+    fn toggle_edge_type(&mut self, v0: V, v1: V) {
+        match self.edge_type(v0, v1) {
+            EType::N => self.set_edge_type(v0,v1,EType::H),
+            EType::H => self.set_edge_type(v0,v1,EType::N),
+        }
+    }
+
+    fn vertex_vec(&self) -> Vec<V> { self.vertices().collect() }
+    fn edge_vec(&self) -> Vec<(V,V,EType)> { self.edges().collect() }
+    fn neighbor_vec(&self, v: V) -> Vec<V> { self.neighbors(v).collect() }
+    fn incident_edge_vec(&self, v: V) -> Vec<(V,EType)> { self.incident_edges(v).collect() }
+
+    fn x_to_z(&mut self) {
+        for v in Vec::from_iter(self.vertices()) {
+            if self.vertex_type(v) == VType::X {
+                self.set_vertex_type(v, VType::Z);
+                for w in Vec::from_iter(self.neighbors(v)) {
+                    self.toggle_edge_type(v,w);
+                }
+            }
+        }
+    }
 }
 
