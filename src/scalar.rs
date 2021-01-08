@@ -1,6 +1,7 @@
 use num::complex::Complex;
 use num::rational::Rational;
 use num::integer;
+pub use num::traits::identities::{Zero,One};
 use std::fmt;
 use approx::AbsDiffEq;
 
@@ -12,6 +13,15 @@ impl Phase for Rational {
     fn mod2(&self) -> Rational {
        Rational::new(*self.numer() % (2 * *self.denom()), *self.denom())
     }
+}
+
+pub trait FromPhase {
+    fn from_phase(p: Rational) -> Self;
+}
+
+pub trait Sqrt2 {
+    fn sqrt2() -> Self;
+    fn one_over_sqrt2() -> Self;
 }
 
 /// A type for exact and approximate representation of Scalars.
@@ -33,14 +43,6 @@ pub enum Scalar {
 use Scalar::{Exact,Float};
 
 impl Scalar {
-    pub fn zero() -> Scalar {
-        Exact(0, vec![0])
-    }
-
-    pub fn one() -> Scalar {
-        Exact(0, vec![1])
-    }
-
     pub fn complex(re: f64, im: f64) -> Scalar {
         Float(Complex::new(re, im))
     }
@@ -77,14 +79,53 @@ impl Scalar {
     }
 
     pub fn mul_phase(&mut self, phase: Rational) {
-        (*self) *= Scalar::phase(phase);
+        (*self) *= Scalar::from_phase(phase);
     }
 
     pub fn to_float(&self) -> Scalar {
         Float(self.float_value())
     }
 
-    pub fn phase(p: Rational) -> Scalar {
+    pub fn one_plus_phase(p: Rational) -> Scalar {
+        let mut s = Scalar::from_phase(p);
+        if let Scalar::Exact(_,ref mut coeffs) = s { coeffs[0] += 1; }
+        s
+    }
+
+    pub fn rt2_pow(p: i32) -> Scalar {
+        Scalar::Exact(p, vec![1])
+    }
+}
+
+impl ndarray::ScalarOperand for Scalar { }
+
+impl Zero for Scalar {
+    fn zero() -> Scalar {
+        Exact(0, vec![0])
+    }
+
+    fn is_zero(&self) -> bool {
+        *self == Scalar::zero()
+    }
+}
+
+impl One for Scalar {
+    fn one() -> Scalar {
+        Exact(0, vec![1])
+    }
+
+    fn is_one(&self) -> bool {
+        *self == Scalar::one()
+    }
+}
+
+impl Sqrt2 for Scalar {
+    fn sqrt2() -> Scalar { Scalar::rt2_pow(1) }
+    fn one_over_sqrt2() -> Scalar { Scalar::rt2_pow(-1) }
+}
+
+impl FromPhase for Scalar {
+    fn from_phase(p: Rational) -> Scalar {
         let mut rnumer = *p.numer();
         let mut rdenom = *p.denom();
 
@@ -106,17 +147,8 @@ impl Scalar {
 
         Scalar::Exact(0, coeffs)
     }
-
-    pub fn one_plus_phase(p: Rational) -> Scalar {
-        let mut s = Scalar::phase(p);
-        if let Scalar::Exact(_,ref mut coeffs) = s { coeffs[0] += 1; }
-        s
-    }
-
-    pub fn rt2_pow(p: i32) -> Scalar {
-        Scalar::Exact(p, vec![1])
-    }
 }
+
 
 impl fmt::Display for Scalar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -202,6 +234,60 @@ impl<'a> std::ops::MulAssign<&'a Scalar> for Scalar {
     }
 }
 
+// The main implementation of the Add trait uses references, so we don't need
+// to make a copy of the scalars to multiply them.
+impl<'a, 'b> std::ops::Add<&'b Scalar> for &'a Scalar {
+    type Output = Scalar;
+
+    fn add(self, rhs: &Scalar) -> Self::Output {
+        match (self,rhs) {
+            (Float(c), x) => Float(c + x.float_value()),
+            (x, Float(c)) => Float(x.float_value() + c),
+            (Exact(pow0, coeffs0), Exact(pow1, coeffs1)) => {
+                if pow0 != pow1 {
+                    // if rt2 powers don't match, we have to fall back on float repr
+                    Float(self.float_value() + rhs.float_value())
+                } else {
+                    let (lcm, pad0, pad1) = if coeffs0.len() == coeffs1.len() {
+                        (coeffs0.len(), 1, 1)
+                    } else {
+                        let lcm0 = integer::lcm(coeffs0.len(), coeffs1.len());
+                        (lcm0, lcm0 / coeffs0.len(), lcm0 / coeffs1.len())
+                    };
+
+                    let mut coeffs = vec![0; lcm];
+
+                    for (i,x) in coeffs0.iter().enumerate() {
+                        coeffs[i*pad0] += x;
+                    }
+
+                    for (i,x) in coeffs1.iter().enumerate() {
+                        coeffs[i*pad1] += x;
+                    }
+
+                    Exact(*pow0, coeffs)
+                }
+            },
+        }
+    }
+}
+
+// These 3 variations take ownership of one or both args
+impl std::ops::Add<Scalar> for Scalar {
+    type Output = Scalar;
+    fn add(self, rhs: Scalar) -> Self::Output { &self * &rhs }
+}
+
+impl<'a> std::ops::Add<Scalar> for &'a Scalar {
+    type Output = Scalar;
+    fn add(self, rhs: Scalar) -> Self::Output { self * &rhs }
+}
+
+impl<'a> std::ops::Add<&'a Scalar> for Scalar {
+    type Output = Scalar;
+    fn add(self, rhs: &Scalar) -> Self::Output { &self * rhs }
+}
+
 impl AbsDiffEq for Scalar {
     type Epsilon = <f64 as AbsDiffEq>::Epsilon;
 
@@ -276,17 +362,17 @@ mod tests {
     #[test]
     fn phases() {
         assert_abs_diff_eq!(
-            Scalar::phase(Rational::new(4,3)) * Scalar::phase(Rational::new(2,5)),
-            Scalar::phase(Rational::new(4,3) + Rational::new(2,5))
+            Scalar::from_phase(Rational::new(4,3)) * Scalar::from_phase(Rational::new(2,5)),
+            Scalar::from_phase(Rational::new(4,3) + Rational::new(2,5))
         );
 
-        assert_abs_diff_eq!(Scalar::phase(Rational::new(0,1)), Scalar::one());
-        assert_abs_diff_eq!(Scalar::phase(Rational::new(1,1)), Scalar::real(-1.0));
-        assert_abs_diff_eq!(Scalar::phase(Rational::new(1,2)), Scalar::complex(0.0, 1.0));
-        assert_abs_diff_eq!(Scalar::phase(Rational::new(-1,2)), Scalar::complex(0.0, -1.0));
-        assert_abs_diff_eq!(Scalar::phase(Rational::new(1,4)), Scalar::Exact(0, vec![0,1,0,0]));
-        assert_abs_diff_eq!(Scalar::phase(Rational::new(3,4)), Scalar::Exact(0, vec![0,0,0,1]));
-        assert_abs_diff_eq!(Scalar::phase(Rational::new(7,4)), Scalar::Exact(0, vec![0,0,0,-1]));
+        assert_abs_diff_eq!(Scalar::from_phase(Rational::new(0,1)), Scalar::one());
+        assert_abs_diff_eq!(Scalar::from_phase(Rational::new(1,1)), Scalar::real(-1.0));
+        assert_abs_diff_eq!(Scalar::from_phase(Rational::new(1,2)), Scalar::complex(0.0, 1.0));
+        assert_abs_diff_eq!(Scalar::from_phase(Rational::new(-1,2)), Scalar::complex(0.0, -1.0));
+        assert_abs_diff_eq!(Scalar::from_phase(Rational::new(1,4)), Scalar::Exact(0, vec![0,1,0,0]));
+        assert_abs_diff_eq!(Scalar::from_phase(Rational::new(3,4)), Scalar::Exact(0, vec![0,0,0,1]));
+        assert_abs_diff_eq!(Scalar::from_phase(Rational::new(7,4)), Scalar::Exact(0, vec![0,0,0,-1]));
     }
 
     #[test]

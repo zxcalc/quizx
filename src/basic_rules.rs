@@ -115,7 +115,7 @@ pub fn pivot(g: &mut impl IsGraph, v0: V, v1: V) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scalar::Scalar;
+    use crate::scalar::*;
     use crate::vec_graph::Graph;
     use num::Rational;
 
@@ -230,7 +230,7 @@ mod tests {
 
         assert_eq!(*g.scalar(),
             Scalar::rt2_pow((4-1)*(4-2)/2) *
-            Scalar::phase(Rational::new(1,4)));
+            Scalar::from_phase(Rational::new(1,4)));
 
         let h = g.clone();
         let fail = local_comp(&mut g, 1);

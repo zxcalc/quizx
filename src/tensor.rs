@@ -1,16 +1,31 @@
 // use crate::scalar::*;
 use crate::graph::*;
+use crate::scalar::*;
 use num::{Complex,Rational};
-use num::traits::identities::*;
 use ndarray::prelude::*;
-use ndarray::{Array, Axis, stack};
+use ndarray::{Array, Axis, stack, ScalarOperand};
 use std::collections::VecDeque;
 use rustc_hash::FxHashMap;
 
-pub type ComplexTensor = Array<Complex<f64>,IxDyn>;
-pub type ComplexMatrix = Array<Complex<f64>,Ix2>;
+pub type Tensor<A> = Array<A,IxDyn>;
+pub type Matrix<A> = Array<A,Ix2>;
 
-fn compute_tensor<T: IsGraph + Clone>(graph: &T) -> ComplexTensor {
+impl Sqrt2 for Complex<f64> {
+    fn sqrt2() -> Complex<f64> { Complex::new(f64::sqrt(2.0), 0.0) }
+    fn one_over_sqrt2() -> Complex<f64> { Complex::new(1.0 / f64::sqrt(2.0), 0.0) }
+}
+
+impl FromPhase for Complex<f64> {
+    fn from_phase(p: Rational) -> Complex<f64> {
+        let exp = (*p.numer() as f64) / (*p.denom() as f64);
+        Complex::new(-1.0, 0.0).powf(exp)
+    }
+}
+
+fn compute_tensor<G,A>(graph: &G) -> Tensor<A>
+    where G: IsGraph + Clone,
+          A: Copy + Zero + One + Sqrt2 + FromPhase + ScalarOperand
+{
     let mut g = graph.clone();
     g.x_to_z();
     // H-boxes are not implemented yet
@@ -21,7 +36,7 @@ fn compute_tensor<T: IsGraph + Clone>(graph: &T) -> ComplexTensor {
         }
     }
 
-    let mut a = array![Complex::one()].into_dyn();
+    let mut a = array![A::one()].into_dyn();
     let inp = g.inputs().iter().copied();
     let mid = g.vertices().filter(|&v| g.vertex_type(v) != VType::B);
     let outp = g.outputs().iter().copied();
@@ -37,11 +52,13 @@ fn compute_tensor<T: IsGraph + Clone>(graph: &T) -> ComplexTensor {
     let mut indexv: VecDeque<V> = VecDeque::new();
     let mut seenv: FxHashMap<V,usize> = FxHashMap::default();
 
-    let (delta, had): (ComplexMatrix,ComplexMatrix) = {
-        let o = Complex::one();
-        let z = Complex::zero();
-        let one_over_rt2 = Complex::new(1.0 / f64::sqrt(2.0), 0.0);
-        (array![[o,z],[z,o]], one_over_rt2 * array![[o,o],[o,-o]])
+    let (delta, had): (Matrix<A>,Matrix<A>) = {
+        let o = A::one();
+        let z = A::zero();
+        let minus_one = A::from_phase(Rational::new(1,1));
+        let one_over_rt2 = A::one_over_sqrt2();
+        (array![[o,z],[z,o]],
+         array![[o,o],[o,minus_one]] * one_over_rt2)
     };
 
     let mut fst = true;
@@ -50,18 +67,18 @@ fn compute_tensor<T: IsGraph + Clone>(graph: &T) -> ComplexTensor {
         let p = g.phase(v);
         if p == Rational::new(0,1) {
             if fst {
-                a = array![Complex::one(), Complex::one()].into_dyn();
+                a = array![A::one(), A::one()].into_dyn();
                 fst = false;
             } else {
                 a = stack![Axis(0), a, a];
             }
         } else {
-            let f = Complex::new(-1.0, 0.0).powf((*p.numer() as f64) / (*p.denom() as f64));
+            let f = A::from_phase(p);
             if fst {
-                a = array![Complex::one(), f].into_dyn();
+                a = array![A::one(), f].into_dyn();
                 fst = false;
             } else {
-                a = stack![Axis(0), a, f * &a];
+                a = stack![Axis(0), a, &a * f];
             }
         }
 
@@ -116,17 +133,21 @@ fn compute_tensor<T: IsGraph + Clone>(graph: &T) -> ComplexTensor {
 }
 
 impl crate::vec_graph::Graph {
-    pub fn to_tensor(&self) -> ComplexTensor { compute_tensor(self) }
+    pub fn to_tensor<A>(&self) -> Tensor<A>
+    where A: Copy + Zero + One + Sqrt2 + FromPhase + ScalarOperand
+    { compute_tensor(self) }
 }
 
 impl crate::hash_graph::Graph {
-    pub fn to_tensor(&self) -> ComplexTensor { compute_tensor(self) }
+    pub fn to_tensor<A>(&self) -> Tensor<A>
+    where A: Copy + Zero + One + Sqrt2 + FromPhase + ScalarOperand
+    { compute_tensor(self) }
 }
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
-    use crate::graph::*;
+    use super::*;
+    // use crate::graph::*;
     use crate::vec_graph::Graph;
 
     #[test]
@@ -135,7 +156,7 @@ mod tests {
         g.add_vertex(VType::Z);
         g.add_vertex(VType::Z);
         g.add_edge(0,1);
-        let t = g.to_tensor();
+        let t: Tensor<Complex<f64>> = g.to_tensor();
         println!("{}", t);
     }
 }
