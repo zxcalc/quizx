@@ -13,14 +13,26 @@ pub type ComplexMatrix = Array<Complex<f64>,Ix2>;
 fn compute_tensor<T: IsGraph + Clone>(graph: &T) -> ComplexTensor {
     let mut g = graph.clone();
     g.x_to_z();
-    // TODO: g cannot have H-boxes
+    // H-boxes are not implemented yet
+    for v in g.vertices() {
+        let t = g.vertex_type(v);
+        if t != VType::B && t != VType::Z {
+            panic!("Vertex type currently unsupported: {:?}", t);
+        }
+    }
 
     let mut a = array![Complex::one()].into_dyn();
-    let inp = g.inputs().iter().map(|x| *x);
-    let mid = g.vertices().filter(|v| g.vertex_type(*v) != VType::B);
-    let outp = g.outputs().iter().map(|x| *x);
-    let vs: Vec<V> = inp.chain(mid.chain(outp)).collect();
-    // TODO: pick a good sort order for vs
+    let inp = g.inputs().iter().copied();
+    let mid = g.vertices().filter(|&v| g.vertex_type(v) != VType::B);
+    let outp = g.outputs().iter().copied();
+    let mut vs: Vec<V> = inp.chain(mid.chain(outp)).collect();
+
+    if vs.len() < g.num_vertices() {
+        panic!("All boundary vertices must be an input or an output");
+    }
+
+    vs.reverse();
+    // TODO: pick a good sort order for mid
 
     let mut indexv: VecDeque<V> = VecDeque::new();
     let mut seenv: FxHashMap<V,usize> = FxHashMap::default();
