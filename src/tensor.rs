@@ -149,7 +149,6 @@ mod tests {
     use super::*;
     // use crate::graph::*;
     use crate::vec_graph::Graph;
-    use crate::scalarn::*;
 
     #[test]
     fn tensor_1() {
