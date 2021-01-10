@@ -149,7 +149,7 @@ mod tests {
     use super::*;
     // use crate::graph::*;
     use crate::vec_graph::Graph;
-    // use crate::scalar4::*;
+    use crate::scalarn::*;
 
     #[test]
     fn tensor_1() {
@@ -157,7 +157,7 @@ mod tests {
         g.add_vertex(VType::Z);
         g.add_vertex(VType::Z);
         g.add_edge(0,1);
-        let t: Tensor<Complex<f64>> = g.to_tensor();
+        let t: Tensor<Scalar4> = g.to_tensor();
         println!("{}", t);
     }
 }

@@ -13,19 +13,6 @@ pub trait Coeffs: PartialEq + Clone + std::ops::IndexMut<usize,Output=i32> {
     fn new(sz: usize) -> Option<(Self,usize)>;
 }
 
-impl Coeffs for [i32;4] {
-    fn len(&self) -> usize { 4 }
-    fn zero() -> [i32;4] { [0,0,0,0] }
-    fn one() -> [i32;4] { [1,0,0,0] }
-    fn new(sz: usize) -> Option<([i32;4],usize)> {
-        if sz == 1 || sz == 2 || sz == 4 {
-            Some(([0,0,0,0], 4/sz))
-        } else {
-            None
-        }
-    }
-}
-
 /// A type for exact and approximate representation of ScalarN<T>s.
 /// Note that '==' is only reliable when the scalar is Exact
 /// and N is a power of 2.
@@ -98,8 +85,6 @@ impl<T: Coeffs> ScalarN<T> {
         ScalarN::Exact(p, T::one())
     }
 }
-
-// impl ndarray::ScalarN<T>Operand for ScalarN<T> { }
 
 impl<T: Coeffs> Zero for ScalarN<T> {
     fn zero() -> ScalarN<T> {
@@ -338,6 +323,35 @@ impl<T: Coeffs> AbsDiffEq<ScalarN<T>> for ScalarN<T> {
 //         f64::relative_eq(&c1.im, &c2.im, epsilon, max_relative)
 //     }
 // }
+//
+
+impl Coeffs for [i32;4] {
+    fn len(&self) -> usize { 4 }
+    fn zero() -> [i32;4] { [0,0,0,0] }
+    fn one() -> [i32;4] { [1,0,0,0] }
+    fn new(sz: usize) -> Option<([i32;4],usize)> {
+        if sz == 1 || sz == 2 || sz == 4 {
+            Some(([0,0,0,0], 4/sz))
+        } else {
+            None
+        }
+    }
+}
+
+impl Coeffs for Vec<i32> {
+    fn len(&self) -> usize { self.len() }
+    fn zero() -> Vec<i32> { vec![0] }
+    fn one() -> Vec<i32> { vec![1] }
+    fn new(sz: usize) -> Option<(Vec<i32>,usize)> {
+        Some((vec![0; sz],1))
+    }
+}
+
+pub type Scalar4 = ScalarN<[i32;4]>;
+impl ndarray::ScalarOperand for Scalar4 { }
+
+pub type ScalarDyn = ScalarN<Vec<i32>>;
+impl ndarray::ScalarOperand for ScalarDyn { }
 
 #[cfg(test)]
 mod tests {
