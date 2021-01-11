@@ -158,8 +158,8 @@ impl<T: Coeffs> FromPhase for Scalar<T> {
                 Scalar::Exact(0, coeffs)
             },
             None => {
-                // TODO
-                Scalar::Float(Complex::zero())
+                let f = (*p.numer() as f64) / (*p.denom() as f64);
+                Scalar::Float(Complex::new(-1.0,0.0).powf(f))
             }
         }
     }
@@ -220,8 +220,7 @@ impl<'a, 'b, T: Coeffs> std::ops::Mul<&'b Scalar<T>> for &'a Scalar<T> {
                         Exact(pow0 + pow1, coeffs)
                     },
                     None => {
-                        // TODO
-                        Float(Complex::zero())
+                        Float(self.float_value() * rhs.float_value())
                     }
                 }
             },
@@ -291,8 +290,7 @@ impl<'a, 'b, T: Coeffs> std::ops::Add<&'b Scalar<T>> for &'a Scalar<T> {
                             Exact(*pow0, coeffs)
                         },
                         None => {
-                            // TODO
-                            Float(Complex::zero())
+                            Float(self.float_value() + self.float_value())
                         }
                     }
 
