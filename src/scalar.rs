@@ -357,9 +357,13 @@ macro_rules! fixed_size_scalar {
     }
 }
 
+fixed_size_scalar!(Scalar1, 1);
 fixed_size_scalar!(Scalar2, 2);
 fixed_size_scalar!(Scalar3, 3);
 fixed_size_scalar!(Scalar4, 4);
+fixed_size_scalar!(Scalar5, 5);
+fixed_size_scalar!(Scalar6, 6);
+fixed_size_scalar!(Scalar7, 7);
 fixed_size_scalar!(Scalar8, 8);
 
 // impl Coeffs for [i32;4] {
