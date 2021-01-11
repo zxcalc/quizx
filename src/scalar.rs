@@ -289,11 +289,8 @@ impl<'a, 'b, T: Coeffs> std::ops::Add<&'b Scalar<T>> for &'a Scalar<T> {
 
                             Exact(*pow0, coeffs)
                         },
-                        None => {
-                            Float(self.float_value() + self.float_value())
-                        }
+                        None => Float(self.float_value() + self.float_value())
                     }
-
                 }
             },
         }
