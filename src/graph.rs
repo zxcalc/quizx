@@ -1,4 +1,4 @@
-use crate::scalar::Scalar;
+use crate::scalar::*;
 use num::rational::Rational;
 use std::iter::FromIterator;
 
@@ -214,7 +214,7 @@ pub trait IsGraph {
     fn neighbors(&self, v: V) -> NeighborIter;
     fn incident_edges(&self, v: V) -> IncidentEdgeIter;
     fn degree(&self, v: V) -> usize;
-    fn scalar(&mut self) -> &mut Scalar;
+    fn scalar(&mut self) -> &mut ScalarN;
     fn find_edge<F>(&self, f: F) -> Option<(V,V,EType)>
         where F : Fn(V,V,EType) -> bool;
     fn find_vertex<F>(&self, f: F) -> Option<V>

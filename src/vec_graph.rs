@@ -13,7 +13,7 @@ pub struct Graph {
     outputs: Vec<V>,
     numv: usize,
     nume: usize,
-    pub scalar: Scalar,
+    pub scalar: ScalarN,
 }
 
 // pub struct VertexIter<'a> {
@@ -363,7 +363,7 @@ impl IsGraph for Graph {
         }
     }
 
-    fn scalar(&mut self) -> &mut Scalar { &mut self.scalar }
+    fn scalar(&mut self) -> &mut ScalarN { &mut self.scalar }
 
     fn find_edge<F>(&self, f: F) -> Option<(V,V,EType)>
         where F : Fn(V,V,EType) -> bool

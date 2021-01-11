@@ -15,7 +15,7 @@ pub struct Graph {
     numv: usize,
     nume: usize,
     freshv: V,
-    pub scalar: Scalar,
+    pub scalar: ScalarN,
 }
 
 pub struct EdgeIter<'a> {
@@ -282,7 +282,7 @@ impl IsGraph for Graph {
             .len()
     }
 
-    fn scalar(&mut self) -> &mut Scalar { &mut self.scalar }
+    fn scalar(&mut self) -> &mut ScalarN { &mut self.scalar }
 
     fn find_edge<F>(&self, f: F) -> Option<(V,V,EType)>
         where F : Fn(V,V,EType) -> bool
