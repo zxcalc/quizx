@@ -208,11 +208,11 @@ impl<'a, 'b, T: Coeffs> std::ops::Mul<&'b Scalar<T>> for &'a Scalar<T> {
                     Some((mut coeffs,pad)) => {
                         for i in 0..coeffs0.len() {
                             for j in 0..coeffs1.len() {
-                                let pos = (i*pad*pad0 + j*pad*pad1).rem_euclid(8);
-                                if pos < 4 {
+                                let pos = (i*pad*pad0 + j*pad*pad1).rem_euclid(2*lcm);
+                                if pos < lcm {
                                     coeffs[pos] += coeffs0[i] * coeffs1[j];
                                 } else {
-                                    coeffs[pos - 4] -= coeffs0[i] * coeffs1[j];
+                                    coeffs[pos - lcm] -= coeffs0[i] * coeffs1[j];
                                 }
                             }
                         }
