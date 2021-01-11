@@ -335,32 +335,45 @@ impl<T: Coeffs> AbsDiffEq<Scalar<T>> for Scalar<T> {
     }
 }
 
-// impl RelativeEq for Scalar<T> {
-//     fn default_max_relative() -> f64 {
-//         f64::default_max_relative()
-//     }
-
-//     fn relative_eq(&self, other: &Self, epsilon: f64, max_relative: f64) -> bool {
-//         let c1 = self.float_value();
-//         let c2 = other.float_value();
-//         f64::relative_eq(&c1.re, &c2.re, epsilon, max_relative) &&
-//         f64::relative_eq(&c1.im, &c2.im, epsilon, max_relative)
-//     }
-// }
-//
-
-impl Coeffs for [i32;4] {
-    fn len(&self) -> usize { 4 }
-    fn zero() -> [i32;4] { [0;4] }
-    fn one() -> [i32;4] { let mut a = [0;4]; a[0] = 1; a }
-    fn new(sz: usize) -> Option<([i32;4],usize)> {
-        if (sz as i32).divides(&4) {
-            Some(([0;4], 4/sz))
-        } else {
-            None
+/// Implements Coeffs for an array of fixed size $n, and defines
+/// the associated scalar type.
+macro_rules! fixed_size_scalar {
+    ( $name:ident, $n:expr ) => {
+        impl Coeffs for [i32;$n] {
+            fn len(&self) -> usize { $n }
+            fn zero() -> [i32;$n] { [0;$n] }
+            fn one() -> [i32;$n] { let mut a = [0;$n]; a[0] = 1; a }
+            fn new(sz: usize) -> Option<([i32;$n],usize)> {
+                if (sz as i32).divides(&$n) {
+                    Some(([0;$n], $n/sz))
+                } else {
+                    None
+                }
+            }
         }
+
+        pub type $name = Scalar<[i32;$n]>;
+        impl ndarray::ScalarOperand for $name { }
     }
 }
+
+fixed_size_scalar!(Scalar2, 2);
+fixed_size_scalar!(Scalar3, 3);
+fixed_size_scalar!(Scalar4, 4);
+fixed_size_scalar!(Scalar8, 8);
+
+// impl Coeffs for [i32;4] {
+//     fn len(&self) -> usize { 4 }
+//     fn zero() -> [i32;4] { [0;4] }
+//     fn one() -> [i32;4] { let mut a = [0;4]; a[0] = 1; a }
+//     fn new(sz: usize) -> Option<([i32;4],usize)> {
+//         if (sz as i32).divides(&4) {
+//             Some(([0;4], 4/sz))
+//         } else {
+//             None
+//         }
+//     }
+// }
 
 impl Coeffs for Vec<i32> {
     fn len(&self) -> usize { self.len() }
@@ -370,9 +383,6 @@ impl Coeffs for Vec<i32> {
         Some((vec![0; sz],1))
     }
 }
-
-pub type Scalar4 = Scalar<[i32;4]>;
-impl ndarray::ScalarOperand for Scalar4 { }
 
 pub type ScalarN = Scalar<Vec<i32>>;
 
