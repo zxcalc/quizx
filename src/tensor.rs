@@ -62,10 +62,11 @@ fn compute_tensor<G,A>(graph: &G) -> Tensor<A>
         let z = A::zero();
         let minus_one = A::from_phase(Rational::new(1,1));
         (array![[o,z],[z,o]],
-         array![[o,o],[o,minus_one]] * A::one_over_sqrt2())
+         array![[o,o],[o,minus_one]])
     };
 
     let mut fst = true;
+    let mut num_had = 0;
 
     for v in vs {
         let p = g.phase(v);
@@ -74,9 +75,9 @@ fn compute_tensor<G,A>(graph: &G) -> Tensor<A>
             println!("SCALAR FROM G: {:?}", g.scalar());
             println!("CONVERTED: {:?}", s);
             if p == Rational::new(0,1) {
-                a = array![s, s].into_dyn();
+                a = array![A::one(), A::one()].into_dyn();
             } else {
-                a = array![s, s * A::from_phase(p)].into_dyn();
+                a = array![A::one(), A::from_phase(p)].into_dyn();
             }
             fst = false;
         } else {
@@ -111,10 +112,14 @@ fn compute_tensor<G,A>(graph: &G) -> Tensor<A>
                 shape[wi] = 2;
                 println!("Cloning delta/had into shape {:?}", shape);
 
-                let m = if et == EType::N { &delta } else { &had }
-                .clone()
-                    .into_shape(shape)
-                    .expect("Bad tensor indices");
+                let m = if et == EType::N {
+                    &delta
+                } else {
+                    num_had += 1;
+                    &had
+                }.clone()
+                 .into_shape(shape)
+                 .expect("Bad tensor indices");
 
                 println!("Done. Multiplying with 'a' of shape {:?}", a.shape());
 
@@ -140,7 +145,13 @@ fn compute_tensor<G,A>(graph: &G) -> Tensor<A>
         seenv.insert(v, deg_v);
     }
 
-    a
+    // TODO: make A implement rt2_pow instead
+    let mut s = A::from_scalar(g.scalar());
+    for _ in 0..num_had {
+        s = s * A::one_over_sqrt2();
+    }
+
+    a * s
 }
 
 impl crate::vec_graph::Graph {
