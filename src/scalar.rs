@@ -24,7 +24,7 @@ use approx::AbsDiffEq;
 ///
 /// TODO: Use a custom implementation of PartialEq to handle
 /// scalars of different, compatible orders.
-#[derive(Debug,Clone,PartialEq)]
+#[derive(Debug,Clone)]
 pub enum Scalar<T: Coeffs> {
     Exact(i32, T),
     Float(Complex<f64>),
@@ -58,7 +58,7 @@ pub trait Sqrt2 {
 /// fixed-size lists (e.g. [i32;4]) or dynamic ones (e.g. [Vec]\<i32\>). Only
 /// the former can be used in tensors and matrices, because they have to
 /// implement Copy (i.e. size must be known at compile time).
-pub trait Coeffs: PartialEq + Clone + std::ops::IndexMut<usize,Output=i32> {
+pub trait Coeffs: Clone + std::ops::IndexMut<usize,Output=i32> {
     fn len(&self) -> usize;
     fn zero() -> Self;
     fn one() -> Self;
@@ -77,6 +77,15 @@ use Scalar::{Exact,Float};
 /// as a noop for [From] when S = T.
 pub trait FromScalar<T> {
     fn from_scalar(s: &T) -> Self;
+}
+
+fn lcm_with_padding(n1: usize, n2: usize) -> (usize,usize,usize) {
+    if n1 == n2 {
+        (n1, 1, 1)
+    } else {
+        let lcm0 = integer::lcm(n1, n2);
+        (lcm0, lcm0 / n1, lcm0 / n2)
+    }
 }
 
 impl<T: Coeffs> Scalar<T> {
@@ -101,6 +110,33 @@ impl<T: Coeffs> Scalar<T> {
                 num
             },
             Float(c) => *c
+        }
+    }
+
+    /// If zero, make sqrt(2) power 0, otherwise make it as big as possible
+    pub fn reduced(&self) -> Scalar<T> {
+        if let Exact(mut pow,mut coeffs) = self.clone() {
+            let mut all_zero = true;
+            for i in 0..coeffs.len() {
+                all_zero = all_zero && coeffs[i] == 0;
+            }
+
+            if all_zero { return Exact(0, coeffs); }
+
+            let mut red = true;
+            while red {
+                for i in 0..coeffs.len() { red = red && coeffs[i].is_multiple_of(&2); }
+
+                if red {
+                    for i in 0..coeffs.len() {
+                        coeffs[i] = coeffs[i] / 2;
+                    }
+                    pow += 2;
+                }
+            }
+            Exact(pow, coeffs)
+        } else {
+            self.clone()
         }
     }
 
@@ -219,13 +255,7 @@ impl<'a, 'b, T: Coeffs> std::ops::Mul<&'b Scalar<T>> for &'a Scalar<T> {
             (Float(c), x) => Float(c * x.float_value()),
             (x, Float(c)) => Float(x.float_value() * c),
             (Exact(pow0, coeffs0), Exact(pow1, coeffs1)) => {
-                let (lcm, pad0, pad1) = if coeffs0.len() == coeffs1.len() {
-                    (coeffs0.len(), 1, 1)
-                } else {
-                    let lcm0 = integer::lcm(coeffs0.len(), coeffs1.len());
-                    (lcm0, lcm0 / coeffs0.len(), lcm0 / coeffs1.len())
-                };
-
+                let (lcm, pad0, pad1) = lcm_with_padding(coeffs0.len(), coeffs1.len());
                 match T::new(lcm) {
                     Some((mut coeffs,pad)) => {
                         for i in 0..coeffs0.len() {
@@ -292,12 +322,7 @@ impl<'a, 'b, T: Coeffs> std::ops::Add<&'b Scalar<T>> for &'a Scalar<T> {
                     // if rt2 powers don't match, we have to fall back on float repr
                     Float(self.float_value() + rhs.float_value())
                 } else {
-                    let (lcm, pad0, pad1) = if coeffs0.len() == coeffs1.len() {
-                        (coeffs0.len(), 1, 1)
-                    } else {
-                        let lcm0 = integer::lcm(coeffs0.len(), coeffs1.len());
-                        (lcm0, lcm0 / coeffs0.len(), lcm0 / coeffs1.len())
-                    };
+                    let (lcm, pad0, pad1) = lcm_with_padding(coeffs0.len(), coeffs1.len());
 
                     match T::new(lcm) {
                         Some((mut coeffs, pad)) => {
@@ -375,6 +400,27 @@ impl<T: Coeffs> AbsDiffEq<Scalar<T>> for Scalar<T> {
         let c2 = other.float_value();
         f64::abs_diff_eq(&c1.re, &c2.re, epsilon) &&
         f64::abs_diff_eq(&c1.im, &c2.im, epsilon)
+    }
+}
+
+impl<T: Coeffs> PartialEq for Scalar<T> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self.reduced(), other.reduced()) {
+            (Float(c0), Float(c1)) => c0 == c1,
+            (Exact(pow0, coeffs0), Exact(pow1, coeffs1)) => {
+                if pow0 != pow1 { return false; }
+                let (lcm, pad0, pad1) = lcm_with_padding(coeffs0.len(), coeffs1.len());
+                let mut all_eq = true;
+                for i in 0..lcm {
+                    let c0 = if i % pad0 == 0 { coeffs0[i/pad0] } else { 0 };
+                    let c1 = if i % pad1 == 0 { coeffs1[i/pad1] } else { 0 };
+                    all_eq = all_eq && c0 == c1;
+                }
+
+                all_eq
+            },
+            _ => false
+        }
     }
 }
 
@@ -482,6 +528,13 @@ mod tests {
         let t: ScalarN = Exact(0, vec![2,3,4,5]);
         let st: ScalarN = Exact(0, vec![3,5,7,9]);
         assert_eq!(s + t, st);
+    }
+
+    #[test]
+    fn reductions() {
+        let s: ScalarN = Exact(-2, vec![2]);
+        assert_eq!(s,s);
+        assert_eq!(s, ScalarN::one());
     }
 
     // #[test]

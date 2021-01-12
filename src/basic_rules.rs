@@ -95,7 +95,7 @@ pub fn pivot_unsafe(g: &mut impl IsGraph, v0: V, v1: V) {
 
     let x = ns0.len() as i32; // the number of neighbors of v0
     let y = ns1.len() as i32; // the number of neighbors of v1
-    g.scalar().mul_rt2_pow((x - 1) * (y - 1));
+    g.scalar().mul_rt2_pow((x - 2) * (y - 2));
     // g.scalar().mul_rt2_pow(-(x+y+2*z-1));
 
     if *p0.numer() != 0 && *p1.numer() != 0 {
@@ -252,17 +252,22 @@ mod tests {
         assert_eq!(g.num_vertices(), 7);
         assert_eq!(g.num_edges(), 6);
 
-        let h = g.clone();
-        let success = pivot(&mut g, 3, 4);
+        let mut h = g.clone();
+        let success = pivot(&mut h, 3, 4);
         assert!(success, "Pivot should match");
 
-        assert_eq!(h.to_tensor::<Scalar4>(), g.to_tensor());
+        assert_eq!(g.to_tensor::<Scalar4>(), h.to_tensor());
 
-        assert_eq!(g.num_vertices(), 5);
-        assert_eq!(g.num_edges(), 6);
+        assert_eq!(h.num_vertices(), 5);
+        assert_eq!(h.num_edges(), 6);
 
-        assert_eq!(g.phase(0), Rational::new(0,1));
-        assert_eq!(g.phase(6), Rational::new(1,1));
+        assert_eq!(h.phase(0), Rational::new(0,1));
+        assert_eq!(h.phase(6), Rational::new(1,1));
+
+
+        for i in 0..3 {
+            let inp = g.add_vertex(VType::B);
+        }
     }
 
     #[test]
