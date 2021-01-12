@@ -22,9 +22,14 @@ impl FromPhase for Complex<f64> {
     }
 }
 
+/// Wraps all the traits we need to compute tensors from ZX-diagrams.
+pub trait TensorElem: Copy + Zero + One + Sqrt2 + FromPhase + ScalarOperand + FromScalar<ScalarN> + std::fmt::Debug {}
+impl<T> TensorElem for T
+where T: Copy + Zero + One + Sqrt2 + FromPhase + ScalarOperand + FromScalar<ScalarN> + std::fmt::Debug {}
+
 fn compute_tensor<G,A>(graph: &G) -> Tensor<A>
     where G: IsGraph + Clone,
-          A: Copy + Zero + One + Sqrt2 + FromPhase + ScalarOperand
+          A: TensorElem
 {
     let mut g = graph.clone();
     g.x_to_z();
@@ -56,28 +61,29 @@ fn compute_tensor<G,A>(graph: &G) -> Tensor<A>
         let o = A::one();
         let z = A::zero();
         let minus_one = A::from_phase(Rational::new(1,1));
-        let one_over_rt2 = A::one_over_sqrt2();
         (array![[o,z],[z,o]],
-         array![[o,o],[o,minus_one]] * one_over_rt2)
+         array![[o,o],[o,minus_one]] * A::one_over_sqrt2())
     };
 
     let mut fst = true;
 
     for v in vs {
         let p = g.phase(v);
-        if p == Rational::new(0,1) {
-            if fst {
-                a = array![A::one(), A::one()].into_dyn();
-                fst = false;
+        if fst {
+            let s = A::from_scalar(g.scalar());
+            println!("SCALAR FROM G: {:?}", g.scalar());
+            println!("CONVERTED: {:?}", s);
+            if p == Rational::new(0,1) {
+                a = array![s, s].into_dyn();
             } else {
-                a = stack![Axis(0), a, a];
+                a = array![s, s * A::from_phase(p)].into_dyn();
             }
+            fst = false;
         } else {
-            let f = A::from_phase(p);
-            if fst {
-                a = array![A::one(), f].into_dyn();
-                fst = false;
+            if p == Rational::new(0,1) {
+                a = stack![Axis(0), a, a];
             } else {
+                let f = A::from_phase(p);
                 a = stack![Axis(0), a, &a * f];
             }
         }
@@ -87,43 +93,48 @@ fn compute_tensor<G,A>(graph: &G) -> Tensor<A>
         let mut deg_v = 0;
 
         for (w, et) in g.incident_edges(v) {
-            match seenv.get_mut(&w) {
-                Some (deg_w) => {
-                    deg_v += 1;
-                    *deg_w += 1;
+            if let Some(deg_w) = seenv.get_mut(&w) {
+                deg_v += 1;
+                *deg_w += 1;
 
-                    let vi = indexv.iter().position(|x| *x == v).unwrap();
-                    let mut wi = indexv.iter().position(|x| *x == w).unwrap();
+                let vi = indexv.iter()
+                    .position(|x| *x == v)
+                    .expect("v should be in indexv");
+                let mut wi = indexv.iter()
+                    .position(|x| *x == w)
+                    .expect("w should be in indexv");
 
-                    // treat delta or hadamard as a K-tensor, with trivial dimensions except
-                    // at the indexes of v and w, and multiply it in
-                    let mut shape: Vec<usize> = vec![1; indexv.len()];
-                    shape[vi] = 2;
-                    shape[wi] = 2;
-                    println!("{:?}", shape);
+                // treat delta or hadamard as a K-tensor, with trivial dimensions except
+                // at the indexes of v and w, and multiply it in
+                let mut shape: Vec<usize> = vec![1; indexv.len()];
+                shape[vi] = 2;
+                shape[wi] = 2;
+                println!("Cloning delta/had into shape {:?}", shape);
 
-                    let m = if et == EType::N { &delta } else { &had }
-                        .clone()
-                        .into_shape(shape)
-                        .expect("Bad tensor indices");
+                let m = if et == EType::N { &delta } else { &had }
+                .clone()
+                    .into_shape(shape)
+                    .expect("Bad tensor indices");
 
-                    a = &m * &a;
+                println!("Done. Multiplying with 'a' of shape {:?}", a.shape());
 
-                    // if v and w now have all their edges in the tensor, contract away the
-                    // index
+                a = &a * &m;
 
-                    if g.vertex_type(v) != VType::B && g.degree(v) == deg_v {
-                        a.sum_axis(Axis(vi));
-                        indexv.remove(vi);
-                        if wi > vi { wi -= 1; }
-                    }
+                // if v and w now have all their edges in the tensor, contract away the
+                // index
 
-                    if g.vertex_type(w) != VType::B && g.degree(w) == *deg_w {
-                        a.sum_axis(Axis(wi));
-                        indexv.remove(wi);
-                    }
-                },
-                None => {}
+                if g.vertex_type(v) != VType::B && g.degree(v) == deg_v {
+                    println!("contracting v={}, deg_v={}", v, deg_v);
+                    a = a.sum_axis(Axis(vi));
+                    indexv.remove(vi);
+                    if wi > vi { wi -= 1; }
+                }
+
+                if g.vertex_type(w) != VType::B && g.degree(w) == *deg_w {
+                    println!("contracting w={}, deg_w={}", w, *deg_w);
+                    a = a.sum_axis(Axis(wi));
+                    indexv.remove(wi);
+                }
             }
         }
         seenv.insert(v, deg_v);
@@ -134,13 +145,13 @@ fn compute_tensor<G,A>(graph: &G) -> Tensor<A>
 
 impl crate::vec_graph::Graph {
     pub fn to_tensor<A>(&self) -> Tensor<A>
-    where A: Copy + Zero + One + Sqrt2 + FromPhase + ScalarOperand
+    where A: TensorElem
     { compute_tensor(self) }
 }
 
 impl crate::hash_graph::Graph {
     pub fn to_tensor<A>(&self) -> Tensor<A>
-    where A: Copy + Zero + One + Sqrt2 + FromPhase + ScalarOperand
+    where A: TensorElem
     { compute_tensor(self) }
 }
 

@@ -5,20 +5,49 @@ pub use num::traits::identities::{Zero,One};
 use std::fmt;
 use approx::AbsDiffEq;
 
-pub trait Phase {
+/// A type for exact and approximate representation of complex
+/// numbers.
+///
+/// The [Exact] representation of a scalar is given as a power of
+/// sqrt(2) and an element of Z\[omega\], where omega is the 2N-th
+/// root of unity, represented by its first N coefficients. Addition
+/// for this type is O(N) and multiplication O(N^2).
+///
+/// The type of the coefficient list is given as a type parameter
+/// implementing a trait [Coeffs]. This is to allow fixed N (with
+/// an array) or variable N (with a [Vec]).  Only the former is
+/// allowed to implement the [Copy] trait, needed for tensor/matrix
+/// elements.
+///
+/// The [Float] representation of a scalar is given as a 64-bit
+/// floating point [Complex] number.
+///
+/// TODO: Use a custom implementation of PartialEq to handle
+/// scalars of different, compatible orders.
+#[derive(Debug,Clone,PartialEq)]
+pub enum Scalar<T: Coeffs> {
+    Exact(i32, T),
+    Float(Complex<f64>),
+}
+
+/// Adds the ability to take non-integer types modulo 2.
+pub trait Mod2 {
     fn mod2(&self) -> Self;
 }
 
-impl Phase for Rational {
+impl Mod2 for Rational {
     fn mod2(&self) -> Rational {
        Rational::new(*self.numer() % (2 * *self.denom()), *self.denom())
     }
 }
 
+/// Produce a number from rational root of -1.
 pub trait FromPhase {
     fn from_phase(p: Rational) -> Self;
 }
 
+/// Contains the numbers sqrt(2) and 1/sqrt(2), often used for renormalisation of
+/// qubit tensors and matrices.
 pub trait Sqrt2 {
     fn sqrt2() -> Self;
     fn one_over_sqrt2() -> Self;
@@ -26,7 +55,7 @@ pub trait Sqrt2 {
 
 
 /// A list of coefficients. We give this as a parameter to allow either
-/// fixed-size lists (e.g. [i32;4]) or dynamic ones (e.g. Vec<i32>). Only
+/// fixed-size lists (e.g. [i32;4]) or dynamic ones (e.g. [Vec]\<i32\>). Only
 /// the former can be used in tensors and matrices, because they have to
 /// implement Copy (i.e. size must be known at compile time).
 pub trait Coeffs: PartialEq + Clone + std::ops::IndexMut<usize,Output=i32> {
@@ -36,26 +65,19 @@ pub trait Coeffs: PartialEq + Clone + std::ops::IndexMut<usize,Output=i32> {
     fn new(sz: usize) -> Option<(Self,usize)>;
 }
 
-/// A type for exact and approximate representation of Scalars.
-/// Note that '==' is only reliable when the scalar is Exact
-/// and N is a power of 2.
-
-#[derive(Debug,Clone,PartialEq)]
-pub enum Scalar<T: Coeffs> {
-    // An exact representation of a scalar, which is given as
-    // a power of sqrt(2) and an element of Z[omega], where
-    // omega is the 2N-th root of unity, represented by its
-    // first N coefficients.
-    Exact(i32, T),
-    // A floating-point representation of a scalar. We should
-    // fall back to this if N^2 gets too big.
-    Float(Complex<f64>),
-}
-
 /// Implement Copy whenever our coefficient list allows us to.
 impl<T: Coeffs + Copy> Copy for Scalar<T> {}
 
 use Scalar::{Exact,Float};
+
+/// Allows transformation from a scalar.
+///
+/// We do not use the standard library's [From] trait to avoid a clash
+/// when converting Scalar\<S\> to Scalar\<T\>, which is already implemented
+/// as a noop for [From] when S = T.
+pub trait FromScalar<T> {
+    fn from_scalar(s: &T) -> Self;
+}
 
 impl<T: Coeffs> Scalar<T> {
     pub fn complex(re: f64, im: f64) -> Scalar<T> {
@@ -300,18 +322,44 @@ impl<'a, 'b, T: Coeffs> std::ops::Add<&'b Scalar<T>> for &'a Scalar<T> {
 // These 3 variations take ownership of one or both args
 impl<T: Coeffs> std::ops::Add<Scalar<T>> for Scalar<T> {
     type Output = Scalar<T>;
-    fn add(self, rhs: Scalar<T>) -> Self::Output { &self * &rhs }
+    fn add(self, rhs: Scalar<T>) -> Self::Output { &self + &rhs }
 }
 
 impl<'a, T: Coeffs> std::ops::Add<Scalar<T>> for &'a Scalar<T> {
     type Output = Scalar<T>;
-    fn add(self, rhs: Scalar<T>) -> Self::Output { self * &rhs }
+    fn add(self, rhs: Scalar<T>) -> Self::Output { self + &rhs }
 }
 
 impl<'a, T: Coeffs> std::ops::Add<&'a Scalar<T>> for Scalar<T> {
     type Output = Scalar<T>;
-    fn add(self, rhs: &Scalar<T>) -> Self::Output { &self * rhs }
+    fn add(self, rhs: &Scalar<T>) -> Self::Output { &self + rhs }
 }
+
+impl<T: Coeffs> FromScalar<Scalar<T>> for Complex<f64> {
+    fn from_scalar(s: &Scalar<T>) -> Complex<f64> {
+        s.float_value()
+    }
+}
+
+impl<S: Coeffs, T: Coeffs> FromScalar<Scalar<T>> for Scalar<S> {
+    fn from_scalar(s: &Scalar<T>) -> Scalar<S> {
+        match s {
+            Exact(pow, coeffs) => {
+                match S::new(coeffs.len()) {
+                    Some((mut coeffs1, pad)) => {
+                        for i in 0..coeffs.len() {
+                            coeffs1[i*pad] = coeffs[i];
+                        }
+                        Exact(*pow, coeffs1)
+                    },
+                    None => Float(s.float_value()),
+                }
+            },
+            Float(c) => Float(*c)
+        }
+    }
+}
+
 
 impl<T: Coeffs> AbsDiffEq<Scalar<T>> for Scalar<T> {
     type Epsilon = <f64 as AbsDiffEq>::Epsilon;
@@ -339,7 +387,7 @@ macro_rules! fixed_size_scalar {
             fn zero() -> [i32;$n] { [0;$n] }
             fn one() -> [i32;$n] { let mut a = [0;$n]; a[0] = 1; a }
             fn new(sz: usize) -> Option<([i32;$n],usize)> {
-                if (sz as i32).divides(&$n) {
+                if $n.is_multiple_of(&sz) {
                     Some(([0;$n], $n/sz))
                 } else {
                     None
@@ -426,6 +474,14 @@ mod tests {
         assert_abs_diff_eq!(Scalar::from_phase(Rational::new(1,4)), Scalar::Exact(0, [0,1,0,0]));
         assert_abs_diff_eq!(Scalar::from_phase(Rational::new(3,4)), Scalar::Exact(0, [0,0,0,1]));
         assert_abs_diff_eq!(Scalar::from_phase(Rational::new(7,4)), Scalar::Exact(0, [0,0,0,-1]));
+    }
+
+    #[test]
+    fn additions() {
+        let s: ScalarN = Exact(0, vec![1,2,3,4]);
+        let t: ScalarN = Exact(0, vec![2,3,4,5]);
+        let st: ScalarN = Exact(0, vec![3,5,7,9]);
+        assert_eq!(s + t, st);
     }
 
     // #[test]

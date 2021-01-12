@@ -75,17 +75,13 @@ pub fn pivot_unsafe(g: &mut impl IsGraph, v0: V, v1: V) {
     // and the neighbors of v1
     let ns0: Vec<V> = g.neighbors(v0).collect();
     let ns1: Vec<V> = g.neighbors(v1).collect();
-    let mut z: i32 = 0; // the number of neighbors of v0 and v1
+    // let mut z: i32 = 0; // the number of neighbors of v0 and v1
     for &n0 in &ns0 {
         g.add_to_phase(n0, p1);
         for &n1 in &ns1 {
             if n0 != v1 && n1 != v0 {
-                if n0 != n1 {
-                    g.add_edge_smart(n0, n1, EType::H);
-                } else {
-                    g.add_to_phase(n0, Rational::new(1, 1));
-                    z += 1;
-                }
+                // unlike PyZX, add_edge_smart handles self-loops
+                g.add_edge_smart(n0, n1, EType::H);
             }
         }
     }
@@ -97,9 +93,10 @@ pub fn pivot_unsafe(g: &mut impl IsGraph, v0: V, v1: V) {
     g.remove_vertex(v0);
     g.remove_vertex(v1);
 
-    let x = (ns0.len() as i32) - z; // the number of neighbors of just v0
-    let y = (ns1.len() as i32) - z; // the number of neighbors of just v1
-    g.scalar().mul_rt2_pow(x*y + y*z + x*z);
+    let x = ns0.len() as i32; // the number of neighbors of v0
+    let y = ns1.len() as i32; // the number of neighbors of v1
+    g.scalar().mul_rt2_pow((x - 1) * (y - 1));
+    // g.scalar().mul_rt2_pow(-(x+y+2*z-1));
 
     if *p0.numer() != 0 && *p1.numer() != 0 {
         g.scalar().mul_phase(Rational::new(1,1));
@@ -118,6 +115,7 @@ mod tests {
     use crate::scalar::*;
     use crate::vec_graph::Graph;
     use num::Rational;
+    // use num::Complex;
 
     #[test]
     fn spider_fusion_simple() {
@@ -248,11 +246,17 @@ mod tests {
         g.add_edge_with_type(3, 4, EType::H);
         for i in 5..7 { g.add_edge_with_type(4, i, EType::H); }
 
+       // g.set_inputs(vec![0,1,2]);
+        // g.set_outputs(vec![5,6]);
+
         assert_eq!(g.num_vertices(), 7);
         assert_eq!(g.num_edges(), 6);
 
+        let h = g.clone();
         let success = pivot(&mut g, 3, 4);
         assert!(success, "Pivot should match");
+
+        assert_eq!(h.to_tensor::<Scalar4>(), g.to_tensor());
 
         assert_eq!(g.num_vertices(), 5);
         assert_eq!(g.num_edges(), 6);

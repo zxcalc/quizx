@@ -190,54 +190,6 @@ impl IsGraph for Graph {
         self.remove_half_edge(t,s);
     }
 
-    fn add_edge_smart(&mut self, s: V, t: V, ety: EType) {
-        if let Some(ety0) = self.edge_type_opt(s,t) {
-            let st = self.vdata[s].expect("Source vertex not found").ty;
-            let tt = self.vdata[t].expect("Target vertex not found").ty;
-            match (st, tt) {
-                (VType::Z, VType::Z) | (VType::X, VType::X) => {
-                    match (ety0, ety) {
-                        (EType::N, EType::N) => {} // ignore new edge
-                        (EType::H, EType::H) => {
-                            self.remove_edge(s, t);
-                            self.scalar.mul_rt2_pow(-2);
-                        }
-                        (EType::H, EType::N) => {
-                            self.set_edge_type(s, t, EType::N);
-                            self.add_to_phase(s, Rational::new(1,1));
-                            self.scalar.mul_rt2_pow(-1);
-                        }
-                        (EType::N, EType::H) => {
-                            self.add_to_phase(s, Rational::new(1,1));
-                            self.scalar.mul_rt2_pow(-1);
-                        }
-                    }
-                }
-                (VType::Z, VType::X) | (VType::X, VType::Z) => {
-                    match (ety0, ety) {
-                        (EType::N, EType::N) => {
-                            self.remove_edge(s, t);
-                            self.scalar.mul_rt2_pow(-2);
-                        }
-                        (EType::N, EType::H) => {
-                            self.set_edge_type(s, t, EType::H);
-                            self.add_to_phase(s, Rational::new(1,1));
-                            self.scalar.mul_rt2_pow(-1);
-                        }
-                        (EType::H, EType::N) => {
-                            self.add_to_phase(s, Rational::new(1,1));
-                            self.scalar.mul_rt2_pow(-1);
-                        }
-                        (EType::H, EType::H) => {} // ignore new edge
-                    }
-                }
-                _ => panic!("Parallel edges only supported between Z and X vertices")
-            }
-        } else {
-            self.add_edge_with_type(s, t, ety);
-        }
-    }
-
     fn set_phase(&mut self, v: V, phase: Rational) {
         if let Some(Some(d)) = self.vdata.get_mut(v) {
             d.phase = phase.mod2();
