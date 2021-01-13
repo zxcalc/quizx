@@ -9,6 +9,7 @@ pub type VTab<T> = Vec<Option<T>>;
 pub struct Graph {
     vdata: VTab<VData>,
     edata: VTab<Vec<(V,EType)>>,
+    holes: Vec<V>, // places where a vertex has been deleted
     inputs: Vec<V>,
     outputs: Vec<V>,
     numv: usize,
@@ -16,48 +17,12 @@ pub struct Graph {
     pub scalar: ScalarN,
 }
 
-// pub struct VertexIter<'a> {
-//     inner: std::collections::hash_map::Keys<'a,V,VData>,
-// }
-
-// impl<'a> Iterator for VertexIter<'a> {
-//     type Item = V;
-//     fn next(&mut self) -> Option<Self::Item> {
-//         self.inner.next().map(|x| *x)
-//     }
-// }
-
-// pub struct EdgeIter<'a> {
-//     outer: std::collections::hash_map::Iter<'a,V,VTab<EType>>,
-//     inner: Option<(V, std::collections::hash_map::Iter<'a,V,EType>)>,
-// }
-
-// impl<'a> Iterator for EdgeIter<'a> {
-//     /// Iterate over the edges in a graph. An edge is returned as a triple
-//     /// (s: V, t: V, ety: EType), where we enforce s <= t to avoid double-
-//     /// counting edges.
-//     type Item = (V,V,EType);
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//        match &mut self.inner {
-//            Some((s, iter)) =>
-//                match iter.next() {
-//                    Some((t,ety)) => if *s <= *t { Some((*s,*t,*ety)) } else { self.next() }
-//                    None => match self.outer.next() {
-//                        Some((k,v)) => { self.inner = Some((*k,v.iter())); self.next() }
-//                        None => None
-//                    }
-//                }
-//            None => None
-//        }
-//     }
-// }
-
 impl Graph {
     pub fn new() -> Graph {
         Graph {
             vdata: Vec::new(),
             edata: Vec::new(),
+            holes: Vec::new(),
             inputs: Vec::new(),
             outputs: Vec::new(),
             numv: 0,
@@ -131,32 +96,26 @@ impl IsGraph for Graph {
     fn outputs(&self) -> &Vec<V> { &self.outputs }
     fn set_outputs(&mut self, outputs: Vec<V>) { self.outputs = outputs; }
 
-    // fn vertices(&self) -> VertexIter {
-    //     VertexIter { inner: self.vdata.keys() }
-    // }
-
-    // fn edges(&self) -> EdgeIter {
-    //     let mut outer = self.edata.iter();
-    //     let inner = match outer.next() {
-    //         Some((s, h)) => Some((*s, h.iter())),
-    //         None => None,
-    //     };
-    //     EdgeIter { outer, inner }
-    // }
-
     fn add_vertex(&mut self, ty: VType) -> V {
         self.add_vertex_with_data(VData { ty, phase: Rational::new(0,1), qubit: 0, row: 0 })
     }
 
     fn add_vertex_with_data(&mut self, d: VData) -> V {
         self.numv += 1;
-        self.vdata.push(Some(d));
-        self.edata.push(Some(Vec::new()));
-        self.vdata.len() - 1
+        if let Some(v) = self.holes.pop() {
+            self.vdata[v] = Some(d);
+            self.edata[v] = Some(Vec::new());
+            v
+        } else {
+            self.vdata.push(Some(d));
+            self.edata.push(Some(Vec::new()));
+            self.vdata.len() - 1
+        }
     }
 
     fn remove_vertex(&mut self, v: V) {
         self.numv -= 1;
+        self.holes.push(v);
 
         for v1 in Vec::from_iter(self.neighbors(v)) {
             self.nume -= 1;
@@ -390,19 +349,6 @@ mod tests {
        assert!(g.num_edges() == h.num_edges());
        assert!(g == h);
     }
-
-    // #[test]
-    // fn nhd() {
-    //     let (g,vs) = simple_graph();
-    //     let mut ws = Vec::from_iter(g.nhd(vs[2]));
-    //     ws.sort();
-    //     let mut expected_ws = vec![
-    //         (&vs[0], &EType::N),
-    //         (&vs[4], &EType::N),
-    //         (&vs[5], &EType::N)];
-    //     expected_ws.sort();
-    //     assert_eq!(expected_ws, ws);
-    // }
 
     #[test]
     fn vertex_iterator() {
