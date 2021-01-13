@@ -48,7 +48,7 @@ pub fn local_comp_unsafe(g: &mut impl IsGraph, v: V) {
     g.remove_vertex(v);
 
     let x = ns.len() as i32;
-    g.scalar().mul_rt2_pow(((x-1)*(x-2))/2);
+    g.scalar().mul_sqrt2_pow(((x-1)*(x-2))/2);
     g.scalar().mul_phase(Rational::new(*p.numer(), 4));
 }
 
@@ -95,8 +95,7 @@ pub fn pivot_unsafe(g: &mut impl IsGraph, v0: V, v1: V) {
 
     let x = ns0.len() as i32; // the number of neighbors of v0
     let y = ns1.len() as i32; // the number of neighbors of v1
-    g.scalar().mul_rt2_pow((x - 2) * (y - 2));
-    // g.scalar().mul_rt2_pow(-(x+y+2*z-1));
+    g.scalar().mul_sqrt2_pow((x - 2) * (y - 2));
 
     if *p0.numer() != 0 && *p1.numer() != 0 {
         g.scalar().mul_phase(Rational::new(1,1));
@@ -191,7 +190,7 @@ mod tests {
         assert_eq!(g.num_edges(), 4);
         assert_eq!(g.degree(vs[2]), 3);
         assert_eq!(g.degree(vs[4]), 1);
-        assert_eq!(g.scalar, Scalar::rt2_pow(-2));
+        assert_eq!(g.scalar, Scalar::sqrt2_pow(-2));
 
         assert_eq!(g.phase(vs[2]), Rational::new(3,4));
     }
@@ -227,7 +226,7 @@ mod tests {
         }
 
         assert_eq!(*g.scalar(),
-            Scalar::rt2_pow((4-1)*(4-2)/2) *
+            Scalar::sqrt2_pow((4-1)*(4-2)/2) *
             Scalar::from_phase(Rational::new(1,4)));
 
         let h = g.clone();
@@ -264,10 +263,27 @@ mod tests {
         assert_eq!(h.phase(0), Rational::new(0,1));
         assert_eq!(h.phase(6), Rational::new(1,1));
 
-
+        let mut inputs: Vec<usize> = Vec::new();
+        let mut outputs: Vec<usize> = Vec::new();
         for i in 0..3 {
             let inp = g.add_vertex(VType::B);
+            inputs.push(inp);
+            g.add_edge(i, inp);
         }
+
+        for i in 5..7 {
+            let outp = g.add_vertex(VType::B);
+            outputs.push(outp);
+            g.add_edge(i, outp);
+        }
+
+        g.set_inputs(inputs);
+        g.set_outputs(outputs);
+
+        let mut h = g.clone();
+        let success = pivot(&mut h, 3, 4);
+        assert!(success, "Second pivot should match");
+        assert_eq!(g.to_tensor::<Scalar4>(), h.to_tensor());
     }
 
     #[test]

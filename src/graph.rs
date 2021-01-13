@@ -260,7 +260,7 @@ pub trait IsGraph {
            if st == VType::Z || st == VType::X {
                if ety == EType::H {
                    self.add_to_phase(s, Rational::new(1,1));
-                   self.scalar().mul_rt2_pow(-1);
+                   self.scalar().mul_sqrt2_pow(-1);
                }
            } else {
                panic!("Self-loops only supported on Z and X nodes");
@@ -273,16 +273,16 @@ pub trait IsGraph {
                         (EType::N, EType::N) => {} // ignore new edge
                         (EType::H, EType::H) => {
                             self.remove_edge(s, t);
-                            self.scalar().mul_rt2_pow(-2);
+                            self.scalar().mul_sqrt2_pow(-2);
                         }
                         (EType::H, EType::N) => {
                             self.set_edge_type(s, t, EType::N);
                             self.add_to_phase(s, Rational::new(1,1));
-                            self.scalar().mul_rt2_pow(-1);
+                            self.scalar().mul_sqrt2_pow(-1);
                         }
                         (EType::N, EType::H) => {
                             self.add_to_phase(s, Rational::new(1,1));
-                            self.scalar().mul_rt2_pow(-1);
+                            self.scalar().mul_sqrt2_pow(-1);
                         }
                     }
                 }
@@ -290,16 +290,16 @@ pub trait IsGraph {
                     match (ety0, ety) {
                         (EType::N, EType::N) => {
                             self.remove_edge(s, t);
-                            self.scalar().mul_rt2_pow(-2);
+                            self.scalar().mul_sqrt2_pow(-2);
                         }
                         (EType::N, EType::H) => {
                             self.set_edge_type(s, t, EType::H);
                             self.add_to_phase(s, Rational::new(1,1));
-                            self.scalar().mul_rt2_pow(-1);
+                            self.scalar().mul_sqrt2_pow(-1);
                         }
                         (EType::H, EType::N) => {
                             self.add_to_phase(s, Rational::new(1,1));
-                            self.scalar().mul_rt2_pow(-1);
+                            self.scalar().mul_sqrt2_pow(-1);
                         }
                         (EType::H, EType::H) => {} // ignore new edge
                     }

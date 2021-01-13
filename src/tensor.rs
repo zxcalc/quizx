@@ -11,8 +11,10 @@ pub type Tensor<A> = Array<A,IxDyn>;
 pub type Matrix<A> = Array<A,Ix2>;
 
 impl Sqrt2 for Complex<f64> {
-    fn sqrt2() -> Complex<f64> { Complex::new(f64::sqrt(2.0), 0.0) }
-    fn one_over_sqrt2() -> Complex<f64> { Complex::new(1.0 / f64::sqrt(2.0), 0.0) }
+    fn sqrt2_pow(p: i32) -> Complex<f64> {
+        let rt2 = Complex::new(f64::sqrt(2.0), 0.0);
+        if p == 1 { rt2 } else { rt2.powi(p) }
+    }
 }
 
 impl FromPhase for Complex<f64> {
@@ -145,12 +147,7 @@ fn compute_tensor<G,A>(graph: &G) -> Tensor<A>
         seenv.insert(v, deg_v);
     }
 
-    // TODO: make A implement rt2_pow instead
-    let mut s = A::from_scalar(g.scalar());
-    for _ in 0..num_had {
-        s = s * A::one_over_sqrt2();
-    }
-
+    let s = A::from_scalar(g.scalar()) * A::sqrt2_pow(num_had);
     a * s
 }
 

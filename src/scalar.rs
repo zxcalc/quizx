@@ -48,11 +48,11 @@ pub trait FromPhase {
 
 /// Contains the numbers sqrt(2) and 1/sqrt(2), often used for renormalisation of
 /// qubit tensors and matrices.
-pub trait Sqrt2 {
-    fn sqrt2() -> Self;
-    fn one_over_sqrt2() -> Self;
+pub trait Sqrt2: Sized {
+    fn sqrt2() -> Self { Self::sqrt2_pow(1) }
+    fn one_over_sqrt2() -> Self { Self::sqrt2_pow(-1) }
+    fn sqrt2_pow(p: i32) -> Self;
 }
-
 
 /// A list of coefficients. We give this as a parameter to allow either
 /// fixed-size lists (e.g. [i32;4]) or dynamic ones (e.g. [Vec]\<i32\>). Only
@@ -140,7 +140,7 @@ impl<T: Coeffs> Scalar<T> {
         }
     }
 
-    pub fn mul_rt2_pow(&mut self, p: i32) {
+    pub fn mul_sqrt2_pow(&mut self, p: i32) {
         match self {
             Exact(pow, _) => *pow += p,
             Float(c) => {
@@ -161,10 +161,6 @@ impl<T: Coeffs> Scalar<T> {
 
     pub fn one_plus_phase(p: Rational) -> Scalar<T> {
         Scalar::one() + Scalar::from_phase(p)
-    }
-
-    pub fn rt2_pow(p: i32) -> Scalar<T> {
-        Scalar::Exact(p, T::one())
     }
 }
 
@@ -189,8 +185,9 @@ impl<T: Coeffs> One for Scalar<T> {
 }
 
 impl<T: Coeffs> Sqrt2 for Scalar<T> {
-    fn sqrt2() -> Scalar<T> { Scalar::rt2_pow(1) }
-    fn one_over_sqrt2() -> Scalar<T> { Scalar::rt2_pow(-1) }
+    fn sqrt2_pow(p: i32) -> Scalar<T> {
+        Scalar::Exact(p, T::one())
+    }
 }
 
 impl<T: Coeffs> FromPhase for Scalar<T> {
