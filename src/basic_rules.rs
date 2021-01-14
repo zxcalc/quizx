@@ -18,12 +18,59 @@ use crate::graph::*;
 use std::iter::FromIterator;
 use num::Rational;
 
+/// Check if spider fusion matches at the given pair of vertices
+///
+/// ```
+/// use quizx::graph::*;
+/// use quizx::tensor::ToTensor;
+/// use quizx::vec_graph::Graph;
+/// use quizx::basic_rules::check_spider_fusion;
+///
+/// let mut g = Graph::new();
+/// let v0 = g.add_vertex(VType::Z);
+/// let v1 = g.add_vertex(VType::Z);
+/// let v2 = g.add_vertex(VType::X);
+/// g.add_edge(v0, v1);
+/// g.add_edge(v1, v2);
+///
+/// assert!(check_spider_fusion(&g, v0, v1));
+/// assert!(!check_spider_fusion(&g, v1, v2));
+/// ```
 pub fn check_spider_fusion(g: &impl IsGraph, v0: V, v1: V) -> bool {
     ((g.vertex_type(v0) == VType::Z && g.vertex_type(v1) == VType::Z) ||
      (g.vertex_type(v0) == VType::X && g.vertex_type(v1) == VType::X)) &&
         g.connected(v0,v1) && g.edge_type(v0,v1) == EType::N
 }
 
+
+/// Apply spider fusion without checking validity
+///
+/// Note the first vertex is preserved by the fusion, and the second
+/// is deleted.
+///
+/// ```
+/// use quizx::graph::*;
+/// use quizx::tensor::ToTensor;
+/// use quizx::vec_graph::Graph;
+/// use quizx::basic_rules::spider_fusion_unsafe;
+///
+/// let mut g = Graph::new();
+/// let v0 = g.add_vertex(VType::Z);
+/// let v1 = g.add_vertex(VType::Z);
+/// let v2 = g.add_vertex(VType::X);
+/// g.add_edge(v0, v1);
+/// g.add_edge(v1, v2);
+///
+/// let h = g.clone();
+/// spider_fusion_unsafe(&mut g, v0, v1);
+/// assert_eq!(g.to_tensor4(), h.to_tensor4());
+///
+/// let h = g.clone();
+/// spider_fusion_unsafe(&mut g, v0, v2); // oops!
+/// assert_ne!(g.to_tensor4(), h.to_tensor4());
+///
+///
+/// ```
 pub fn spider_fusion_unsafe(g: &mut impl IsGraph, v0: V, v1: V) {
     for (v,et) in Vec::from_iter(g.incident_edges(v1)) {
         if v != v0 {
@@ -35,6 +82,37 @@ pub fn spider_fusion_unsafe(g: &mut impl IsGraph, v0: V, v1: V) {
     g.remove_vertex(v1);
 }
 
+/// Try to apply spider fusion, and return true if successful
+///
+/// Note the first vertex is preserved by the fusion, and the second
+/// is deleted.
+///
+/// ```
+/// use quizx::graph::*;
+/// use quizx::tensor::ToTensor;
+/// use quizx::vec_graph::Graph;
+/// use quizx::basic_rules::spider_fusion;
+///
+/// let mut g = Graph::new();
+/// let v0 = g.add_vertex(VType::Z);
+/// let v1 = g.add_vertex(VType::Z);
+/// let v2 = g.add_vertex(VType::X);
+/// g.add_edge(v0, v1);
+/// g.add_edge(v1, v2);
+///
+/// let h = g.clone();
+/// let success = spider_fusion(&mut g, v0, v1);
+/// assert!(success);
+/// assert_eq!(g.to_tensor4(), h.to_tensor4());
+///
+/// let h = g.clone();
+/// let success = spider_fusion(&mut g, v0, v2); // should fail
+/// assert!(!success);
+/// assert_eq!(g.to_tensor4(), h.to_tensor4());
+/// assert_eq!(g, h); // g is unchanged
+///
+///
+/// ```
 pub fn spider_fusion(g: &mut impl IsGraph, v0: V, v1: V) -> bool {
     if check_spider_fusion(g, v0, v1) {
         spider_fusion_unsafe(g, v0, v1); true
@@ -128,6 +206,7 @@ pub fn pivot(g: &mut impl IsGraph, v0: V, v1: V) -> bool {
 mod tests {
     use super::*;
     use crate::scalar::*;
+    use crate::tensor::*;
     use crate::vec_graph::Graph;
     use num::Rational;
     // use num::Complex;
