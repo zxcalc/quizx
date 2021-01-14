@@ -42,7 +42,7 @@ use approx::AbsDiffEq;
 /// scalars of different, compatible orders.
 #[derive(Debug,Clone)]
 pub enum Scalar<T: Coeffs> {
-    Exact(i32, T),
+    Exact(T),
     Float(Complex<f64>),
 }
 
@@ -115,13 +115,12 @@ impl<T: Coeffs> Scalar<T> {
 
     pub fn float_value(&self) -> Complex<f64> {
         match self {
-            Exact(pow, coeffs) => {
+            Exact(coeffs) => {
                 let omega = Complex::new(-1f64, 0f64).powf(1f64 / (coeffs.len() as f64));
-                let rt2_pow = Complex::new(2f64,0f64).powf((*pow as f64) / 2f64);
 
                 let mut num = Complex::new(0f64, 0f64);
                 for i in 0..coeffs.len() {
-                    num += (coeffs[i] as f64) * omega.powu(i as u32) * rt2_pow;
+                    num += (coeffs[i] as f64) * omega.powu(i as u32);
                 }
                 num
             },
@@ -129,46 +128,12 @@ impl<T: Coeffs> Scalar<T> {
         }
     }
 
-    /// If zero, make sqrt(2) power 0, otherwise make it as big as possible
-    pub fn reduced(&self) -> Scalar<T> {
-        if let Exact(mut pow,mut coeffs) = self.clone() {
-            let mut all_zero = true;
-            for i in 0..coeffs.len() {
-                all_zero = all_zero && coeffs[i] == 0;
-            }
-
-            if all_zero { return Exact(0, coeffs); }
-
-            let mut red = true;
-            while red {
-                for i in 0..coeffs.len() { red = red && coeffs[i].is_multiple_of(&2); }
-
-                if red {
-                    for i in 0..coeffs.len() {
-                        coeffs[i] = coeffs[i] / 2;
-                    }
-                    pow += 2;
-                }
-            }
-            Exact(pow, coeffs)
-        } else {
-            self.clone()
-        }
-    }
-
     pub fn mul_sqrt2_pow(&mut self, p: i32) {
-        match self {
-            Exact(pow, _) => *pow += p,
-            Float(c) => {
-                let rt2_pow = f64::powi(f64::sqrt(2.0), p);
-                c.re *= rt2_pow;
-                c.im *= rt2_pow;
-            }
-        }
+        *self *= Scalar::sqrt2_pow(p);
     }
 
     pub fn mul_phase(&mut self, phase: Rational) {
-        (*self) *= Scalar::from_phase(phase);
+        *self *= Scalar::from_phase(phase);
     }
 
     pub fn to_float(&self) -> Scalar<T> {
@@ -182,7 +147,7 @@ impl<T: Coeffs> Scalar<T> {
 
 impl<T: Coeffs> Zero for Scalar<T> {
     fn zero() -> Scalar<T> {
-        Exact(0, T::zero())
+        Exact(T::zero())
     }
 
     fn is_zero(&self) -> bool {
@@ -192,7 +157,7 @@ impl<T: Coeffs> Zero for Scalar<T> {
 
 impl<T: Coeffs> One for Scalar<T> {
     fn one() -> Scalar<T> {
-        Exact(0, T::one())
+        Exact(T::one())
     }
 
     fn is_one(&self) -> bool {
@@ -202,7 +167,31 @@ impl<T: Coeffs> One for Scalar<T> {
 
 impl<T: Coeffs> Sqrt2 for Scalar<T> {
     fn sqrt2_pow(p: i32) -> Scalar<T> {
-        Scalar::Exact(p, T::one())
+        match T::new(4) {
+            Some((mut coeffs,pad)) => {
+                // we use the fact that when omega = sqrt(i), omega + omega^3 = 1/sqrt(2)
+
+                if p < 0 {
+                    // for negative p, return sqrt(2)^p = (omega + omega^3)^(-p), computed using
+                    // the binomial theorem.
+                    for k in 0..=-p {
+                        let pos = (2 * k - p).rem_euclid(4) as usize;
+                        coeffs[pos * pad] += integer::binomial(-p, k);
+                    }
+                } else if p % 2 == 0 {
+                    // for positive even p, this is an integer power of 2. compute it quickly with a
+                    // shift
+                    coeffs[0] = 1i32 << (p/2);
+                } else {
+                    // for postive odd p, use the fact that:
+                    // sqrt(2)^p = sqrt(2)^(p+1) * 1/sqrt(2) = 2^((p+1)/2) * (omega + omega^3)
+                    coeffs[pad] = 1i32 << ((p+1)/2);
+                    coeffs[3*pad] = 1i32 << ((p+1)/2);
+                }
+                Exact(coeffs)
+            }
+            None => Float(Complex::new(2.0f64.powi(p), 0.0f64))
+        }
     }
 }
 
@@ -228,11 +217,11 @@ impl<T: Coeffs> FromPhase for Scalar<T> {
                     1
                 };
                 coeffs[rnumer as usize] = sgn;
-                Scalar::Exact(0, coeffs)
+                Exact(coeffs)
             },
             None => {
                 let f = (*p.numer() as f64) / (*p.denom() as f64);
-                Scalar::Float(Complex::new(-1.0,0.0).powf(f))
+                Float(Complex::new(-1.0,0.0).powf(f))
             }
         }
     }
@@ -242,9 +231,7 @@ impl<T: Coeffs> FromPhase for Scalar<T> {
 impl<T: Coeffs> fmt::Display for Scalar<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Exact(pow,coeffs) => {
-                write!(f, "rt(2)^{} (", pow)?;
-
+            Exact(coeffs) => {
                 for i in 0..coeffs.len() {
                     if i == 0 {
                         write!(f, "{}", coeffs[0])?;
@@ -252,8 +239,7 @@ impl<T: Coeffs> fmt::Display for Scalar<T> {
                         write!(f, " + {} * om^{}", coeffs[i], i)?;
                     }
                 }
-
-                write!(f, ")")
+                Ok(())
             },
             Float(c) => write!(f, "{}", c),
         }
@@ -269,7 +255,7 @@ impl<'a, 'b, T: Coeffs> std::ops::Mul<&'b Scalar<T>> for &'a Scalar<T> {
         match (self,rhs) {
             (Float(c), x) => Float(c * x.float_value()),
             (x, Float(c)) => Float(x.float_value() * c),
-            (Exact(pow0, coeffs0), Exact(pow1, coeffs1)) => {
+            (Exact(coeffs0), Exact(coeffs1)) => {
                 let (lcm, pad0, pad1) = lcm_with_padding(coeffs0.len(), coeffs1.len());
                 match T::new(lcm) {
                     Some((mut coeffs,pad)) => {
@@ -284,8 +270,7 @@ impl<'a, 'b, T: Coeffs> std::ops::Mul<&'b Scalar<T>> for &'a Scalar<T> {
                             }
                         }
 
-                        // TODO: we may not want to reduce at every multiplication
-                        Exact(pow0 + pow1, coeffs).reduced()
+                        Exact(coeffs)
                     },
                     None => {
                         Float(self.float_value() * rhs.float_value())
@@ -333,35 +318,22 @@ impl<'a, 'b, T: Coeffs> std::ops::Add<&'b Scalar<T>> for &'a Scalar<T> {
         match (self,rhs) {
             (Float(c), x) => Float(c + x.float_value()),
             (x, Float(c)) => Float(x.float_value() + c),
-            (Exact(pow0, coeffs0), Exact(pow1, coeffs1)) => {
-                if (pow0 - pow1) % 2 != 0 {
-                    // if sqrt(2) powers don't have the same parity, we have to fall back on float repr
-                    Float(self.float_value() + rhs.float_value())
-                } else {
-                    let (lcm, pad0, pad1) = lcm_with_padding(coeffs0.len(), coeffs1.len());
+            (Exact(coeffs0), Exact(coeffs1)) => {
+                let (lcm, pad0, pad1) = lcm_with_padding(coeffs0.len(), coeffs1.len());
 
-                    // if the powers of sqrt(2) are different by an even number, we need to rescale
-                    // the coefficients of the scalar with the larger power
-                    let (new_pow, scale0, scale1) =
-                        if *pow0 > *pow1 { (*pow1, (1 as i32) << (((pow0 - pow1)/2) as u32), 1) }
-                        else if *pow0 < *pow1 { (*pow0, 1, (1 as i32) << (((pow1 - pow0)/2) as u32)) }
-                        else { (*pow0, 1, 1) };
+                match T::new(lcm) {
+                    Some((mut coeffs, pad)) => {
+                        for i in 0..coeffs0.len() {
+                            coeffs[i*pad*pad0] += coeffs0[i];
+                        }
 
-                    match T::new(lcm) {
-                        Some((mut coeffs, pad)) => {
-                            for i in 0..coeffs0.len() {
-                                coeffs[i*pad*pad0] += scale0*coeffs0[i];
-                            }
+                        for i in 0..coeffs1.len() {
+                            coeffs[i*pad*pad1] += coeffs1[i];
+                        }
 
-                            for i in 0..coeffs1.len() {
-                                coeffs[i*pad*pad1] += scale1*coeffs1[i];
-                            }
-
-                            // TODO: we may not want to reduce at every addition
-                            Exact(new_pow, coeffs).reduced()
-                        },
-                        None => Float(self.float_value() + self.float_value())
-                    }
+                        Exact(coeffs)
+                    },
+                    None => Float(self.float_value() + self.float_value())
                 }
             },
         }
@@ -393,13 +365,13 @@ impl<T: Coeffs> FromScalar<Scalar<T>> for Complex<f64> {
 impl<S: Coeffs, T: Coeffs> FromScalar<Scalar<T>> for Scalar<S> {
     fn from_scalar(s: &Scalar<T>) -> Scalar<S> {
         match s {
-            Exact(pow, coeffs) => {
+            Exact(coeffs) => {
                 match S::new(coeffs.len()) {
                     Some((mut coeffs1, pad)) => {
                         for i in 0..coeffs.len() {
                             coeffs1[i*pad] = coeffs[i];
                         }
-                        Exact(*pow, coeffs1)
+                        Exact(coeffs1)
                     },
                     None => Float(s.float_value()),
                 }
@@ -429,10 +401,9 @@ impl<T: Coeffs> AbsDiffEq<Scalar<T>> for Scalar<T> {
 
 impl<T: Coeffs> PartialEq for Scalar<T> {
     fn eq(&self, other: &Self) -> bool {
-        match (self.reduced(), other.reduced()) {
+        match (self, other) {
             (Float(c0), Float(c1)) => c0 == c1,
-            (Exact(pow0, coeffs0), Exact(pow1, coeffs1)) => {
-                if pow0 != pow1 { return false; }
+            (Exact(coeffs0), Exact(coeffs1)) => {
                 let (lcm, pad0, pad1) = lcm_with_padding(coeffs0.len(), coeffs1.len());
                 let mut all_eq = true;
                 for i in 0..lcm {
@@ -518,16 +489,16 @@ mod tests {
 
     #[test]
     fn sqrt_i() {
-        let s = Scalar::Exact(0, [0, 1, 0, 0]);
+        let s = Scalar::Exact([0, 1, 0, 0]);
         assert_abs_diff_eq!(s.to_float(), Scalar::complex(1.0 / f64::sqrt(2.0), 1.0 / f64::sqrt(2.0)));
     }
 
     #[test]
     fn mul_same_base() {
-        let s = Scalar::Exact(0, [1, 2, 3, 4]);
-        let t = Scalar::Exact(0, [4, 5, 6, 7]);
+        let s = Scalar::Exact([1, 2, 3, 4]);
+        let t = Scalar::Exact([4, 5, 6, 7]);
         let st = &s * &t;
-        assert!(match st { Exact(_,_) => true, _ => false });
+        assert!(match st { Exact(_) => true, _ => false });
         assert_abs_diff_eq!(st.to_float(), s.to_float() * t.to_float());
     }
 
@@ -541,32 +512,17 @@ mod tests {
         assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(1,1)),  Scalar4::real(-1.0));
         assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(1,2)),  Scalar4::complex(0.0, 1.0));
         assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(-1,2)), Scalar4::complex(0.0, -1.0));
-        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(1,4)),  Scalar4::Exact(0, [0,1,0,0]));
-        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(3,4)),  Scalar4::Exact(0, [0,0,0,1]));
-        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(7,4)),  Scalar4::Exact(0, [0,0,0,-1]));
+        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(1,4)),  Scalar4::Exact([0,1,0,0]));
+        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(3,4)),  Scalar4::Exact([0,0,0,1]));
+        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(7,4)),  Scalar4::Exact([0,0,0,-1]));
     }
 
     #[test]
     fn additions() {
-        let s: ScalarN = Exact(0, vec![1,2,3,4]);
-        let t: ScalarN = Exact(0, vec![2,3,4,5]);
-        let st: ScalarN = Exact(0, vec![3,5,7,9]);
+        let s: ScalarN = Exact(vec![1,2,3,4]);
+        let t: ScalarN = Exact(vec![2,3,4,5]);
+        let st: ScalarN = Exact(vec![3,5,7,9]);
         assert_eq!(s + t, st);
-    }
-
-    #[test]
-    fn additions_diff_base() {
-        let s: ScalarN = Exact(2, vec![1,2,3,4]);
-        let t: ScalarN = Exact(0, vec![2,3,4,5]);
-        let st: ScalarN = Exact(0, vec![4,7,10,13]);
-        assert_eq!(s + t, st);
-    }
-
-    #[test]
-    fn reductions() {
-        let s: ScalarN = Exact(-2, vec![2]);
-        assert_eq!(s,s);
-        assert_eq!(s, ScalarN::one());
     }
 
     // #[test]
