@@ -316,7 +316,7 @@ mod tests {
         assert_eq!(g.num_vertices(), 9);
         assert_eq!(g.num_edges(), 8);
 
-        // let h = g.clone();
+        let h = g.clone();
         let success = local_comp(&mut g, 0);
         assert!(success, "Local comp should match");
 
@@ -324,7 +324,7 @@ mod tests {
         assert_eq!(g.num_edges(), 10);
 
         // TODO: this is failing!!!
-        // assert_eq!(g.to_tensor4(), h.to_tensor4());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
 
         for i in 1..5 {
             assert_eq!(g.phase(i), Rational::new(-1,2));
