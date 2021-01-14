@@ -95,9 +95,6 @@ pub trait ToTensor: IsGraph + Clone {
         for v in vs {
             let p = g.phase(v);
             if fst {
-                let s = A::from_scalar(g.scalar());
-                println!("SCALAR FROM G: {:?}", g.scalar());
-                println!("CONVERTED: {:?}", s);
                 if p == Rational::new(0,1) {
                     a = array![A::one(), A::one()].into_dyn();
                 } else {
@@ -134,7 +131,7 @@ pub trait ToTensor: IsGraph + Clone {
                     let mut shape: Vec<usize> = vec![1; indexv.len()];
                     shape[vi] = 2;
                     shape[wi] = 2;
-                    println!("Cloning delta/had into shape {:?}", shape);
+                    // println!("Cloning delta/had into shape {:?}", shape);
 
                     let m = if et == EType::N {
                         &delta
@@ -145,7 +142,7 @@ pub trait ToTensor: IsGraph + Clone {
                     .into_shape(shape)
                         .expect("Bad tensor indices");
 
-                    println!("Done. Multiplying with 'a' of shape {:?}", a.shape());
+                    // println!("Done. Multiplying with 'a' of shape {:?}", a.shape());
 
                     a = &a * &m;
 
@@ -153,14 +150,14 @@ pub trait ToTensor: IsGraph + Clone {
                     // index
 
                     if g.vertex_type(v) != VType::B && g.degree(v) == deg_v {
-                        println!("contracting v={}, deg_v={}", v, deg_v);
+                        // println!("contracting v={}, deg_v={}", v, deg_v);
                         a = a.sum_axis(Axis(vi));
                         indexv.remove(vi);
                         if wi > vi { wi -= 1; }
                     }
 
                     if g.vertex_type(w) != VType::B && g.degree(w) == *deg_w {
-                        println!("contracting w={}, deg_w={}", w, *deg_w);
+                        // println!("contracting w={}, deg_w={}", w, *deg_w);
                         a = a.sum_axis(Axis(wi));
                         indexv.remove(wi);
                     }

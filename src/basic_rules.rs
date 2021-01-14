@@ -302,19 +302,21 @@ mod tests {
         g.add_edge_with_type(0,3,EType::H);
         g.add_edge_with_type(0,4,EType::H);
 
-        let b = g.add_vertex(VType::B);
-        g.add_edge(1,5);
-        g.set_outputs(vec![b]);
+        let b0 = g.add_vertex(VType::B);
+        let b1 = g.add_vertex(VType::B);
+        g.add_edge(b0, 1);
+        g.add_edge(b1, 2);
+        g.set_inputs(vec![b0,b1]);
 
-        assert_eq!(g.num_vertices(), 6);
-        assert_eq!(g.num_edges(), 5);
+        assert_eq!(g.num_vertices(), 7);
+        assert_eq!(g.num_edges(), 6);
 
         let h = g.clone();
         let success = local_comp(&mut g, 0);
         assert!(success, "Local comp should match");
 
-        assert_eq!(g.num_vertices(), 5);
-        assert_eq!(g.num_edges(), 7);
+        assert_eq!(g.num_vertices(), 6);
+        assert_eq!(g.num_edges(), 8);
         // println!("{:#?}", g);
         assert_eq!(g.to_tensor4(), h.to_tensor4());
 
