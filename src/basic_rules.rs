@@ -131,12 +131,10 @@ pub fn local_comp_unsafe(g: &mut impl IsGraph, v: V) {
 
     // add a totally connected graph of the nhd of v
     let ns: Vec<V> = g.neighbors(v).collect();
-    for &n0 in &ns {
-        g.add_to_phase(n0, -p);
-        for &n1 in &ns {
-            if n0 < n1 { // avoids double-counting
-                g.add_edge_smart(n0, n1, EType::H);
-            }
+    for i in 0..ns.len() {
+        g.add_to_phase(ns[i], -p);
+        for j in (i+1)..ns.len() {
+            g.add_edge_smart(ns[i], ns[j], EType::H);
         }
     }
     g.remove_vertex(v);
@@ -304,17 +302,21 @@ mod tests {
         g.add_edge_with_type(0,3,EType::H);
         g.add_edge_with_type(0,4,EType::H);
 
-        g.add_vertex(VType::B);
+        let b = g.add_vertex(VType::B);
         g.add_edge(1,5);
+        g.set_outputs(vec![b]);
 
         assert_eq!(g.num_vertices(), 6);
         assert_eq!(g.num_edges(), 5);
 
+        let h = g.clone();
         let success = local_comp(&mut g, 0);
         assert!(success, "Local comp should match");
 
         assert_eq!(g.num_vertices(), 5);
         assert_eq!(g.num_edges(), 7);
+        // println!("{:#?}", g);
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
 
         for i in 1..5 {
             assert_eq!(g.phase(i), Rational::new(-1,2));
@@ -350,7 +352,7 @@ mod tests {
         let success = pivot(&mut h, 3, 4);
         assert!(success, "Pivot should match");
 
-        assert_eq!(g.to_tensor::<Scalar4>(), h.to_tensor());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
 
         assert_eq!(h.num_vertices(), 5);
         assert_eq!(h.num_edges(), 6);
@@ -378,7 +380,7 @@ mod tests {
         let mut h = g.clone();
         let success = pivot(&mut h, 3, 4);
         assert!(success, "Second pivot should match");
-        assert_eq!(g.to_tensor::<Scalar4>(), h.to_tensor());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
     }
 
     #[test]

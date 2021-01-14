@@ -282,7 +282,8 @@ impl<'a, 'b, T: Coeffs> std::ops::Mul<&'b Scalar<T>> for &'a Scalar<T> {
                             }
                         }
 
-                        Exact(pow0 + pow1, coeffs)
+                        // TODO: we may not want to reduce at every multiplication
+                        Exact(pow0 + pow1, coeffs).reduced()
                     },
                     None => {
                         Float(self.float_value() * rhs.float_value())
@@ -331,23 +332,31 @@ impl<'a, 'b, T: Coeffs> std::ops::Add<&'b Scalar<T>> for &'a Scalar<T> {
             (Float(c), x) => Float(c + x.float_value()),
             (x, Float(c)) => Float(x.float_value() + c),
             (Exact(pow0, coeffs0), Exact(pow1, coeffs1)) => {
-                if pow0 != pow1 {
-                    // if rt2 powers don't match, we have to fall back on float repr
+                if (pow0 - pow1) % 2 != 0 {
+                    // if sqrt(2) powers don't have the same parity, we have to fall back on float repr
                     Float(self.float_value() + rhs.float_value())
                 } else {
                     let (lcm, pad0, pad1) = lcm_with_padding(coeffs0.len(), coeffs1.len());
 
+                    // if the powers of sqrt(2) are different by an even number, we need to rescale
+                    // the coefficients of the scalar with the larger power
+                    let (new_pow, scale0, scale1) =
+                        if *pow0 > *pow1 { (*pow1, (1 as i32) << (((pow0 - pow1)/2) as u32), 1) }
+                        else if *pow0 < *pow1 { (*pow0, 1, (1 as i32) << (((pow1 - pow0)/2) as u32)) }
+                        else { (*pow0, 1, 1) };
+
                     match T::new(lcm) {
                         Some((mut coeffs, pad)) => {
                             for i in 0..coeffs0.len() {
-                                coeffs[i*pad*pad0] += coeffs0[i];
+                                coeffs[i*pad*pad0] += scale0*coeffs0[i];
                             }
 
                             for i in 0..coeffs1.len() {
-                                coeffs[i*pad*pad1] += coeffs1[i];
+                                coeffs[i*pad*pad1] += scale1*coeffs1[i];
                             }
 
-                            Exact(*pow0, coeffs)
+                            // TODO: we may not want to reduce at every addition
+                            Exact(new_pow, coeffs).reduced()
                         },
                         None => Float(self.float_value() + self.float_value())
                     }
@@ -540,6 +549,14 @@ mod tests {
         let s: ScalarN = Exact(0, vec![1,2,3,4]);
         let t: ScalarN = Exact(0, vec![2,3,4,5]);
         let st: ScalarN = Exact(0, vec![3,5,7,9]);
+        assert_eq!(s + t, st);
+    }
+
+    #[test]
+    fn additions_diff_base() {
+        let s: ScalarN = Exact(2, vec![1,2,3,4]);
+        let t: ScalarN = Exact(0, vec![2,3,4,5]);
+        let st: ScalarN = Exact(0, vec![4,7,10,13]);
         assert_eq!(s + t, st);
     }
 

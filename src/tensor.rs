@@ -45,6 +45,12 @@ pub trait TensorElem: Copy + Zero + One + Sqrt2 + FromPhase + ScalarOperand + Fr
 impl<T> TensorElem for T
 where T: Copy + Zero + One + Sqrt2 + FromPhase + ScalarOperand + FromScalar<ScalarN> + std::fmt::Debug {}
 
+/// Trait that implements conversion of graphs to tensors
+///
+/// This implements a generic method [ToTensor::to_tensor] for any number type that
+/// implements [TensorElem], as well as two convenience methods [ToTensor::to_tensor4]
+/// and [ToTensor::to_tensorf] for [Scalar4] and floating-point [Complex] numbers,
+/// respectively.
 pub trait ToTensor: IsGraph + Clone {
     fn to_tensor<A>(&self) -> Tensor<A>
     where A: TensorElem
@@ -168,10 +174,10 @@ pub trait ToTensor: IsGraph + Clone {
     }
 
 
-    /// Shorthand for to_tensor::<Scalar4>()
+    /// Shorthand for `to_tensor::<Scalar4>()`
     fn to_tensor4(&self) -> Tensor<Scalar4> { self.to_tensor() }
 
-    /// Shorthand for to_tensor::<Complex<f64>>()
+    /// Shorthand for `to_tensor::<Complex<f64>>()`
     fn to_tensorf(&self) -> Tensor<Complex<f64>> { self.to_tensor() }
 }
 

@@ -6,19 +6,19 @@ This is a port of some of the core functionality of PyZX to the [Rust](https://w
 
 To build from source, first [get Rust](https://www.rust-lang.org/tools/install), then use the included package and build manager `cargo`.
 
-    $ git clone https://github.com/Quantomatic/quizx.git
-    $ cd quizx
-    $ cargo build
-    $ cargo test
+    git clone https://github.com/Quantomatic/quizx.git
+    cd quizx
+    cargo build
+    cargo test
 
 This will download the dependendies, build in debug mode and run the tests. There is a miscellaneous collection of programs written using the library, found in `src/bin`. To build in release (i.e. fast) mode, run:
 
-    $ cargo build --release
+    cargo build --release
 
 Then, run one of the binaries via the `cargo run` command, or directly via e.g.
 
-    $ cd target/release
-    $ ./spider_chain
+    cd target/release
+    ./spider_chain
 
 ## TODO
 
@@ -30,18 +30,18 @@ QuiZX is very much a work in progress. It is not intended to have all the featur
   - [X] spider fusion
   - [X] local complementation
   - [X] pivoting
-  - [ ] pivoting variations (boundary-pivot and gadget-pivot)
-  - [ ] colour-change
   - [ ] remove identity spiders
+  - [ ] colour-change
+  - [ ] pivoting variations (boundary-pivot and gadget-pivot)
   - [ ] strong complementarity (optional, pivoting is more useful in practice)
 - tensor evaluation with [ndarray](https://github.com/rust-ndarray/ndarray)
   - [X] tensors with floating point and exact (cyclotomic ring) scalars
   - [X] tensor contraction for arbitrary ZX-diagrams
+  - [X] exact equality of tensors with exact scalars
   - [ ] space optimisations
   - [ ] choose good contraction ordering
-  - [X] exact equality of tensors with exact scalars
   - [ ] more human-readable/writable tensors (e.g. converting to normal matrices, pretty printing)
-- [ ] circuit structure and conversion to/from ZX-diagram
+- [ ] circuit type and conversion to ZX-diagrams
 - [ ] read and write QASM
 - [ ] circuit extraction
 
