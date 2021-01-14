@@ -218,14 +218,16 @@ impl<T: Coeffs> FromPhase for Scalar<T> {
 
         match T::new(rdenom as usize) {
             Some((mut coeffs,pad)) => {
+                rnumer *= pad as isize;
+                rdenom *= pad as isize;
+                rnumer = rnumer.rem_euclid(2 * rdenom);
                 let sgn = if rnumer >= rdenom {
                     rnumer = rnumer - rdenom;
                     -1
                 } else {
                     1
                 };
-                let i = (rnumer * pad as isize).rem_euclid(2 * rdenom);
-                coeffs[i as usize] = sgn;
+                coeffs[rnumer as usize] = sgn;
                 Scalar::Exact(0, coeffs)
             },
             None => {
@@ -535,13 +537,13 @@ mod tests {
         let t: ScalarN = ScalarN::from_phase(Rational::new(4,3) + Rational::new(2,5));
         assert_abs_diff_eq!(s,t);
 
-        // assert_abs_diff_eq!(Scalar::from_phase(Rational::new(0,1)), Scalar::one());
-        // assert_abs_diff_eq!(Scalar::from_phase(Rational::new(1,1)), Scalar::real(-1.0));
-        // assert_abs_diff_eq!(Scalar::from_phase(Rational::new(1,2)), Scalar::complex(0.0, 1.0));
-        // assert_abs_diff_eq!(Scalar::from_phase(Rational::new(-1,2)), Scalar::complex(0.0, -1.0));
-        assert_abs_diff_eq!(Scalar::from_phase(Rational::new(1,4)), Scalar::Exact(0, [0,1,0,0]));
-        assert_abs_diff_eq!(Scalar::from_phase(Rational::new(3,4)), Scalar::Exact(0, [0,0,0,1]));
-        assert_abs_diff_eq!(Scalar::from_phase(Rational::new(7,4)), Scalar::Exact(0, [0,0,0,-1]));
+        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(0,1)),  Scalar4::one());
+        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(1,1)),  Scalar4::real(-1.0));
+        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(1,2)),  Scalar4::complex(0.0, 1.0));
+        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(-1,2)), Scalar4::complex(0.0, -1.0));
+        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(1,4)),  Scalar4::Exact(0, [0,1,0,0]));
+        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(3,4)),  Scalar4::Exact(0, [0,0,0,1]));
+        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(7,4)),  Scalar4::Exact(0, [0,0,0,-1]));
     }
 
     #[test]

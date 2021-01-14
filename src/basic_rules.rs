@@ -302,21 +302,26 @@ mod tests {
         g.add_edge_with_type(0,3,EType::H);
         g.add_edge_with_type(0,4,EType::H);
 
-        let b0 = g.add_vertex(VType::B);
         let b1 = g.add_vertex(VType::B);
-        g.add_edge(b0, 1);
-        g.add_edge(b1, 2);
-        g.set_inputs(vec![b0,b1]);
+        let b2 = g.add_vertex(VType::B);
+        let b3 = g.add_vertex(VType::B);
+        let b4 = g.add_vertex(VType::B);
+        g.add_edge_with_type(b1, 1, EType::H);
+        g.add_edge_with_type(b2, 2, EType::H);
+        g.add_edge_with_type(b3, 3, EType::H);
+        g.add_edge_with_type(b4, 4, EType::H);
+        g.set_inputs(vec![b1,b2]);
+        g.set_outputs(vec![b3,b4]);
 
-        assert_eq!(g.num_vertices(), 7);
-        assert_eq!(g.num_edges(), 6);
+        assert_eq!(g.num_vertices(), 9);
+        assert_eq!(g.num_edges(), 8);
 
         let h = g.clone();
         let success = local_comp(&mut g, 0);
         assert!(success, "Local comp should match");
 
-        assert_eq!(g.num_vertices(), 6);
-        assert_eq!(g.num_edges(), 8);
+        assert_eq!(g.num_vertices(), 8);
+        assert_eq!(g.num_edges(), 10);
         // println!("{:#?}", g);
         assert_eq!(g.to_tensor4(), h.to_tensor4());
 
