@@ -24,22 +24,18 @@ use approx::AbsDiffEq;
 /// A type for exact and approximate representation of complex
 /// numbers.
 ///
-/// The [Exact] representation of a scalar is given as a power of
-/// sqrt(2) and an element of Z\[omega\], where omega is the 2N-th
-/// root of unity, represented by its first N coefficients. Addition
-/// for this type is O(N) and multiplication O(N^2).
+/// The [Exact] representation of a scalar is given as an element of
+/// Q\[omega\], where omega is the 2N-th root of unity, represented by
+/// its first N coefficients. Addition for this type is O(N) and
+/// multiplication O(N^2).
 ///
 /// The type of the coefficient list is given as a type parameter
-/// implementing a trait [Coeffs]. This is to allow fixed N (with
-/// an array) or variable N (with a [Vec]).  Only the former is
-/// allowed to implement the [Copy] trait, needed for tensor/matrix
-/// elements.
+/// implementing a trait [Coeffs].  This is to allow fixed N (with an
+/// array) or variable N (with a [Vec]).  Only the former is allowed
+/// to implement the [Copy] trait, needed for tensor/matrix elements.
 ///
 /// The [Float] representation of a scalar is given as a 64-bit
 /// floating point [Complex] number.
-///
-/// TODO: Use a custom implementation of PartialEq to handle
-/// scalars of different, compatible orders.
 #[derive(Debug,Clone)]
 pub enum Scalar<T: Coeffs> {
     Exact(T),
@@ -62,19 +58,20 @@ pub trait FromPhase {
     fn from_phase(p: Rational) -> Self;
 }
 
-/// Contains the numbers sqrt(2) and 1/sqrt(2), often used for renormalisation of
-/// qubit tensors and matrices.
+/// Contains the numbers sqrt(2) and 1/sqrt(2), often used for
+/// renormalisation of qubit tensors and matrices.
 pub trait Sqrt2: Sized {
     fn sqrt2() -> Self { Self::sqrt2_pow(1) }
     fn one_over_sqrt2() -> Self { Self::sqrt2_pow(-1) }
     fn sqrt2_pow(p: i32) -> Self;
 }
 
-/// A list of coefficients. We give this as a parameter to allow either
-/// fixed-size lists (e.g. [i32;4]) or dynamic ones (e.g. [Vec]\<i32\>). Only
-/// the former can be used in tensors and matrices, because they have to
-/// implement Copy (i.e. size must be known at compile time).
-pub trait Coeffs: Clone + std::ops::IndexMut<usize,Output=i32> {
+/// A list of coefficients. We give this as a parameter to allow
+/// either fixed-size lists (e.g. [i32;4]) or dynamic ones (e.g.
+/// [Vec]\<i32\>). Only the former can be used in tensors and
+/// matrices, because they have to implement Copy (the size must be
+/// known at compile time).
+pub trait Coeffs: Clone + std::ops::IndexMut<usize,Output=Rational> {
     fn len(&self) -> usize;
     fn zero() -> Self;
     fn one() -> Self;
@@ -89,8 +86,8 @@ use Scalar::{Exact,Float};
 /// Allows transformation from a scalar.
 ///
 /// We do not use the standard library's [From] trait to avoid a clash
-/// when converting Scalar\<S\> to Scalar\<T\>, which is already implemented
-/// as a noop for [From] when S = T.
+/// when converting Scalar\<S\> to Scalar\<T\>, which is already
+/// implemented as a noop for [From] when S = T.
 pub trait FromScalar<T> {
     fn from_scalar(s: &T) -> Self;
 }
@@ -120,7 +117,7 @@ impl<T: Coeffs> Scalar<T> {
 
                 let mut num = Complex::new(0f64, 0f64);
                 for i in 0..coeffs.len() {
-                    num += (coeffs[i] as f64) * omega.powu(i as u32);
+                    num += (*coeffs[i].numer() as f64 / *coeffs[i].denom() as f64) * omega.powu(i as u32);
                 }
                 num
             },
@@ -142,6 +139,18 @@ impl<T: Coeffs> Scalar<T> {
 
     pub fn one_plus_phase(p: Rational) -> Scalar<T> {
         Scalar::one() + Scalar::from_phase(p)
+    }
+
+    pub fn from_int_coeffs(coeffs: &[isize]) -> Scalar<T> {
+        match T::new(coeffs.len()) {
+            Some((mut coeffs1, pad)) => {
+                for i in 0..coeffs.len() {
+                    coeffs1[i*pad] = Rational::new(coeffs[i], 1);
+                }
+                Exact(coeffs1)
+            },
+            None => panic!("Wrong number of coefficients for scalar type")
+        }
     }
 }
 
@@ -169,24 +178,22 @@ impl<T: Coeffs> Sqrt2 for Scalar<T> {
     fn sqrt2_pow(p: i32) -> Scalar<T> {
         match T::new(4) {
             Some((mut coeffs,pad)) => {
-                // we use the fact that when omega = sqrt(i), omega + omega^3 = 1/sqrt(2)
+                // we use the fact that when omega = e^(i pi/4), omega - omega^3 = sqrt(2)
 
-                if p < 0 {
-                    // for negative p, return sqrt(2)^p = (omega + omega^3)^(-p), computed using
-                    // the binomial theorem.
-                    for k in 0..=-p {
-                        let pos = (2 * k - p).rem_euclid(4) as usize;
-                        coeffs[pos * pad] += integer::binomial(-p, k);
-                    }
-                } else if p % 2 == 0 {
-                    // for positive even p, this is an integer power of 2. compute it quickly with a
-                    // shift
-                    coeffs[0] = 1i32 << (p/2);
+                if p.rem_euclid(2) == 0 {
+                    // for even p, use: sqrt(2)^p = 2^(p/2)
+                    let r =
+                        if p < 0 { Rational::new(1, 1isize << -p/2) }
+                        else { Rational::new(1isize << p/2, 1) };
+                    coeffs[0] = r;
                 } else {
-                    // for postive odd p, use the fact that:
-                    // sqrt(2)^p = sqrt(2)^(p+1) * 1/sqrt(2) = 2^((p+1)/2) * (omega + omega^3)
-                    coeffs[pad] = 1i32 << ((p+1)/2);
-                    coeffs[3*pad] = 1i32 << ((p+1)/2);
+                    // for odd p, use:
+                    // sqrt(2)^p = sqrt(2)^(p-1) * sqrt(2) = 2^((p-1)/2) * (omega - omega^3)
+                    let r =
+                        if p < 0 { Rational::new(1, 1isize << -(p-1)/2) }
+                        else { Rational::new(1isize << (p-1)/2, 1) };
+                    coeffs[pad] = r;
+                    coeffs[3*pad] = -r;
                 }
                 Exact(coeffs)
             }
@@ -199,12 +206,6 @@ impl<T: Coeffs> FromPhase for Scalar<T> {
     fn from_phase(p: Rational) -> Scalar<T> {
         let mut rnumer = *p.numer();
         let mut rdenom = *p.denom();
-
-        if rdenom < 0 {
-            rnumer *= -1;
-            rdenom *= -1;
-        }
-
         match T::new(rdenom as usize) {
             Some((mut coeffs,pad)) => {
                 rnumer *= pad as isize;
@@ -212,9 +213,9 @@ impl<T: Coeffs> FromPhase for Scalar<T> {
                 rnumer = rnumer.rem_euclid(2 * rdenom);
                 let sgn = if rnumer >= rdenom {
                     rnumer = rnumer - rdenom;
-                    -1
+                    -Rational::one()
                 } else {
-                    1
+                    Rational::one()
                 };
                 coeffs[rnumer as usize] = sgn;
                 Exact(coeffs)
@@ -310,7 +311,7 @@ impl<'a, T: Coeffs> std::ops::MulAssign<&'a Scalar<T>> for Scalar<T> {
 }
 
 // The main implementation of the Add trait uses references, so we don't need
-// to make a copy of the scalars to multiply them.
+// to make a copy of the scalars to add them.
 impl<'a, 'b, T: Coeffs> std::ops::Add<&'b Scalar<T>> for &'a Scalar<T> {
     type Output = Scalar<T>;
 
@@ -388,7 +389,7 @@ impl<T: Coeffs> AbsDiffEq<Scalar<T>> for Scalar<T> {
     // since this is mainly used for testing, we allow rounding errors much bigger than
     // machine-epsilon
     fn default_epsilon() -> Self::Epsilon {
-        0.0000000001f64 //f64::default_epsilon()
+        1e-6f64
     }
 
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
@@ -407,8 +408,8 @@ impl<T: Coeffs> PartialEq for Scalar<T> {
                 let (lcm, pad0, pad1) = lcm_with_padding(coeffs0.len(), coeffs1.len());
                 let mut all_eq = true;
                 for i in 0..lcm {
-                    let c0 = if i % pad0 == 0 { coeffs0[i/pad0] } else { 0 };
-                    let c1 = if i % pad1 == 0 { coeffs1[i/pad1] } else { 0 };
+                    let c0 = if i % pad0 == 0 { coeffs0[i/pad0] } else { Rational::zero() };
+                    let c1 = if i % pad1 == 0 { coeffs1[i/pad1] } else { Rational::zero() };
                     all_eq = all_eq && c0 == c1;
                 }
 
@@ -423,20 +424,24 @@ impl<T: Coeffs> PartialEq for Scalar<T> {
 /// the associated scalar type.
 macro_rules! fixed_size_scalar {
     ( $name:ident, $n:expr ) => {
-        impl Coeffs for [i32;$n] {
+        impl Coeffs for [Rational;$n] {
             fn len(&self) -> usize { $n }
-            fn zero() -> [i32;$n] { [0;$n] }
-            fn one() -> [i32;$n] { let mut a = [0;$n]; a[0] = 1; a }
-            fn new(sz: usize) -> Option<([i32;$n],usize)> {
+            fn zero() -> Self { [Rational::zero();$n] }
+            fn one() -> Self {
+                let mut a = [Rational::zero();$n];
+                a[0] = Rational::one();
+                a
+            }
+            fn new(sz: usize) -> Option<(Self,usize)> {
                 if $n.is_multiple_of(&sz) {
-                    Some(([0;$n], $n/sz))
+                    Some(([Rational::zero();$n], $n/sz))
                 } else {
                     None
                 }
             }
         }
 
-        pub type $name = Scalar<[i32;$n]>;
+        pub type $name = Scalar<[Rational;$n]>;
         impl ndarray::ScalarOperand for $name { }
     }
 }
@@ -450,29 +455,16 @@ fixed_size_scalar!(Scalar6, 6);
 fixed_size_scalar!(Scalar7, 7);
 fixed_size_scalar!(Scalar8, 8);
 
-// impl Coeffs for [i32;4] {
-//     fn len(&self) -> usize { 4 }
-//     fn zero() -> [i32;4] { [0;4] }
-//     fn one() -> [i32;4] { let mut a = [0;4]; a[0] = 1; a }
-//     fn new(sz: usize) -> Option<([i32;4],usize)> {
-//         if (sz as i32).divides(&4) {
-//             Some(([0;4], 4/sz))
-//         } else {
-//             None
-//         }
-//     }
-// }
-
-impl Coeffs for Vec<i32> {
+impl Coeffs for Vec<Rational> {
     fn len(&self) -> usize { self.len() }
-    fn zero() -> Vec<i32> { vec![0] }
-    fn one() -> Vec<i32> { vec![1] }
-    fn new(sz: usize) -> Option<(Vec<i32>,usize)> {
-        Some((vec![0; sz],1))
+    fn zero() -> Self { vec![Rational::zero()] }
+    fn one() -> Self { vec![Rational::one()] }
+    fn new(sz: usize) -> Option<(Self,usize)> {
+        Some((vec![Rational::zero(); sz],1))
     }
 }
 
-pub type ScalarN = Scalar<Vec<i32>>;
+pub type ScalarN = Scalar<Vec<Rational>>;
 
 #[cfg(test)]
 mod tests {
@@ -481,22 +473,22 @@ mod tests {
 
     #[test]
     fn approx_mul() {
-        let s: Scalar<[i32;4]> = Scalar::real(f64::sqrt(0.3) * f64::sqrt(0.3) - 0.3);
-        let t: Scalar<[i32;4]> = Scalar::zero();
+        let s: Scalar4 = Scalar::real(f64::sqrt(0.3) * f64::sqrt(0.3) - 0.3);
+        let t: Scalar4 = Scalar::zero();
         assert_ne!(s, t);
         assert_abs_diff_eq!(s, t);
     }
 
     #[test]
     fn sqrt_i() {
-        let s = Scalar::Exact([0, 1, 0, 0]);
+        let s = Scalar4::from_int_coeffs(&[0, 1, 0, 0]);
         assert_abs_diff_eq!(s.to_float(), Scalar::complex(1.0 / f64::sqrt(2.0), 1.0 / f64::sqrt(2.0)));
     }
 
     #[test]
     fn mul_same_base() {
-        let s = Scalar::Exact([1, 2, 3, 4]);
-        let t = Scalar::Exact([4, 5, 6, 7]);
+        let s = Scalar4::from_int_coeffs(&[1, 2, 3, 4]);
+        let t = Scalar4::from_int_coeffs(&[4, 5, 6, 7]);
         let st = &s * &t;
         assert!(match st { Exact(_) => true, _ => false });
         assert_abs_diff_eq!(st.to_float(), s.to_float() * t.to_float());
@@ -512,17 +504,34 @@ mod tests {
         assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(1,1)),  Scalar4::real(-1.0));
         assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(1,2)),  Scalar4::complex(0.0, 1.0));
         assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(-1,2)), Scalar4::complex(0.0, -1.0));
-        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(1,4)),  Scalar4::Exact([0,1,0,0]));
-        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(3,4)),  Scalar4::Exact([0,0,0,1]));
-        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(7,4)),  Scalar4::Exact([0,0,0,-1]));
+        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(1,4)),  Scalar4::from_int_coeffs(&[0,1,0,0]));
+        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(3,4)),  Scalar4::from_int_coeffs(&[0,0,0,1]));
+        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(7,4)),  Scalar4::from_int_coeffs(&[0,0,0,-1]));
     }
 
     #[test]
     fn additions() {
-        let s: ScalarN = Exact(vec![1,2,3,4]);
-        let t: ScalarN = Exact(vec![2,3,4,5]);
-        let st: ScalarN = Exact(vec![3,5,7,9]);
+        let s = ScalarN::from_int_coeffs(&[1,2,3,4]);
+        let t = ScalarN::from_int_coeffs(&[2,3,4,5]);
+        let st = ScalarN::from_int_coeffs(&[3,5,7,9]);
         assert_eq!(s + t, st);
+    }
+
+    #[test]
+    fn sqrt2_powers() {
+        let s = Scalar4::sqrt2_pow(0);
+        assert_eq!(s, Scalar4::one());
+        let s = Scalar4::sqrt2_pow(2);
+        assert_eq!(s, Scalar4::from_int_coeffs(&[2]));
+        let s = Scalar4::sqrt2_pow(1);
+        assert_abs_diff_eq!(s, Scalar4::real(f64::sqrt(2f64)));
+        let s = Scalar4::sqrt2_pow(-1);
+        assert_abs_diff_eq!(s, Scalar4::real(1.0 / f64::sqrt(2f64)));
+
+        for p in -7..7 {
+            let s = Scalar4::sqrt2_pow(p);
+            assert_abs_diff_eq!(s, Scalar4::real(f64::sqrt(2f64).powi(p)));
+        }
     }
 
     // #[test]
