@@ -24,26 +24,34 @@ Then, run one of the binaries via the `cargo run` command, or directly via e.g.
 
 QuiZX is very much a work in progress. It is not intended to have all the features of PyZX, but certainly the core stuff. Here's where it's at:
 
-- [X] building ZX-diagrams and doing basic graph manipulations
-- [X] converting ZX-diagrams to Z + hadamard form
+- ZX-diagrams
+  - [X] building ZX-diagrams and doing basic graph manipulations
+  - [X] converting ZX-diagrams to Z + hadamard form
+  - [X] switchable underlying graph model (fast vector-based model for sparse graphs, slower hash-based model for dense graphs)
 - ZX-calculus rules
   - [X] spider fusion
   - [X] local complementation
   - [X] pivoting
-  - [ ] remove identity spiders
-  - [ ] colour-change
+  - [X] remove identity spiders
+  - [X] colour-change
   - [ ] pivoting variations (boundary-pivot and gadget-pivot)
   - [ ] strong complementarity (optional, pivoting is more useful in practice)
-- tensor evaluation with [ndarray](https://github.com/rust-ndarray/ndarray)
-  - [X] tensors with floating point and exact (cyclotomic ring) scalars
+- tensor evaluation based on [ndarray](https://github.com/rust-ndarray/ndarray)
+  - [X] exact scalars with [cyclotomic](https://en.wikipedia.org/wiki/Cyclotomic_field)
+      rational numbers
+  - [X] floating point scalars based on [num_complex](https://crates.io/crates/num-complex)
   - [X] tensor contraction for arbitrary ZX-diagrams
-  - [X] exact equality of tensors with exact scalars
+  - [X] equality of tensors with exact scalars
+  - [ ] approximate equality of tensors with floating point scalars
   - [ ] space optimisations
-  - [ ] choose good contraction ordering
-  - [ ] more human-readable/writable tensors (e.g. converting to normal matrices, pretty printing)
-- [ ] circuit type and conversion to ZX-diagrams
-- [ ] read and write QASM
-- [ ] circuit extraction
+  - [ ] choose good contraction ordering (currently uses
+        reverse-insertion-order)
+  - [ ] more human-readable tensor output (e.g. converting to normal matrices, pretty printing)
+- circuits
+  - [ ] circuit data type
+  - [ ] conversion from circuits to ZX-diagrams
+  - [ ] read and write QASM
+  - [ ] circuit extraction
 
 Pull requests are welcome!
 
