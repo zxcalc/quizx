@@ -20,6 +20,32 @@ Then, run one of the binaries via the `cargo run` command, or directly via e.g.
     cd target/release
     ./spider_chain
 
+## A bit about performance
+
+As a very anecdotal example of the performance difference, the program `spider_chain` builds a chain of 1 million green spiders and fuses them all. In PyZX, you can fuse all the spiders in a ZX-diagram as follows:
+
+```python
+from pyzx.basicrules import *
+
+success = True
+while success
+    success = any(fuse(g, g.edge_s(e), g.edge_t(e)) for e in g.edges()):
+```
+
+In QuiZX, the Rust code is slightly more verbose, but similar in spirit:
+```rust
+use quizx::basic_rules::*;
+
+loop {
+    match g.find_edge(|v0,v1,_| check_spider_fusion(&g, v0, v1)) {
+        Some((v0,v1,_)) => spider_fusion_unsafe(&mut g, v0, v1),
+        None => break,
+    };
+}
+```
+
+On my laptop, the PyZX code takes about 98 seconds to fuse 1 million spiders, whereas the QuiZX code takes 17 milliseconds.
+
 ## TODO
 
 QuiZX is very much a work in progress. It is not intended to have all the features of PyZX, but certainly the core stuff. Here's where it's at:
@@ -55,28 +81,3 @@ QuiZX is very much a work in progress. It is not intended to have all the featur
 
 Pull requests are welcome!
 
-## A bit about performance
-
-As a very anecdotal example of the performance difference, the program `spider_chain` builds a chain of 1 million green spiders and fuses them all. In PyZX, you can fuse all the spiders in a ZX-diagram as follows:
-
-```python
-from pyzx.basicrules import *
-
-success = True
-while success
-    success = any(fuse(g, g.edge_s(e), g.edge_t(e)) for e in g.edges()):
-```
-
-In QuiZX, the Rust code is slightly more verbose, but similar in spirit:
-```rust
-use quizx::basic_rules::*;
-
-loop {
-    match g.find_edge(|v0,v1,_| check_spider_fusion(&g, v0, v1)) {
-        Some((v0,v1,_)) => spider_fusion_unsafe(&mut g, v0, v1),
-        None => break,
-    };
-}
-```
-
-On my laptop, the PyZX code takes about 98 seconds to fuse 1 million spiders, whereas the QuiZX code takes 17 milliseconds.
