@@ -232,14 +232,20 @@ mod tests {
         g.add_edge(vs[3], vs[5]);
         g.add_edge(vs[3], vs[6]);
 
+        g.set_inputs(vec![vs[0], vs[1]]);
+        g.set_outputs(vec![vs[4], vs[5], vs[6]]);
+
         assert_eq!(g.num_vertices(), 7);
         assert_eq!(g.num_edges(), 6);
 
+        let h = g.clone();
         spider_fusion(&mut g, vs[2], vs[3]);
 
         assert_eq!(g.num_vertices(), 6);
         assert_eq!(g.num_edges(), 5);
         assert_eq!(g.degree(vs[2]), 5);
+
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
 
         assert_eq!(g.phase(vs[2]), Rational::new(3,4));
     }
@@ -270,12 +276,16 @@ mod tests {
         g.add_edge(vs[3], vs[5]);
         g.add_edge(vs[4], vs[6]);
 
+        g.set_inputs(vec![vs[0], vs[1]]);
+        g.set_outputs(vec![vs[5], vs[6]]);
+
         assert_eq!(g.num_vertices(), 7);
         assert_eq!(g.num_edges(), 7);
         assert_eq!(g.degree(vs[2]), 4);
         assert_eq!(g.degree(vs[4]), 3);
         assert_eq!(g.scalar, Scalar::one());
 
+        let h = g.clone();
         let success = spider_fusion(&mut g, vs[2], vs[3]);
         assert!(success, "Spider fusion should match");
 
@@ -284,6 +294,12 @@ mod tests {
         assert_eq!(g.degree(vs[2]), 3);
         assert_eq!(g.degree(vs[4]), 1);
         assert_eq!(g.scalar, Scalar::sqrt2_pow(-2));
+
+        let tg = g.to_tensor4();
+        let th = h.to_tensor4();
+        println!("\n\ntg =\n{}", tg);
+        println!("\n\nth =\n{}", th);
+        assert_eq!(tg, th);
 
         assert_eq!(g.phase(vs[2]), Rational::new(3,4));
     }
@@ -323,8 +339,11 @@ mod tests {
         assert_eq!(g.num_vertices(), 8);
         assert_eq!(g.num_edges(), 10);
 
-        // TODO: this is failing!!!
-        assert_eq!(g.to_tensor4(), h.to_tensor4());
+        let tg = g.to_tensor4();
+        let th = h.to_tensor4();
+        println!("\n\ntg =\n{}", tg);
+        println!("\n\nth =\n{}", th);
+        assert_eq!(tg, th);
 
         for i in 1..5 {
             assert_eq!(g.phase(i), Rational::new(-1,2));

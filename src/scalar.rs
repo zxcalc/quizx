@@ -534,12 +534,12 @@ mod tests {
         }
     }
 
-    // #[test]
-    // fn one_plus_phases() {
-    //     assert_abs_diff_eq!(Scalar::one_plus_phase(Rational::new(1,1)), Scalar::zero());
+    #[test]
+    fn one_plus_phases() {
+        assert_abs_diff_eq!(ScalarN::one_plus_phase(Rational::new(1,1)), ScalarN::zero());
 
-    //     let plus = Scalar::one_plus_phase(Rational::new(1,2));
-    //     let minus = Scalar::one_plus_phase(Rational::new(-1,2));
-    //     assert_abs_diff_eq!(plus * minus, Scalar::real(2.0));
-    // }
+        let plus = ScalarN::one_plus_phase(Rational::new(1,2));
+        let minus = ScalarN::one_plus_phase(Rational::new(-1,2));
+        assert_abs_diff_eq!(plus * minus, Scalar::real(2.0));
+    }
 }

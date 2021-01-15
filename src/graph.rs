@@ -328,3 +328,43 @@ pub trait IsGraph {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::vec_graph::Graph;
+    use crate::tensor::ToTensor;
+    #[test]
+    fn smart_edges() {
+       let mut g = Graph::new();
+       g.add_vertex(VType::B);
+       g.add_vertex(VType::Z);
+       g.add_vertex(VType::Z);
+       g.add_vertex(VType::X);
+       g.add_vertex(VType::B);
+       g.add_edge_smart(0,1,EType::N);
+       g.add_edge_smart(1,2,EType::N);
+       g.add_edge_smart(2,3,EType::N);
+       g.add_edge_smart(1,3,EType::N);
+       g.add_edge_smart(3,4,EType::N);
+       g.set_inputs(vec![0]);
+       g.set_outputs(vec![4]);
+
+       let mut h = Graph::new();
+       h.add_vertex(VType::B);
+       h.add_vertex(VType::Z);
+       h.add_vertex(VType::X);
+       h.add_vertex(VType::B);
+       h.add_edge_smart(0,1,EType::N);
+       h.add_edge_smart(1,2,EType::N);
+       h.add_edge_smart(1,2,EType::N);
+       h.add_edge_smart(2,3,EType::N);
+       h.set_inputs(vec![0]);
+       h.set_outputs(vec![3]);
+
+       let tg = g.to_tensor4();
+       let th = h.to_tensor4();
+       println!("\n\ntg =\n{}", tg);
+       println!("\n\nth =\n{}", th);
+       assert_eq!(tg, th);
+    }
+}

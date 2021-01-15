@@ -166,7 +166,7 @@ pub trait ToTensor: IsGraph + Clone {
             seenv.insert(v, deg_v);
         }
 
-        let s = A::from_scalar(g.scalar()) * A::sqrt2_pow(num_had);
+        let s = A::from_scalar(g.scalar()) * A::sqrt2_pow(-num_had);
         a * s
     }
 
