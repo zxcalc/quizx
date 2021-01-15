@@ -14,18 +14,60 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! # Basic ZX-calculus rules
+//!
+//! These rules always come in triples of functions. For a rule X,
+//! there is a function `check_X(&g, ...) -> bool` which checks
+//! whether a rule is applicable at the given vertex or vertices,
+//! `X_unsafe(&mut g, ...)` applies the rule without doing any
+//! checking, and `X(&mut g, ...) -> bool` is the composition of the
+//! first two.
+//!
+//! Note calling `X_unsafe` is allowed to make unsound ZX-diagram
+//! transformations, or even panic, if `check_X` doesn't return true.
+
 use crate::graph::*;
 use std::iter::FromIterator;
 use num::Rational;
+use num::traits::Zero;
 
-/// Check if spider fusion matches at the given pair of vertices
+/// Define a checked rule that takes 1 vertex
+macro_rules! safe_rule1 {
+    ( $check:ident, $unsafe:ident, $name:ident ) => {
+        /// A checked implementation of the rule
+        ///
+        /// See e.g. [spider_fusion] for an example.
+        pub fn $name(g: &mut impl IsGraph, v: V) -> bool {
+            if $check(g, v) {
+                $unsafe(g, v); true
+            } else { false }
+        }
+    }
+}
+
+/// Define a checked rule that takes 2 vertices
+macro_rules! safe_rule2 {
+    ( $check:ident, $unsafe:ident, $name:ident ) => {
+        /// A checked implementation of the rule
+        ///
+        /// See e.g. [spider_fusion] for an example.
+        pub fn $name(g: &mut impl IsGraph, v0: V, v1: V) -> bool {
+            if $check(g, v0, v1) {
+                $unsafe(g, v0, v1); true
+            } else { false }
+        }
+    }
+}
+
+/// Check [spider_fusion_unsafe] applies
+///
+/// Both vertices must be Z or X, have the same type, and be connected
+/// by a normal (i.e. non-Hadamard) edge.
 ///
 /// ```
-/// use quizx::graph::*;
-/// use quizx::tensor::ToTensor;
-/// use quizx::vec_graph::Graph;
-/// use quizx::basic_rules::check_spider_fusion;
-///
+/// # use quizx::graph::*;
+/// # use quizx::vec_graph::Graph;
+/// # use quizx::basic_rules::check_spider_fusion;
 /// let mut g = Graph::new();
 /// let v0 = g.add_vertex(VType::Z);
 /// let v1 = g.add_vertex(VType::Z);
@@ -43,17 +85,16 @@ pub fn check_spider_fusion(g: &impl IsGraph, v0: V, v1: V) -> bool {
 }
 
 
-/// Apply spider fusion without checking validity
+/// Apply spider fusion
 ///
 /// Note the first vertex is preserved by the fusion, and the second
 /// is deleted.
 ///
 /// ```
-/// use quizx::graph::*;
-/// use quizx::tensor::ToTensor;
-/// use quizx::vec_graph::Graph;
-/// use quizx::basic_rules::spider_fusion_unsafe;
-///
+/// # use quizx::graph::*;
+/// # use quizx::tensor::ToTensor;
+/// # use quizx::vec_graph::Graph;
+/// # use quizx::basic_rules::spider_fusion_unsafe;
 /// let mut g = Graph::new();
 /// let v0 = g.add_vertex(VType::Z);
 /// let v1 = g.add_vertex(VType::Z);
@@ -68,8 +109,6 @@ pub fn check_spider_fusion(g: &impl IsGraph, v0: V, v1: V) -> bool {
 /// let h = g.clone();
 /// spider_fusion_unsafe(&mut g, v0, v2); // oops!
 /// assert_ne!(g.to_tensor4(), h.to_tensor4());
-///
-///
 /// ```
 pub fn spider_fusion_unsafe(g: &mut impl IsGraph, v0: V, v1: V) {
     for (v,et) in Vec::from_iter(g.incident_edges(v1)) {
@@ -82,17 +121,16 @@ pub fn spider_fusion_unsafe(g: &mut impl IsGraph, v0: V, v1: V) {
     g.remove_vertex(v1);
 }
 
-/// Try to apply spider fusion, and return true if successful
+/// A checked implementation of the rule
 ///
 /// Note the first vertex is preserved by the fusion, and the second
 /// is deleted.
 ///
 /// ```
-/// use quizx::graph::*;
-/// use quizx::tensor::ToTensor;
-/// use quizx::vec_graph::Graph;
-/// use quizx::basic_rules::spider_fusion;
-///
+/// # use quizx::graph::*;
+/// # use quizx::tensor::ToTensor;
+/// # use quizx::vec_graph::Graph;
+/// # use quizx::basic_rules::spider_fusion;
 /// let mut g = Graph::new();
 /// let v0 = g.add_vertex(VType::Z);
 /// let v1 = g.add_vertex(VType::Z);
@@ -108,10 +146,7 @@ pub fn spider_fusion_unsafe(g: &mut impl IsGraph, v0: V, v1: V) {
 /// let h = g.clone();
 /// let success = spider_fusion(&mut g, v0, v2); // should fail
 /// assert!(!success);
-/// assert_eq!(g.to_tensor4(), h.to_tensor4());
 /// assert_eq!(g, h); // g is unchanged
-///
-///
 /// ```
 pub fn spider_fusion(g: &mut impl IsGraph, v0: V, v1: V) -> bool {
     if check_spider_fusion(g, v0, v1) {
@@ -119,6 +154,60 @@ pub fn spider_fusion(g: &mut impl IsGraph, v0: V, v1: V) -> bool {
     } else { false }
 }
 
+/// Check [remove_id_unsafe] applies
+pub fn check_remove_id(g: &impl IsGraph, v: V) -> bool {
+    let vt = g.vertex_type(v);
+
+    (vt == VType::Z || vt == VType::X) &&
+        g.phase(v).is_zero() &&
+        g.degree(v) == 2
+}
+
+/// Remove an arity-2 spider with phase 0
+///
+/// Removes the spider and connects its two neighbors. The type
+/// of the resulting edge is the parity of the types of
+/// original 2 edges, namely: {N,N} -> N, {N,H} -> H, and
+/// {H, H} -> N.
+pub fn remove_id_unsafe(g: &mut impl IsGraph, v: V) {
+    let nhd: Vec<(V,EType)> = g.incident_edges(v).collect();
+    let new_et =
+        match (nhd[0].1, nhd[1].1) {
+            (EType::N, EType::N) => EType::N,
+            (EType::N, EType::H) => EType::H,
+            (EType::H, EType::N) => EType::H,
+            (EType::H, EType::H) => EType::N,
+        };
+    g.add_edge_smart(nhd[0].0, nhd[1].0, new_et);
+    g.remove_vertex(v);
+}
+
+safe_rule1!(check_remove_id, remove_id_unsafe, remove_id);
+
+/// Check [color_change_unsafe] applies
+pub fn check_color_change(g: &impl IsGraph, v: V) -> bool {
+    let vt = g.vertex_type(v);
+    vt == VType::X || vt == VType::Z
+}
+
+/// Change the color of a Z or X spider
+///
+/// All of the neighboring edge types are toggled, i.e. N -> H,
+/// H -> N.
+pub fn color_change_unsafe(g: &mut impl IsGraph, v: V) {
+    let vt = g.vertex_type(v);
+    g.set_vertex_type(v, if vt == VType::X { VType::Z } else { VType::X });
+    for w in Vec::from_iter(g.neighbors(v)) {
+        g.toggle_edge_type(v,w);
+    }
+}
+
+safe_rule1!(check_color_change, color_change_unsafe, color_change);
+
+/// Check [local_comp_unsafe] applies
+///
+/// The vertex must be Z, have a phase pi/2 or -pi/2, and be
+/// surrounded by H-edges connected to other Z spiders.
 pub fn check_local_comp(g: &impl IsGraph, v: V) -> bool {
     g.vertex_type(v) == VType::Z &&
     *g.phase(v).denom() == 2 &&
@@ -126,6 +215,11 @@ pub fn check_local_comp(g: &impl IsGraph, v: V) -> bool {
         g.vertex_type(v0) == VType::Z && et == EType::H)
 }
 
+/// Apply a local complementation
+///
+/// This is the version that deletes the targeted vertex. In
+/// other words, it is an N-ary generalisatio of the Euler
+/// decomposition rule.
 pub fn local_comp_unsafe(g: &mut impl IsGraph, v: V) {
     let p = g.phase(v);
 
@@ -144,21 +238,28 @@ pub fn local_comp_unsafe(g: &mut impl IsGraph, v: V) {
     g.scalar().mul_phase(Rational::new(*p.numer(), 4));
 }
 
-pub fn local_comp(g: &mut impl IsGraph, v: V) -> bool {
-    if check_local_comp(g, v) {
-        local_comp_unsafe(g, v); true
-    } else { false }
-}
+safe_rule1!(check_local_comp, local_comp_unsafe, local_comp);
 
+/// Check [pivot_unsafe] applies
+///
+/// Both vertices must be Z, have a phase 0 or pi, and be
+/// surrounded by H-edges connected to other Z spiders.
 pub fn check_pivot(g: &impl IsGraph, v0: V, v1: V) -> bool {
     g.vertex_type(v0) == VType::Z &&
     g.vertex_type(v1) == VType::Z &&
     g.phase(v0).is_integer() &&
     g.phase(v1).is_integer() &&
     g.incident_edges(v0).all(|(w,et)|
+        g.vertex_type(w) == VType::Z && et == EType::H) &&
+    g.incident_edges(v1).all(|(w,et)|
         g.vertex_type(w) == VType::Z && et == EType::H)
 }
 
+/// Apply pivoting to a pair of vertices
+///
+/// This is the version that deletes both vertices, so it is
+/// effectively a generalised version of the strong complementarity
+/// rule.
 pub fn pivot_unsafe(g: &mut impl IsGraph, v0: V, v1: V) {
     let p0 = g.phase(v0);
     let p1 = g.phase(v1);
@@ -194,11 +295,7 @@ pub fn pivot_unsafe(g: &mut impl IsGraph, v0: V, v1: V) {
     }
 }
 
-pub fn pivot(g: &mut impl IsGraph, v0: V, v1: V) -> bool {
-    if check_pivot(g, v0, v1) {
-        pivot_unsafe(g, v0, v1); true
-    } else { false }
-}
+safe_rule2!(check_pivot, pivot_unsafe, pivot);
 
 #[cfg(test)]
 mod tests {
