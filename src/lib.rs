@@ -19,5 +19,6 @@ pub mod vec_graph;
 pub mod hash_graph;
 pub mod scalar;
 pub mod tensor;
+pub mod linalg;
 pub mod basic_rules;
 

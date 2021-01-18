@@ -3,7 +3,7 @@ name = "quizx"
 version = "0.1.0"
 authors = ["Aleks Kissinger <aleks0@gmail.com>"]
 edition = "2018"
-default-run = "compute_tensor"
+default-run = "gauss"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
