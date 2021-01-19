@@ -247,8 +247,8 @@ impl<T: Coeffs> fmt::Display for Scalar<T> {
     }
 }
 
-// The main implementation of the Mul trait uses references, so we don't need
-// to make a copy of the scalars to multiply them.
+// The main implementation of the Mul trait uses references, so
+// we don't need to make a copy of the scalars to multiply them.
 impl<'a, 'b, T: Coeffs> std::ops::Mul<&'b Scalar<T>> for &'a Scalar<T> {
     type Output = Scalar<T>;
 
@@ -285,33 +285,27 @@ impl<'a, 'b, T: Coeffs> std::ops::Mul<&'b Scalar<T>> for &'a Scalar<T> {
 // These 3 variations take ownership of one or both args
 impl<T: Coeffs> std::ops::Mul<Scalar<T>> for Scalar<T> {
     type Output = Scalar<T>;
-    fn mul(self, rhs: Scalar<T>) -> Self::Output { &self * &rhs }
-}
-
+    fn mul(self, rhs: Scalar<T>) -> Self::Output { &self * &rhs } }
 impl<'a, T: Coeffs> std::ops::Mul<Scalar<T>> for &'a Scalar<T> {
     type Output = Scalar<T>;
-    fn mul(self, rhs: Scalar<T>) -> Self::Output { self * &rhs }
-}
-
+    fn mul(self, rhs: Scalar<T>) -> Self::Output { self * &rhs } }
 impl<'a, T: Coeffs> std::ops::Mul<&'a Scalar<T>> for Scalar<T> {
     type Output = Scalar<T>;
-    fn mul(self, rhs: &Scalar<T>) -> Self::Output { &self * rhs }
-}
+    fn mul(self, rhs: &Scalar<T>) -> Self::Output { &self * rhs } }
 
+/// Implements *=
 impl<'a, T: Coeffs> std::ops::MulAssign<Scalar<T>> for Scalar<T> {
     fn mul_assign(&mut self, rhs: Scalar<T>) {
         *self = &*self * &rhs;
     }
 }
 
+// Variation takes ownership of rhs
 impl<'a, T: Coeffs> std::ops::MulAssign<&'a Scalar<T>> for Scalar<T> {
-    fn mul_assign(&mut self, rhs: &Scalar<T>) {
-        *self = &*self * rhs;
-    }
-}
+    fn mul_assign(&mut self, rhs: &Scalar<T>) { *self = &*self * rhs; } }
 
-// The main implementation of the Add trait uses references, so we don't need
-// to make a copy of the scalars to add them.
+// The main implementation of the Add trait uses references, so we
+// don't need to make a copy of the scalars to add them.
 impl<'a, 'b, T: Coeffs> std::ops::Add<&'b Scalar<T>> for &'a Scalar<T> {
     type Output = Scalar<T>;
 
