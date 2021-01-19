@@ -19,7 +19,7 @@
 use std::fmt;
 
 /// A type for matrices over F2
-pub struct MatF2 {
+pub struct Mat2 {
     d: Vec<Vec<i32>>
 }
 
@@ -31,13 +31,13 @@ pub trait RowColOps {
 }
 
 
-impl MatF2 {
-    pub fn zero(rows: usize, cols: usize) -> MatF2 {
-        MatF2 { d: vec![vec![0; cols]; rows] }
+impl Mat2 {
+    pub fn zero(rows: usize, cols: usize) -> Mat2 {
+        Mat2 { d: vec![vec![0; cols]; rows] }
     }
 
-    pub fn id(dim: usize) -> MatF2 {
-        MatF2 {
+    pub fn id(dim: usize) -> Mat2 {
+        Mat2 {
             d: (0..dim).map(|x| (0..dim).map(|y|
                    if x == y { 1 } else { 0 })
                .collect()).collect()
@@ -54,7 +54,7 @@ impl MatF2 {
     }
 }
 
-impl RowColOps for MatF2 {
+impl RowColOps for Mat2 {
     fn row_add(&mut self, r0: usize, r1: usize) {
         for i in 0..self.num_cols() {
             self.d[r0][i] += self.d[r1][i];
@@ -78,7 +78,7 @@ impl RowColOps for MatF2 {
     }
 }
 
-impl fmt::Display for MatF2 {
+impl fmt::Display for Mat2 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for row in &self.d {
             write!(f, "[ ")?;
@@ -89,20 +89,20 @@ impl fmt::Display for MatF2 {
     }
 }
 
-impl std::ops::Index<(usize,usize)> for MatF2 {
+impl std::ops::Index<(usize,usize)> for Mat2 {
     type Output = i32;
     fn index(&self, idx: (usize,usize)) -> &Self::Output { &self.d[idx.0][idx.1] }
 }
 
-impl std::ops::IndexMut<(usize,usize)> for MatF2 {
+impl std::ops::IndexMut<(usize,usize)> for Mat2 {
     fn index_mut(&mut self, idx: (usize,usize)) -> &mut Self::Output { &mut self.d[idx.0][idx.1] }
 }
 
-impl std::ops::Index<usize> for MatF2 {
+impl std::ops::Index<usize> for Mat2 {
     type Output = Vec<i32>;
     fn index(&self, idx: usize) -> &Self::Output { &self.d[idx] }
 }
 
-impl std::ops::IndexMut<usize> for MatF2 {
+impl std::ops::IndexMut<usize> for Mat2 {
     fn index_mut(&mut self, idx: usize) -> &mut Self::Output { &mut self.d[idx] }
 }
