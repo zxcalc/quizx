@@ -106,7 +106,7 @@ impl Mat2 {
     ///
     /// Note x and y need not be matrices. x can be any object that implements the method
     /// row_add(), and y any object that implements col_add().
-    pub fn gauss_helper<S,T>(&mut self, full_reduce: bool, blocksize: usize,
+    fn gauss_helper<S,T>(&mut self, full_reduce: bool, blocksize: usize,
                       x: &mut S, y: &mut T, pivot_cols: &mut Vec<usize>) -> usize
         where S: RowColOps, T: RowColOps
     {
@@ -206,6 +206,10 @@ impl Mat2 {
 
     pub fn gauss(&mut self, full_reduce: bool) -> usize {
         self.gauss_helper(full_reduce, 3, &mut (), &mut (), &mut vec![])
+    }
+
+    pub fn gauss_aux(&mut self, full_reduce: bool, blocksize: usize, x: &mut impl RowColOps) -> usize {
+        self.gauss_helper(full_reduce, blocksize, x, &mut (), &mut vec![])
     }
 
     pub fn rank(&self) -> usize {
