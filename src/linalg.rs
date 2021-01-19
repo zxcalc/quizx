@@ -50,24 +50,36 @@ impl Mat2 {
         Mat2 { d }
     }
 
-    pub fn zeros(rows: usize, cols: usize) -> Mat2 {
-        Mat2 { d: vec![vec![0; cols]; rows] }
-    }
-
-    pub fn id(dim: usize) -> Mat2 {
+    /// Build a matrix with the given number of rows and columns. Place a 1
+    /// wherever f(i,j) is true.
+    pub fn build<F>(rows: usize, cols: usize, f: F) -> Mat2
+        where F: Fn(usize, usize) -> bool
+    {
         Mat2 {
-            d: (0..dim).map(|x| (0..dim).map(|y|
-                   if x == y { 1 } else { 0 })
+            d: (0..rows).map(|x| (0..cols).map(|y|
+                   if f(x, y) { 1 } else { 0 })
                .collect()).collect()
         }
     }
 
+    /// A matrix full of zeros
+    pub fn zeros(rows: usize, cols: usize) -> Mat2 {
+        Mat2::build(rows, cols, |_,_| false)
+    }
+
+    /// A matrix full of ones
+    pub fn ones(rows: usize, cols: usize) -> Mat2 {
+        Mat2::build(rows, cols, |_,_| true)
+    }
+
+    /// The identity matrix of a given size
+    pub fn id(dim: usize) -> Mat2 {
+        Mat2::build(dim, dim, |x,y| x == y)
+    }
+
+    /// A column vector with a single 1 at the given index
     pub fn unit_vector(dim: usize, i: usize) -> Mat2 {
-        Mat2 {
-            d: (0..dim).map(|x|
-                   vec![if x == i { 1 } else { 0 }]
-               ).collect()
-        }
+        Mat2::build(dim, 1, |x,_| x == i)
     }
 
     pub fn num_rows(&self) -> usize {
@@ -77,6 +89,12 @@ impl Mat2 {
     pub fn num_cols(&self) -> usize {
         if self.d.len() > 0 { self.d[0].len() }
         else { 0 }
+    }
+
+    /// Return the transpose as a copy
+    pub fn transpose(&self) -> Mat2 {
+        Mat2::build(self.num_cols(), self.num_rows(),
+                    |i,j| self[j][i] == 1)
     }
 
     /// Main function for computing the echelon form.
@@ -343,6 +361,43 @@ mod tests {
         ]);
 
         assert_eq!(&v * &w, u);
+    }
+
+    #[test]
+    fn transpose() {
+        let v = Mat2::new(vec![
+            vec![1, 0, 1, 0],
+            vec![1, 1, 1, 1],
+            vec![0, 0, 1, 1],
+        ]);
+
+        let vt = Mat2::new(vec![
+            vec![1, 1, 0],
+            vec![0, 1, 0],
+            vec![1, 1, 1],
+            vec![0, 1, 1],
+        ]);
+
+        assert_eq!(v.transpose(), vt);
+    }
+
+    #[test]
+    fn unit_vecs() {
+        let v = Mat2::new(vec![
+            vec![1, 0, 1, 0],
+            vec![1, 1, 1, 1],
+            vec![0, 0, 1, 1],
+        ]);
+
+        let c0 = Mat2::new(vec![vec![1,1,0]]).transpose();
+        let c1 = Mat2::new(vec![vec![0,1,0]]).transpose();
+        let c2 = Mat2::new(vec![vec![1,1,1]]).transpose();
+        let c3 = Mat2::new(vec![vec![0,1,1]]).transpose();
+
+        assert_eq!(&v * Mat2::unit_vector(4, 0), c0);
+        assert_eq!(&v * Mat2::unit_vector(4, 1), c1);
+        assert_eq!(&v * Mat2::unit_vector(4, 2), c2);
+        assert_eq!(&v * Mat2::unit_vector(4, 3), c3);
     }
 
     #[test]
