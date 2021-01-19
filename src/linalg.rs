@@ -37,6 +37,13 @@ pub trait RowColOps {
     fn col_swap(&mut self, c0: usize, c1: usize);
 }
 
+/// Make unit implement RowColOps to allow optional args
+impl RowColOps for () {
+    fn row_add(&mut self, _: usize, _: usize) {}
+    fn col_add(&mut self, _: usize, _: usize) {}
+    fn row_swap(&mut self, _: usize, _: usize) {}
+    fn col_swap(&mut self, _: usize, _: usize) {}
+}
 
 impl Mat2 {
     pub fn new(d: Vec<Vec<u32>>) -> Mat2 {
@@ -99,10 +106,9 @@ impl Mat2 {
     ///
     /// Note x and y need not be matrices. x can be any object that implements the method
     /// row_add(), and y any object that implements col_add().
-    pub fn gauss_helper<T>(&mut self, full_reduce: bool, blocksize: usize,
-                      x: &mut Option<T>, y: &mut Option<T>,
-                      pivot_cols: &mut Vec<usize>) -> usize
-        where T: RowColOps
+    pub fn gauss_helper<S,T>(&mut self, full_reduce: bool, blocksize: usize,
+                      x: &mut S, y: &mut T, pivot_cols: &mut Vec<usize>) -> usize
+        where S: RowColOps, T: RowColOps
     {
         let rows = self.num_rows();
         let cols = self.num_cols();
@@ -123,8 +129,8 @@ impl Mat2 {
                 if ch.iter().all(|x| *x == 0) { continue; }
                 if let Some(r1) = chunks.get(&ch) {
                     self.row_add(*r1, r);
-                    if let Some(x1) = x { x1.row_add(*r1, r); }
-                    if let Some(y1) = y { y1.col_add(r, *r1); }
+                    x.row_add(*r1, r);
+                    y.col_add(r, *r1);
                 } else {
                     chunks.insert(ch, r);
                 }
@@ -135,15 +141,15 @@ impl Mat2 {
                     if self.d[r0][p] != 0 {
                         if r0 != pivot_row {
                             self.row_add(r0, pivot_row);
-                            if let Some(x1) = x { x1.row_add(r0, pivot_row); }
-                            if let Some(y1) = y { y1.col_add(pivot_row, r0); }
+                            x.row_add(r0, pivot_row);
+                            y.col_add(pivot_row, r0);
                         }
 
                         for r1 in pivot_row+1..rows {
                             if pivot_row != r1 && self.d[r1][p] != 0 {
                                 self.row_add(pivot_row, r1);
-                                if let Some(x1) = x { x1.row_add(pivot_row, r1); }
-                                if let Some(y1) = y { y1.col_add(r1, pivot_row); }
+                                x.row_add(pivot_row, r1);
+                                y.col_add(r1, pivot_row);
                             }
                         }
                         pivot_cols.push(p);
@@ -171,8 +177,8 @@ impl Mat2 {
                     if ch.iter().all(|x| *x == 0) { continue; }
                     if let Some(r1) = chunks.get(&ch) {
                         self.row_add(*r1, r);
-                        if let Some(x1) = x { x1.row_add(*r1, r); }
-                        if let Some(y1) = y { y1.col_add(r, *r1); }
+                        x.row_add(*r1, r);
+                        y.col_add(r, *r1);
                     } else {
                         chunks.insert(ch, r);
                     }
@@ -184,8 +190,8 @@ impl Mat2 {
                         for r in 0..pivot_row {
                             if self.d[r][pcol] != 0 {
                                 self.row_add(pivot_row, r);
-                                if let Some(x1) = x { x1.row_add(pivot_row, r); }
-                                if let Some(y1) = y { y1.col_add(r, pivot_row); }
+                                x.row_add(pivot_row, r);
+                                y.col_add(r, pivot_row);
                             }
                         }
                         if pivot_row > 0 { pivot_row -= 1; }
@@ -199,8 +205,7 @@ impl Mat2 {
     }
 
     pub fn gauss(&mut self, full_reduce: bool) -> usize {
-        self.gauss_helper::<Mat2>(full_reduce, 3,
-                          &mut None, &mut None, &mut vec![])
+        self.gauss_helper(full_reduce, 3, &mut (), &mut (), &mut vec![])
     }
 
     pub fn rank(&self) -> usize {
@@ -214,14 +219,13 @@ impl Mat2 {
         }
 
         let mut m = self.clone();
-        let mut inv = Some(Mat2::id(self.num_rows()));
-        let rank = m.gauss_helper(true, 3,
-            &mut inv, &mut None, &mut vec![]);
+        let mut inv = Mat2::id(self.num_rows());
+        let rank = m.gauss_helper(true, 3, &mut inv, &mut (), &mut vec![]);
 
         if rank < self.num_rows() {
             None
         } else {
-            inv
+            Some(inv)
         }
     }
 }
