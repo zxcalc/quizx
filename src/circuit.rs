@@ -19,6 +19,8 @@ use num::Rational;
 use num::traits::Zero;
 use rustc_hash::FxHashMap;
 use regex::Regex;
+use std::fs::File;
+use std::io::Read;
 use crate::scalar::Mod2;
 
 #[derive(PartialEq,Eq,Clone,Copy,Debug)]
@@ -49,6 +51,11 @@ pub struct Gate {
     pub t: GType,
     pub qs: Vec<usize>,
     pub phase: Rational,
+}
+
+pub enum QASM {
+    QReg(String, usize),
+    ApplyGate(String, Vec<(String, usize)>, Vec<String>),
 }
 
 use GType::*;
@@ -200,14 +207,6 @@ impl Circuit {
             &self.to_string()
     }
 
-    fn parse_qasm(source: &str) -> Result<Vec<qasm::AstNode>, String> {
-        // bypass the defalt preprocessor, and just strip comments and includes
-        let re = Regex::new(r#"//.*|include\s*"(.*)";"#).unwrap();
-        let processed_source = re.replace_all(&source, "");
-        let mut tokens = qasm::lex(&processed_source);
-        qasm::parse(&mut tokens).map_err(|e| format!("QASM parsing error: {}", e))
-    }
-
     fn parse_phase(p: &str) -> Option<Rational> {
         let spc = Regex::new(r#"\s*"#).unwrap();
         let starts_pi = Regex::new(r#"^(-?)pi"#).unwrap();
@@ -222,7 +221,7 @@ impl Circuit {
             // remove any other occurance of (*)pi
             let p1 = has_pi.replace(&p1, "");
 
-            println!("p1 = '{}'", p1);
+            // println!("p1 = '{}'", p1);
 
             if let Ok(r) = p1.parse::<Rational>() { Some(r) }
             else if let Ok(f) = p1.parse::<f32>() { Rational::approximate_float(f) }
@@ -235,59 +234,82 @@ impl Circuit {
         }
     }
 
-    pub fn from_qasm(source: &str) -> Result<Circuit, String> {
-        use qasm::AstNode::{ApplyGate,QReg};
-        use qasm::Argument::Qubit;
-        let ast = Circuit::parse_qasm(source)?;
+    fn from_qasm(source: &str) -> Result<Circuit, String> {
+        // strip comments and includes
+        let strip = Regex::new(r#"OPENQASM .*;|//.*|include\s*".*";"#).unwrap();
+        let source = strip.replace_all(&source, "");
 
+        // register declaration
+        let qreg = Regex::new(r#"^qreg\s+([a-zA-Z0-9_]+)\s*\[\s*([0-9]+)\s*\]$"#).unwrap();
+        // gate application
+        let gate = Regex::new(r#"^([a-zA-Z0-9_]+)\s*(\(([^)]*)\))?\s+(.*)$"#).unwrap();
+        // a qubut location "REG[x]"
+        let loc = Regex::new(r#"^\s*([a-zA-Z0-9_]+)\s*\s*\[\s*([0-9]+)\s*\]\s*$"#).unwrap();
+
+        // the circuit we are building
         let mut c = Circuit::new(0);
-        // maintain a mapping from named registers to qubit offsets
+        // a mapping from named registers to qubit offsets
         let mut reg: FxHashMap<String,usize> = FxHashMap::default();
 
-        for nd in ast {
-            match nd {
-                QReg(rname, sz) => {
-                    if reg.contains_key(&rname) {
-                        return Err(format!("Re-declaration of qreg: {}", &rname));
-                    }
+        for line in source.split(";") {
+            let line = line.trim();
+            if line.is_empty() { continue; }
+            if let Some(caps) = qreg.captures(line) {
+                let rname = caps[1].to_owned();
+                let sz = caps[2].parse::<usize>().unwrap();
+                // println!("rname = {}, sz = {}", rname, sz);
+                if reg.contains_key(&rname) {
+                    return Err(format!("Re-declaration of qreg: {}", &rname));
+                }
 
-                    reg.insert(rname, c.nqubits);
-                    c.nqubits += sz as usize;
-                },
-                ApplyGate(name, pos, args) => {
-                    let t = GType::from_qasm_name(&name);
-                    if t == UnknownGate {
-                        return Err(format!("Unknown gate: {}", name));
-                    }
+                reg.insert(rname, c.nqubits);
+                c.nqubits += sz as usize;
+            } else if let Some(caps) = gate.captures(line) {
+                let name = caps[1].to_owned();
 
-                    let mut qs: Vec<usize> = Vec::with_capacity(pos.len());
-                    for p in pos {
-                        if let Qubit(rname, q) = p {
-                            if let Some(&offset) = reg.get(&rname) {
-                                qs.push(offset + q as usize);
-                            } else {
-                                return Err(format!("Undeclared register: {}", rname));
-                            }
+                let phase =
+                    if let Some(m) = caps.get(3) {
+                        if let Some(p) = Circuit::parse_phase(m.as_str()) { p.mod2() }
+                        else { return Err(format!("Bad phase: {}", m.as_str())); }
+                    } else {
+                        Rational::zero()
+                    };
+
+                // println!("name = {}, phase = {}, rest = {}", name, phase, caps[4].to_owned());
+
+                let t = GType::from_qasm_name(&name);
+                if t == UnknownGate {
+                    return Err(format!("Unknown gate: {}", name));
+                }
+
+                let mut qs: Vec<usize> = Vec::new();
+                for loc_str in caps[4].split(",") {
+                    if let Some(cap1) = loc.captures(loc_str) {
+                        let rname = cap1[1].to_owned();
+                        let q = cap1[2].parse::<usize>().unwrap();
+                        if let Some(&offset) = reg.get(&rname) {
+                            qs.push(offset + q as usize);
                         } else {
-                            return Err(format!("Unsupported: applying gate to entire register"));
+                            return Err(format!("Undeclared register: {}", rname));
                         }
+                    } else {
+                        return Err(format!("Bad qubit location: {}", loc_str));
                     }
+                }
 
-                    let phase =
-                        if args.is_empty() {
-                            Rational::zero()
-                        } else {
-                            if let Some(p) = Circuit::parse_phase(&args[0]) { p.mod2() }
-                            else { return Err(format!("Bad phase: {}", &args[0])); }
-                        };
-                    c.push(Gate { t, qs, phase });
-                },
-                // quietly ignore other QASM constructions, rather than giving an "Unsupported" error
-                _ => {},
+                c.push(Gate { t, qs, phase });
             }
         }
-
+        // let mut tokens = qasm::lex(&processed_source);
+        // qasm::parse(&mut tokens).map_err(|e| format!("QASM parsing error: {}", e))
         Ok(c)
+    }
+
+    pub fn from_file(name: &str) -> Result<Circuit, String> {
+        let mut f = File::open(name).map_err(|e| e.to_string())?;
+        let mut source = String::new();
+        f.read_to_string(&mut source).map_err(|e| e.to_string())?;
+        Circuit::from_qasm(&source)
     }
 }
 
