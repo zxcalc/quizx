@@ -42,14 +42,17 @@ pub enum Scalar<T: Coeffs> {
     Float(Complex<f64>),
 }
 
-/// Adds the ability to take non-integer types modulo 2.
+/// Adds the ability to take non-integer types modulo 2. The output
+/// should be normalised to be in the range (-1,1].
 pub trait Mod2 {
     fn mod2(&self) -> Self;
 }
 
 impl Mod2 for Rational {
     fn mod2(&self) -> Rational {
-       Rational::new(*self.numer() % (2 * *self.denom()), *self.denom())
+        let mut num = self.numer().rem_euclid(2 * *self.denom());
+        if num > *self.denom() { num -= 2 * *self.denom(); }
+        Rational::new(num, *self.denom())
     }
 }
 

@@ -16,9 +16,10 @@
 
 use std::fmt;
 use num::Rational;
-use num::traits::{Zero,One};
+use num::traits::Zero;
 use rustc_hash::FxHashMap;
 use regex::Regex;
+use crate::scalar::Mod2;
 
 #[derive(PartialEq,Eq,Clone,Copy,Debug)]
 pub enum GType {
@@ -109,7 +110,7 @@ impl GType {
 #[derive(PartialEq,Eq,Clone,Debug)]
 pub struct Circuit {
     nqubits: usize,
-    gates: Vec<Gate>
+    pub gates: Vec<Gate>
 }
 
 impl Gate {
@@ -162,6 +163,8 @@ impl Circuit {
 
     pub fn num_qubits(&self) -> usize { self.nqubits }
 
+    pub fn num_gates(&self) -> usize { self.gates.len() }
+
     pub fn push(&mut self, g: Gate) {
         self.gates.push(g);
     }
@@ -172,7 +175,7 @@ impl Circuit {
         self.push(Gate {
             t: GType::from_qasm_name(name),
             qs,
-            phase});
+            phase: phase.mod2() });
     }
 
     pub fn add_gate(&mut self, name: &str, qs: Vec<usize>) {
@@ -197,7 +200,7 @@ impl Circuit {
             &self.to_string()
     }
 
-    pub fn parse_qasm(source: &str) -> Result<Vec<qasm::AstNode>, String> {
+    fn parse_qasm(source: &str) -> Result<Vec<qasm::AstNode>, String> {
         // bypass the defalt preprocessor, and just strip comments and includes
         let re = Regex::new(r#"//.*|include\s*"(.*)";"#).unwrap();
         let processed_source = re.replace_all(&source, "");
@@ -205,20 +208,27 @@ impl Circuit {
         qasm::parse(&mut tokens).map_err(|e| format!("QASM parsing error: {}", e))
     }
 
-    pub fn parse_phase(p: &str) -> Option<Rational> {
-        let starts_pi = Regex::new(r#"^\s*(-)\s*pi\s*"#).unwrap();
-        let has_pi = Regex::new(r#"\s*\*?\s*pi\s*"#).unwrap();
+    fn parse_phase(p: &str) -> Option<Rational> {
+        let spc = Regex::new(r#"\s*"#).unwrap();
+        let starts_pi = Regex::new(r#"^(-?)pi"#).unwrap();
+        let has_pi = Regex::new(r#"\*?pi"#).unwrap();
+
+        // strip whitespace
+        let p1 = spc.replace_all(p, "");
 
         if has_pi.is_match(p) {
-            let p1 = starts_pi.replace(p, "${1}1");
-            let p1 = has_pi.replace(&*p1, "");
-            // println!("p1 = '{}'", p1);
-            if p1.is_empty() { Some(Rational::one()) }
-            else if let Ok(r) = p1.parse::<Rational>() { Some(r) }
+            // replace (-)pi with (-)1 at the beginning of the string
+            let p1 = starts_pi.replace(&p1, "${1}1");
+            // remove any other occurance of (*)pi
+            let p1 = has_pi.replace(&p1, "");
+
+            println!("p1 = '{}'", p1);
+
+            if let Ok(r) = p1.parse::<Rational>() { Some(r) }
             else if let Ok(f) = p1.parse::<f32>() { Rational::approximate_float(f) }
             else { None }
         } else {
-            if let Ok(f) = p.parse::<f32>() {
+            if let Ok(f) = p1.parse::<f32>() {
                 let f1: f32 = f / std::f32::consts::PI;
                 Rational::approximate_float(f1)
             } else { None }
@@ -267,13 +277,13 @@ impl Circuit {
                         if args.is_empty() {
                             Rational::zero()
                         } else {
-                            if let Some(p) = Circuit::parse_phase(&args[0]) { p }
+                            if let Some(p) = Circuit::parse_phase(&args[0]) { p.mod2() }
                             else { return Err(format!("Bad phase: {}", &args[0])); }
                         };
                     c.push(Gate { t, qs, phase });
                 },
                 // quietly ignore other QASM constructions, rather than giving an "Unsupported" error
-                _ => {}, 
+                _ => {},
             }
         }
 
@@ -313,3 +323,90 @@ impl std::ops::Add<Circuit> for &Circuit {
     type Output = Circuit;
     fn add(self, rhs: Circuit) -> Self::Output { self.clone().add(&rhs) } }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mk_circuit() {
+        let mut c = Circuit::new(3);
+        c.add_gate("cz", vec![0, 1]);
+        c.add_gate("z", vec![1]);
+        c.add_gate("cx", vec![1, 2]);
+        c.add_gate("h", vec![0]);
+        assert_eq!(c.num_qubits(), 3);
+        assert_eq!(c.num_gates(), 4);
+
+        let qasm = r#"
+            OPENQASM 2.0;
+            include "qelib1.inc";
+            qreg q[3];
+            cz q[0], q[1];
+            z q[1];
+            cx q[1], q[2];
+            h q[0];
+        "#;
+
+        let c1 = Circuit::from_qasm(qasm);
+        assert_eq!(c1, Ok(c));
+    }
+
+    #[test]
+    fn mk_circuit_with_phase() {
+        let mut c = Circuit::new(1);
+        c.add_gate_with_phase("rz", vec![0], Rational::new(1,1));
+        c.add_gate_with_phase("rz", vec![0], Rational::new(1,1));
+        c.add_gate_with_phase("rz", vec![0], Rational::new(1,3));
+        c.add_gate_with_phase("rz", vec![0], Rational::new(1,3));
+        c.add_gate_with_phase("rz", vec![0], Rational::new(2,3));
+        c.add_gate_with_phase("rz", vec![0], Rational::new(2,3));
+        c.add_gate_with_phase("rz", vec![0], Rational::new(-1,3));
+        c.add_gate_with_phase("rz", vec![0], Rational::new(-1,3));
+        c.add_gate_with_phase("rz", vec![0], Rational::new(-1,3));
+        c.add_gate_with_phase("rz", vec![0], Rational::new(1,1));
+        c.add_gate_with_phase("rz", vec![0], Rational::new(-1,2));
+
+        let qasm = r#"
+            OPENQASM 2.0;
+            include "qelib1.inc";
+            qreg q[1];
+            rz(pi) q[0];
+            rz(-pi) q[0];
+            rz(pi/3) q[0];
+            rz(1/3 * pi) q[0];
+            rz(2pi/3) q[0];
+            rz(2/3 * pi) q[0];
+            rz(-pi/3) q[0];
+            rz(-1/3 * pi) q[0];
+            rz(-0.333333333 * pi) q[0];
+            rz(3.14159265359) q[0];
+            rz(-1.57079632679) q[0];
+        "#;
+
+        let c1 = Circuit::from_qasm(qasm);
+        assert_eq!(c1, Ok(c));
+    }
+
+    #[test]
+    fn mk_circuit_2reg() {
+        let mut c = Circuit::new(5);
+        c.add_gate("cx", vec![0, 1]);
+        c.add_gate("cx", vec![1, 2]);
+        c.add_gate("cx", vec![2, 3]);
+        c.add_gate("cx", vec![3, 4]);
+
+        let qasm = r#"
+            OPENQASM 2.0;
+            include "qelib1.inc";
+            qreg q[2];
+            qreg r[3];
+            cx q[0], q[1];
+            cx q[1], r[0];
+            cx r[0], r[1];
+            cx r[1], r[2];
+        "#;
+
+        let c1 = Circuit::from_qasm(qasm);
+        assert_eq!(c1, Ok(c));
+    }
+}
