@@ -2,7 +2,6 @@
 use quizx::circuit::*;
 use std::fs;
 
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // let c = Circuit::from_file("../../circuits/mod5_4.qasm")?;
     // println!("{:?}", c);
