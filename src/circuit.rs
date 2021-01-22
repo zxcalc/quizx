@@ -16,7 +16,9 @@
 
 use std::fmt;
 use num::Rational;
-use num::traits::Zero;
+use num::traits::{Zero,One};
+use rustc_hash::FxHashMap;
+use regex::Regex;
 
 #[derive(PartialEq,Eq,Clone,Copy,Debug)]
 pub enum GType {
@@ -193,6 +195,89 @@ impl Circuit {
     pub fn to_qasm(&self) -> String {
         String::from("OPENQASM 2.0;\ninclude \"qelib1.inc\";\n") +
             &self.to_string()
+    }
+
+    pub fn parse_qasm(source: &str) -> Result<Vec<qasm::AstNode>, String> {
+        // bypass the defalt preprocessor, and just strip comments and includes
+        let re = Regex::new(r#"//.*|include\s*"(.*)";"#).unwrap();
+        let processed_source = re.replace_all(&source, "");
+        let mut tokens = qasm::lex(&processed_source);
+        qasm::parse(&mut tokens).map_err(|e| format!("QASM parsing error: {}", e))
+    }
+
+    pub fn parse_phase(p: &str) -> Option<Rational> {
+        let starts_pi = Regex::new(r#"^\s*(-)\s*pi\s*"#).unwrap();
+        let has_pi = Regex::new(r#"\s*\*?\s*pi\s*"#).unwrap();
+
+        if has_pi.is_match(p) {
+            let p1 = starts_pi.replace(p, "${1}1");
+            let p1 = has_pi.replace(&*p1, "");
+            // println!("p1 = '{}'", p1);
+            if p1.is_empty() { Some(Rational::one()) }
+            else if let Ok(r) = p1.parse::<Rational>() { Some(r) }
+            else if let Ok(f) = p1.parse::<f32>() { Rational::approximate_float(f) }
+            else { None }
+        } else {
+            if let Ok(f) = p.parse::<f32>() {
+                let f1: f32 = f / std::f32::consts::PI;
+                Rational::approximate_float(f1)
+            } else { None }
+        }
+    }
+
+    pub fn from_qasm(source: &str) -> Result<Circuit, String> {
+        use qasm::AstNode::{ApplyGate,QReg};
+        use qasm::Argument::Qubit;
+        let ast = Circuit::parse_qasm(source)?;
+
+        let mut c = Circuit::new(0);
+        // maintain a mapping from named registers to qubit offsets
+        let mut reg: FxHashMap<String,usize> = FxHashMap::default();
+
+        for nd in ast {
+            match nd {
+                QReg(rname, sz) => {
+                    if reg.contains_key(&rname) {
+                        return Err(format!("Re-declaration of qreg: {}", &rname));
+                    }
+
+                    reg.insert(rname, c.nqubits);
+                    c.nqubits += sz as usize;
+                },
+                ApplyGate(name, pos, args) => {
+                    let t = GType::from_qasm_name(&name);
+                    if t == UnknownGate {
+                        return Err(format!("Unknown gate: {}", name));
+                    }
+
+                    let mut qs: Vec<usize> = Vec::with_capacity(pos.len());
+                    for p in pos {
+                        if let Qubit(rname, q) = p {
+                            if let Some(&offset) = reg.get(&rname) {
+                                qs.push(offset + q as usize);
+                            } else {
+                                return Err(format!("Undeclared register: {}", rname));
+                            }
+                        } else {
+                            return Err(format!("Unsupported: applying gate to entire register"));
+                        }
+                    }
+
+                    let phase =
+                        if args.is_empty() {
+                            Rational::zero()
+                        } else {
+                            if let Some(p) = Circuit::parse_phase(&args[0]) { p }
+                            else { return Err(format!("Bad phase: {}", &args[0])); }
+                        };
+                    c.push(Gate { t, qs, phase });
+                },
+                // quietly ignore other QASM constructions, rather than giving an "Unsupported" error
+                _ => {}, 
+            }
+        }
+
+        Ok(c)
     }
 }
 
