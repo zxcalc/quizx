@@ -74,9 +74,9 @@ QuiZX is very much a work in progress. It is not intended to have all the featur
         reverse-insertion-order)
   - [ ] more human-readable tensor output (e.g. converting to normal matrices, pretty printing)
 - circuits
-  - [ ] circuit data type
+  - [X] circuit data type
+  - [X] read and write QASM
   - [ ] conversion from circuits to ZX-diagrams
-  - [ ] read and write QASM
   - [ ] circuit extraction
 
 Pull requests are welcome!
