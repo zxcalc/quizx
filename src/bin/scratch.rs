@@ -7,7 +7,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // println!("{:?}", c);
     // println!("{}", c);
 
-
     for e in fs::read_dir("../../circuits")? {
         if let Some(f) = e?.path().to_str() {
             println!("{}", f);

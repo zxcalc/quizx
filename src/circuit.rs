@@ -15,12 +15,14 @@
 // limitations under the License.
 
 use std::fmt;
+use std::str;
 use num::Rational;
 use num::traits::Zero;
 use rustc_hash::FxHashMap;
 use regex::Regex;
 use std::fs::File;
-use std::io::Read;
+use std::io::prelude::*;
+use std::io::BufReader;
 use crate::scalar::Mod2;
 
 #[derive(PartialEq,Eq,Clone,Copy,Debug)]
@@ -234,10 +236,11 @@ impl Circuit {
         }
     }
 
-    fn from_qasm(source: &str) -> Result<Circuit, String> {
+    fn from_lines<I>(lines: I) -> Result<Circuit, String>
+        where I: Iterator<Item=String>
+    {
         // strip comments and includes
-        let strip = Regex::new(r#"OPENQASM .*;|//.*|include\s*".*";"#).unwrap();
-        let source = strip.replace_all(&source, "");
+        let strip = Regex::new(r#"OPENQASM .*$|//.*$|include\s*".*"$"#).unwrap();
 
         // register declaration
         let qreg = Regex::new(r#"^qreg\s+([a-zA-Z0-9_]+)\s*\[\s*([0-9]+)\s*\]$"#).unwrap();
@@ -251,10 +254,10 @@ impl Circuit {
         // a mapping from named registers to qubit offsets
         let mut reg: FxHashMap<String,usize> = FxHashMap::default();
 
-        for line in source.split(";") {
-            let line = line.trim();
+        for line in lines {
+            let line = strip.replace_all(line.trim(), "");
             if line.is_empty() { continue; }
-            if let Some(caps) = qreg.captures(line) {
+            if let Some(caps) = qreg.captures(&line) {
                 let rname = caps[1].to_owned();
                 let sz = caps[2].parse::<usize>().unwrap();
                 // println!("rname = {}, sz = {}", rname, sz);
@@ -264,7 +267,7 @@ impl Circuit {
 
                 reg.insert(rname, c.nqubits);
                 c.nqubits += sz as usize;
-            } else if let Some(caps) = gate.captures(line) {
+            } else if let Some(caps) = gate.captures(&line) {
                 let name = caps[1].to_owned();
 
                 let phase =
@@ -305,11 +308,18 @@ impl Circuit {
         Ok(c)
     }
 
+    pub fn from_qasm(source: &str) -> Result<Circuit, String> {
+        Circuit::from_lines(source.split(";").map(|s| s.to_owned()))
+    }
+
     pub fn from_file(name: &str) -> Result<Circuit, String> {
-        let mut f = File::open(name).map_err(|e| e.to_string())?;
-        let mut source = String::new();
-        f.read_to_string(&mut source).map_err(|e| e.to_string())?;
-        Circuit::from_qasm(&source)
+        let f = File::open(name).expect("Can't open file.");
+        let r = BufReader::new(f);
+        let it = r.split(b';').map(|x|
+                String::from_utf8(
+                    x.expect("IO error reading file.")
+                ).expect("Error converting to UTF8."));
+        Circuit::from_lines(it)
     }
 }
 
