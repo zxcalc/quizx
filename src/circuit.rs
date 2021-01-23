@@ -18,11 +18,9 @@ use std::fmt;
 use std::str;
 use num::Rational;
 use num::traits::Zero;
-use rustc_hash::FxHashMap;
 use regex::Regex;
 use std::fs::File;
 use std::io::prelude::*;
-use std::io::BufReader;
 use crate::scalar::Mod2;
 
 #[derive(PartialEq,Eq,Clone,Copy,Debug)]
@@ -236,47 +234,80 @@ impl Circuit {
         }
     }
 
-    fn from_lines<I>(lines: I) -> Result<Circuit, String>
-        where I: Iterator<Item=String>
-    {
+    pub fn from_qasm(source: &str) -> Result<Circuit, String> {
+        let lines = source.split(';');
         // strip comments and includes
-        let strip = Regex::new(r#"OPENQASM .*$|//.*$|include\s*".*"$"#).unwrap();
-
+        // let strip = Regex::new(r#"OPENQASM .*$|//.*$|include\s*".*"$"#).unwrap();
         // register declaration
         let qreg = Regex::new(r#"^qreg\s+([a-zA-Z0-9_]+)\s*\[\s*([0-9]+)\s*\]$"#).unwrap();
-        // gate application
-        let gate = Regex::new(r#"^([a-zA-Z0-9_]+)\s*(\(([^)]*)\))?\s+(.*)$"#).unwrap();
-        // a qubut location "REG[x]"
-        let loc = Regex::new(r#"^\s*([a-zA-Z0-9_]+)\s*\s*\[\s*([0-9]+)\s*\]\s*$"#).unwrap();
 
         // the circuit we are building
         let mut c = Circuit::new(0);
-        // a mapping from named registers to qubit offsets
-        let mut reg: FxHashMap<String,usize> = FxHashMap::default();
+        // a mapping from named registers to qubit offsets. Note a vec
+        // with linear lookups seems better than hashing for ~15 or fewer
+        // keys.
+        let mut reg: Vec<(String,usize)> = Vec::new();
+
+        let mut first = true;
 
         for line in lines {
-            let line = strip.replace_all(line.trim(), "");
+            let line = line.trim_start();
             if line.is_empty() { continue; }
-            if let Some(caps) = qreg.captures(&line) {
-                let rname = caps[1].to_owned();
-                let sz = caps[2].parse::<usize>().unwrap();
-                // println!("rname = {}, sz = {}", rname, sz);
-                if reg.contains_key(&rname) {
-                    return Err(format!("Re-declaration of qreg: {}", &rname));
+            if first && line.starts_with("OPENQASM") { first = false; continue; }
+
+            if line.starts_with("//") ||
+               line.starts_with("include") { continue; }
+
+            if line.starts_with("qreg") {
+                if let Some(caps) = qreg.captures(&line) {
+                    let rname = caps[1].to_owned();
+                    let sz = caps[2].parse::<usize>().unwrap();
+                    // println!("rname = {}, sz = {}", rname, sz);
+                    if reg.iter().any(|(s,_)| s == &rname) {
+                        return Err(format!("Re-declaration of qreg: {}", &rname));
+                    }
+
+                    reg.push((rname, c.nqubits));
+                    c.nqubits += sz as usize;
+                }
+            } else {
+                let mut parts = line.splitn(2, "//").next().unwrap().splitn(2, '(');
+                let mut name = parts.next().unwrap();
+                let rest;
+                let phase;
+
+                if let Some(arg) = parts.next() {
+                    name = name.trim();
+                    let mut parts = arg.splitn(2, ')');
+                    let arg = parts.next().unwrap();
+                    if let Some(p) = Circuit::parse_phase(arg) {
+                        if let Some(r) = parts.next() {
+                            rest = r;
+                        } else {
+                            return Err(format!("Bad gate application: {}", line));
+                        }
+                        phase = p.mod2()
+                    } else {
+                        return Err(format!("Bad phase: {}", arg));
+                    }
+                } else {
+                    let mut parts = name.splitn(2, |c| c==' ' || c == '\t');
+                    name = parts.next().unwrap();
+                    if let Some(r) = parts.next() {
+                        rest = r;
+                    } else {
+                        return Err(format!("Bad gate application: {}", line));
+                    }
+                    phase = Rational::zero();
                 }
 
-                reg.insert(rname, c.nqubits);
-                c.nqubits += sz as usize;
-            } else if let Some(caps) = gate.captures(&line) {
-                let name = caps[1].to_owned();
-
-                let phase =
-                    if let Some(m) = caps.get(3) {
-                        if let Some(p) = Circuit::parse_phase(m.as_str()) { p.mod2() }
-                        else { return Err(format!("Bad phase: {}", m.as_str())); }
-                    } else {
-                        Rational::zero()
-                    };
+                // let phase =
+                //     if let Some(m) = arg {
+                //         if let Some(p) = Circuit::parse_phase(m.as_str()) { p.mod2() }
+                //         else { return Err(format!("Bad phase: {}", m.as_str())); }
+                //     } else {
+                //         Rational::zero()
+                //     };
 
                 // println!("name = {}, phase = {}, rest = {}", name, phase, caps[4].to_owned());
 
@@ -286,18 +317,19 @@ impl Circuit {
                 }
 
                 let mut qs: Vec<usize> = Vec::new();
-                for loc_str in caps[4].split(",") {
-                    if let Some(cap1) = loc.captures(loc_str) {
-                        let rname = cap1[1].to_owned();
-                        let q = cap1[2].parse::<usize>().unwrap();
-                        if let Some(&offset) = reg.get(&rname) {
-                            qs.push(offset + q as usize);
-                        } else {
-                            return Err(format!("Undeclared register: {}", rname));
-                        }
-                    } else {
-                        return Err(format!("Bad qubit location: {}", loc_str));
-                    }
+
+                for loc_str in rest.split(",") {
+                    let parts = loc_str.trim().splitn(2, "[").collect::<Vec<_>>();
+
+                    if parts.len() == 2 || parts[1].ends_with("]") {
+                        let rname = parts[0].to_owned();
+                        let q_str = &parts[1][0..parts[1].len()-1];
+                        if let Ok(q) = q_str.parse::<usize>() {
+                            if let Some(&(_,offset)) = reg.iter().find(|(s,_)| s == &rname) {
+                                qs.push(offset + q as usize);
+                            } else { return Err(format!("Undeclared register: {}", rname)); }
+                        } else { return Err(format!("Expected numeric qubit index: {}", q_str)); }
+                    } else { return Err(format!("Bad qubit location: {}", loc_str)); }
                 }
 
                 c.push(Gate { t, qs, phase });
@@ -308,18 +340,18 @@ impl Circuit {
         Ok(c)
     }
 
-    pub fn from_qasm(source: &str) -> Result<Circuit, String> {
-        Circuit::from_lines(source.split(";").map(|s| s.to_owned()))
-    }
-
     pub fn from_file(name: &str) -> Result<Circuit, String> {
-        let f = File::open(name).expect("Can't open file.");
-        let r = BufReader::new(f);
-        let it = r.split(b';').map(|x|
-                String::from_utf8(
-                    x.expect("IO error reading file.")
-                ).expect("Error converting to UTF8."));
-        Circuit::from_lines(it)
+        let mut f = File::open(name).expect("Can't open file.");
+        let mut source = String::new();
+        f.read_to_string(&mut source).map_err(|e| e.to_string())?;
+        Circuit::from_qasm(&source)
+        // let r = BufReader::new(f);
+        // let it = r.lines().map(|ln| ln.expect("IO error reading file"));
+        // let it = r.split(b';').map(|x|
+        //         String::from_utf8(
+        //             x.expect("IO error reading file.")
+        //         ).expect("Error converting to UTF8."));
+        // Circuit::from_lines(source.split(';'))
     }
 }
 

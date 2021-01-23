@@ -1,0 +1,88 @@
+../../circuits/qcla_adder_10.qasm
+...done in 1.09ms
+../../circuits/gf2^32_mult.qasm
+...done in 7.78ms
+../../circuits/ham15-high.qasm
+...done in 4.01ms
+../../circuits/mod_adder_1024.qasm
+...done in 3.09ms
+../../circuits/cycle_17_3.qasm
+...done in 6.87ms
+../../circuits/gf2^10_mult.qasm
+...done in 1.10ms
+../../circuits/mod_adder_1048576.qasm
+...done in 13.99ms
+../../circuits/csla_mux_3.qasm
+...done in 358.84µs
+../../circuits/hwb10.qasm
+...done in 19.94ms
+../../circuits/barenco_tof_4.qasm
+...done in 269.82µs
+../../circuits/gf2^6_mult.qasm
+...done in 150.99µs
+../../circuits/ham15-med.qasm
+...done in 308.85µs
+../../circuits/hwb6.qasm
+...done in 130.42µs
+../../circuits/mod_mult_55.qasm
+...done in 96.84µs
+../../circuits/hwb8.qasm
+...done in 3.42ms
+../../circuits/tof_5.qasm
+...done in 90.70µs
+../../circuits/hwb12.qasm
+...done in 82.42ms
+../../circuits/gf2^9_mult.qasm
+...done in 1.10ms
+../../circuits/grover_5.qasm
+...done in 197.13µs
+../../circuits/gf2^8_mult.qasm
+...done in 166.95µs
+../../circuits/tof_10.qasm
+...done in 95.82µs
+../../circuits/tof_4.qasm
+...done in 67.35µs
+../../circuits/tof_3.qasm
+...done in 61.14µs
+../../circuits/mod5_4.qasm
+...done in 63.53µs
+../../circuits/rc_adder_6.qasm
+...done in 95.34µs
+../../circuits/csum_mux_9.qasm
+...done in 114.34µs
+../../circuits/qcla_com_7.qasm
+...done in 124.60µs
+../../circuits/ham15-low.qasm
+...done in 154.96µs
+../../circuits/vbe_adder_3.qasm
+...done in 90.02µs
+../../circuits/gf2^128_mult.qasm
+...done in 22.08ms
+../../circuits/barenco_tof_3.qasm
+...done in 82.26µs
+../../circuits/adder_8.qasm
+...done in 204.64µs
+../../circuits/qcla_mod_7.qasm
+...done in 181.19µs
+../../circuits/barenco_tof_5.qasm
+...done in 76.09µs
+../../circuits/hwb11.qasm
+...done in 38.25ms
+../../circuits/qft_4.qasm
+...done in 170.64µs
+../../circuits/gf2^7_mult.qasm
+...done in 138.81µs
+../../circuits/gf2^16_mult.qasm
+...done in 456.91µs
+../../circuits/gf2^64_mult.qasm
+...done in 5.56ms
+../../circuits/barenco_tof_10.qasm
+...done in 119.62µs
+../../circuits/gf2^4_mult.qasm
+...done in 85.82µs
+../../circuits/gf2^256_mult.qasm
+...done in 94.00ms
+../../circuits/mod_red_21.qasm
+...done in 159.12µs
+../../circuits/gf2^5_mult.qasm
+...done in 115.50µs
