@@ -236,16 +236,16 @@ impl Circuit {
 
     pub fn from_qasm(source: &str) -> Result<Circuit, String> {
         let lines = source.split(';');
-        // strip comments and includes
-        // let strip = Regex::new(r#"OPENQASM .*$|//.*$|include\s*".*"$"#).unwrap();
-        // register declaration
-        let qreg = Regex::new(r#"^qreg\s+([a-zA-Z0-9_]+)\s*\[\s*([0-9]+)\s*\]$"#).unwrap();
+
+        // pattern matching a qreg declaration
+        let qreg: Regex = Regex::new(r#"^qreg\s+([a-zA-Z0-9_]+)\s*\[\s*([0-9]+)\s*\]"#).unwrap();
 
         // the circuit we are building
         let mut c = Circuit::new(0);
+
         // a mapping from named registers to qubit offsets. Note a vec
         // with linear lookups seems better than hashing for ~15 or fewer
-        // keys.
+        // registers.
         let mut reg: Vec<(String,usize)> = Vec::new();
 
         let mut first = true;
@@ -255,8 +255,7 @@ impl Circuit {
             if line.is_empty() { continue; }
             if first && line.starts_with("OPENQASM") { first = false; continue; }
 
-            if line.starts_with("//") ||
-               line.starts_with("include") { continue; }
+            if line.starts_with("include") { continue; }
 
             if line.starts_with("qreg") {
                 if let Some(caps) = qreg.captures(&line) {
@@ -271,13 +270,24 @@ impl Circuit {
                     c.nqubits += sz as usize;
                 }
             } else {
+                // strip comments and look for a phase
                 let mut parts = line.splitn(2, "//").next().unwrap().splitn(2, '(');
-                let mut name = parts.next().unwrap();
-                let rest;
+
+                // if a phase is found, this first part of the split is the
+                // gate name. If no phase is found, this is the whole command.
+                let mut name = parts.next().unwrap().trim_end();
+
+                // continue if this line only contains a comment
+                if name.is_empty() { continue; }
+
+                // parsed from argument gate has an argument, otherwise
+                // set to 0.
                 let phase;
 
+                // save the rest of the command which isn't gate name or arg
+                let rest;
+
                 if let Some(arg) = parts.next() {
-                    name = name.trim();
                     let mut parts = arg.splitn(2, ')');
                     let arg = parts.next().unwrap();
                     if let Some(p) = Circuit::parse_phase(arg) {
@@ -300,16 +310,6 @@ impl Circuit {
                     }
                     phase = Rational::zero();
                 }
-
-                // let phase =
-                //     if let Some(m) = arg {
-                //         if let Some(p) = Circuit::parse_phase(m.as_str()) { p.mod2() }
-                //         else { return Err(format!("Bad phase: {}", m.as_str())); }
-                //     } else {
-                //         Rational::zero()
-                //     };
-
-                // println!("name = {}, phase = {}, rest = {}", name, phase, caps[4].to_owned());
 
                 let t = GType::from_qasm_name(&name);
                 if t == UnknownGate {
