@@ -200,6 +200,7 @@ impl<'a> Iterator for IncidentEdgeIter<'a> {
 impl<'a> ExactSizeIterator for IncidentEdgeIter<'a> {}
 
 pub trait IsGraph {
+    fn new() -> Self;
     fn num_vertices(&self) -> usize;
     fn num_edges(&self) -> usize;
     fn vertices(&self) -> VIter;
@@ -289,7 +290,7 @@ pub trait IsGraph {
                         (EType::N, EType::N) => {} // ignore new edge
                         (EType::H, EType::H) => {
                             self.remove_edge(s, t);
-                            self.scalar().mul_sqrt2_pow(-2);
+                self.scalar().mul_sqrt2_pow(-2);
                         }
                         (EType::H, EType::N) => {
                             self.set_edge_type(s, t, EType::N);

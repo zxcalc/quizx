@@ -22,6 +22,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use crate::scalar::Mod2;
 use crate::gate::*;
+use crate::graph::*;
 
 /// A type for quantum circuits
 #[derive(PartialEq,Eq,Clone,Debug)]
@@ -253,8 +254,7 @@ impl Circuit {
                 c.push(Gate { t, qs, phase });
             }
         }
-        // let mut tokens = qasm::lex(&processed_source);
-        // qasm::parse(&mut tokens).map_err(|e| format!("QASM parsing error: {}", e))
+
         Ok(c)
     }
 
@@ -281,6 +281,42 @@ impl Circuit {
         for g in &self.gates { g.push_basic_gates(&mut gs); }
 
         Circuit { gates: gs, nqubits: self.nqubits }
+    }
+
+    pub fn to_graph<G: IsGraph>(&self) -> G {
+        let mut graph = G::new();
+        let mut qs = Vec::with_capacity(self.nqubits);
+        for i in 0..self.nqubits {
+            qs.push(Some(graph.add_vertex_with_data(VData {
+                ty: VType::B,
+                phase: Rational::zero(),
+                qubit: i as i32,
+                row: 0
+            })));
+        }
+
+        for g in &self.gates {
+            g.add_to_graph(&mut graph, &mut qs);
+        }
+
+        let last_row = qs.iter()
+            .map(|&v| match v { Some(v1) => graph.row(v1), None => 0 })
+            .max()
+            .unwrap_or(0);
+
+        for (i,&q) in qs.iter().enumerate() {
+            if let Some(v0) = q {
+                let v = graph.add_vertex_with_data(VData {
+                    ty: VType::B,
+                    phase: Rational::zero(),
+                    qubit: i as i32,
+                    row: last_row + 1
+                });
+                graph.add_edge(v0, v);
+            }
+        }
+
+        graph
     }
 }
 

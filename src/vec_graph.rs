@@ -34,19 +34,6 @@ pub struct Graph {
 }
 
 impl Graph {
-    pub fn new() -> Graph {
-        Graph {
-            vdata: Vec::new(),
-            edata: Vec::new(),
-            holes: Vec::new(),
-            inputs: Vec::new(),
-            outputs: Vec::new(),
-            numv: 0,
-            nume: 0,
-            scalar: Scalar::one(),
-        }
-    }
-
     fn index<U>(nhd: &Vec<(V,U)>, v: V) -> Option<usize> {
         nhd.iter().position(|&(v0,_)| v == v0)
     }
@@ -91,6 +78,19 @@ impl Graph {
 }
 
 impl IsGraph for Graph {
+    fn new() -> Graph {
+        Graph {
+            vdata: Vec::new(),
+            edata: Vec::new(),
+            holes: Vec::new(),
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+            numv: 0,
+            nume: 0,
+            scalar: Scalar::one(),
+        }
+    }
+
     fn num_vertices(&self) -> usize {
         self.numv
     }

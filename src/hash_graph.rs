@@ -61,7 +61,18 @@ impl<'a> Iterator for EdgeIter<'a> {
 }
 
 impl Graph {
-    pub fn new() -> Graph {
+    /// Removes vertex 't' from the adjacency map of 's'. This private method
+    /// is used by remove_edge and remove_vertex to make the latter slightly
+    /// more efficient.
+    fn remove_half_edge(&mut self, s: V, t: V) {
+        self.edata.get_mut(&s)
+            .expect("Vertex not found")
+            .remove(&t);
+    }
+}
+
+impl IsGraph for Graph {
+    fn new() -> Graph {
         Graph {
             vdata: FxHashMap::default(),
             edata: FxHashMap::default(),
@@ -74,17 +85,6 @@ impl Graph {
         }
     }
 
-    /// Removes vertex 't' from the adjacency map of 's'. This private method
-    /// is used by remove_edge and remove_vertex to make the latter slightly
-    /// more efficient.
-    fn remove_half_edge(&mut self, s: V, t: V) {
-        self.edata.get_mut(&s)
-            .expect("Vertex not found")
-            .remove(&t);
-    }
-}
-
-impl IsGraph for Graph {
     fn num_vertices(&self) -> usize {
         self.numv
     }
