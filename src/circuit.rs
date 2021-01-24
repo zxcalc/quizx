@@ -16,8 +16,7 @@
 
 use std::fmt;
 use std::str;
-use num::Rational;
-use num::traits::Zero;
+use num::{Rational,Zero};
 use regex::Regex;
 use std::fs::File;
 use std::io::prelude::*;
@@ -154,10 +153,10 @@ impl Circuit {
         // the circuit we are building
         let mut c = Circuit::new(0);
 
-        // a mapping from named registers to qubit offsets. Note a vec
+        // a mapping from named registers to qubit offset and size. Note a vec
         // with linear lookups seems better than hashing for ~15 or fewer
         // registers.
-        let mut reg: Vec<(String,usize)> = Vec::new();
+        let mut reg: Vec<(String,usize,usize)> = Vec::new();
 
         let mut first = true;
 
@@ -173,11 +172,11 @@ impl Circuit {
                     let rname = caps[1].to_owned();
                     let sz = caps[2].parse::<usize>().unwrap();
                     // println!("rname = {}, sz = {}", rname, sz);
-                    if reg.iter().any(|(s,_)| s == &rname) {
-                        return Err(format!("Re-declaration of qreg: {}", &rname));
+                    if reg.iter().any(|(s,_,_)| s == &rname) {
+                        return Err(format!("Re-declaration of qreg: {}", line));
                     }
 
-                    reg.push((rname, c.nqubits));
+                    reg.push((rname, c.nqubits, sz));
                     c.nqubits += sz as usize;
                 }
             } else {
@@ -209,7 +208,7 @@ impl Circuit {
                         }
                         phase = p.mod2()
                     } else {
-                        return Err(format!("Bad phase: {}", arg));
+                        return Err(format!("Bad phase: {}", line));
                     }
                 } else {
                     let mut parts = name.splitn(2, |c| c==' ' || c == '\t');
@@ -224,7 +223,7 @@ impl Circuit {
 
                 let t = GType::from_qasm_name(&name);
                 if t == UnknownGate {
-                    return Err(format!("Unknown gate: {}", name));
+                    return Err(format!("Unknown gate: {}", line));
                 }
 
                 let mut qs: Vec<usize> = Vec::new();
@@ -236,11 +235,19 @@ impl Circuit {
                         let rname = parts[0].to_owned();
                         let q_str = &parts[1][0..parts[1].len()-1];
                         if let Ok(q) = q_str.parse::<usize>() {
-                            if let Some(&(_,offset)) = reg.iter().find(|(s,_)| s == &rname) {
-                                qs.push(offset + q as usize);
-                            } else { return Err(format!("Undeclared register: {}", rname)); }
-                        } else { return Err(format!("Expected numeric qubit index: {}", q_str)); }
-                    } else { return Err(format!("Bad qubit location: {}", loc_str)); }
+                            if let Some(&(_,offset,sz)) = reg.iter().find(|(s,_,_)| s == &rname) {
+                                if q < sz {
+                                    qs.push(offset + q as usize);
+                                } else { return Err(format!("Index out of bounds: {}", line)); }
+                            } else { return Err(format!("Undeclared register: {}", line)); }
+                        } else { return Err(format!("Expected numeric qubit index: {}", line)); }
+                    } else { return Err(format!("Bad qubit location: {}", line)); }
+                }
+
+                if let Some(numq) = t.num_qubits() {
+                    if numq != qs.len() {
+                        return Err(format!("Wrong number of qubits for gate: {}", line));
+                    }
                 }
 
                 c.push(Gate { t, qs, phase });
@@ -252,7 +259,7 @@ impl Circuit {
     }
 
     pub fn from_file(name: &str) -> Result<Circuit, String> {
-        let mut f = File::open(name).expect("Can't open file.");
+        let mut f = File::open(name).map_err(|e| e.to_string())?;
         let mut source = String::new();
         f.read_to_string(&mut source).map_err(|e| e.to_string())?;
         Circuit::from_qasm(&source)
