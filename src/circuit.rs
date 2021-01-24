@@ -271,6 +271,17 @@ impl Circuit {
         //         ).expect("Error converting to UTF8."));
         // Circuit::from_lines(source.split(';'))
     }
+
+    /// returns a copy of the circuit, decomposed into 1- and 2-qubit Clifford +
+    /// phase gates.
+    pub fn to_basic_gates(&self) -> Circuit {
+        // calculate the space needed in advance
+        let sz = self.gates.iter().map(|g| g.num_basic_gates()).sum();
+        let mut gs: Vec<Gate> = Vec::with_capacity(sz);
+        for g in &self.gates { g.push_basic_gates(&mut gs); }
+
+        Circuit { gates: gs, nqubits: self.nqubits }
+    }
 }
 
 impl fmt::Display for Circuit {

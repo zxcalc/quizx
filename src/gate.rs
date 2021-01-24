@@ -97,6 +97,8 @@ impl GType {
         }
     }
 
+
+
 }
 
 impl Gate {
@@ -108,7 +110,7 @@ impl Gate {
         Gate { t, qs, phase }
     }
 
-    fn ccz_decomp(gs: &mut Vec<Gate>, qs: &Vec<usize>) {
+    fn push_ccz_decomp(gs: &mut Vec<Gate>, qs: &Vec<usize>) {
         gs.push(Gate::new(CNOT, vec![qs[1], qs[2]]));
         gs.push(Gate::new(Tdg, vec![qs[2]]));
         gs.push(Gate::new(CNOT, vec![qs[0], qs[2]]));
@@ -124,28 +126,32 @@ impl Gate {
         gs.push(Gate::new(CNOT, vec![qs[0], qs[1]]));
     }
 
-    /// decompose as 1 and 2 qubit Clifford + phase gates
+    /// number of 1- and 2-qubit Clifford + phase gates needed to realise this gate
+    pub fn num_basic_gates(&self) -> usize {
+        match self.t {
+            CCZ => 13,
+            TOFF => 15,
+            ParityPhase => if self.qs.is_empty() { 0 } else { self.qs.len() * 2 - 1 },
+            _ => 1,
+        }
+    }
+
+    /// decompose as 1 and 2 qubit Clifford + phase gates and push on to given vec
     ///
-    /// If a gate is already basic, return a singleton containing a copy of
-    /// self.
-    pub fn to_basic_gates(&self) -> Vec<Gate> {
+    /// If a gate is already basic, push a copy of itself.
+    pub fn push_basic_gates(&self, gs: &mut Vec<Gate>) {
         match self.t {
             CCZ => {
-                let mut gs = Vec::with_capacity(13);
-                Gate::ccz_decomp(&mut gs, &self.qs);
-                gs
+                Gate::push_ccz_decomp(gs, &self.qs);
             },
             TOFF => {
-                let mut gs = Vec::with_capacity(15);
                 gs.push(Gate::new(HAD, vec![self.qs[2]]));
-                Gate::ccz_decomp(&mut gs, &self.qs);
+                Gate::push_ccz_decomp(gs, &self.qs);
                 gs.push(Gate::new(HAD, vec![self.qs[2]]));
-                gs
             },
             ParityPhase => {
                 if let Some(&t) = self.qs.last() {
                     let sz = self.qs.len();
-                    let mut gs = Vec::with_capacity(sz * 2 - 1);
                     for &c in self.qs[0..sz-1].iter() {
                         gs.push(Gate::new(CNOT, vec![c, t]));
                     }
@@ -153,12 +159,9 @@ impl Gate {
                     for &c in self.qs[0..sz-1].iter().rev() {
                         gs.push(Gate::new(CNOT, vec![c, t]));
                     }
-                    gs
-                } else {
-                    vec![]
                 }
             }
-            _ => vec![self.clone()],
+            _ => gs.push(self.clone()),
         }
     }
 }
