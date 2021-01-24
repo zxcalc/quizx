@@ -17,6 +17,7 @@
 pub mod graph;
 pub mod vec_graph;
 pub mod hash_graph;
+pub mod gate;
 pub mod circuit;
 pub mod scalar;
 pub mod tensor;
