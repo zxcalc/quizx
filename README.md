@@ -61,18 +61,12 @@ QuiZX is very much a work in progress. It is not intended to have all the featur
   - [X] remove identity spiders
   - [X] colour-change
   - [ ] pivoting variations (boundary-pivot and gadget-pivot)
-  %% - [ ] strong complementarity (optional, pivoting is more useful in practice)
 - tensor evaluation based on [ndarray](https://github.com/rust-ndarray/ndarray)
   - [X] exact scalars with [cyclotomic](https://en.wikipedia.org/wiki/Cyclotomic_field)
       rational numbers
   - [X] floating point scalars based on [num_complex](https://crates.io/crates/num-complex)
   - [X] tensor contraction for arbitrary ZX-diagrams
   - [X] equality of tensors with exact scalars
-  %% - [ ] approximate equality of tensors with floating point scalars
-  %% - [ ] space optimisations
-  %% - [ ] choose good contraction ordering (currently uses
-  %%       reverse-insertion-order)
-  %% - [ ] more human-readable tensor output (e.g. converting to normal matrices, pretty printing)
 - circuits
   - [X] circuit data type
   - [X] read and write QASM
