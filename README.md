@@ -53,7 +53,6 @@ QuiZX is very much a work in progress. It is not intended to have all the featur
 - ZX-diagrams
   - [X] building ZX-diagrams and doing basic graph manipulations
   - [X] converting ZX-diagrams to Z + hadamard form
-  - [X] switchable underlying graph model (fast vector-based model for sparse graphs, slower hash-based model for dense graphs)
 - ZX-calculus rules
   - [X] spider fusion
   - [X] local complementation
