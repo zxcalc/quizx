@@ -51,7 +51,17 @@ where T: Copy + Zero + One + Sqrt2 + FromPhase + ScalarOperand + FromScalar<Scal
 /// implements [TensorElem], as well as two convenience methods [ToTensor::to_tensor4]
 /// and [ToTensor::to_tensorf] for [Scalar4] and floating-point [Complex] numbers,
 /// respectively.
-pub trait ToTensor: IsGraph + Clone {
+pub trait ToTensor {
+    fn to_tensor<A: TensorElem>(&self) -> Tensor<A>;
+
+    /// Shorthand for `to_tensor::<Scalar4>()`
+    fn to_tensor4(&self) -> Tensor<Scalar4> { self.to_tensor() }
+
+    /// Shorthand for `to_tensor::<Complex<f64>>()`
+    fn to_tensorf(&self) -> Tensor<Complex<f64>> { self.to_tensor() }
+}
+
+impl<G: GraphLike + Clone> ToTensor for G {
     fn to_tensor<A>(&self) -> Tensor<A>
     where A: TensorElem
     {
@@ -171,20 +181,7 @@ pub trait ToTensor: IsGraph + Clone {
     }
 
 
-    /// Shorthand for `to_tensor::<Scalar4>()`
-    fn to_tensor4(&self) -> Tensor<Scalar4> { self.to_tensor() }
-
-    /// Shorthand for `to_tensor::<Complex<f64>>()`
-    fn to_tensorf(&self) -> Tensor<Complex<f64>> { self.to_tensor() }
 }
-
-// pub trait ToTensor: IsGraph + Clone {
-//     fn to_tensor<A>(&self) -> Tensor<A>
-//     where A: TensorElem
-//     { compute_tensor::<Self,A>(self) }
-// }
-
-impl<G: IsGraph + Clone> ToTensor for G {}
 
 
 #[cfg(test)]

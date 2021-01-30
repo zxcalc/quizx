@@ -199,7 +199,7 @@ impl<'a> Iterator for IncidentEdgeIter<'a> {
 
 impl<'a> ExactSizeIterator for IncidentEdgeIter<'a> {}
 
-pub trait IsGraph {
+pub trait GraphLike {
     fn new() -> Self;
     fn num_vertices(&self) -> usize;
     fn num_edges(&self) -> usize;

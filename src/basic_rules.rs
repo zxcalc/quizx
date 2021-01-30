@@ -37,7 +37,7 @@ macro_rules! safe_rule1 {
         /// A checked implementation of the rule
         ///
         /// See e.g. [spider_fusion] for an example.
-        pub fn $name(g: &mut impl IsGraph, v: V) -> bool {
+        pub fn $name(g: &mut impl GraphLike, v: V) -> bool {
             if $check(g, v) {
                 $unsafe(g, v); true
             } else { false }
@@ -51,7 +51,7 @@ macro_rules! safe_rule2 {
         /// A checked implementation of the rule
         ///
         /// See e.g. [spider_fusion] for an example.
-        pub fn $name(g: &mut impl IsGraph, v0: V, v1: V) -> bool {
+        pub fn $name(g: &mut impl GraphLike, v0: V, v1: V) -> bool {
             if $check(g, v0, v1) {
                 $unsafe(g, v0, v1); true
             } else { false }
@@ -78,7 +78,7 @@ macro_rules! safe_rule2 {
 /// assert!(check_spider_fusion(&g, v0, v1));
 /// assert!(!check_spider_fusion(&g, v1, v2));
 /// ```
-pub fn check_spider_fusion(g: &impl IsGraph, v0: V, v1: V) -> bool {
+pub fn check_spider_fusion(g: &impl GraphLike, v0: V, v1: V) -> bool {
     ((g.vertex_type(v0) == VType::Z && g.vertex_type(v1) == VType::Z) ||
      (g.vertex_type(v0) == VType::X && g.vertex_type(v1) == VType::X)) &&
         g.connected(v0,v1) && g.edge_type(v0,v1) == EType::N
@@ -110,7 +110,7 @@ pub fn check_spider_fusion(g: &impl IsGraph, v0: V, v1: V) -> bool {
 /// spider_fusion_unsafe(&mut g, v0, v2); // oops!
 /// assert_ne!(g.to_tensor4(), h.to_tensor4());
 /// ```
-pub fn spider_fusion_unsafe(g: &mut impl IsGraph, v0: V, v1: V) {
+pub fn spider_fusion_unsafe(g: &mut impl GraphLike, v0: V, v1: V) {
     for (v,et) in Vec::from_iter(g.incident_edges(v1)) {
         if v != v0 {
             g.add_edge_smart(v0, v, et);
@@ -148,14 +148,14 @@ pub fn spider_fusion_unsafe(g: &mut impl IsGraph, v0: V, v1: V) {
 /// assert!(!success);
 /// assert_eq!(g, h); // g is unchanged
 /// ```
-pub fn spider_fusion(g: &mut impl IsGraph, v0: V, v1: V) -> bool {
+pub fn spider_fusion(g: &mut impl GraphLike, v0: V, v1: V) -> bool {
     if check_spider_fusion(g, v0, v1) {
         spider_fusion_unsafe(g, v0, v1); true
     } else { false }
 }
 
 /// Check [remove_id_unsafe] applies
-pub fn check_remove_id(g: &impl IsGraph, v: V) -> bool {
+pub fn check_remove_id(g: &impl GraphLike, v: V) -> bool {
     let vt = g.vertex_type(v);
 
     (vt == VType::Z || vt == VType::X) &&
@@ -169,7 +169,7 @@ pub fn check_remove_id(g: &impl IsGraph, v: V) -> bool {
 /// of the resulting edge is the parity of the types of
 /// original 2 edges, namely: {N,N} -> N, {N,H} -> H, and
 /// {H, H} -> N.
-pub fn remove_id_unsafe(g: &mut impl IsGraph, v: V) {
+pub fn remove_id_unsafe(g: &mut impl GraphLike, v: V) {
     let nhd: Vec<(V,EType)> = g.incident_edges(v).collect();
     let new_et =
         match (nhd[0].1, nhd[1].1) {
@@ -185,7 +185,7 @@ pub fn remove_id_unsafe(g: &mut impl IsGraph, v: V) {
 safe_rule1!(check_remove_id, remove_id_unsafe, remove_id);
 
 /// Check [color_change_unsafe] applies
-pub fn check_color_change(g: &impl IsGraph, v: V) -> bool {
+pub fn check_color_change(g: &impl GraphLike, v: V) -> bool {
     let vt = g.vertex_type(v);
     vt == VType::X || vt == VType::Z
 }
@@ -194,7 +194,7 @@ pub fn check_color_change(g: &impl IsGraph, v: V) -> bool {
 ///
 /// All of the neighboring edge types are toggled, i.e. N -> H,
 /// H -> N.
-pub fn color_change_unsafe(g: &mut impl IsGraph, v: V) {
+pub fn color_change_unsafe(g: &mut impl GraphLike, v: V) {
     let vt = g.vertex_type(v);
     g.set_vertex_type(v, if vt == VType::X { VType::Z } else { VType::X });
     for w in Vec::from_iter(g.neighbors(v)) {
@@ -208,7 +208,7 @@ safe_rule1!(check_color_change, color_change_unsafe, color_change);
 ///
 /// The vertex must be Z, have a phase pi/2 or -pi/2, and be
 /// surrounded by H-edges connected to other Z spiders.
-pub fn check_local_comp(g: &impl IsGraph, v: V) -> bool {
+pub fn check_local_comp(g: &impl GraphLike, v: V) -> bool {
     g.vertex_type(v) == VType::Z &&
     *g.phase(v).denom() == 2 &&
     g.incident_edges(v).all(|(v0,et)|
@@ -220,7 +220,7 @@ pub fn check_local_comp(g: &impl IsGraph, v: V) -> bool {
 /// This is the version that deletes the targeted vertex. In
 /// other words, it is an N-ary generalisatio of the Euler
 /// decomposition rule.
-pub fn local_comp_unsafe(g: &mut impl IsGraph, v: V) {
+pub fn local_comp_unsafe(g: &mut impl GraphLike, v: V) {
     let p = g.phase(v);
 
     // add a totally connected graph of the nhd of v
@@ -244,7 +244,7 @@ safe_rule1!(check_local_comp, local_comp_unsafe, local_comp);
 ///
 /// Both vertices must be Z, have a phase 0 or pi, and be
 /// surrounded by H-edges connected to other Z spiders.
-pub fn check_pivot(g: &impl IsGraph, v0: V, v1: V) -> bool {
+pub fn check_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
     g.vertex_type(v0) == VType::Z &&
     g.vertex_type(v1) == VType::Z &&
     g.phase(v0).is_integer() &&
@@ -260,7 +260,7 @@ pub fn check_pivot(g: &impl IsGraph, v0: V, v1: V) -> bool {
 /// This is the version that deletes both vertices, so it is
 /// effectively a generalised version of the strong complementarity
 /// rule.
-pub fn pivot_unsafe(g: &mut impl IsGraph, v0: V, v1: V) {
+pub fn pivot_unsafe(g: &mut impl GraphLike, v0: V, v1: V) {
     let p0 = g.phase(v0);
     let p1 = g.phase(v1);
 

@@ -173,7 +173,7 @@ impl Gate {
         gates
     }
 
-    fn add_spider<G: IsGraph>(graph: &mut G, qs: &mut Vec<Option<usize>>, qubit: usize,
+    fn add_spider<G: GraphLike>(graph: &mut G, qs: &mut Vec<Option<usize>>, qubit: usize,
                   ty: VType, et: EType, phase: Rational) -> Option<usize>
     {
         if let Some(v0) = qs[qubit] {
@@ -191,7 +191,7 @@ impl Gate {
     ///
     /// This method takes mutable parameters for the graph being built, and a vec `qs` mapping qubit
     /// number to the most recent vertex in that spot.
-    pub fn add_to_graph(&self, graph: &mut impl IsGraph, qs: &mut Vec<Option<usize>>) {
+    pub fn add_to_graph(&self, graph: &mut impl GraphLike, qs: &mut Vec<Option<usize>>) {
         match self.t {
             ZPhase => { Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, self.phase); },
             Z      => { Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Rational::new(1,1)); },

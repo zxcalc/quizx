@@ -283,7 +283,7 @@ impl Circuit {
         Circuit { gates: gs, nqubits: self.nqubits }
     }
 
-    pub fn to_graph<G: IsGraph>(&self) -> G {
+    pub fn to_graph<G: GraphLike>(&self) -> G {
         let mut graph = G::new();
         let mut qs = Vec::with_capacity(self.nqubits);
         for i in 0..self.nqubits {

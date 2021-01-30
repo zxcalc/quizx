@@ -71,7 +71,7 @@ impl Graph {
     }
 }
 
-impl IsGraph for Graph {
+impl GraphLike for Graph {
     fn new() -> Graph {
         Graph {
             vdata: FxHashMap::default(),
