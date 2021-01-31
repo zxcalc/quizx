@@ -17,9 +17,10 @@
 // use crate::scalar::*;
 use crate::graph::*;
 use crate::scalar::*;
+use crate::circuit::*;
 use num::{Complex,Rational};
 use ndarray::prelude::*;
-use ndarray::{Array, Axis, stack, ScalarOperand};
+use ndarray::{Array, Axis, stack, ScalarOperand, IxDyn};
 use std::collections::VecDeque;
 use rustc_hash::FxHashMap;
 
@@ -41,9 +42,9 @@ impl FromPhase for Complex<f64> {
 }
 
 /// Wraps all the traits we need to compute tensors from ZX-diagrams.
-pub trait TensorElem: Copy + Zero + One + Sqrt2 + FromPhase + ScalarOperand + FromScalar<ScalarN> + std::fmt::Debug {}
+pub trait TensorElem: Copy + Zero + One + Sqrt2 + FromPhase + ScalarOperand + std::ops::MulAssign + FromScalar<ScalarN> + std::fmt::Debug {}
 impl<T> TensorElem for T
-where T: Copy + Zero + One + Sqrt2 + FromPhase + ScalarOperand + FromScalar<ScalarN> + std::fmt::Debug {}
+where T: Copy + Zero + One + Sqrt2 + FromPhase + ScalarOperand + std::ops::MulAssign + FromScalar<ScalarN> + std::fmt::Debug {}
 
 /// Trait that implements conversion of graphs to tensors
 ///
@@ -61,10 +62,93 @@ pub trait ToTensor {
     fn to_tensorf(&self) -> Tensor<Complex<f64>> { self.to_tensor() }
 }
 
+pub trait QubitOps {
+    fn ident(q: usize) -> Self;
+    fn delta(q: usize) -> Self;
+    fn cphase(p: Rational, q: usize) -> Self;
+    fn hadamard() -> Self;
+    fn delta_at(&mut self, qs: &[usize]);
+    fn cphase_at(&mut self, p: Rational, qs: &[usize]);
+    fn hadamard_at(&mut self, i: usize);
+}
+
+impl<A: TensorElem> QubitOps for Tensor<A> {
+    fn ident(q: usize) -> Tensor<A> {
+        Tensor::from_shape_fn(vec![2;q*2], |ix| {
+            if (0..q).all(|i| ix[i] == ix[q+i]) { A::one() } else { A::zero() }
+        })
+    }
+
+    fn delta(q: usize) -> Tensor<A> {
+        Tensor::from_shape_fn(vec![2;q], |ix| {
+            if (0..q).all(|i| ix[i] == 0) || (0..q).all(|i| ix[i] == 1) { A::one() }
+            else { A::zero() }
+        })
+    }
+
+    fn cphase(p: Rational, q: usize) -> Tensor<A> {
+        Tensor::from_shape_fn(vec![2;q], |ix| {
+            if (0..q).all(|i| ix[i] == 1) { A::from_phase(p) } else { A::one() }
+        })
+    }
+
+    fn hadamard() -> Tensor<A> {
+        let n = A::one_over_sqrt2();
+        let minus = A::from_phase(Rational::one());
+        array![[n, n], [n, minus * n]].into_dyn()
+    }
+
+    fn delta_at(&mut self, qs: &[usize]) {
+        let mut shape: Vec<usize> = vec![1; self.ndim()];
+        for &q in qs { shape[q] = 2; }
+        let del: Tensor<A> = Tensor::delta(qs.len())
+            .into_shape(shape).expect("Bad indices for delta_at");
+        *self *= &del;
+    }
+
+    fn cphase_at(&mut self, p: Rational, qs: &[usize]) {
+        let mut shape: Vec<usize> = vec![1; self.ndim()];
+        for &q in qs { shape[q] = 2; }
+        let cp: Tensor<A> = Tensor::cphase(p, qs.len())
+            .into_shape(shape).expect("Bad indices for delta_at");
+        *self *= &cp;
+    }
+
+    fn hadamard_at(&mut self, i: usize) {
+        let q = self.ndim() / 2;
+        let n = A::one_over_sqrt2();
+        let minus = A::from_phase(Rational::one());
+
+        // shape is the same as "self", except i and q+i are fixed to 1D...
+        let mut shape = self.dim().clone();
+        shape[i] = 1;
+        shape[q+i] = 1;
+
+        // ...which means ax runs over all indices such that i and q+i are 0
+        for ax in ndarray::indices(shape) {
+            // bx, cd, and dx set i, q+i or both to 1
+            let mut bx = ax.clone();
+            bx[i] = 1;
+            let mut cx = ax.clone();
+            cx[q+i] = 1;
+            let mut dx = bx.clone();
+            dx[q+i] = 1;
+
+            // apply a hadamard to the resulting block matrix
+            let a = self[&ax];
+            let b = self[&bx];
+            let c = self[&cx];
+            let d = self[&dx];
+            self[&ax] = n * (a + b);
+            self[&bx] = n * (a + minus * b);
+            self[&cx] = n * (c + d);
+            self[&dx] = n * (c + minus * d);
+        }
+    }
+}
+
 impl<G: GraphLike + Clone> ToTensor for G {
-    fn to_tensor<A>(&self) -> Tensor<A>
-    where A: TensorElem
-    {
+    fn to_tensor<A: TensorElem>(&self) -> Tensor<A> {
         let mut g = self.clone();
         g.x_to_z();
         // H-boxes are not implemented yet
@@ -90,14 +174,6 @@ impl<G: GraphLike + Clone> ToTensor for G {
 
         let mut indexv: VecDeque<V> = VecDeque::new();
         let mut seenv: FxHashMap<V,usize> = FxHashMap::default();
-
-        let (delta, had): (Matrix<A>,Matrix<A>) = {
-            let o = A::one();
-            let z = A::zero();
-            let minus_one = A::from_phase(Rational::new(1,1));
-            (array![[o,z],[z,o]],
-             array![[o,o],[o,minus_one]])
-        };
 
         let mut fst = true;
         let mut num_had = 0;
@@ -136,25 +212,12 @@ impl<G: GraphLike + Clone> ToTensor for G {
                         .position(|x| *x == w)
                         .expect("w should be in indexv");
 
-                    // treat delta or hadamard as a K-tensor, with trivial dimensions except
-                    // at the indexes of v and w, and multiply it in
-                    let mut shape: Vec<usize> = vec![1; indexv.len()];
-                    shape[vi] = 2;
-                    shape[wi] = 2;
-                    // println!("Cloning delta/had into shape {:?}", shape);
-
-                    let m = if et == EType::N {
-                        &delta
+                    if et == EType::N {
+                        a.delta_at(&[vi, wi]);
                     } else {
+                        a.cphase_at(Rational::one(), &[vi, wi]);
                         num_had += 1;
-                        &had
-                    }.clone()
-                    .into_shape(shape)
-                        .expect("Bad tensor indices");
-
-                    // println!("Done. Multiplying with 'a' of shape {:?}", a.shape());
-
-                    a = &a * &m;
+                    }
 
                     // if v and w now have all their edges in the tensor, contract away the
                     // index
@@ -179,8 +242,14 @@ impl<G: GraphLike + Clone> ToTensor for G {
         let s = A::from_scalar(g.scalar()) * A::sqrt2_pow(-num_had);
         a * s
     }
+}
 
-
+impl ToTensor for Circuit {
+    fn to_tensor<A: TensorElem>(&self) -> Tensor<A> {
+        let q = self.num_qubits();
+        let mut a = Tensor::ident(q);
+        a
+    }
 }
 
 
@@ -198,5 +267,15 @@ mod tests {
         g.add_edge(0,1);
         let t: Tensor<Scalar4> = g.to_tensor();
         println!("{}", t);
+    }
+
+    #[test]
+    fn had_at() {
+        let mut arr: Tensor<Scalar4> = Tensor::ident(2);
+        arr.hadamard_at(0);
+        arr.hadamard_at(1);
+        arr.hadamard_at(0);
+        arr.hadamard_at(1);
+        assert_eq!(arr, Tensor::ident(2));
     }
 }
