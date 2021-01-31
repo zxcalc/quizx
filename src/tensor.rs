@@ -20,7 +20,8 @@ use crate::scalar::*;
 use crate::circuit::*;
 use num::{Complex,Rational};
 use ndarray::prelude::*;
-use ndarray::{Array, Axis, stack, ScalarOperand, IxDyn};
+use ndarray::parallel::prelude::*;
+use ndarray::{Array, Axis, stack, ScalarOperand, IxDyn, SliceInfo, SliceOrIndex};
 use std::collections::VecDeque;
 use rustc_hash::FxHashMap;
 
@@ -42,9 +43,13 @@ impl FromPhase for Complex<f64> {
 }
 
 /// Wraps all the traits we need to compute tensors from ZX-diagrams.
-pub trait TensorElem: Copy + Zero + One + Sqrt2 + FromPhase + ScalarOperand + std::ops::MulAssign + FromScalar<ScalarN> + std::fmt::Debug {}
+pub trait TensorElem: Copy + Send + Sync +
+    Zero + One + Sqrt2 + FromPhase + FromScalar<ScalarN> +
+    ScalarOperand + std::ops::MulAssign + std::fmt::Debug {}
 impl<T> TensorElem for T
-where T: Copy + Zero + One + Sqrt2 + FromPhase + ScalarOperand + std::ops::MulAssign + FromScalar<ScalarN> + std::fmt::Debug {}
+where T: Copy + Send + Sync +
+    Zero + One + Sqrt2 + FromPhase + FromScalar<ScalarN> +
+    ScalarOperand + std::ops::MulAssign + std::fmt::Debug {}
 
 /// Trait that implements conversion of graphs to tensors
 ///
@@ -110,40 +115,32 @@ impl<A: TensorElem> QubitOps for Tensor<A> {
         let mut shape: Vec<usize> = vec![1; self.ndim()];
         for &q in qs { shape[q] = 2; }
         let cp: Tensor<A> = Tensor::cphase(p, qs.len())
-            .into_shape(shape).expect("Bad indices for delta_at");
+            .into_shape(shape).expect("Bad indices for cphase_at");
         *self *= &cp;
     }
 
-    fn hadamard_at(&mut self, i: usize) {
-        let q = self.ndim() / 2;
+    fn hadamard_at(&mut self, q: usize) {
         let n = A::one_over_sqrt2();
-        let minus = A::from_phase(Rational::one());
+        let minus = A::from_phase(Rational::one()); // -1 = e^(i pi)
 
-        // shape is the same as "self", except i and q+i are fixed to 1D...
-        let mut shape = self.dim().clone();
-        shape[i] = 1;
-        shape[q+i] = 1;
+        let mut slice0 = vec![SliceOrIndex::from(..); self.ndim()];
+        let mut slice1 = slice0.clone();
+        slice0[q] = SliceOrIndex::from(0);
+        slice1[q] = SliceOrIndex::from(1);
 
-        // ...which means ax runs over all indices such that i and q+i are 0
-        for ax in ndarray::indices(shape) {
-            // bx, cd, and dx set i, q+i or both to 1
-            let mut bx = ax.clone();
-            bx[i] = 1;
-            let mut cx = ax.clone();
-            cx[q+i] = 1;
-            let mut dx = bx.clone();
-            dx[q+i] = 1;
+        // split into two non-overlapping pieces, where index q=0 and q=1
+        let (mut ma, mut mb) = self.multi_slice_mut((
+                SliceInfo::<_,IxDyn>::new(slice0).unwrap().as_ref(),
+                SliceInfo::<_,IxDyn>::new(slice1).unwrap().as_ref(),
+                ));
 
-            // apply a hadamard to the resulting block matrix
-            let a = self[&ax];
-            let b = self[&bx];
-            let c = self[&cx];
-            let d = self[&dx];
-            self[&ax] = n * (a + b);
-            self[&bx] = n * (a + minus * b);
-            self[&cx] = n * (c + d);
-            self[&dx] = n * (c + minus * d);
-        }
+        // iterate over the pieces together and apply a hadamard to each of the
+        // pairs of elements
+        par_azip!((a in &mut ma, b in &mut mb) {
+            let a1 = *a;
+            *a = n * (*a + *b);
+            *b = n * (a1 + minus * *b);
+        });
     }
 }
 
@@ -271,6 +268,9 @@ mod tests {
 
     #[test]
     fn had_at() {
+        let mut arr: Tensor<Scalar4> = Tensor::ident(1);
+        arr.hadamard_at(0);
+        assert_eq!(arr, Tensor::hadamard());
         let mut arr: Tensor<Scalar4> = Tensor::ident(2);
         arr.hadamard_at(0);
         arr.hadamard_at(1);
