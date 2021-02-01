@@ -109,9 +109,10 @@ impl<A: TensorElem> QubitOps<A> for Tensor<A> {
     }
 
     fn cphase(p: Rational, q: usize) -> Tensor<A> {
-        Tensor::from_shape_fn(vec![2;q], |ix| {
-            if (0..q).all(|i| ix[i] == 1) { A::from_phase(p) } else { A::one() }
-        })
+        let mut t = Tensor::ident(q);
+        let qs: Vec<_> = (0..q).collect();
+        t.cphase_at(p, &qs);
+        t
     }
 
     fn hadamard() -> Tensor<A> {
@@ -131,8 +132,9 @@ impl<A: TensorElem> QubitOps<A> for Tensor<A> {
     fn cphase_at(&mut self, p: Rational, qs: &[usize]) {
         let mut shape: Vec<usize> = vec![1; self.ndim()];
         for &q in qs { shape[q] = 2; }
-        let cp: Tensor<A> = Tensor::cphase(p, qs.len())
-            .into_shape(shape).expect("Bad indices for cphase_at");
+        let cp: Tensor<A> = Tensor::from_shape_fn(vec![2;qs.len()], |ix| {
+            if (0..qs.len()).all(|i| ix[i] == 1) { A::from_phase(p) } else { A::one() }
+        }).into_shape(shape).expect("Bad indices for cphase_at");
         *self *= &cp;
     }
 
@@ -325,6 +327,72 @@ mod tests {
         g.add_edge(0,1);
         let t: Tensor<Scalar4> = g.to_tensor();
         println!("{}", t);
+    }
+
+    #[test]
+    fn tensor_id() {
+        let mut g = Graph::new();
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::B);
+        g.add_edge(0,1);
+        g.set_inputs(vec![0]);
+        g.set_outputs(vec![1]);
+        let t: Tensor<Scalar4> = g.to_tensor();
+        assert_eq!(t, Tensor::ident(1));
+
+        let mut g = Graph::new();
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::Z);
+        g.add_edge(0,2);
+        g.add_edge(2,1);
+        g.set_inputs(vec![0]);
+        g.set_outputs(vec![1]);
+        let t: Tensor<Scalar4> = g.to_tensor();
+        assert_eq!(t, Tensor::ident(1));
+    }
+
+    #[test]
+    fn tensor_delta() {
+        let mut g = Graph::new();
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::Z);
+        g.add_vertex(VType::Z);
+        g.add_edge(0,4);
+        g.add_edge(1,5);
+        g.add_edge_with_type(4,5,EType::N);
+        g.add_edge(2,4);
+        g.add_edge(3,5);
+        g.set_inputs(vec![0,1]);
+        g.set_outputs(vec![2,3]);
+        let t = g.to_tensor4();
+        println!("{}", t);
+        assert_eq!(t, Tensor::delta(4));
+    }
+
+    #[test]
+    fn tensor_cz() {
+        let mut g = Graph::new();
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::Z);
+        g.add_vertex(VType::Z);
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::B);
+        g.add_edge(0,2);
+        g.add_edge(1,3);
+        g.add_edge_with_type(2,3,EType::H);
+        g.add_edge(2,4);
+        g.add_edge(3,5);
+        g.set_inputs(vec![0,1]);
+        g.set_outputs(vec![4,5]);
+        g.scalar_mut().mul_sqrt2_pow(1);
+        let t = g.to_tensor4();
+        println!("{}", t);
+        assert_eq!(t, Tensor::cphase(Rational::one(), 2));
     }
 
     #[test]

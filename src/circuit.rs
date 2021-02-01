@@ -286,14 +286,19 @@ impl Circuit {
     pub fn to_graph<G: GraphLike>(&self) -> G {
         let mut graph = G::new();
         let mut qs = Vec::with_capacity(self.nqubits);
+        let mut inputs = Vec::with_capacity(self.nqubits);
         for i in 0..self.nqubits {
-            qs.push(Some(graph.add_vertex_with_data(VData {
+            let v = graph.add_vertex_with_data(VData {
                 ty: VType::B,
                 phase: Rational::zero(),
                 qubit: i as i32,
                 row: 0
-            })));
+            });
+            qs.push(Some(v));
+            inputs.push(v);
         }
+
+        graph.set_inputs(inputs);
 
         for g in &self.gates {
             g.add_to_graph(&mut graph, &mut qs);
@@ -304,6 +309,7 @@ impl Circuit {
             .max()
             .unwrap_or(0);
 
+        let mut outputs = Vec::with_capacity(self.nqubits);
         for (i,&q) in qs.iter().enumerate() {
             if let Some(v0) = q {
                 let v = graph.add_vertex_with_data(VData {
@@ -313,9 +319,11 @@ impl Circuit {
                     row: last_row + 1
                 });
                 graph.add_edge(v0, v);
+                outputs.push(v);
             }
         }
 
+        graph.set_outputs(outputs);
         graph
     }
 }
@@ -355,6 +363,8 @@ impl std::ops::Add<Circuit> for &Circuit {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tensor::*;
+    use crate::vec_graph::Graph;
 
     #[test]
     fn mk_circuit() {
@@ -437,5 +447,74 @@ mod tests {
 
         let c1 = Circuit::from_qasm(qasm);
         assert_eq!(c1, Ok(c));
+    }
+
+    #[test]
+    fn tograph_cz() {
+        let c = Circuit::from_qasm(r#"
+        qreg q[2];
+        cz q[0], q[1];
+        "#).unwrap();
+
+        let h: Graph = c.to_graph();
+        let mut g = Graph::new();
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::Z);
+        g.add_vertex(VType::Z);
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::B);
+        g.add_edge(0,2);
+        g.add_edge(1,3);
+        g.add_edge_with_type(2,3,EType::H);
+        g.add_edge(2,4);
+        g.add_edge(3,5);
+        g.set_inputs(vec![0,1]);
+        g.set_outputs(vec![4,5]);
+        g.scalar_mut().mul_sqrt2_pow(1);
+
+        println!("g = {}\n\nh = {}\n\n", g.to_dot(), h.to_dot());
+
+        assert_eq!(c.to_tensor4(), Tensor::cphase(Rational::new(1,1), 2));
+        assert_eq!(g.to_tensor4(), Tensor::cphase(Rational::new(1,1), 2));
+    }
+
+    #[test]
+    fn tograph_3cnot() {
+        let c = Circuit::from_qasm(r#"
+            qreg q[2];
+            cx q[0], q[1];
+            cx q[1], q[0];
+            cx q[0], q[1];
+        "#).unwrap();
+
+        let g: Graph = c.to_graph();
+
+        assert_eq!(g.num_vertices(), 10);
+        assert_eq!(g.num_edges(), 11);
+        assert_eq!(c.to_tensor4(), g.to_tensor4());
+    }
+
+    #[test]
+    fn tograph_more() {
+        let c = Circuit::from_qasm(r#"
+            qreg q[3];
+            ccz q[0], q[1], q[2];
+        "#).unwrap();
+
+        let g: Graph = c.to_graph();
+        assert_eq!(c.to_tensor4(), g.to_tensor4());
+
+        let c = Circuit::from_qasm(r#"
+            qreg q[4];
+            h q[1];
+            ccx q[0], q[1], q[2];
+            ccx q[1], q[2], q[3];
+            h q[2];
+            z q[0];
+        "#).unwrap();
+
+        let g: Graph = c.to_graph();
+        assert_eq!(c.to_tensor4(), g.to_tensor4());
     }
 }

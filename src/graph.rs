@@ -206,8 +206,10 @@ pub trait GraphLike {
     fn vertices(&self) -> VIter;
     fn edges(&self) -> EIter;
     fn inputs(&self) -> &Vec<V>;
+    fn inputs_mut(&mut self) -> &mut Vec<V>;
     fn set_inputs(&mut self, inputs: Vec<V>);
     fn outputs(&self) -> &Vec<V>;
+    fn outputs_mut(&mut self) -> &mut Vec<V>;
     fn set_outputs(&mut self, outputs: Vec<V>);
     fn add_vertex(&mut self, ty: VType) -> V;
     fn add_vertex_with_data(&mut self, d: VData) -> V;
@@ -230,7 +232,8 @@ pub trait GraphLike {
     fn neighbors(&self, v: V) -> NeighborIter;
     fn incident_edges(&self, v: V) -> IncidentEdgeIter;
     fn degree(&self, v: V) -> usize;
-    fn scalar(&mut self) -> &mut ScalarN;
+    fn scalar(&self) -> &ScalarN;
+    fn scalar_mut(&mut self) -> &mut ScalarN;
     fn find_edge<F>(&self, f: F) -> Option<(V,V,EType)>
         where F : Fn(V,V,EType) -> bool;
     fn find_vertex<F>(&self, f: F) -> Option<V>
@@ -277,7 +280,7 @@ pub trait GraphLike {
            if st == VType::Z || st == VType::X {
                if ety == EType::H {
                    self.add_to_phase(s, Rational::new(1,1));
-                   self.scalar().mul_sqrt2_pow(-1);
+                   self.scalar_mut().mul_sqrt2_pow(-1);
                }
            } else {
                panic!("Self-loops only supported on Z and X nodes");
@@ -290,16 +293,16 @@ pub trait GraphLike {
                         (EType::N, EType::N) => {} // ignore new edge
                         (EType::H, EType::H) => {
                             self.remove_edge(s, t);
-                self.scalar().mul_sqrt2_pow(-2);
+                self.scalar_mut().mul_sqrt2_pow(-2);
                         }
                         (EType::H, EType::N) => {
                             self.set_edge_type(s, t, EType::N);
                             self.add_to_phase(s, Rational::new(1,1));
-                            self.scalar().mul_sqrt2_pow(-1);
+                            self.scalar_mut().mul_sqrt2_pow(-1);
                         }
                         (EType::N, EType::H) => {
                             self.add_to_phase(s, Rational::new(1,1));
-                            self.scalar().mul_sqrt2_pow(-1);
+                            self.scalar_mut().mul_sqrt2_pow(-1);
                         }
                     }
                 }
@@ -307,16 +310,16 @@ pub trait GraphLike {
                     match (ety0, ety) {
                         (EType::N, EType::N) => {
                             self.remove_edge(s, t);
-                            self.scalar().mul_sqrt2_pow(-2);
+                            self.scalar_mut().mul_sqrt2_pow(-2);
                         }
                         (EType::N, EType::H) => {
                             self.set_edge_type(s, t, EType::H);
                             self.add_to_phase(s, Rational::new(1,1));
-                            self.scalar().mul_sqrt2_pow(-1);
+                            self.scalar_mut().mul_sqrt2_pow(-1);
                         }
                         (EType::H, EType::N) => {
                             self.add_to_phase(s, Rational::new(1,1));
-                            self.scalar().mul_sqrt2_pow(-1);
+                            self.scalar_mut().mul_sqrt2_pow(-1);
                         }
                         (EType::H, EType::H) => {} // ignore new edge
                     }
@@ -326,6 +329,38 @@ pub trait GraphLike {
         } else {
             self.add_edge_with_type(s, t, ety);
         }
+    }
+
+    fn to_dot(&self) -> String {
+        let mut dot = String::from("graph {\n");
+        for v in self.vertices() {
+            let t = self.vertex_type(v);
+            let p = self.phase(v);
+            dot += &format!("  {} [color={}, label=\"{}\"]\n", v,
+                            match t {
+                                VType::B => "black",
+                                VType::Z => "green",
+                                VType::X => "red",
+                                VType::H => "yellow",
+                            },
+                            if self.inputs().contains(&v) { format!("{}:i", v) }
+                            else if self.outputs().contains(&v) { format!("{}:o", v) }
+                            else if !p.is_zero() { format!("{}:{}", v, p) }
+                            else { format!("{}", v) }
+                           );
+        }
+
+        dot += "\n";
+
+        for (s, t, ty) in self.edges() {
+            dot += &format!("  {} -- {}", s, t);
+            if ty == EType::H { dot += " [color=blue]"; }
+            dot += "\n";
+        }
+
+        dot += "}\n";
+
+        dot
     }
 }
 

@@ -234,8 +234,8 @@ pub fn local_comp_unsafe(g: &mut impl GraphLike, v: V) {
     g.remove_vertex(v);
 
     let x = ns.len() as i32;
-    g.scalar().mul_sqrt2_pow(((x-1)*(x-2))/2);
-    g.scalar().mul_phase(Rational::new(*p.numer(), 4));
+    g.scalar_mut().mul_sqrt2_pow(((x-1)*(x-2))/2);
+    g.scalar_mut().mul_phase(Rational::new(*p.numer(), 4));
 }
 
 safe_rule1!(check_local_comp, local_comp_unsafe, local_comp);
@@ -288,10 +288,10 @@ pub fn pivot_unsafe(g: &mut impl GraphLike, v0: V, v1: V) {
 
     let x = ns0.len() as i32; // the number of neighbors of v0
     let y = ns1.len() as i32; // the number of neighbors of v1
-    g.scalar().mul_sqrt2_pow((x - 2) * (y - 2));
+    g.scalar_mut().mul_sqrt2_pow((x - 2) * (y - 2));
 
     if *p0.numer() != 0 && *p1.numer() != 0 {
-        g.scalar().mul_phase(Rational::new(1,1));
+        g.scalar_mut().mul_phase(Rational::new(1,1));
     }
 }
 

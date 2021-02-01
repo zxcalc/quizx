@@ -212,7 +212,7 @@ impl Gate {
                     graph.set_row(v2, row);
 
                     graph.add_edge(v1, v2);
-                    graph.scalar().mul_sqrt2_pow(1);
+                    graph.scalar_mut().mul_sqrt2_pow(1);
                 }
             },
             CZ => {
@@ -225,7 +225,7 @@ impl Gate {
                     graph.set_row(v2, row);
 
                     graph.add_edge_with_type(v1, v2, EType::H);
-                    graph.scalar().mul_sqrt2_pow(1);
+                    graph.scalar_mut().mul_sqrt2_pow(1);
                 }
             },
             XCX => {
@@ -238,7 +238,7 @@ impl Gate {
                     graph.set_row(v2, row);
 
                     graph.add_edge_with_type(v1, v2, EType::H);
-                    graph.scalar().mul_sqrt2_pow(1);
+                    graph.scalar_mut().mul_sqrt2_pow(1);
                 }
             },
             SWAP => {
@@ -259,14 +259,16 @@ impl Gate {
                 if let Some(v) = qs[self.qs[0]] {
                     // this is a noop if a gate has already been applied to this qubit
                     if graph.vertex_type(v) == VType::B {
+                        let inp: Vec<_> = graph.inputs().iter().copied().filter(|&w| w != v).collect();
+                        graph.set_inputs(inp);
                         graph.set_vertex_type(v, VType::X);
-                        graph.scalar().mul_sqrt2_pow(-1);
+                        graph.scalar_mut().mul_sqrt2_pow(-1);
                     }
                 }
             },
             PostSelect => {
                 Gate::add_spider(graph, qs, self.qs[0], VType::X, EType::N, Rational::zero());
-                graph.scalar().mul_sqrt2_pow(-1);
+                graph.scalar_mut().mul_sqrt2_pow(-1);
 
                 // all later gates involving this qubit are quietly ignored
                 qs[self.qs[0]] = None;
