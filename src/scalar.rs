@@ -236,14 +236,19 @@ impl<T: Coeffs> fmt::Display for Scalar<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Exact(coeffs) => {
+                let mut fst = true;
                 for i in 0..coeffs.len() {
-                    if i == 0 {
-                        write!(f, "{}", coeffs[0])?;
-                    } else {
-                        write!(f, " + {} * om^{}", coeffs[i], i)?;
+                    if !coeffs[i].is_zero() {
+                        if fst { fst = false; }
+                        else { write!(f, " + ")?; }
+
+                        write!(f, "{}", coeffs[i])?;
+                        if i != 0 { write!(f, "* om^{}", i)?; }
                     }
                 }
-                Ok(())
+
+                if fst { write!(f, "0") }
+                else { Ok(()) }
             },
             Float(c) => write!(f, "{}", c),
         }

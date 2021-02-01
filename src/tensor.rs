@@ -21,8 +21,9 @@ use crate::circuit::*;
 use num::{Complex,Rational};
 use ndarray::prelude::*;
 use ndarray::parallel::prelude::*;
-use ndarray::{Array, Axis, stack, ScalarOperand, IxDyn, SliceInfo, SliceOrIndex};
+use ndarray::*;
 use std::collections::VecDeque;
+use std::iter::FromIterator;
 use rustc_hash::FxHashMap;
 
 pub type Tensor<A> = Array<A,IxDyn>;
@@ -67,7 +68,7 @@ pub trait ToTensor {
     fn to_tensorf(&self) -> Tensor<Complex<f64>> { self.to_tensor() }
 }
 
-pub trait QubitOps {
+pub trait QubitOps<A: TensorElem> {
     fn ident(q: usize) -> Self;
     fn delta(q: usize) -> Self;
     fn cphase(p: Rational, q: usize) -> Self;
@@ -75,9 +76,25 @@ pub trait QubitOps {
     fn delta_at(&mut self, qs: &[usize]);
     fn cphase_at(&mut self, p: Rational, qs: &[usize]);
     fn hadamard_at(&mut self, i: usize);
+
+    /// split into two non-overlapping pieces, where index q=0 and q=1
+    fn slice_qubit_mut(&mut self, q: usize) -> (ArrayViewMut<A, IxDyn>, ArrayViewMut<A, IxDyn>);
 }
 
-impl<A: TensorElem> QubitOps for Tensor<A> {
+
+impl<A: TensorElem> QubitOps<A> for Tensor<A> {
+    fn slice_qubit_mut(&mut self, q: usize) -> (ArrayViewMut<A, IxDyn>, ArrayViewMut<A, IxDyn>) {
+        let slice0: SliceInfo<_, IxDyn> = SliceInfo::new(Vec::from_iter((0..self.ndim()).map(|i| {
+            if i==q { SliceOrIndex::from(0) } else { SliceOrIndex::from(..) }
+        }))).unwrap();
+
+        let slice1: SliceInfo<_, IxDyn> = SliceInfo::new(Vec::from_iter((0..self.ndim()).map(|i| {
+            if i==q { SliceOrIndex::from(1) } else { SliceOrIndex::from(..) }
+        }))).unwrap();
+
+        self.multi_slice_mut((slice0.as_ref(), slice1.as_ref()))
+    }
+
     fn ident(q: usize) -> Tensor<A> {
         Tensor::from_shape_fn(vec![2;q*2], |ix| {
             if (0..q).all(|i| ix[i] == ix[q+i]) { A::one() } else { A::zero() }
@@ -123,16 +140,8 @@ impl<A: TensorElem> QubitOps for Tensor<A> {
         let n = A::one_over_sqrt2();
         let minus = A::from_phase(Rational::one()); // -1 = e^(i pi)
 
-        let mut slice0 = vec![SliceOrIndex::from(..); self.ndim()];
-        let mut slice1 = slice0.clone();
-        slice0[q] = SliceOrIndex::from(0);
-        slice1[q] = SliceOrIndex::from(1);
-
         // split into two non-overlapping pieces, where index q=0 and q=1
-        let (mut ma, mut mb) = self.multi_slice_mut((
-                SliceInfo::<_,IxDyn>::new(slice0).unwrap().as_ref(),
-                SliceInfo::<_,IxDyn>::new(slice1).unwrap().as_ref(),
-                ));
+        let (mut ma, mut mb) = self.slice_qubit_mut(q);
 
         // iterate over the pieces together and apply a hadamard to each of the
         // pairs of elements
@@ -243,8 +252,60 @@ impl<G: GraphLike + Clone> ToTensor for G {
 
 impl ToTensor for Circuit {
     fn to_tensor<A: TensorElem>(&self) -> Tensor<A> {
+        use crate::gate::GType::*;
         let q = self.num_qubits();
+
+        // start with the identity matrix
         let mut a = Tensor::ident(q);
+
+        // since we are applying the gates to the input indices, this actually
+        // computes the transpose of the circuit, but all the gates are self-
+        // transposed, so we can get the circuit itself if we just reverse the order.
+        for g in self.gates.iter().rev() {
+            match g.t {
+                ZPhase => a.cphase_at(g.phase, &g.qs),
+                Z | CZ | CCZ => a.cphase_at(Rational::one(), &g.qs),
+                S => a.cphase_at(Rational::new(1, 2), &g.qs),
+                T => a.cphase_at(Rational::new(1, 4), &g.qs),
+                Sdg => a.cphase_at(Rational::new(-1, 2), &g.qs),
+                Tdg => a.cphase_at(Rational::new(-1, 4), &g.qs),
+                HAD => a.hadamard_at(g.qs[0]),
+                NOT => {
+                    a.hadamard_at(g.qs[0]);
+                    a.cphase_at(Rational::one(), &g.qs);
+                    a.hadamard_at(g.qs[0]);
+                },
+                XPhase => {
+                    a.hadamard_at(g.qs[0]);
+                    a.cphase_at(g.phase, &g.qs);
+                    a.hadamard_at(g.qs[0]);
+                },
+                CNOT => {
+                    a.hadamard_at(g.qs[1]);
+                    a.cphase_at(Rational::one(), &g.qs);
+                    a.hadamard_at(g.qs[1]);
+                },
+                TOFF => {
+                    a.hadamard_at(g.qs[2]);
+                    a.cphase_at(Rational::one(), &g.qs);
+                    a.hadamard_at(g.qs[2]);
+                },
+                SWAP => a.swap_axes(g.qs[0], g.qs[1]),
+                // n.b. these are pyzx-specific gates
+                XCX => {
+                    a.hadamard_at(g.qs[0]);
+                    a.hadamard_at(g.qs[1]);
+                    a.cphase_at(g.phase, &g.qs);
+                    a.hadamard_at(g.qs[0]);
+                    a.hadamard_at(g.qs[1]);
+                },
+                // TODO: these "gates" are not implemented yet
+                ParityPhase => { panic!("Unsupported gate: ParityPhase") },
+                InitAncilla => { panic!("Unsupported gate: InitAncilla") },
+                PostSelect => { panic!("Unsupported gate: PostSelect") },
+                UnknownGate => {}, // unknown gates are quietly ignored
+            }
+        }
         a
     }
 }
@@ -277,5 +338,25 @@ mod tests {
         arr.hadamard_at(0);
         arr.hadamard_at(1);
         assert_eq!(arr, Tensor::ident(2));
+    }
+
+    #[test]
+    fn circuit_eqs() {
+        let c1 = Circuit::from_qasm(r#"
+        qreg q[2];
+        cx q[0], q[1];
+        cx q[1], q[0];
+        cx q[0], q[1];
+        "#).unwrap();
+
+        let c2 = Circuit::from_qasm(r#"
+        qreg q[2];
+        swap q[0], q[1];
+        "#).unwrap();
+
+        println!("{}", c1.to_tensor4());
+        println!("{}", c2.to_tensor4());
+        assert_eq!(c1.to_tensor4(), c2.to_tensor4());
+
     }
 }
