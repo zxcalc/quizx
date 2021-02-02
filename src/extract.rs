@@ -1,7 +1,9 @@
 use crate::circuit::*;
+use crate::gate::*;
 use crate::graph::*;
 use num::{Rational, Zero};
 use rustc_hash::FxHashMap;
+use std::iter::FromIterator;
 
 trait ToCircuit: Clone {
     fn into_circuit(self) -> Result<Circuit, String>;
@@ -12,6 +14,7 @@ trait ToCircuit: Clone {
 
 impl<G: GraphLike + Clone> ToCircuit for G {
     fn into_circuit(mut self) -> Result<Circuit, String> {
+        use GType::*;
         let mut c = Circuit::new(self.outputs().len());
         let mut gadgets = FxHashMap::default();
         let mut qubit_map = FxHashMap::default();
@@ -41,19 +44,30 @@ impl<G: GraphLike + Clone> ToCircuit for G {
                 let b = self.neighbors(v)
                     .filter(|w| self.outputs().contains(w))
                     .next()
-                    .expect("Frontier should be next to output.");
+                    .unwrap(); // frontier should be next to an output
                 let et = self.edge_type(v,b);
                 if et == EType::H {
-                    c.add_gate("had", vec![q]);
+                    c.push(Gate::new(HAD, vec![q]));
                     self.set_edge_type(v, b, EType::N);
                 }
 
                 let p = self.phase(v);
                 if !p.is_zero() {
-                    c.add_gate_with_phase("rz", vec![q], p);
+                    c.push(Gate::new_with_phase(ZPhase, vec![q], p));
                     self.set_phase(v, Rational::zero());
                 }
             }
+
+            // TODO: CZ optimisation (maybe)
+            for &v in &frontier {
+                for w in Vec::from_iter(self.neighbors(v)) {
+                    if frontier.contains(&w) {
+                        self.remove_edge(v, w);
+                        c.push(Gate::new(CZ, vec![v,w]));
+                    }
+                }
+            }
+
             break; // TODO: finish!
         }
 
