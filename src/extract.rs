@@ -5,15 +5,20 @@ use num::{Rational, Zero};
 use rustc_hash::FxHashMap;
 use std::iter::FromIterator;
 
+/// Extraction couldn't finish. Returns a message, a
+/// partially-extracted circuit, and the remainder of
+/// the graph.
+pub type ExtractError<G> = (String, Circuit, G);
+
 trait ToCircuit: Clone {
-    fn into_circuit(self) -> Result<Circuit, String>;
-    fn to_circuit(&self) -> Result<Circuit, String> {
+    fn into_circuit(self) -> Result<Circuit, ExtractError<Self>>;
+    fn to_circuit(&self) -> Result<Circuit, ExtractError<Self>> {
         self.clone().into_circuit()
     }
 }
 
 impl<G: GraphLike + Clone> ToCircuit for G {
-    fn into_circuit(mut self) -> Result<Circuit, String> {
+    fn into_circuit(mut self) -> Result<Circuit, ExtractError<G>> {
         use GType::*;
         let mut c = Circuit::new(self.outputs().len());
         let mut gadgets = FxHashMap::default();
@@ -31,11 +36,13 @@ impl<G: GraphLike + Clone> ToCircuit for G {
 
         let mut frontier = Vec::new();
         for (i,&o) in self.outputs().iter().enumerate() {
-            let v = self.neighbors(o).next()
-                .map_or(Err("Bad output vertex"), Ok)?;
-            if self.inputs().contains(&v) { continue; }
-            frontier.push(v);
-            qubit_map.insert(v, i);
+            if let Some(v) = self.neighbors(o).next() {
+                if self.inputs().contains(&v) { continue; }
+                frontier.push(v);
+                qubit_map.insert(v, i);
+            } else {
+                return Err((format!("Bad output vertex {}", o), c, self));
+            }
         }
 
         loop {
@@ -67,6 +74,8 @@ impl<G: GraphLike + Clone> ToCircuit for G {
                     }
                 }
             }
+
+            // TODO: deal correctly with inputs
 
             break; // TODO: finish!
         }

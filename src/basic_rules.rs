@@ -29,7 +29,7 @@
 use crate::graph::*;
 use std::iter::FromIterator;
 use num::Rational;
-use num::traits::Zero;
+use num::traits::{Zero,One};
 
 /// Define a checked rule that takes 1 vertex
 macro_rules! safe_rule1 {
@@ -240,6 +240,95 @@ pub fn local_comp_unsafe(g: &mut impl GraphLike, v: V) {
 
 safe_rule1!(check_local_comp, local_comp_unsafe, local_comp);
 
+#[derive(PartialEq,Eq)]
+pub enum PivotAction {
+    Delete,
+    Boundary(usize),
+    Toggle,
+}
+
+// pub fn check_gen_pivot(g: &impl GraphLike, v0: V, v1: V, pa: (PivotAction, PivotAction)) -> bool {
+//     use PivotAction::*;
+//     if !(g.vertex_type(v0) == VType::Z &&
+//          g.vertex_type(v1) == VType::Z &&
+//          g.edge_type_opt(v0, v1) == Some(EType::H)) {
+//         return false;
+//     }
+
+//     if pa.0 == Delete && !g.phase(v0).is_integer() { return false; }
+//     if pa.1 == Delete && !g.phase(v1).is_integer() { return false; }
+
+//     if !g.neighbors(v0).all(|n| g.vertex_type(n) == VType::Z || pa.0 == Boundary(n)) { return false; }
+//     if !g.neighbors(v1).all(|n| g.vertex_type(n) == VType::Z || pa.1 == Boundary(n)) { return false; }
+//     true
+// }
+
+fn adj_boundary(g: &impl GraphLike, v: V) -> Option<usize> {
+    g.neighbors(v).find(|&n| g.vertex_type(n) == VType::B)
+}
+
+fn adj_gadget(g: &impl GraphLike, v: V) -> Option<usize> {
+    g.neighbors(v).find(|&n| g.vertex_type(n) == VType::Z && g.degree(n) == 1)
+}
+
+fn unfuse(g: &mut impl GraphLike, v: V) -> usize {
+    let vd = VData {
+        ty: VType::Z,
+        phase: g.phase(v),
+        row: g.row(v),
+        qubit: g.qubit(v)-1 };
+    let v1 = g.add_vertex_with_data(vd);
+    g.set_phase(v, Rational::zero());
+    g.add_edge(v, v1);
+
+    v1
+}
+
+fn simp_pair(g: &mut impl GraphLike, v0: V, v1: V) {
+    if g.vertex_type(v1) == VType::Z {
+        if g.edge_type(v0, v1) == EType::N {
+            g.add_to_phase(v0, g.phase(v1));
+            g.remove_vertex(v1);
+        } else if g.phase(v0) == Rational::one() {
+            g.set_phase(v0, Rational::zero());
+            g.set_phase(v1, -g.phase(v1));
+        }
+    }
+}
+
+/// Version of the pivot rule that doesn't delete vertices
+///
+/// If v0 is next to a boundary, push a Hadamard out when we pivot,
+/// otherwise toggle whether v0 is a spider or a gadget. Similarly
+/// for v1.
+pub fn pivot0_unsafe(g: &mut impl GraphLike, v0: V, v1: V) {
+    let b0 = adj_boundary(g, v0)
+        .unwrap_or_else(|| adj_gadget(g, v0)
+        .unwrap_or_else(|| unfuse(g, v0)));
+    let b1 = adj_boundary(g, v1)
+        .unwrap_or_else(|| adj_gadget(g, v1)
+        .unwrap_or_else(|| unfuse(g, v1)));
+
+    g.toggle_edge_type(v0, b0);
+    g.toggle_edge_type(v1, b1);
+
+    let mut nhd0: Vec<_> = g.neighbors(v0).filter(|&n| n != b0).collect();
+    nhd0.push(v0);
+
+    let mut nhd1: Vec<_> = g.neighbors(v1).filter(|&n| n != b1).collect();
+    nhd1.push(v1);
+
+    for &n0 in &nhd0 {
+        for &n1 in &nhd1 {
+            if (n0 == v0 && n1 == v1) || (n0 == v1 && n1 == v0) { continue; }
+            else { g.add_edge_smart(n0, n1, EType::H); }
+        }
+    }
+
+    simp_pair(g, v0, b0);
+    simp_pair(g, v1, b1);
+}
+
 /// Check [pivot_unsafe] applies
 ///
 /// Both vertices must be Z, have a phase 0 or pi, and be
@@ -247,6 +336,7 @@ safe_rule1!(check_local_comp, local_comp_unsafe, local_comp);
 pub fn check_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
     g.vertex_type(v0) == VType::Z &&
     g.vertex_type(v1) == VType::Z &&
+    g.edge_type_opt(v0, v1) == Some(EType::H) &&
     g.phase(v0).is_integer() &&
     g.phase(v1).is_integer() &&
     g.incident_edges(v0).all(|(w,et)|
