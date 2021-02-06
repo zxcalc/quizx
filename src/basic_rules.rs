@@ -263,70 +263,83 @@ pub enum PivotAction {
 //     true
 // }
 
-fn adj_boundary(g: &impl GraphLike, v: V) -> Option<usize> {
-    g.neighbors(v).find(|&n| g.vertex_type(n) == VType::B)
-}
+// fn adj_boundary(g: &impl GraphLike, v: V) -> Option<usize> {
+//     g.neighbors(v).find(|&n| g.vertex_type(n) == VType::B)
+// }
 
-fn adj_gadget(g: &impl GraphLike, v: V) -> Option<usize> {
-    g.neighbors(v).find(|&n| g.vertex_type(n) == VType::Z && g.degree(n) == 1)
-}
-
-fn unfuse(g: &mut impl GraphLike, v: V) -> usize {
+fn unfuse_boundary(g: &mut impl GraphLike, v: V, b: V) {
+    if g.vertex_type(b) != VType::B { return; }
     let vd = VData {
         ty: VType::Z,
-        phase: g.phase(v),
+        phase: Rational::zero(),
         row: g.row(v),
-        qubit: g.qubit(v)-1 };
+        qubit: g.qubit(v) };
     let v1 = g.add_vertex_with_data(vd);
+    let v2 = g.add_vertex_with_data(vd);
+    g.set_phase(v2, g.phase(v));
     g.set_phase(v, Rational::zero());
-    g.add_edge(v, v1);
-
-    v1
+    g.add_edge_with_type(v, v1, EType::H);
+    g.add_edge_with_type(v1, v2, EType::H);
+    g.add_edge_with_type(v2, b, g.edge_type(v,b));
+    g.remove_edge(v, b);
 }
 
-fn simp_pair(g: &mut impl GraphLike, v0: V, v1: V) {
-    if g.vertex_type(v1) == VType::Z {
-        if g.edge_type(v0, v1) == EType::N {
-            g.add_to_phase(v0, g.phase(v1));
-            g.remove_vertex(v1);
-        } else if g.phase(v0) == Rational::one() {
-            g.set_phase(v0, Rational::zero());
-            g.set_phase(v1, -g.phase(v1));
+fn unfuse_gadget(g: &mut impl GraphLike, v: V) {
+    if g.phase(v).is_integer() { return; }
+    let vd = VData {
+        ty: VType::Z,
+        phase: Rational::zero(),
+        row: g.row(v),
+        qubit: g.qubit(v) };
+    let v1 = g.add_vertex_with_data(vd);
+    let v2 = g.add_vertex_with_data(vd);
+    g.set_phase(v2, g.phase(v));
+    g.set_phase(v, Rational::zero());
+    g.add_edge_with_type(v, v1, EType::H);
+    g.add_edge_with_type(v1, v2, EType::H);
+}
+
+// fn simp_pair(g: &mut impl GraphLike, v0: V, v1: V) {
+//     if g.vertex_type(v1) == VType::Z {
+//         if g.edge_type(v0, v1) == EType::N {
+//             g.add_to_phase(v0, g.phase(v1));
+//             g.remove_vertex(v1);
+//         } else if g.phase(v0) == Rational::one() {
+//             g.set_phase(v0, Rational::zero());
+//             g.set_phase(v1, -g.phase(v1));
+//         }
+//     }
+// }
+
+pub fn check_gen_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
+    if g.edge_type_opt(v0, v1) != Some(EType::H) { return false; }
+
+    for &v in &[v0,v1] {
+        for (w, et) in g.incident_edges(v) {
+            if g.vertex_type(w) == VType::Z {
+                if et != EType::H { return false; }
+            } else if g.vertex_type(w) != VType::B {
+                return false;
+            }
         }
     }
+
+    true
 }
 
-/// Version of the pivot rule that doesn't delete vertices
+/// Generic version of the pivot rule
 ///
-/// If v0 is next to a boundary, push a Hadamard out when we pivot,
-/// otherwise toggle whether v0 is a spider or a gadget. Similarly
-/// for v1.
-pub fn pivot0_unsafe(g: &mut impl GraphLike, v0: V, v1: V) {
-    let b0 = adj_boundary(g, v0)
-        .unwrap_or_else(|| adj_gadget(g, v0)
-        .unwrap_or_else(|| unfuse(g, v0)));
-    let b1 = adj_boundary(g, v1)
-        .unwrap_or_else(|| adj_gadget(g, v1)
-        .unwrap_or_else(|| unfuse(g, v1)));
-
-    g.toggle_edge_type(v0, b0);
-    g.toggle_edge_type(v1, b1);
-
-    let mut nhd0: Vec<_> = g.neighbors(v0).filter(|&n| n != b0).collect();
-    nhd0.push(v0);
-
-    let mut nhd1: Vec<_> = g.neighbors(v1).filter(|&n| n != b1).collect();
-    nhd1.push(v1);
-
-    for &n0 in &nhd0 {
-        for &n1 in &nhd1 {
-            if (n0 == v0 && n1 == v1) || (n0 == v1 && n1 == v0) { continue; }
-            else { g.add_edge_smart(n0, n1, EType::H); }
-        }
+/// This version of the pivoting rule allows either of the vertices
+/// to have non-Pauli phases and/or be connected to boundaries. To handle
+/// these situations, some spiders are first unfused, such that interior
+/// non-Pauli spiders produce phase gadgets and boundary non-Pauli spiders
+/// produce phase gates on inputs/outputs.
+pub fn gen_pivot_unsafe(g: &mut impl GraphLike, v0: V, v1: V) {
+    for &v in &[v0,v1] {
+        for n in g.neighbor_vec(v) { unfuse_boundary(g, v, n); }
+        unfuse_gadget(g, v);
     }
-
-    simp_pair(g, v0, b0);
-    simp_pair(g, v1, b1);
+    pivot_unsafe(g, v0, v1);
 }
 
 /// Check [pivot_unsafe] applies
