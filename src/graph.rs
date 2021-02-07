@@ -42,6 +42,15 @@ pub enum EType {
     H, // hadamard edge
 }
 
+impl EType {
+    pub fn opposite(&self) -> EType {
+        match self {
+            EType::N => EType::H,
+            EType::H => EType::N,
+        }
+    }
+}
+
 pub enum VIter<'a> {
     Vec(usize,std::iter::Enumerate<std::slice::Iter<'a,Option<VData>>>),
     Hash(std::collections::hash_map::Keys<'a,V,VData>)
@@ -253,10 +262,7 @@ pub trait GraphLike {
     }
 
     fn toggle_edge_type(&mut self, v0: V, v1: V) {
-        match self.edge_type(v0, v1) {
-            EType::N => self.set_edge_type(v0,v1,EType::H),
-            EType::H => self.set_edge_type(v0,v1,EType::N),
-        }
+        self.set_edge_type(v0, v1, self.edge_type(v0, v1).opposite());
     }
 
     fn vertex_vec(&self) -> Vec<V> { self.vertices().collect() }
