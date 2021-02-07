@@ -318,6 +318,10 @@ impl GraphLike for Graph {
 
         None
     }
+
+    fn contains_vertex(&self, v: V) -> bool {
+        v < self.vdata.len() && self.vdata[v].is_some()
+    }
 }
 
 #[cfg(test)]

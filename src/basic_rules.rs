@@ -29,7 +29,7 @@
 use crate::graph::*;
 use std::iter::FromIterator;
 use num::Rational;
-use num::traits::{Zero,One};
+use num::traits::Zero;
 
 /// Define a checked rule that takes 1 vertex
 macro_rules! safe_rule1 {
@@ -240,32 +240,63 @@ pub fn local_comp_unsafe(g: &mut impl GraphLike, v: V) {
 
 safe_rule1!(check_local_comp, local_comp_unsafe, local_comp);
 
-#[derive(PartialEq,Eq)]
-pub enum PivotAction {
-    Delete,
-    Boundary(usize),
-    Toggle,
+/// Check [pivot_unsafe] applies
+///
+/// Both vertices must be Z, have a phase 0 or pi, and be
+/// surrounded by H-edges connected to other Z spiders.
+pub fn check_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
+    g.vertex_type(v0) == VType::Z &&
+    g.vertex_type(v1) == VType::Z &&
+    g.edge_type_opt(v0, v1) == Some(EType::H) &&
+    g.phase(v0).is_integer() &&
+    g.phase(v1).is_integer() &&
+    g.incident_edges(v0).all(|(w,et)|
+        g.vertex_type(w) == VType::Z && et == EType::H) &&
+    g.incident_edges(v1).all(|(w,et)|
+        g.vertex_type(w) == VType::Z && et == EType::H)
 }
 
-// pub fn check_gen_pivot(g: &impl GraphLike, v0: V, v1: V, pa: (PivotAction, PivotAction)) -> bool {
-//     use PivotAction::*;
-//     if !(g.vertex_type(v0) == VType::Z &&
-//          g.vertex_type(v1) == VType::Z &&
-//          g.edge_type_opt(v0, v1) == Some(EType::H)) {
-//         return false;
-//     }
+/// Apply pivoting to a pair of vertices
+///
+/// This is the version that deletes both vertices, so it is
+/// effectively a generalised version of the strong complementarity
+/// rule.
+pub fn pivot_unsafe(g: &mut impl GraphLike, v0: V, v1: V) {
+    let p0 = g.phase(v0);
+    let p1 = g.phase(v1);
 
-//     if pa.0 == Delete && !g.phase(v0).is_integer() { return false; }
-//     if pa.1 == Delete && !g.phase(v1).is_integer() { return false; }
+    // add a complete bipartite graph between the neighbors of v0
+    // and the neighbors of v1
+    let ns0: Vec<V> = g.neighbors(v0).collect();
+    let ns1: Vec<V> = g.neighbors(v1).collect();
+    // let mut z: i32 = 0; // the number of neighbors of v0 and v1
+    for &n0 in &ns0 {
+        g.add_to_phase(n0, p1);
+        for &n1 in &ns1 {
+            if n0 != v1 && n1 != v0 {
+                // unlike PyZX, add_edge_smart handles self-loops
+                g.add_edge_smart(n0, n1, EType::H);
+            }
+        }
+    }
 
-//     if !g.neighbors(v0).all(|n| g.vertex_type(n) == VType::Z || pa.0 == Boundary(n)) { return false; }
-//     if !g.neighbors(v1).all(|n| g.vertex_type(n) == VType::Z || pa.1 == Boundary(n)) { return false; }
-//     true
-// }
+    for &n1 in &ns1 {
+        g.add_to_phase(n1, p0);
+    }
 
-// fn adj_boundary(g: &impl GraphLike, v: V) -> Option<usize> {
-//     g.neighbors(v).find(|&n| g.vertex_type(n) == VType::B)
-// }
+    g.remove_vertex(v0);
+    g.remove_vertex(v1);
+
+    let x = ns0.len() as i32; // the number of neighbors of v0
+    let y = ns1.len() as i32; // the number of neighbors of v1
+    g.scalar_mut().mul_sqrt2_pow((x - 2) * (y - 2));
+
+    if *p0.numer() != 0 && *p1.numer() != 0 {
+        g.scalar_mut().mul_phase(Rational::new(1,1));
+    }
+}
+
+safe_rule2!(check_pivot, pivot_unsafe, pivot);
 
 fn unfuse_boundary(g: &mut impl GraphLike, v: V, b: V) {
     if g.vertex_type(b) != VType::B { return; }
@@ -335,70 +366,22 @@ pub fn check_gen_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
 /// non-Pauli spiders produce phase gadgets and boundary non-Pauli spiders
 /// produce phase gates on inputs/outputs.
 pub fn gen_pivot_unsafe(g: &mut impl GraphLike, v0: V, v1: V) {
-    for &v in &[v0,v1] {
-        for n in g.neighbor_vec(v) { unfuse_boundary(g, v, n); }
-        unfuse_gadget(g, v);
-    }
+    let nhd0 = g.neighbor_vec(v0);
+    for &n in &nhd0 { unfuse_boundary(g, v0, n); }
+    unfuse_gadget(g, v0);
+
+    let nhd1 = g.neighbor_vec(v1);
+    for &n in &nhd1 { unfuse_boundary(g, v1, n); }
+    unfuse_gadget(g, v1);
+
     pivot_unsafe(g, v0, v1);
-}
 
-/// Check [pivot_unsafe] applies
-///
-/// Both vertices must be Z, have a phase 0 or pi, and be
-/// surrounded by H-edges connected to other Z spiders.
-pub fn check_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
-    g.vertex_type(v0) == VType::Z &&
-    g.vertex_type(v1) == VType::Z &&
-    g.edge_type_opt(v0, v1) == Some(EType::H) &&
-    g.phase(v0).is_integer() &&
-    g.phase(v1).is_integer() &&
-    g.incident_edges(v0).all(|(w,et)|
-        g.vertex_type(w) == VType::Z && et == EType::H) &&
-    g.incident_edges(v1).all(|(w,et)|
-        g.vertex_type(w) == VType::Z && et == EType::H)
-}
-
-/// Apply pivoting to a pair of vertices
-///
-/// This is the version that deletes both vertices, so it is
-/// effectively a generalised version of the strong complementarity
-/// rule.
-pub fn pivot_unsafe(g: &mut impl GraphLike, v0: V, v1: V) {
-    let p0 = g.phase(v0);
-    let p1 = g.phase(v1);
-
-    // add a complete bipartite graph between the neighbors of v0
-    // and the neighbors of v1
-    let ns0: Vec<V> = g.neighbors(v0).collect();
-    let ns1: Vec<V> = g.neighbors(v1).collect();
-    // let mut z: i32 = 0; // the number of neighbors of v0 and v1
-    for &n0 in &ns0 {
-        g.add_to_phase(n0, p1);
-        for &n1 in &ns1 {
-            if n0 != v1 && n1 != v0 {
-                // unlike PyZX, add_edge_smart handles self-loops
-                g.add_edge_smart(n0, n1, EType::H);
-            }
-        }
-    }
-
-    for &n1 in &ns1 {
-        g.add_to_phase(n1, p0);
-    }
-
-    g.remove_vertex(v0);
-    g.remove_vertex(v1);
-
-    let x = ns0.len() as i32; // the number of neighbors of v0
-    let y = ns1.len() as i32; // the number of neighbors of v1
-    g.scalar_mut().mul_sqrt2_pow((x - 2) * (y - 2));
-
-    if *p0.numer() != 0 && *p1.numer() != 0 {
-        g.scalar_mut().mul_phase(Rational::new(1,1));
+    for &n in nhd0.iter().chain(nhd1.iter()) {
+        if g.contains_vertex(n) { remove_id(g, n); }
     }
 }
 
-safe_rule2!(check_pivot, pivot_unsafe, pivot);
+safe_rule2!(check_gen_pivot, gen_pivot_unsafe, gen_pivot);
 
 #[cfg(test)]
 mod tests {
@@ -407,7 +390,6 @@ mod tests {
     use crate::tensor::*;
     use crate::vec_graph::Graph;
     use num::Rational;
-    // use num::Complex;
 
     #[test]
     fn spider_fusion_simple() {
@@ -632,5 +614,63 @@ mod tests {
 
         assert_eq!(g.phase(0), Rational::new(1,1));
         assert_eq!(g.phase(6), Rational::new(1,1));
+    }
+
+    #[test]
+    fn get_pivot_1() {
+        let mut g = Graph::new();
+
+        for _ in 0..7 { g.add_vertex(VType::Z); }
+        g.set_vertex_type(0, VType::B);
+        // g.set_phase(3, Rational::new(1,1));
+        // g.set_phase(4, Rational::new(1,1));
+        for i in 0..3 { g.add_edge_with_type(i, 3, EType::H); }
+        g.add_edge_with_type(3, 4, EType::H);
+        for i in 5..7 { g.add_edge_with_type(4, i, EType::H); }
+        g.set_inputs(vec![0]);
+
+        assert_eq!(g.num_vertices(), 7);
+        assert_eq!(g.num_edges(), 6);
+
+        let mut h = g.clone();
+        let success = pivot(&mut h, 3, 4);
+        assert!(!success, "Pivot should not match");
+
+
+        let mut h = g.clone();
+        let success = gen_pivot(&mut h, 3, 4);
+        assert!(success, "gen_pivot should match");
+
+        println!("g=\n{}\n\nh=\n{}", g.to_dot(), h.to_dot());
+        println!("gt=\n{}\n\nht=\n{}", g.to_tensor4(), h.to_tensor4());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
+    }
+
+    #[test]
+    fn get_pivot_2() {
+        let mut g = Graph::new();
+
+        for _ in 0..7 { g.add_vertex(VType::Z); }
+        g.set_phase(3, Rational::new(1,1));
+        g.set_phase(4, Rational::new(1,4));
+        for i in 0..3 { g.add_edge_with_type(i, 3, EType::H); }
+        g.add_edge_with_type(3, 4, EType::H);
+        for i in 5..7 { g.add_edge_with_type(4, i, EType::H); }
+
+        assert_eq!(g.num_vertices(), 7);
+        assert_eq!(g.num_edges(), 6);
+
+        let mut h = g.clone();
+        let success = pivot(&mut h, 3, 4);
+        assert!(!success, "Pivot should not match");
+
+
+        let mut h = g.clone();
+        let success = gen_pivot(&mut h, 3, 4);
+        assert!(success, "gen_pivot should match");
+
+        println!("g=\n{}\n\nh=\n{}", g.to_dot(), h.to_dot());
+        println!("gt=\n{}\n\nht=\n{}", g.to_tensor4(), h.to_tensor4());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
     }
 }

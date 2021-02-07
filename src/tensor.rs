@@ -204,7 +204,6 @@ impl<G: GraphLike + Clone> ToTensor for G {
                 }
             }
 
-
             indexv.push_front(v);
             let mut deg_v = 0;
 
@@ -213,37 +212,29 @@ impl<G: GraphLike + Clone> ToTensor for G {
                     deg_v += 1;
                     *deg_w += 1;
 
-                    let vi = indexv.iter()
-                        .position(|x| *x == v)
-                        .expect("v should be in indexv");
-                    let mut wi = indexv.iter()
+                    let wi = indexv.iter()
                         .position(|x| *x == w)
                         .expect("w should be in indexv");
 
                     if et == EType::N {
-                        a.delta_at(&[vi, wi]);
+                        a.delta_at(&[0, wi]);
                     } else {
-                        a.cphase_at(Rational::one(), &[vi, wi]);
+                        a.cphase_at(Rational::one(), &[0, wi]);
                         num_had += 1;
                     }
 
-                    // if v and w now have all their edges in the tensor, contract away the
-                    // index
-
-                    if g.vertex_type(v) != VType::B && g.degree(v) == deg_v {
-                        // println!("contracting v={}, deg_v={}", v, deg_v);
-                        a = a.sum_axis(Axis(vi));
-                        indexv.remove(vi);
-                        if wi > vi { wi -= 1; }
-                    }
-
                     if g.vertex_type(w) != VType::B && g.degree(w) == *deg_w {
-                        // println!("contracting w={}, deg_w={}", w, *deg_w);
                         a = a.sum_axis(Axis(wi));
                         indexv.remove(wi);
                     }
                 }
             }
+
+            if g.vertex_type(v) != VType::B && g.degree(v) == deg_v {
+                a = a.sum_axis(Axis(0));
+                indexv.remove(0);
+            }
+
             seenv.insert(v, deg_v);
         }
 

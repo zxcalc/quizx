@@ -276,6 +276,10 @@ impl GraphLike for Graph {
 
         None
     }
+
+    fn contains_vertex(&self, v: V) -> bool {
+        self.vdata.contains_key(&v)
+    }
 }
 
 #[cfg(test)]

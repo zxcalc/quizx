@@ -238,6 +238,7 @@ pub trait GraphLike {
         where F : Fn(V,V,EType) -> bool;
     fn find_vertex<F>(&self, f: F) -> Option<V>
         where F : Fn(V) -> bool;
+    fn contains_vertex(&self, v: V) -> bool;
 
     fn add_edge(&mut self, s: V, t: V) {
         self.add_edge_with_type(s, t, EType::N);
