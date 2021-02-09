@@ -1,9 +1,9 @@
 use crate::circuit::*;
 use crate::gate::*;
 use crate::graph::*;
+use crate::linalg::*;
 use num::{Rational, Zero};
 use rustc_hash::{FxHashMap,FxHashSet};
-use std::iter::FromIterator;
 use crate::basic_rules::gen_pivot;
 
 /// Extraction couldn't finish. Returns a message, a
@@ -130,7 +130,10 @@ impl<G: GraphLike + Clone> ToCircuit for G {
             // MAIN PHASE
             //
             // Look for extractable spiders and extract them.
-            let neighbors: Vec<_> = neighbor_set.iter().collect();
+            let neighbors: Vec<_> = neighbor_set.iter().copied().collect();
+            let m = Mat2::build(frontier.len(), neighbors.len(), |i,j| {
+                self.connected(frontier[i], neighbors[j])
+            });
 
             break; // TODO: finish!
         }

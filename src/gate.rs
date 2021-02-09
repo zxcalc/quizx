@@ -1,6 +1,8 @@
 use std::cmp::max;
 use num::{Rational,Zero};
+use std::collections::VecDeque;
 use crate::graph::*;
+use crate::circuit::Circuit;
 
 #[derive(PartialEq,Eq,Clone,Copy,Debug)]
 pub enum GType {
@@ -112,20 +114,20 @@ impl Gate {
         Gate { t, qs, phase }
     }
 
-    fn push_ccz_decomp(gs: &mut Vec<Gate>, qs: &Vec<usize>) {
-        gs.push(Gate::new(CNOT, vec![qs[1], qs[2]]));
-        gs.push(Gate::new(Tdg, vec![qs[2]]));
-        gs.push(Gate::new(CNOT, vec![qs[0], qs[2]]));
-        gs.push(Gate::new(T, vec![qs[2]]));
-        gs.push(Gate::new(CNOT, vec![qs[1], qs[2]]));
-        gs.push(Gate::new(Tdg, vec![qs[2]]));
-        gs.push(Gate::new(CNOT, vec![qs[0], qs[2]]));
-        gs.push(Gate::new(T, vec![qs[1]]));
-        gs.push(Gate::new(T, vec![qs[2]]));
-        gs.push(Gate::new(CNOT, vec![qs[0], qs[1]]));
-        gs.push(Gate::new(T, vec![qs[0]]));
-        gs.push(Gate::new(Tdg, vec![qs[1]]));
-        gs.push(Gate::new(CNOT, vec![qs[0], qs[1]]));
+    fn push_ccz_decomp(circ: &mut Circuit, qs: &Vec<usize>) {
+        circ.push(Gate::new(CNOT, vec![qs[1], qs[2]]));
+        circ.push(Gate::new(Tdg, vec![qs[2]]));
+        circ.push(Gate::new(CNOT, vec![qs[0], qs[2]]));
+        circ.push(Gate::new(T, vec![qs[2]]));
+        circ.push(Gate::new(CNOT, vec![qs[1], qs[2]]));
+        circ.push(Gate::new(Tdg, vec![qs[2]]));
+        circ.push(Gate::new(CNOT, vec![qs[0], qs[2]]));
+        circ.push(Gate::new(T, vec![qs[1]]));
+        circ.push(Gate::new(T, vec![qs[2]]));
+        circ.push(Gate::new(CNOT, vec![qs[0], qs[1]]));
+        circ.push(Gate::new(T, vec![qs[0]]));
+        circ.push(Gate::new(Tdg, vec![qs[1]]));
+        circ.push(Gate::new(CNOT, vec![qs[0], qs[1]]));
     }
 
     /// number of 1- and 2-qubit Clifford + phase gates needed to realise this gate
@@ -141,36 +143,30 @@ impl Gate {
     /// decompose as 1 and 2 qubit Clifford + phase gates and push on to given vec
     ///
     /// If a gate is already basic, push a copy of itself.
-    pub fn push_basic_gates(&self, gs: &mut Vec<Gate>) {
+    pub fn push_basic_gates(&self, circ: &mut Circuit) {
         match self.t {
             CCZ => {
-                Gate::push_ccz_decomp(gs, &self.qs);
+                Gate::push_ccz_decomp(circ, &self.qs);
             },
             TOFF => {
-                gs.push(Gate::new(HAD, vec![self.qs[2]]));
-                Gate::push_ccz_decomp(gs, &self.qs);
-                gs.push(Gate::new(HAD, vec![self.qs[2]]));
+                circ.push(Gate::new(HAD, vec![self.qs[2]]));
+                Gate::push_ccz_decomp(circ, &self.qs);
+                circ.push(Gate::new(HAD, vec![self.qs[2]]));
             },
             ParityPhase => {
                 if let Some(&t) = self.qs.last() {
                     let sz = self.qs.len();
                     for &c in self.qs[0..sz-1].iter() {
-                        gs.push(Gate::new(CNOT, vec![c, t]));
+                        circ.push(Gate::new(CNOT, vec![c, t]));
                     }
-                    gs.push(Gate::new_with_phase(ZPhase, vec![t], self.phase));
+                    circ.push(Gate::new_with_phase(ZPhase, vec![t], self.phase));
                     for &c in self.qs[0..sz-1].iter().rev() {
-                        gs.push(Gate::new(CNOT, vec![c, t]));
+                        circ.push(Gate::new(CNOT, vec![c, t]));
                     }
                 }
             }
-            _ => gs.push(self.clone()),
+            _ => circ.push(self.clone()),
         }
-    }
-
-    pub fn to_basic_gates(&self) -> Vec<Gate> {
-        let mut gates = Vec::with_capacity(self.num_basic_gates());
-        self.push_basic_gates(&mut gates);
-        gates
     }
 
     fn add_spider<G: GraphLike>(graph: &mut G, qs: &mut Vec<Option<usize>>, qubit: usize,
@@ -274,7 +270,9 @@ impl Gate {
                 qs[self.qs[0]] = None;
             },
             CCZ | TOFF | ParityPhase => {
-                for g in self.to_basic_gates() {
+                let mut c = Circuit::new(0);
+                self.push_basic_gates(&mut c);
+                for g in c.gates {
                     g.add_to_graph(graph, qs);
                 }
             }

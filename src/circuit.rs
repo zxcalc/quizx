@@ -20,15 +20,17 @@ use num::{Rational,Zero};
 use regex::Regex;
 use std::fs::File;
 use std::io::prelude::*;
+use std::collections::VecDeque;
 use crate::scalar::Mod2;
 use crate::gate::*;
 use crate::graph::*;
+use crate::linalg::RowColOps;
 
 /// A type for quantum circuits
 #[derive(PartialEq,Eq,Clone,Debug)]
 pub struct Circuit {
     nqubits: usize,
-    pub gates: Vec<Gate>
+    pub gates: VecDeque<Gate>
 }
 
 impl Gate {
@@ -74,7 +76,7 @@ impl Gate {
 impl Circuit {
     pub fn new(nqubits: usize) -> Circuit {
         Circuit {
-            gates: vec![],
+            gates: VecDeque::new(),
             nqubits
         }
     }
@@ -84,7 +86,7 @@ impl Circuit {
     pub fn num_gates(&self) -> usize { self.gates.len() }
 
     pub fn push(&mut self, g: Gate) {
-        self.gates.push(g);
+        self.gates.push_back(g);
     }
 
     pub fn add_gate_with_phase(&mut self, name: &str,
@@ -101,7 +103,7 @@ impl Circuit {
     }
 
     pub fn adjoint(&mut self) {
-        self.gates.reverse();
+        self.gates.make_contiguous().reverse();
         for g in &mut self.gates {
             g.adjoint();
         }
@@ -277,10 +279,10 @@ impl Circuit {
     pub fn to_basic_gates(&self) -> Circuit {
         // calculate the space needed in advance
         let sz = self.gates.iter().map(|g| g.num_basic_gates()).sum();
-        let mut gs: Vec<Gate> = Vec::with_capacity(sz);
-        for g in &self.gates { g.push_basic_gates(&mut gs); }
+        let mut c = Circuit { gates: VecDeque::with_capacity(sz), nqubits: self.nqubits };
+        for g in &self.gates { g.push_basic_gates(&mut c); }
 
-        Circuit { gates: gs, nqubits: self.nqubits }
+        c
     }
 
     pub fn to_graph<G: GraphLike>(&self) -> G {
@@ -341,24 +343,54 @@ impl fmt::Display for Circuit {
 }
 
 
+impl std::ops::Add<Circuit> for Circuit {
+    type Output = Circuit;
+    fn add(mut self, mut rhs: Circuit) -> Self::Output {
+        if self.num_qubits() != rhs.num_qubits() {
+            panic!("Cannot append circuits with different numbers of qubits");
+        }
+        self.gates.append(&mut rhs.gates);
+        self
+    }
+}
+
 impl std::ops::Add<&Circuit> for Circuit {
     type Output = Circuit;
     fn add(mut self, rhs: &Circuit) -> Self::Output {
         if self.num_qubits() != rhs.num_qubits() {
             panic!("Cannot append circuits with different numbers of qubits");
         }
-        self.gates.extend_from_slice(&rhs.gates);
+        self.gates.extend(rhs.gates.iter().cloned());
         self
     }
 }
 
-impl std::ops::Add<Circuit> for Circuit {
-    type Output = Circuit;
-    fn add(self, rhs: Circuit) -> Self::Output { self.add(&rhs) } }
-
 impl std::ops::Add<Circuit> for &Circuit {
     type Output = Circuit;
-    fn add(self, rhs: Circuit) -> Self::Output { self.clone().add(&rhs) } }
+    fn add(self, rhs: Circuit) -> Self::Output { self.clone().add(rhs) } }
+
+impl std::ops::Add<&Circuit> for &Circuit {
+    type Output = Circuit;
+    fn add(self, rhs: &Circuit) -> Self::Output { self.clone().add(rhs) } }
+
+impl RowColOps for Circuit {
+    fn row_add(&mut self, r0: usize, r1: usize) {
+        self.push(Gate::new(GType::CNOT, vec![r0, r1]));
+    }
+
+    fn col_add(&mut self, c0: usize, c1: usize) {
+        self.gates.push_front(Gate::new(GType::CNOT, vec![c0, c1]));
+    }
+
+
+    fn row_swap(&mut self, r0: usize, r1: usize) {
+        self.push(Gate::new(GType::SWAP, vec![r0, r1]));
+    }
+
+    fn col_swap(&mut self, c0: usize, c1: usize) {
+        self.gates.push_front(Gate::new(GType::SWAP, vec![c0, c1]));
+    }
+}
 
 #[cfg(test)]
 mod tests {
