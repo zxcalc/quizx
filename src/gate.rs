@@ -1,6 +1,5 @@
 use std::cmp::max;
 use num::{Rational,Zero};
-use std::collections::VecDeque;
 use crate::graph::*;
 use crate::circuit::Circuit;
 

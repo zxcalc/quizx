@@ -65,9 +65,9 @@ impl Graph {
     /// is used by remove_edge and remove_vertex to make the latter slightly
     /// more efficient.
     fn remove_half_edge(&mut self, s: V, t: V) {
-        self.edata.get_mut(&s)
-            .expect("Vertex not found")
-            .remove(&t);
+        self.edata
+            .get_mut(&s)
+            .map(|nhd| nhd.remove(&t));
     }
 }
 

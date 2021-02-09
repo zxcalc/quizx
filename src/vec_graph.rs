@@ -50,10 +50,7 @@ impl Graph {
     /// more efficient.
     fn remove_half_edge(&mut self, s: V, t: V) {
         if let Some(Some(nhd)) = self.edata.get_mut(s) {
-            let i = Graph::index(&nhd,t).expect("Target vertex not found");
-            nhd.swap_remove(i);
-        } else {
-            panic!("Source vertex not found");
+            Graph::index(&nhd,t).map(|i| nhd.swap_remove(i));
         }
     }
 

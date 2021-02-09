@@ -95,52 +95,36 @@ impl<'a> Iterator for EIter<'a> {
     type Item = (V,V,EType);
     fn next(&mut self) -> Option<(V,V,EType)> {
         match self {
-            EIter::Vec(_,outer,inner)  => {
-                match inner {
-                    Some((v, inner1)) => match inner1.next() {
-                        Some((v1,et)) =>
-                            if *v <= *v1 {
-                                Some((*v,*v1,*et))
-                            } else {
-                                self.next()
-                            },
-                        None => {
-                            *inner = None;
-                            self.next()
-                        }
+            EIter::Vec(_,outer,inner) => match inner {
+                Some((v, inner1)) => match inner1.next() {
+                    Some((v1,et)) =>
+                        if *v <= *v1 { Some((*v,*v1,*et)) }
+                        else { self.next() },
+                    None => { *inner = None; self.next() }
+                },
+                None => match outer.next() {
+                    Some((v, Some(tab))) => {
+                        *inner = Some((v, tab.iter()));
+                        self.next()
                     },
-                    None => match outer.next() {
-                        Some((v, Some(tab))) => {
-                            *inner = Some((v, tab.iter()));
-                            self.next()
-                        },
-                        Some((_, None)) => self.next(),
-                        None => None,
-                    }
+                    Some((_, None)) => self.next(),
+                    None => None,
                 }
             },
 
-            EIter::Hash(_, outer, inner) => {
-                match inner {
-                    Some((v, inner1)) => match inner1.next() {
-                        Some((v1,et)) =>
-                            if *v <= *v1 {
-                                Some((*v,*v1,*et))
-                            } else {
-                                self.next()
-                            },
-                        None => {
-                            *inner = None;
-                            self.next()
-                        }
+            EIter::Hash(_, outer, inner) => match inner {
+                Some((v, inner1)) => match inner1.next() {
+                    Some((v1,et)) =>
+                        if *v <= *v1 { Some((*v,*v1,*et)) }
+                        else { self.next() },
+                    None => { *inner = None; self.next() }
+                },
+                None => match outer.next() {
+                    Some((v, tab)) => {
+                        *inner = Some((*v, tab.iter()));
+                        self.next()
                     },
-                    None => match outer.next() {
-                        Some((v, tab)) => {
-                            *inner = Some((*v, tab.iter()));
-                            self.next()
-                        },
-                        None => None
-                    }
+                    None => None
                 }
             }
         }
@@ -209,22 +193,60 @@ impl<'a> Iterator for IncidentEdgeIter<'a> {
 impl<'a> ExactSizeIterator for IncidentEdgeIter<'a> {}
 
 pub trait GraphLike {
+    /// Initialise a new empty graph
     fn new() -> Self;
+
+    /// Number of vertices
     fn num_vertices(&self) -> usize;
+
+    /// Number of edges
     fn num_edges(&self) -> usize;
+
+    /// Get iterator over all vertices
     fn vertices(&self) -> VIter;
+
+    /// Get iterator over all edges
+    ///
+    /// An "edge" is a triple (s, t, edge_type), where s <= t.
     fn edges(&self) -> EIter;
+
+    /// List of boundary vertices which serve as inputs
     fn inputs(&self) -> &Vec<V>;
+
+    /// Mutable list of boundary vertices which serve as inputs
     fn inputs_mut(&mut self) -> &mut Vec<V>;
+
+    /// Set inputs for the graph
     fn set_inputs(&mut self, inputs: Vec<V>);
+
+    /// List of boundary vertices which serve as outputs
     fn outputs(&self) -> &Vec<V>;
+
+    /// Mutable list of boundary vertices which serve as outputs
     fn outputs_mut(&mut self) -> &mut Vec<V>;
+
+    /// Set outputs for the graph
     fn set_outputs(&mut self, outputs: Vec<V>);
+
+    /// Add a vertex with the given type
     fn add_vertex(&mut self, ty: VType) -> V;
+
+    /// Add a vertex with the given VData struct
     fn add_vertex_with_data(&mut self, d: VData) -> V;
+
+    /// Remove a vertex from a graph
+    ///
+    /// This should be a noop if the vertex doesn't exist.
     fn remove_vertex(&mut self, v: V);
+
+    /// Add an edge with the given type
     fn add_edge_with_type(&mut self, s: V, t: V, ety: EType);
+
+    /// Remove an edge from a graph
+    ///
+    /// This should be a noop if the edge doesn't exist.
     fn remove_edge(&mut self, s: V, t: V);
+
     fn set_phase(&mut self, v: V, phase: Rational);
     fn phase(&self, v: V) -> Rational;
     fn add_to_phase(&mut self, v: V, phase: Rational);
@@ -270,6 +292,7 @@ pub trait GraphLike {
     fn neighbor_vec(&self, v: V) -> Vec<V> { self.neighbors(v).collect() }
     fn incident_edge_vec(&self, v: V) -> Vec<(V,EType)> { self.incident_edges(v).collect() }
 
+    /// Convert all X spiders to Z with the colour-change rule
     fn x_to_z(&mut self) {
         for v in Vec::from_iter(self.vertices()) {
             if self.vertex_type(v) == VType::X {
@@ -281,6 +304,10 @@ pub trait GraphLike {
         }
     }
 
+    /// Add an edge and simplify if necessary to remove parallel edges
+    /// 
+    /// The behaviour of this function depends on the type of source/target
+    /// vertex as well as the type of the existing edge (if there is one).
     fn add_edge_smart(&mut self, s: V, t: V, ety: EType) {
         let st = self.vertex_type(s);
         if s == t {
@@ -338,6 +365,7 @@ pub trait GraphLike {
         }
     }
 
+    /// Return a graphviz-friendly string representation of the graph
     fn to_dot(&self) -> String {
         let mut dot = String::from("graph {\n");
         for v in self.vertices() {

@@ -375,11 +375,11 @@ impl std::ops::Add<&Circuit> for &Circuit {
 
 impl RowColOps for Circuit {
     fn row_add(&mut self, r0: usize, r1: usize) {
-        self.push(Gate::new(GType::CNOT, vec![r0, r1]));
+        self.push(Gate::new(GType::CNOT, vec![r1, r0]));
     }
 
     fn col_add(&mut self, c0: usize, c1: usize) {
-        self.gates.push_front(Gate::new(GType::CNOT, vec![c0, c1]));
+        self.gates.push_front(Gate::new(GType::CNOT, vec![c1, c0]));
     }
 
 

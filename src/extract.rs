@@ -131,9 +131,10 @@ impl<G: GraphLike + Clone> ToCircuit for G {
             //
             // Look for extractable spiders and extract them.
             let neighbors: Vec<_> = neighbor_set.iter().copied().collect();
-            let m = Mat2::build(frontier.len(), neighbors.len(), |i,j| {
+            let mut m = Mat2::build(frontier.len(), neighbors.len(), |i,j| {
                 self.connected(frontier[i], neighbors[j])
             });
+            m.gauss_aux(true, 3, &mut c);
 
             break; // TODO: finish!
         }
