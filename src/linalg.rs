@@ -250,6 +250,14 @@ impl Mat2 {
             Some(inv)
         }
     }
+
+    /// Return a list of rows which have a single 1
+    pub fn unit_rows(&self) -> Vec<usize> {
+        self.d.iter().enumerate().filter_map(|(i,r)| {
+            if r.iter().sum::<u32>() == 1 { Some(i) }
+            else { None }
+        }).collect()
+    }
 }
 
 impl RowColOps for Mat2 {

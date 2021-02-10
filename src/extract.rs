@@ -42,7 +42,6 @@ impl<G: GraphLike + Clone> ToCircuit for G {
             let mut frontier = Vec::new();
             let mut neighbor_set = FxHashSet::default();
 
-
             //
             // PREPROCESSING PHASE
             //
@@ -130,13 +129,56 @@ impl<G: GraphLike + Clone> ToCircuit for G {
             // MAIN PHASE
             //
             // Look for extractable spiders and extract them.
+
+            // Build an adjacency matrix between the frontier and its neighbors
             let neighbors: Vec<_> = neighbor_set.iter().copied().collect();
             let mut m = Mat2::build(frontier.len(), neighbors.len(), |i,j| {
                 self.connected(frontier[i], neighbors[j])
             });
+
+            // Extract CNOTs until adj. matrix is in reduced echelon form
             m.gauss_aux(true, 3, &mut c);
 
-            break; // TODO: finish!
+            // Update graph with new adjacency, and look for elements of
+            // the frontier with a unique neighbour. When this occurs,
+            // save the frontier element and the neighbor in extract_pairs.
+            //
+            // n.b. add_edge_with_type should be a noop if an edge is already
+            // there, and similarly remove_edge should be a noop if there is
+            // no edge there.
+            let mut extract_pairs = vec![];
+            for (i, &v) in frontier.iter().enumerate() {
+                let mut unique = true;
+                let mut k = None;
+                for (j, &w) in neighbors.iter().enumerate() {
+                    if m[(i,j)] == 1 {
+                        self.add_edge_with_type(v, w, EType::H);
+                        if k.is_some() { unique = false; }
+                        else { k = Some(j); }
+                    } else {
+                        self.remove_edge(v, w);
+                    }
+                }
+
+                if unique {
+                    k.map(|k1| extract_pairs.push((i,k1)));
+                }
+            }
+
+            // If we can't make progress, return an error. This should prevent
+            // infinite loops.
+            if extract_pairs.is_empty() {
+                return Err(("No extractible vertex found.".into(), c, self));
+            }
+
+            // Each extractible vertex takes the place of its neighbor in the
+            // frontier. Since we have already removed the phase and the
+            // hadamard edge from the frontier vertex, we can simply delete it
+            // and attach its neighbor to the corresponding output.
+            for (i,j) in extract_pairs {
+                self.add_edge_with_type(neighbors[j], outputs[i], EType::H);
+                self.remove_vertex(frontier[i]);
+            }
         }
 
         Ok(c)
