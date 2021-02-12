@@ -25,7 +25,7 @@ fn main() {
 
     loop {
         match g.find_edge(|v0,v1,_| check_spider_fusion(&g, v0, v1)) {
-            Some((v0,v1,_)) => spider_fusion_unsafe(&mut g, v0, v1),
+            Some((v0,v1,_)) => spider_fusion_unchecked(&mut g, v0, v1),
             None => break,
         };
     }
