@@ -18,6 +18,15 @@ trait ToCircuit: Clone {
     }
 }
 
+fn perm_to_cnots(g: &impl GraphLike, c: &mut Circuit, blocksize: usize) {
+    let mut m = Mat2::build(g.inputs().len(), g.outputs().len(), |i,j| {
+        g.connected(g.inputs()[i], g.outputs()[j])
+    });
+
+    // Extract CNOTs until adj. matrix is in reduced echelon form
+    m.gauss_aux(true, blocksize, c);
+}
+
 impl<G: GraphLike + Clone> ToCircuit for G {
     fn into_circuit(mut self) -> Result<Circuit, ExtractError<G>> {
         use GType::*;
@@ -50,7 +59,9 @@ impl<G: GraphLike + Clone> ToCircuit for G {
             // CZ gates.
             for (q,&o) in outputs.iter().enumerate() {
                 if let Some(v) = self.neighbors(o).next() {
-                    if self.inputs().contains(&v) { continue; }
+                    // output connects to an input, so skip
+                    if self.vertex_type(v) == VType::B { continue; }
+
                     frontier.push(v);
                     qubit_map.insert(v, q);
 
@@ -72,6 +83,14 @@ impl<G: GraphLike + Clone> ToCircuit for G {
                         } else if self.vertex_type(n) == VType::B {
                             if self.degree(v) == 2 {
                                 frontier.pop();
+
+                                if self.edge_type(v, n) == EType::H {
+                                    c.push(Gate::new(HAD, vec![q]));
+                                }
+
+                                self.remove_vertex(v);
+                                self.add_edge(o, n);
+
                                 break;
                             } else {
                                 let vd = VData {
@@ -181,6 +200,62 @@ impl<G: GraphLike + Clone> ToCircuit for G {
             }
         }
 
+        // FINAL PERMUATION PHASE
+        //
+        // Generate CNOTs to turn the final permutation into the identity
+        perm_to_cnots(&self, &mut c, 3);
+
         Ok(c)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::vec_graph::Graph;
+    use crate::tensor::ToTensor;
+
+    #[test]
+    fn id_test() {
+        let mut g = Graph::new();
+
+        let is: Vec<_> = (0..4).map(|_| g.add_vertex(VType::B)).collect();
+        let os: Vec<_> = (0..4).map(|_| g.add_vertex(VType::B)).collect();
+        g.add_edge(is[0], os[0]);
+        g.add_edge(is[1], os[1]);
+        g.add_edge(is[2], os[2]);
+        g.add_edge(is[3], os[3]);
+        g.set_inputs(is);
+        g.set_outputs(os);
+
+        let mut c = Circuit::new(4);
+        perm_to_cnots(&mut g.clone(), &mut c, 3);
+        // c.adjoint();
+        println!("{}", c);
+        // panic!("foo");
+
+        assert_eq!(g.to_tensor4(), c.to_tensor4());
+    }
+
+    #[test]
+    fn perm_test() {
+        let mut g = Graph::new();
+
+        let is: Vec<_> = (0..4).map(|_| g.add_vertex(VType::B)).collect();
+        let os: Vec<_> = (0..4).map(|_| g.add_vertex(VType::B)).collect();
+        g.add_edge(is[0], os[1]);
+        g.add_edge(is[1], os[2]);
+        g.add_edge(is[2], os[0]);
+         g.add_edge(is[3], os[3]);
+        g.set_inputs(is);
+        g.set_outputs(os);
+
+        let mut c = Circuit::new(4);
+        perm_to_cnots(&mut g.clone(), &mut c, 3);
+        // c.adjoint();
+        println!("{}", c);
+        // panic!("foo");
+
+        assert_eq!(g.to_tensor4(), c.to_tensor4());
     }
 }

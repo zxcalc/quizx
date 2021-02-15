@@ -22,6 +22,7 @@ pub mod circuit;
 pub mod scalar;
 pub mod tensor;
 pub mod linalg;
-pub mod extract;
 pub mod basic_rules;
+pub mod simplify;
+pub mod extract;
 

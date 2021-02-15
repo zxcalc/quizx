@@ -30,6 +30,7 @@ use crate::graph::*;
 use std::iter::FromIterator;
 use num::Rational;
 use num::traits::Zero;
+use rustc_hash::FxHashSet;
 
 /// Define a checked rule that takes 1 vertex
 macro_rules! checked_rule1 {
@@ -38,9 +39,8 @@ macro_rules! checked_rule1 {
         ///
         /// See e.g. [spider_fusion] for an example.
         pub fn $name(g: &mut impl GraphLike, v: V) -> bool {
-            if $check(g, v) {
-                $unchecked(g, v); true
-            } else { false }
+            if $check(g, v) { $unchecked(g, v); true }
+            else { false }
         }
     }
 }
@@ -52,9 +52,8 @@ macro_rules! checked_rule2 {
         ///
         /// See e.g. [spider_fusion] for an example.
         pub fn $name(g: &mut impl GraphLike, v0: V, v1: V) -> bool {
-            if $check(g, v0, v1) {
-                $unchecked(g, v0, v1); true
-            } else { false }
+            if $check(g, v0, v1) { $unchecked(g, v0, v1); true }
+            else { false }
         }
     }
 }
@@ -298,6 +297,10 @@ pub fn pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 
 checked_rule2!(check_pivot, pivot_unchecked, pivot);
 
+/// Insert an identity spider so v is no longer adjancent to boundary b
+///
+/// If b is not a boundary, this is a noop. The new vertex will be connected
+/// to v by a Hadamard edge.
 fn unfuse_boundary(g: &mut impl GraphLike, v: V, b: V) {
     if g.vertex_type(b) != VType::B { return; }
     let vd = VData {
@@ -306,15 +309,14 @@ fn unfuse_boundary(g: &mut impl GraphLike, v: V, b: V) {
         row: g.row(v),
         qubit: g.qubit(v) };
     let v1 = g.add_vertex_with_data(vd);
-    let v2 = g.add_vertex_with_data(vd);
-    g.set_phase(v2, g.phase(v));
-    g.set_phase(v, Rational::zero());
     g.add_edge_with_type(v, v1, EType::H);
-    g.add_edge_with_type(v1, v2, EType::H);
-    g.add_edge_with_type(v2, b, g.edge_type(v,b));
+    g.add_edge_with_type(v1, b, g.edge_type(v,b).opposite());
     g.remove_edge(v, b);
 }
 
+/// Unfuse a non-Pauli phase as a degree-1 phase gadget
+///
+/// If the vertex already has a Pauli phase, this is a noop.
 fn unfuse_gadget(g: &mut impl GraphLike, v: V) {
     if g.phase(v).is_integer() { return; }
     let vd = VData {
@@ -330,22 +332,18 @@ fn unfuse_gadget(g: &mut impl GraphLike, v: V) {
     g.add_edge_with_type(v1, v2, EType::H);
 }
 
-// fn simp_pair(g: &mut impl GraphLike, v0: V, v1: V) {
-//     if g.vertex_type(v1) == VType::Z {
-//         if g.edge_type(v0, v1) == EType::N {
-//             g.add_to_phase(v0, g.phase(v1));
-//             g.remove_vertex(v1);
-//         } else if g.phase(v0) == Rational::one() {
-//             g.set_phase(v0, Rational::zero());
-//             g.set_phase(v1, -g.phase(v1));
-//         }
-//     }
-// }
-
+/// Check gen_pivot applies
+///
+/// This checks that we can create a valid matching for the pivot rule
+/// by gadgetizing any non-Pauli phases and inserting identities to make
+/// both vertices interior. Note that repeatedly applying `gen_pivot` with
+/// this checker will not always terminate.
 pub fn check_gen_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
+    if v0 == v1 { return false; }
     if g.edge_type_opt(v0, v1) != Some(EType::H) { return false; }
 
     for &v in &[v0,v1] {
+        if g.vertex_type(v) != VType::Z { return false; }
         for (w, et) in g.incident_edges(v) {
             if g.vertex_type(w) == VType::Z {
                 if et != EType::H { return false; }
@@ -358,6 +356,17 @@ pub fn check_gen_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
     true
 }
 
+/// Check gen_pivot applies and at least one vertex is interior Pauli
+///
+/// Unlike `check_gen_pivot`, this guarantees applying `gen_pivot` will
+/// strictly decrease the number of interior Pauli vertices, hence it
+/// will terminate.
+pub fn check_gen_pivot_reduce(g: &impl GraphLike, v0: V, v1: V) -> bool {
+    if !check_gen_pivot(g, v0, v1) { return false; }
+    (g.phase(v0).is_integer() && g.neighbors(v0).all(|n| g.vertex_type(n) == VType::Z)) ||
+    (g.phase(v1).is_integer() && g.neighbors(v1).all(|n| g.vertex_type(n) == VType::Z))
+}
+
 /// Generic version of the pivot rule
 ///
 /// This version of the pivoting rule allows either of the vertices
@@ -367,12 +376,12 @@ pub fn check_gen_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
 /// produce phase gates on inputs/outputs.
 pub fn gen_pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     let nhd0 = g.neighbor_vec(v0);
-    for &n in &nhd0 { unfuse_boundary(g, v0, n); }
     unfuse_gadget(g, v0);
+    for &n in &nhd0 { unfuse_boundary(g, v0, n); }
 
     let nhd1 = g.neighbor_vec(v1);
-    for &n in &nhd1 { unfuse_boundary(g, v1, n); }
     unfuse_gadget(g, v1);
+    for &n in &nhd1 { unfuse_boundary(g, v1, n); }
 
     pivot_unchecked(g, v0, v1);
 
@@ -382,6 +391,48 @@ pub fn gen_pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 }
 
 checked_rule2!(check_gen_pivot, gen_pivot_unchecked, gen_pivot);
+
+pub fn check_gadget_fusion(g: &impl GraphLike, v0: V, v1: V) -> bool {
+    if v0 == v1 { return false; }
+
+    let vs = [v0,v1];
+    let mut nhd = [FxHashSet::default(), FxHashSet::default()];
+
+    for i in 0..2 {
+        let mut found_gphase = false;
+        for (n,et) in g.incident_edges(vs[i]) {
+            if et != EType::H { return false; }
+            if g.vertex_type(n) != VType::Z { return false; }
+            if g.degree(n) == 1 {
+                if found_gphase { return false; }
+                else { found_gphase = true; }
+            } else {
+                nhd[i].insert(n);
+            }
+        }
+
+        if !found_gphase { return false; }
+    }
+
+    nhd[0] == nhd[1]
+}
+
+pub fn gadget_fusion_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
+    let gphase0 = g.neighbors(v0)
+        .find(|&n| g.degree(n) == 1)
+        .expect("v0 isn't a gadget");
+    let gphase1 = g.neighbors(v1)
+        .find(|&n| g.degree(n) == 1)
+        .expect("v1 isn't a gadget");
+    g.add_to_phase(gphase0, g.phase(gphase1));
+    g.remove_vertex(v1);
+    g.remove_vertex(gphase1);
+
+    let d = g.degree(v0) as i32;
+    g.scalar_mut().mul_sqrt2_pow(2 - d);
+}
+
+checked_rule2!(check_gadget_fusion, gadget_fusion_unchecked, gadget_fusion);
 
 #[cfg(test)]
 mod tests {
@@ -672,5 +723,39 @@ mod tests {
         println!("g=\n{}\n\nh=\n{}", g.to_dot(), h.to_dot());
         println!("gt=\n{}\n\nht=\n{}", g.to_tensor4(), h.to_tensor4());
         assert_eq!(g.to_tensor4(), h.to_tensor4());
+    }
+
+    #[test]
+    fn gadget_fusion_1() {
+        // fuse gadgets of various sizes
+        for n in 1..5 {
+            let mut g = Graph::new();
+            let bs: Vec<_> = (0..n).map(|_| g.add_vertex(VType::B)).collect();
+            let vs: Vec<_> = (0..n).map(|_| g.add_vertex(VType::Z)).collect();
+            let gs: Vec<_> = (0..2).map(|_| g.add_vertex(VType::Z)).collect();
+            let ps: Vec<_> = (0..2).map(|_| g.add_vertex(VType::Z)).collect();
+            g.set_inputs(bs.clone());
+
+            for i in 0..n { g.add_edge(bs[i], vs[i]); }
+            for j in 0..2 {
+                g.add_edge_with_type(gs[j], ps[j], EType::H);
+                for i in 0..n { g.add_edge_with_type(vs[i], gs[j], EType::H); }
+            }
+
+            g.set_phase(ps[0], Rational::new(1, 4));
+            g.set_phase(ps[1], Rational::new(1, 2));
+
+            let h = g.clone();
+
+            assert!(gadget_fusion(&mut g, gs[0], gs[1]));
+            assert!(g.find_vertex(|v| g.phase(v) == Rational::new(3,4)).is_some());
+            assert!(g.find_vertex(|v| g.phase(v) == Rational::new(1,4)).is_none());
+            assert!(g.find_vertex(|v| g.phase(v) == Rational::new(1,2)).is_none());
+            // println!("{}", g.to_tensor4());
+            // println!("{}", h.to_tensor4());
+            // println!("g = {} * \n {} \n\n", g.scalar(), g.to_dot());
+            // println!("h = {} * \n {} \n\n", h.scalar(), h.to_dot());
+            assert_eq!(g.to_tensor4(), h.to_tensor4());
+        }
     }
 }
