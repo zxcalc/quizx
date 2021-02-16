@@ -214,7 +214,7 @@ impl<G: GraphLike + Clone> ToCircuit for G {
             // MAIN PHASE
             //
             // Look for extractible vertices. If we found some, loop. If not, try gaussian
-            // elemination via CNOTs and look again.
+            // elimination via CNOTs and look again.
             if extract_from_frontier(&mut self, &frontier) { continue; }
             gauss_frontier(&mut self, &mut c, &frontier);
             if extract_from_frontier(&mut self, &frontier) { continue; }
