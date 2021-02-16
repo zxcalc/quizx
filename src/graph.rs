@@ -192,7 +192,7 @@ impl<'a> Iterator for IncidentEdgeIter<'a> {
 
 impl<'a> ExactSizeIterator for IncidentEdgeIter<'a> {}
 
-pub trait GraphLike {
+pub trait GraphLike: Clone {
     /// Initialise a new empty graph
     fn new() -> Self;
 
@@ -236,15 +236,17 @@ pub trait GraphLike {
 
     /// Remove a vertex from a graph
     ///
-    /// This should be a noop if the vertex doesn't exist.
+    /// Behavior is undefined if the vertex is not in the graph.
     fn remove_vertex(&mut self, v: V);
 
     /// Add an edge with the given type
+    ///
+    /// Behaviour is undefined if an edge already exists between s and t.
     fn add_edge_with_type(&mut self, s: V, t: V, ety: EType);
 
     /// Remove an edge from a graph
     ///
-    /// This should be a noop if the edge doesn't exist.
+    /// Behaviour is undefined if there is no edge between s and t.
     fn remove_edge(&mut self, s: V, t: V);
 
     fn set_phase(&mut self, v: V, phase: Rational);

@@ -95,6 +95,26 @@ mod tests {
     use crate::tensor::ToTensor;
 
     #[test]
+    fn simp_cnot() {
+        let c = Circuit::from_qasm(r#"
+            qreg q[4];
+            cx q[0], q[1];
+            cx q[0], q[2];
+            cx q[0], q[3];
+            cx q[1], q[2];
+            cx q[2], q[1];
+            cx q[1], q[2];
+            cx q[1], q[3];
+            cx q[1], q[0];
+        "#).unwrap();
+        let mut g: Graph = c.to_graph();
+        clifford_simp(&mut g);
+
+        println!("{}", g.to_dot());
+        assert_eq!(c.to_tensor4(), g.to_tensor4());
+    }
+
+    #[test]
     fn cliff_simp() {
         let c = Circuit::from_qasm(r#"
             qreg q[3];
