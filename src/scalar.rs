@@ -75,7 +75,7 @@ pub trait Sqrt2: Sized {
 /// [Vec]\<i32\>). Only the former can be used in tensors and
 /// matrices, because they have to implement Copy (the size must be
 /// known at compile time).
-pub trait Coeffs: Clone + std::ops::IndexMut<usize,Output=Rational> {
+pub trait Coeffs: Clone + std::ops::IndexMut<usize,Output=isize> {
     fn len(&self) -> usize;
     fn zero() -> Self;
     fn one() -> Self;
@@ -122,7 +122,7 @@ impl<T: Coeffs> Scalar<T> {
 
                 let mut num = Complex::new(0f64, 0f64);
                 for i in 0..coeffs.len() {
-                    num += pow2 * (*coeffs[i].numer() as f64 / *coeffs[i].denom() as f64) * omega.powu(i as u32);
+                    num += pow2 * (coeffs[i] as f64) * omega.powu(i as u32);
                 }
                 num
             },
@@ -150,12 +150,41 @@ impl<T: Coeffs> Scalar<T> {
         match T::new(coeffs.len()) {
             Some((mut coeffs1, pad)) => {
                 for i in 0..coeffs.len() {
-                    coeffs1[i*pad] = Rational::new(coeffs[i], 1);
+                    coeffs1[i*pad] = coeffs[i];
                 }
-                Exact(0, coeffs1)
+                Exact(0, coeffs1).reduce()
             },
             None => panic!("Wrong number of coefficients for scalar type")
         }
+    }
+
+    /// Compute the reduced form of the scalar value
+    ///
+    /// For non-zero scalars, increment the power of 2 as long as the last bit in
+    /// every coefficient is 0. For the zero scalar, set the power of 2 to 0.
+    fn reduce(mut self) -> Scalar<T> {
+        if let Exact(pow, coeffs) = &mut self {
+            let mut all_zero = true;
+            for i in 0..coeffs.len() {
+                if coeffs[i] != 0 { all_zero = false; break; }
+            }
+
+            if all_zero {
+                *pow = 0;
+            } else {
+                let one: isize = 1;
+                'outer: loop {
+                    for i in 0..coeffs.len() {
+                        if one & coeffs[i] == one { break 'outer; }
+                    }
+
+                    for i in 0..coeffs.len() { coeffs[i] = coeffs[i] >> 1; }
+                    *pow += 1;
+                }
+            }
+        }
+
+        self
     }
 }
 
@@ -187,13 +216,13 @@ impl<T: Coeffs> Sqrt2 for Scalar<T> {
 
                 if p % 2 == 0 {
                     // for even p, use: sqrt(2)^p = 2^(p/2)
-                    coeffs[0] = Rational::one();
+                    coeffs[0] = 1;
                     Exact(p/2, coeffs)
                 } else {
                     // for odd p, use:
                     // sqrt(2)^p = sqrt(2)^(p-1) * sqrt(2) = 2^((p-1)/2) * (omega - omega^3)
-                    coeffs[pad] = Rational::one();
-                    coeffs[3*pad] = -Rational::one();
+                    coeffs[pad] = 1;
+                    coeffs[3*pad] = -1;
                     Exact((p-1)/2, coeffs)
                 }
             }
@@ -213,9 +242,9 @@ impl<T: Coeffs> FromPhase for Scalar<T> {
                 rnumer = rnumer.rem_euclid(2 * rdenom);
                 let sgn = if rnumer >= rdenom {
                     rnumer = rnumer - rdenom;
-                    -Rational::one()
+                    -1
                 } else {
-                    Rational::one()
+                    1
                 };
                 coeffs[rnumer as usize] = sgn;
                 Exact(0, coeffs)
@@ -272,12 +301,12 @@ impl<'a, 'b, T: Coeffs> std::ops::Mul<&'b Scalar<T>> for &'a Scalar<T> {
                                 if pos < lcm {
                                     coeffs[pos] += coeffs0[i] * coeffs1[j];
                                 } else {
-                                    coeffs[pos - lcm] += -Rational::one() * coeffs0[i] * coeffs1[j];
+                                    coeffs[pos - lcm] += -1 * coeffs0[i] * coeffs1[j];
                                 }
                             }
                         }
 
-                        Exact(pow0 + pow1, coeffs)
+                        Exact(pow0 + pow1, coeffs).reduce()
                     },
                     None => {
                         Float(self.float_value() * rhs.float_value())
@@ -337,7 +366,7 @@ impl<'a, 'b, T: Coeffs> std::ops::Add<&'b Scalar<T>> for &'a Scalar<T> {
                             coeffs[i*pad*pad1] += coeffs1[i] * base1;
                         }
 
-                        Exact(minpow, coeffs)
+                        Exact(minpow, coeffs).reduce()
                     },
                     None => Float(self.float_value() + self.float_value())
                 }
@@ -410,18 +439,16 @@ impl<T: Coeffs> PartialEq for Scalar<T> {
         match (self, other) {
             (Float(c0), Float(c1)) => c0 == c1,
             (Exact(pow0, coeffs0), Exact(pow1, coeffs1)) => {
+                // since scalars are reduced via Scalar::reduce(), equal scalars
+                // must have the same power of 2.
+                if pow0 != pow1 { return false; }
                 let (lcm, pad0, pad1) = lcm_with_padding(coeffs0.len(), coeffs1.len());
-
-                // nb. this can overflow if powers are too different
-                let minpow = min(*pow0, *pow1);
-                let base0 = 2isize.pow((*pow0 - minpow) as u32);
-                let base1 = 2isize.pow((*pow1 - minpow) as u32);
 
                 let mut all_eq = true;
                 for i in 0..lcm {
-                    let c0 = if i % pad0 == 0 { coeffs0[i/pad0] } else { Rational::zero() };
-                    let c1 = if i % pad1 == 0 { coeffs1[i/pad1] } else { Rational::zero() };
-                    all_eq = all_eq && c0 * base0 == c1 * base1;
+                    let c0 = if i % pad0 == 0 { coeffs0[i/pad0] } else { 0 };
+                    let c1 = if i % pad1 == 0 { coeffs1[i/pad1] } else { 0 };
+                    all_eq = all_eq && c0 == c1;
                 }
 
                 all_eq
@@ -435,24 +462,24 @@ impl<T: Coeffs> PartialEq for Scalar<T> {
 /// the associated scalar type.
 macro_rules! fixed_size_scalar {
     ( $name:ident, $n:expr ) => {
-        impl Coeffs for [Rational;$n] {
+        impl Coeffs for [isize;$n] {
             fn len(&self) -> usize { $n }
-            fn zero() -> Self { [Rational::zero();$n] }
+            fn zero() -> Self { [0;$n] }
             fn one() -> Self {
-                let mut a = [Rational::zero();$n];
-                a[0] = Rational::one();
+                let mut a = [0;$n];
+                a[0] = 1;
                 a
             }
             fn new(sz: usize) -> Option<(Self,usize)> {
                 if $n.is_multiple_of(&sz) {
-                    Some(([Rational::zero();$n], $n/sz))
+                    Some(([0;$n], $n/sz))
                 } else {
                     None
                 }
             }
         }
 
-        pub type $name = Scalar<[Rational;$n]>;
+        pub type $name = Scalar<[isize;$n]>;
         impl ndarray::ScalarOperand for $name { }
     }
 }
@@ -466,16 +493,16 @@ fixed_size_scalar!(Scalar6, 6);
 fixed_size_scalar!(Scalar7, 7);
 fixed_size_scalar!(Scalar8, 8);
 
-impl Coeffs for Vec<Rational> {
+impl Coeffs for Vec<isize> {
     fn len(&self) -> usize { self.len() }
-    fn zero() -> Self { vec![Rational::zero()] }
-    fn one() -> Self { vec![Rational::one()] }
+    fn zero() -> Self { vec![0] }
+    fn one() -> Self { vec![1] }
     fn new(sz: usize) -> Option<(Self,usize)> {
-        Some((vec![Rational::zero(); sz],1))
+        Some((vec![0; sz],1))
     }
 }
 
-pub type ScalarN = Scalar<Vec<Rational>>;
+pub type ScalarN = Scalar<Vec<isize>>;
 
 #[cfg(test)]
 mod tests {
