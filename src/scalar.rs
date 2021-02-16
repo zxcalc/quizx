@@ -580,4 +580,38 @@ mod tests {
         let minus = ScalarN::one_plus_phase(Rational::new(-1,2));
         assert_abs_diff_eq!(plus * minus, Scalar::real(2.0));
     }
+
+    #[test]
+    fn mul_large_power_2() {
+        let p1 = Scalar4::sqrt2_pow(200);
+        let p2 = Scalar4::sqrt2_pow(-200);
+        // multiplying small, large, and/or very different powers of 2 is ok
+        let p3 = &p1 * &p2;
+        assert_eq!(p3, Scalar4::one());
+    }
+
+    #[test]
+    fn add_large_power_2() {
+        let p1 = Scalar4::sqrt2_pow(200);
+        let p2 = Scalar4::sqrt2_pow(210);
+        // adding large or small powers of 2 is ok, as long as they are fairly
+        // close
+        let p3 = &p1 + &p2;
+
+        let q1 = Scalar4::one();
+        let q2 = Scalar4::sqrt2_pow(10);
+        let q3 = Scalar4::sqrt2_pow(200) * (&q1 + &q2);
+
+        assert_eq!(p3, q3);
+    }
+
+    #[test]
+    #[should_panic(expected="attempt to multiply with overflow")]
+    fn add_diff_power_2() {
+        let p1 = Scalar4::sqrt2_pow(200);
+        let p2 = Scalar4::sqrt2_pow(-200);
+        // adding very different powers of 2 will panic
+        let p3 = &p1 + &p2;
+        assert_eq!(p3, Scalar4::one());
+    }
 }
