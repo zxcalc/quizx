@@ -38,62 +38,71 @@ fn perm_to_cnots(g: &impl GraphLike, c: &mut Circuit, blocksize: usize) {
 /// (qubit, frontier_vertex).
 fn prepare_frontier<G: GraphLike>(g: &mut G, c: &mut Circuit) -> Result<Vec<(usize,V)>, ExtractError<G>> {
     let mut frontier = Vec::new();
-    let outputs = g.outputs().clone();
 
-    for (q,&o) in outputs.iter().enumerate() {
+    for q in 0..g.outputs().len() {
+        let o = g.outputs()[q];
         if let Some((v,et)) = g.incident_edges(o).next() {
+            // replace a Hadamard edge from the output with a Hadamard gate
             if et == EType::H {
                 c.push_front(Gate::new(HAD, vec![q]));
                 g.set_edge_type(v, o, EType::N);
             }
 
-            // output connects to an input, so skip
+            // output connects to an input, so skip. When the MAIN PHASE of
+            // extraction is done, all vertices will be skipped this way.
             if g.vertex_type(v) == VType::B { continue; }
 
             frontier.push((q,v));
 
+            // replace a non-zero phase on the frontier with a phase gate
             let p = g.phase(v);
             if !p.is_zero() {
                 c.push_front(Gate::new_with_phase(ZPhase, vec![q], p));
                 g.set_phase(v, Rational::zero());
             }
 
+            // inspect neighbors of the frontier vertex
             for n in g.neighbor_vec(v) {
+                // ignore the output neighbour
                 if n == o {
                     continue;
+                // if another boundary is encountered...
                 } else if g.vertex_type(n) == VType::B {
-                    if g.degree(v) == 2 {
-                        frontier.pop();
+                    // for unitary circuits, an additional boundary must be an input
+                    if !g.inputs().contains(&n) {
+                        return Err((format!("Two outputs connected to a single vertex {}.", v),
+                                    c.clone(), g.clone()));
+                    }
 
-                        if g.edge_type(v, n) == EType::H {
-                            c.push_front(Gate::new(HAD, vec![q]));
-                        }
-
-                        g.remove_vertex(v);
-                        g.add_edge(o, n);
-
-                        break;
-                    } else {
+                    // if a vertex is connected to more than just an input, pad the input
+                    // with a dummy identity spider
+                    if g.degree(v) > 2 {
                         let vd = VData {
                             ty: VType::Z,
                             phase: Rational::zero(),
                             qubit: g.qubit(n),
                             row: g.row(n)+1 };
                         let n1 = g.add_vertex_with_data(vd);
-                        g.add_edge_with_type(n, n1,
-                                                g.edge_type(n, v).opposite());
+                        g.add_edge_with_type(n, n1, g.edge_type(n, v).opposite());
                         g.add_edge_with_type(n1, v, EType::H);
                         g.remove_edge(n, v);
                     }
+
+                // if the frontier vertex is connected to another frontier vertex, replace
+                // the edge witha CZ gate
                 } else if let Some(&(r,_)) = frontier.iter().find(|&&(_,n1)| n == n1) {
                     // TODO: CZ optimisation (maybe)
                     g.remove_edge(v, n);
                     c.push_front(Gate::new(CZ, vec![q,r]));
+
+                // we should not encounter any non-Z vertices at this point
                 } else if g.vertex_type(n) != VType::Z {
                     return Err((format!("Bad neighbour: {}", n), c.clone(), g.clone()));
                 }
             }
         } else {
+            // this will happen if there is an output vertex not connected to anything, which
+            // is a mal-formed graph
             return Err((format!("Bad output vertex {}", o), c.clone(), g.clone()));
         }
     }
@@ -101,6 +110,31 @@ fn prepare_frontier<G: GraphLike>(g: &mut G, c: &mut Circuit) -> Result<Vec<(usi
     Ok(frontier)
 }
 
+/// Pivot to remove gadgets adjacent to the frontier
+fn fix_gadgets<G: GraphLike>(g: &mut G,
+                             c: &Circuit,
+                             gadgets: &mut FxHashSet<V>,
+                             frontier: &Vec<(usize,V)>)
+-> Result<bool, ExtractError<G>>
+{
+
+    for &(_,v) in frontier {
+        for n in g.neighbor_vec(v) {
+            if gadgets.contains(&n) {
+                // TODO: this can be probably be done with
+                // gen_pivot_unsafe
+                if gen_pivot(g, v, n) {
+                    gadgets.remove(&n);
+                    return Ok(true);
+                } else {
+                    return Err((format!("Could not remove gadget by pivoting: ({}, {})", v, n),
+                    c.clone(), g.clone()));
+                }
+            }
+        }
+    }
+    Ok(false)
+}
 
 /// Extract vertices from the frontier
 ///
@@ -147,13 +181,13 @@ fn gauss_frontier<G: GraphLike>(g: &mut G, c: &mut Circuit, frontier: &Vec<(usiz
 
 impl<G: GraphLike + Clone> ToCircuit for G {
     fn into_circuit(mut self) -> Result<Circuit, ExtractError<G>> {
-        // use GType::*;
         let mut c = Circuit::new(self.outputs().len());
-        let mut gadgets = FxHashSet::default();
 
+        // Pre-generate a set of all the phase gadgets. The extraction should
+        // only ever eliminate phase gadgets, never create new ones.
+        let mut gadgets = FxHashSet::default();
         for v in self.vertices() {
-            if self.degree(v) == 1 &&
-               self.vertex_type(v) == VType::Z
+            if self.degree(v) == 1 && self.vertex_type(v) == VType::Z
             {
                 let n = self.neighbors(v).next().unwrap();
                 if self.vertex_type(n) == VType::Z {
@@ -162,46 +196,31 @@ impl<G: GraphLike + Clone> ToCircuit for G {
             }
         }
 
-        'outer: loop {
+        loop {
             // PREPROCESSING PHASE
+            //
+            // Remove any phases, Hadamards, or CZs from the output and generate
+            // a list of frontier vertices. If the frontier is empty after pre-processing,
+            // we are done.
             let frontier = prepare_frontier(&mut self, &mut c)?;
-
-            // if the frontier is empty after pre-processing, we are done
             if frontier.is_empty() { break; }
 
-            //
             // GADGET PHASE
             //
-            // If there are any phase gadgets adjacent to the frontier, we can
-            // convert them to spiders with a pivot. This can change some
-            // adjacency with the frontier, so we should restart the main
-            // loop in this case.
-            for &(_,v) in &frontier {
-                for n in self.neighbor_vec(v) {
-                    if gadgets.contains(&n) {
-                        // TODO: this can be probably be done with
-                        // gen_pivot_unsafe
-                        if gen_pivot(&mut self, v, n) {
-                            gadgets.remove(&n);
-                            continue 'outer;
-                        } else {
-                            return Err((format!("Could not remove gadget by pivoting: ({}, {})", v, n),
-                                        c, self));
-                        }
-                    }
-                }
-            }
+            // If any gadgets are adjacent to the frontier, do a generalised pivot to remove
+            // them. In that case, some edges will change, so we need to re-generate the frontier.
+            if fix_gadgets(&mut self, &c, &mut gadgets, &frontier)? { continue; }
 
-            //
             // MAIN PHASE
             //
+            // Look for extractible vertices. If we found some, loop. If not, try gaussian
+            // elemination via CNOTs and look again.
+            if extract_from_frontier(&mut self, &frontier) { continue; }
+            gauss_frontier(&mut self, &mut c, &frontier);
             if extract_from_frontier(&mut self, &frontier) { continue; }
 
-            // gauss_frontier(&mut self, &mut c, &frontier);
-
-            // if extract_from_frontier(&mut self, &frontier) { continue; }
-
-            // If we didn't make progress, terminate with an error.
+            // If we didn't make progress, terminate with an error. This prevents infinite loops
+            // in the case where a graph is not extractible.
             return Err(("No extractible vertex found.".into(), c, self));
         }
 
