@@ -23,12 +23,12 @@ trait ToCircuit: Clone {
 /// A permutation graph contains only inputs, outputs, and normal edges
 /// connecting inputs to outputs.
 fn perm_to_cnots(g: &impl GraphLike, c: &mut Circuit, blocksize: usize) {
-    let mut m = Mat2::build(g.inputs().len(), g.outputs().len(), |i,j| {
-        g.connected(g.inputs()[i], g.outputs()[j])
+    let mut m = Mat2::build(g.outputs().len(), g.inputs().len(), |i,j| {
+        g.connected(g.outputs()[i], g.inputs()[j])
     });
 
     // Extract CNOTs until adj. matrix is in reduced echelon form
-    m.gauss_aux(true, blocksize, c);
+    m.gauss_y(true, blocksize, c);
 }
 
 /// Prepare the frontier for circuit extraction
@@ -41,21 +41,20 @@ fn prepare_frontier<G: GraphLike>(g: &mut G, c: &mut Circuit) -> Result<Vec<(usi
     let outputs = g.outputs().clone();
 
     for (q,&o) in outputs.iter().enumerate() {
-        if let Some(v) = g.neighbors(o).next() {
+        if let Some((v,et)) = g.incident_edges(o).next() {
+            if et == EType::H {
+                c.push_front(Gate::new(HAD, vec![q]));
+                g.set_edge_type(v, o, EType::N);
+            }
+
             // output connects to an input, so skip
             if g.vertex_type(v) == VType::B { continue; }
 
             frontier.push((q,v));
 
-            let et = g.edge_type(v,o);
-            if et == EType::H {
-                c.push(Gate::new(HAD, vec![q]));
-                g.set_edge_type(v, o, EType::N);
-            }
-
             let p = g.phase(v);
             if !p.is_zero() {
-                c.push(Gate::new_with_phase(ZPhase, vec![q], p));
+                c.push_front(Gate::new_with_phase(ZPhase, vec![q], p));
                 g.set_phase(v, Rational::zero());
             }
 
@@ -67,7 +66,7 @@ fn prepare_frontier<G: GraphLike>(g: &mut G, c: &mut Circuit) -> Result<Vec<(usi
                         frontier.pop();
 
                         if g.edge_type(v, n) == EType::H {
-                            c.push(Gate::new(HAD, vec![q]));
+                            c.push_front(Gate::new(HAD, vec![q]));
                         }
 
                         g.remove_vertex(v);
@@ -89,7 +88,7 @@ fn prepare_frontier<G: GraphLike>(g: &mut G, c: &mut Circuit) -> Result<Vec<(usi
                 } else if let Some(&(r,_)) = frontier.iter().find(|&&(_,n1)| n == n1) {
                     // TODO: CZ optimisation (maybe)
                     g.remove_edge(v, n);
-                    c.push(Gate::new(CZ, vec![q,r]));
+                    c.push_front(Gate::new(CZ, vec![q,r]));
                 } else if g.vertex_type(n) != VType::Z {
                     return Err((format!("Bad neighbour: {}", n), c.clone(), g.clone()));
                 }
@@ -133,7 +132,7 @@ fn gauss_frontier<G: GraphLike>(g: &mut G, c: &mut Circuit, frontier: &Vec<(usiz
     });
 
     // Extract CNOTs until adj. matrix is in reduced echelon form
-    m.gauss_aux(true, 3, c);
+    m.gauss_y(true, 3, c);
 
     for (i, &(_,v)) in frontier.iter().enumerate() {
         for (j, &w) in neighbors.iter().enumerate() {
@@ -198,9 +197,9 @@ impl<G: GraphLike + Clone> ToCircuit for G {
             //
             if extract_from_frontier(&mut self, &frontier) { continue; }
 
-            gauss_frontier(&mut self, &mut c, &frontier);
+            // gauss_frontier(&mut self, &mut c, &frontier);
 
-            if extract_from_frontier(&mut self, &frontier) { continue; }
+            // if extract_from_frontier(&mut self, &frontier) { continue; }
 
             // If we didn't make progress, terminate with an error.
             return Err(("No extractible vertex found.".into(), c, self));
@@ -267,6 +266,49 @@ mod tests {
     }
 
     #[test]
+    fn extract_h() {
+        let c = Circuit::from_qasm(r#"
+            qreg q[1];
+            h q[0];
+        "#).unwrap();
+        let mut g: Graph = c.to_graph();
+        clifford_simp(&mut g);
+        println!("GRAPH BEFORE: {}\n\n", g.to_dot());
+
+        match g.to_circuit() {
+            Ok(c1) => {
+                println!("CIRCUIT: {}\n", c1);
+                assert_eq!(c.to_tensor4(), c1.to_tensor4());
+            },
+            Err((msg, c1, g)) => {
+                println!("CIRCUIT: {}\n\nGRAPH: {}\n", c1, g.to_dot());
+                panic!("Extraction failed: {}", msg);
+            }
+        }
+    }
+
+    #[test]
+    fn extract_swap() {
+        let c = Circuit::from_qasm(r#"
+            qreg q[2];
+            cx q[0], q[1];
+            cx q[1], q[0];
+            cx q[0], q[1];
+        "#).unwrap();
+        let mut g: Graph = c.to_graph();
+        clifford_simp(&mut g);
+        println!("GRAPH BEFORE: {}\n\n", g.to_dot());
+
+        match g.to_circuit() {
+            Ok(c1) => { assert_eq!(c.to_tensor4(), c1.to_tensor4()); },
+            Err((msg, c1, g)) => {
+                println!("CIRCUIT: {}\n\nGRAPH: {}\n", c1, g.to_dot());
+                panic!("Extraction failed: {}", msg);
+            }
+        }
+    }
+
+    #[test]
     fn extract1() {
         let c = Circuit::from_qasm(r#"
             qreg q[4];
@@ -284,7 +326,10 @@ mod tests {
         println!("GRAPH BEFORE: {}\n\n", g.to_dot());
 
         match g.to_circuit() {
-            Ok(c1) => { assert_eq!(c.to_tensor4(), c1.to_tensor4()); },
+            Ok(c1) => {
+                println!("CIRCUIT: {}\n", c1);
+                assert_eq!(c.to_tensor4(), c1.to_tensor4());
+            },
             Err((msg, c1, g)) => {
                 println!("CIRCUIT: {}\n\nGRAPH: {}\n", c1, g.to_dot());
                 panic!("Extraction failed: {}", msg);

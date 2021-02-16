@@ -89,6 +89,14 @@ impl Circuit {
         self.gates.push_back(g);
     }
 
+    pub fn push_back(&mut self, g: Gate) {
+        self.gates.push_back(g);
+    }
+
+    pub fn push_front(&mut self, g: Gate) {
+        self.gates.push_front(g);
+    }
+
     pub fn add_gate_with_phase(&mut self, name: &str,
                                qs: Vec<usize>, phase: Rational)
     {
@@ -375,20 +383,20 @@ impl std::ops::Add<&Circuit> for &Circuit {
 
 impl RowColOps for Circuit {
     fn row_add(&mut self, r0: usize, r1: usize) {
-        self.push(Gate::new(GType::CNOT, vec![r1, r0]));
+        self.push_back(Gate::new(GType::CNOT, vec![r1, r0]));
     }
 
     fn col_add(&mut self, c0: usize, c1: usize) {
-        self.gates.push_front(Gate::new(GType::CNOT, vec![c1, c0]));
+        self.push_front(Gate::new(GType::CNOT, vec![c1, c0]));
     }
 
 
     fn row_swap(&mut self, r0: usize, r1: usize) {
-        self.push(Gate::new(GType::SWAP, vec![r0, r1]));
+        self.push_back(Gate::new(GType::SWAP, vec![r0, r1]));
     }
 
     fn col_swap(&mut self, c0: usize, c1: usize) {
-        self.gates.push_front(Gate::new(GType::SWAP, vec![c0, c1]));
+        self.push_front(Gate::new(GType::SWAP, vec![c0, c1]));
     }
 }
 
