@@ -356,15 +356,22 @@ pub fn check_gen_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
     true
 }
 
+// check that a vertex is interior, has phase 0 or pi, and is not
+// a phase gadget
+fn is_interior_pauli(g: &impl GraphLike, v: V) -> bool {
+    g.phase(v).is_integer() &&
+        g.neighbors(v).all(|n| g.vertex_type(n) == VType::Z &&
+                               g.degree(n) > 1)
+}
+
 /// Check gen_pivot applies and at least one vertex is interior Pauli
 ///
 /// Unlike `check_gen_pivot`, this guarantees applying `gen_pivot` will
 /// strictly decrease the number of interior Pauli vertices, hence it
 /// will terminate.
 pub fn check_gen_pivot_reduce(g: &impl GraphLike, v0: V, v1: V) -> bool {
-    if !check_gen_pivot(g, v0, v1) { return false; }
-    (g.phase(v0).is_integer() && g.neighbors(v0).all(|n| g.vertex_type(n) == VType::Z)) ||
-    (g.phase(v1).is_integer() && g.neighbors(v1).all(|n| g.vertex_type(n) == VType::Z))
+    check_gen_pivot(g, v0, v1) &&
+        (is_interior_pauli(g, v0) || is_interior_pauli(g, v1))
 }
 
 /// Generic version of the pivot rule
