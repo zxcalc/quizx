@@ -45,6 +45,14 @@ impl Circuit {
 
     pub fn num_gates(&self) -> usize { self.gates.len() }
 
+    pub fn num_gates_of_type(&self, t: GType) -> usize {
+        let mut n = 0;
+        for g in &self.gates {
+            if g.t == t { n += 1; }
+        }
+        n
+    }
+
     pub fn push(&mut self, g: Gate) {
         self.gates.push_back(g);
     }
