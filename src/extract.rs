@@ -169,7 +169,7 @@ fn gauss_frontier<G: GraphLike>(g: &mut G, c: &mut Circuit, frontier: &Vec<(usiz
     let mut neighbor_set = FxHashSet::default();
     for &(_,v) in frontier {
         for n in g.neighbors(v) {
-            if g.vertex_type(v) == VType::Z { neighbor_set.insert(n); }
+            if g.vertex_type(n) == VType::Z { neighbor_set.insert(n); }
         }
     }
 
@@ -231,7 +231,7 @@ impl<G: GraphLike + Clone> ToCircuit for G {
             // Look for extractible vertices. If we found some, loop. If not, try gaussian
             // elimination via CNOTs and look again.
             if extract_from_frontier(&mut self, &frontier) { continue; }
-            gauss_frontier(&mut self, &mut c, &frontier);
+            //gauss_frontier(&mut self, &mut c, &frontier);
             if extract_from_frontier(&mut self, &frontier) { continue; }
 
             // If we didn't make progress, terminate with an error. This prevents infinite loops

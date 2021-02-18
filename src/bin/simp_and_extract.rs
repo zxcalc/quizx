@@ -10,12 +10,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let c = Circuit::random()
         .seed(1337)
         .qubits(5)
-        .depth(30)
+        .depth(20)
         .p_t(0.2)
         .with_cliffords()
         .build();
     let mut g: Graph = c.to_graph();
     clifford_simp(&mut g);
+
+    assert_eq!(c.to_tensor4(), g.to_tensor4());
+
     println!("g={}", g.to_dot());
 
     match g.to_circuit() {
