@@ -33,46 +33,6 @@ pub struct Circuit {
     pub gates: VecDeque<Gate>
 }
 
-impl Gate {
-    pub fn from_qasm_name(s: &str) -> Gate {
-        Gate {
-            t: GType::from_qasm_name(s),
-            qs: vec![],
-            phase: Rational::zero()
-        }
-    }
-
-    pub fn qasm_name(&self) -> &'static str { self.t.qasm_name() }
-
-    pub fn to_qasm(&self) -> String {
-        let mut s = String::from(self.qasm_name());
-
-        if let ZPhase | XPhase = self.t {
-            s += &format!("({}*pi)", self.phase);
-        }
-
-        s += " ";
-        let qs: Vec<String> = self.qs.iter()
-            .map(|i| format!("q[{}]", i)).collect();
-        s += &qs.join(", ");
-
-        s
-    }
-
-    pub fn adjoint(&mut self) {
-        match self.t {
-            ZPhase | XPhase | ParityPhase => {
-                self.phase *= -1;
-            },
-            S => { self.t = Sdg },
-            T => { self.t = Tdg },
-            Sdg => { self.t = S },
-            Tdg => { self.t = T },
-            _ => {}, // everything else is self-adjoint
-        }
-    }
-}
-
 impl Circuit {
     pub fn new(nqubits: usize) -> Circuit {
         Circuit {

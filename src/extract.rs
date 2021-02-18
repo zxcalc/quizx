@@ -2,6 +2,7 @@ use crate::circuit::*;
 use crate::gate::*;
 use crate::graph::*;
 use crate::linalg::*;
+use std::fmt;
 use num::{Rational, Zero};
 use rustc_hash::FxHashSet;
 use crate::basic_rules::{gen_pivot, remove_id};
@@ -9,9 +10,23 @@ use crate::basic_rules::{gen_pivot, remove_id};
 /// Extraction couldn't finish. Returns a message, a
 /// partially-extracted circuit, and the remainder of
 /// the graph.
-pub type ExtractError<G> = (String, Circuit, G);
+pub struct ExtractError<G: GraphLike>(pub String, pub Circuit, pub G);
 
-trait ToCircuit: Clone {
+impl<G: GraphLike> fmt::Display for ExtractError<G> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl<G: GraphLike> fmt::Debug for ExtractError<G> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl<G: GraphLike> std::error::Error for ExtractError<G> {}
+
+pub trait ToCircuit: GraphLike {
     fn into_circuit(self) -> Result<Circuit, ExtractError<Self>>;
     fn to_circuit(&self) -> Result<Circuit, ExtractError<Self>> {
         self.clone().into_circuit()
@@ -70,7 +85,7 @@ fn prepare_frontier<G: GraphLike>(g: &mut G, c: &mut Circuit) -> Result<Vec<(usi
                 } else if g.vertex_type(n) == VType::B {
                     // for unitary circuits, an additional boundary must be an input
                     if !g.inputs().contains(&n) {
-                        return Err((format!("Two outputs connected to a single vertex {}.", v),
+                        return Err(ExtractError(format!("Two outputs connected to a single vertex {}.", v),
                                     c.clone(), g.clone()));
                     }
 
@@ -97,13 +112,13 @@ fn prepare_frontier<G: GraphLike>(g: &mut G, c: &mut Circuit) -> Result<Vec<(usi
 
                 // we should not encounter any non-Z vertices at this point
                 } else if g.vertex_type(n) != VType::Z {
-                    return Err((format!("Bad neighbour: {}", n), c.clone(), g.clone()));
+                    return Err(ExtractError(format!("Bad neighbour: {}", n), c.clone(), g.clone()));
                 }
             }
         } else {
             // this will happen if there is an output vertex not connected to anything, which
             // is a mal-formed graph
-            return Err((format!("Bad output vertex {}", o), c.clone(), g.clone()));
+            return Err(ExtractError(format!("Bad output vertex {}", o), c.clone(), g.clone()));
         }
     }
 
@@ -127,7 +142,7 @@ fn fix_gadgets<G: GraphLike>(g: &mut G,
                     gadgets.remove(&n);
                     return Ok(true);
                 } else {
-                    return Err((format!("Could not remove gadget by pivoting: ({}, {})", v, n),
+                    return Err(ExtractError(format!("Could not remove gadget by pivoting: ({}, {})", v, n),
                     c.clone(), g.clone()));
                 }
             }
@@ -221,7 +236,7 @@ impl<G: GraphLike + Clone> ToCircuit for G {
 
             // If we didn't make progress, terminate with an error. This prevents infinite loops
             // in the case where a graph is not extractible.
-            return Err(("No extractible vertex found.".into(), c, self));
+            return Err(ExtractError("No extractible vertex found.".into(), c, self));
         }
 
         // FINAL PERMUATION PHASE
@@ -299,7 +314,7 @@ mod tests {
                 println!("CIRCUIT: {}\n", c1);
                 assert_eq!(c.to_tensor4(), c1.to_tensor4());
             },
-            Err((msg, c1, g)) => {
+            Err(ExtractError(msg, c1, g)) => {
                 println!("CIRCUIT: {}\n\nGRAPH: {}\n", c1, g.to_dot());
                 panic!("Extraction failed: {}", msg);
             }
@@ -320,7 +335,7 @@ mod tests {
 
         match g.to_circuit() {
             Ok(c1) => { assert_eq!(c.to_tensor4(), c1.to_tensor4()); },
-            Err((msg, c1, g)) => {
+            Err(ExtractError(msg, c1, g)) => {
                 println!("CIRCUIT: {}\n\nGRAPH: {}\n", c1, g.to_dot());
                 panic!("Extraction failed: {}", msg);
             }
@@ -349,7 +364,7 @@ mod tests {
                 println!("CIRCUIT: {}\n", c1);
                 assert_eq!(c.to_tensor4(), c1.to_tensor4());
             },
-            Err((msg, c1, g)) => {
+            Err(ExtractError(msg, c1, g)) => {
                 println!("CIRCUIT: {}\n\nGRAPH: {}\n", c1, g.to_dot());
                 panic!("Extraction failed: {}", msg);
             }

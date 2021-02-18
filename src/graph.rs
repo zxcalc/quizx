@@ -192,7 +192,7 @@ impl<'a> Iterator for IncidentEdgeIter<'a> {
 
 impl<'a> ExactSizeIterator for IncidentEdgeIter<'a> {}
 
-pub trait GraphLike: Clone {
+pub trait GraphLike: Clone + std::fmt::Debug {
     /// Initialise a new empty graph
     fn new() -> Self;
 
