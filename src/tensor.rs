@@ -26,8 +26,14 @@ use std::collections::VecDeque;
 use std::iter::FromIterator;
 use rustc_hash::FxHashMap;
 
+/// Generic tensor type used by quizx
 pub type Tensor<A> = Array<A,IxDyn>;
-pub type Matrix<A> = Array<A,Ix2>;
+
+/// Shorthand for tensors over D[sqrt(i)]
+pub type Tensor4 = Tensor<Scalar4>;
+
+/// Shorthand for tensors over floating point complex numbers
+pub type Tensorf = Tensor<Complex<f64>>;
 
 impl Sqrt2 for Complex<f64> {
     fn sqrt2_pow(p: i32) -> Complex<f64> {
@@ -44,11 +50,11 @@ impl FromPhase for Complex<f64> {
 }
 
 /// Wraps all the traits we need to compute tensors from ZX-diagrams.
-pub trait TensorElem: Copy + Send + Sync +
+pub trait TensorElem: Copy + Send + Sync + PartialEq +
     Zero + One + Sqrt2 + FromPhase + FromScalar<ScalarN> +
     ScalarOperand + std::ops::MulAssign + std::fmt::Debug {}
 impl<T> TensorElem for T
-where T: Copy + Send + Sync +
+where T: Copy + Send + Sync + PartialEq +
     Zero + One + Sqrt2 + FromPhase + FromScalar<ScalarN> +
     ScalarOperand + std::ops::MulAssign + std::fmt::Debug {}
 
@@ -79,6 +85,46 @@ pub trait QubitOps<A: TensorElem> {
 
     /// split into two non-overlapping pieces, where index q=0 and q=1
     fn slice_qubit_mut(&mut self, q: usize) -> (ArrayViewMut<A, IxDyn>, ArrayViewMut<A, IxDyn>);
+}
+
+pub trait CompareTensors {
+    fn scalar_eq(t0: &Self, t1: &Self) -> bool;
+    fn compare(x0: &impl ToTensor, x1: &impl ToTensor) -> bool;
+    fn scalar_compare(x0: &impl ToTensor, x1: &impl ToTensor) -> bool;
+}
+
+impl<A: TensorElem> CompareTensors for Tensor<A> {
+    fn scalar_eq(t0: &Tensor<A>, t1: &Tensor<A>) -> bool {
+        // if dimensions are different, tensors are different
+        if t0.dim() != t1.dim() { return false; }
+
+        // find the first non-zero element of each tensor
+        let a0 = t0.iter().find(|s| !s.is_zero());
+        let a1 = t1.iter().find(|s| !s.is_zero());
+        match (a0, a1) {
+            // if both tensors have a non-zero element, there are 2 cases
+            (Some(b0), Some(b1)) => {
+                // if the non-zero element is equal, tensors should be equal on the nose
+                if b0 == b1 { t0 == t1 }
+                // if they are different, we cross-multiply to check scalar equivalence
+                else { t0 * b1.clone() == t1 * b0.clone() }
+            },
+            // all-zero tensors of the same dimension are equal
+            (None, None) => true,
+            // otherwise, one is a zero tensor and the other is non-zero
+            _ => false,
+        }
+    }
+
+    fn scalar_compare(x0: &impl ToTensor, x1: &impl ToTensor) -> bool {
+        let t0 = x0.to_tensor::<A>();
+        let t1 = x1.to_tensor::<A>();
+        Tensor::scalar_eq(&t0, &t1)
+    }
+
+    fn compare(x0: &impl ToTensor, x1: &impl ToTensor) -> bool {
+        x0.to_tensor::<A>() == x1.to_tensor::<A>()
+    }
 }
 
 

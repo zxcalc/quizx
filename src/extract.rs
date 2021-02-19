@@ -231,7 +231,7 @@ impl<G: GraphLike + Clone> ToCircuit for G {
             // Look for extractible vertices. If we found some, loop. If not, try gaussian
             // elimination via CNOTs and look again.
             if extract_from_frontier(&mut self, &frontier) { continue; }
-            //gauss_frontier(&mut self, &mut c, &frontier);
+            gauss_frontier(&mut self, &mut c, &frontier);
             if extract_from_frontier(&mut self, &frontier) { continue; }
 
             // If we didn't make progress, terminate with an error. This prevents infinite loops
@@ -252,7 +252,7 @@ impl<G: GraphLike + Clone> ToCircuit for G {
 mod tests {
     use super::*;
     use crate::vec_graph::Graph;
-    use crate::tensor::ToTensor;
+    use crate::tensor::*;
     use crate::simplify::*;
 
     #[test]
@@ -369,5 +369,22 @@ mod tests {
                 panic!("Extraction failed: {}", msg);
             }
         }
+    }
+
+    #[test]
+    fn random_flow_extract() {
+        let c = Circuit::random()
+            .seed(1337)
+            .qubits(5)
+            .depth(20)
+            .p_t(0.2)
+            .with_cliffords()
+            .build();
+        let mut g: Graph = c.to_graph();
+        clifford_simp(&mut g);
+
+        assert_eq!(c.to_tensor4(), g.to_tensor4());
+        let c1 = g.to_circuit().expect("Circuit should extract.");
+        assert!(Tensor4::scalar_compare(&c, &c1));
     }
 }
