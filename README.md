@@ -60,8 +60,11 @@ QuiZX is very much a work in progress. It is not intended to have all the featur
   - [X] pivoting
   - [X] remove identity spiders
   - [X] colour-change
-  - [ ] pivoting variations (boundary-pivot and gadget-pivot)
-  - [ ] strong complementarity (optional, pivoting is more useful in practice)
+  - [X] pivoting variations (boundary-pivot and gadget-pivot)
+- simplifiers
+  - [X] clifford simplifier (from [this](https://quantum-journal.org/papers/q-2020-06-04-279/) paper)
+  - [ ] phase gadget simplifier (from [this](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.102.022406) paper)
+  - [ ] simplification-based equality checker
 - tensor evaluation based on [ndarray](https://github.com/rust-ndarray/ndarray)
   - [X] exact scalars with [cyclotomic](https://en.wikipedia.org/wiki/Cyclotomic_field)
       rational numbers
@@ -77,7 +80,7 @@ QuiZX is very much a work in progress. It is not intended to have all the featur
   - [X] circuit data type
   - [X] read and write QASM
   - [X] conversion from circuits to ZX-diagrams
-  - [ ] circuit extraction
+  - [ ] circuit extraction (working, but buggy)
 
 Pull requests are welcome!
 

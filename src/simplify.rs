@@ -143,4 +143,27 @@ mod tests {
         println!("{}", h.to_dot());
         assert_eq!(g.to_tensor4(), h.to_tensor4());
     }
+
+    #[test]
+    fn cliff_simp_2() {
+        let c = Circuit::random()
+            .seed(1337)
+            .qubits(5)
+            .depth(50)
+            .p_t(0.2)
+            .with_cliffords()
+            .build();
+
+        let g: Graph = c.to_graph();
+
+        let mut h = g.clone();
+        assert!(interior_clifford_simp(&mut h));
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
+
+        let mut h = g.clone();
+        assert!(clifford_simp(&mut h));
+        println!("{}", g.to_dot());
+        println!("{}", h.to_dot());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
+    }
 }
