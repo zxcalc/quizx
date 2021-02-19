@@ -43,7 +43,9 @@ fn perm_to_cnots(g: &impl GraphLike, c: &mut Circuit, blocksize: usize) {
     });
 
     // Extract CNOTs until adj. matrix is in reduced echelon form
-    m.gauss_y(true, blocksize, c);
+    let mut c1 = Circuit::new(c.num_qubits());
+    m.gauss_x(true, blocksize, &mut c1);
+    for g in c1.gates { c.push_front(g); }
 }
 
 /// Prepare the frontier for circuit extraction
@@ -180,8 +182,13 @@ fn gauss_frontier<G: GraphLike>(g: &mut G, c: &mut Circuit, frontier: &Vec<(usiz
         g.connected(frontier[i].1, neighbors[j])
     });
 
-    // Extract CNOTs until adj. matrix is in reduced echelon form
-    m.gauss_y(true, 3, c);
+    // Extract CNOTs until adj. matrix is in reduced echelon form. N.b. the
+    // generated CNOTs correspond exactly to the row operations of the gaussian
+    // elimination, but they are pushed on to the front of the circuit, so they
+    // should end up in reverse order.
+    let mut c1 = Circuit::new(c.num_qubits());
+    m.gauss_x(true, 3, &mut c1);
+    for g in c1.gates { c.push_front(g); }
 
     for (i, &(_,v)) in frontier.iter().enumerate() {
         for (j, &w) in neighbors.iter().enumerate() {
@@ -373,6 +380,7 @@ mod tests {
 
     #[test]
     fn random_flow_extract() {
+        // this particular circuit never calls gauss_frontier
         let c = Circuit::random()
             .seed(1337)
             .qubits(5)
@@ -380,6 +388,25 @@ mod tests {
             .p_t(0.2)
             .with_cliffords()
             .build();
+        let mut g: Graph = c.to_graph();
+        clifford_simp(&mut g);
+
+        assert_eq!(c.to_tensor4(), g.to_tensor4());
+        let c1 = g.to_circuit().expect("Circuit should extract.");
+        assert!(Tensor4::scalar_compare(&c, &c1));
+    }
+
+    #[test]
+    fn random_gflow_extract() {
+        // this particular circuit does call gauss_frontier
+        let c = Circuit::random()
+            .seed(1337)
+            .qubits(5)
+            .depth(30)
+            .p_t(0.2)
+            .with_cliffords()
+            .build();
+
         let mut g: Graph = c.to_graph();
         clifford_simp(&mut g);
 

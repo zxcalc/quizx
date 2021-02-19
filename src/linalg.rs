@@ -115,20 +115,17 @@ impl Mat2 {
     /// this is equivalent to just eliminating duplicate rows before doing normal
     /// Gaussian elimination.
     ///
-    /// Contains two convenience parameters for saving the primitive row operations. Suppose
+    /// Contains an extra parameter `x` for saving the primitive row operations. Suppose
     /// the row-reduced form of m is computed as:
     ///
     /// g * m = m'
     ///
-    /// Then, x --> g * x and y --> y * g^-1.
-    ///
-    /// In particular, if m is invertible and full_reduce is true, m' = id. So, g = m^-1
-    /// and g^-1 = m.
+    /// Then, x --> g * x. In particular, if m is invertible and full_reduce is true,
+    /// m' = id. So, g = m^-1 and x --> m^-1 * x.
     ///
     /// Note x and y need not be matrices, and can be any type that implements RowColOps.
-    fn gauss_helper<S,T>(&mut self, full_reduce: bool, blocksize: usize,
-                      x: &mut S, y: &mut T, pivot_cols: &mut Vec<usize>) -> usize
-        where S: RowColOps, T: RowColOps
+    fn gauss_helper<T: RowColOps>(&mut self, full_reduce: bool, blocksize: usize,
+                                  x: &mut T, pivot_cols: &mut Vec<usize>) -> usize
     {
         let rows = self.num_rows();
         let cols = self.num_cols();
@@ -150,7 +147,6 @@ impl Mat2 {
                 if let Some(&r1) = chunks.get(&ch) {
                     self.row_add(r1, r);
                     x.row_add(r1, r);
-                    y.col_add(r, r1);
                 } else {
                     chunks.insert(ch, r);
                 }
@@ -162,14 +158,12 @@ impl Mat2 {
                         if r0 != pivot_row {
                             self.row_add(r0, pivot_row);
                             x.row_add(r0, pivot_row);
-                            y.col_add(pivot_row, r0);
                         }
 
                         for r1 in pivot_row+1..rows {
                             if self.d[r1][p] != 0 {
                                 self.row_add(pivot_row, r1);
                                 x.row_add(pivot_row, r1);
-                                y.col_add(r1, pivot_row);
                             }
                         }
                         pivot_cols.push(p);
@@ -202,7 +196,6 @@ impl Mat2 {
                     if let Some(&r1) = chunks.get(&ch) {
                         self.row_add(r1, r);
                         x.row_add(r1, r);
-                        y.col_add(r, r1);
                     } else {
                         chunks.insert(ch, r);
                     }
@@ -216,7 +209,6 @@ impl Mat2 {
                             if self.d[r][pcol] != 0 {
                                 self.row_add(pivot_row, r);
                                 x.row_add(pivot_row, r);
-                                y.col_add(r, pivot_row);
                             }
                         }
                         if pivot_row > 0 { pivot_row -= 1; }
@@ -230,15 +222,11 @@ impl Mat2 {
     }
 
     pub fn gauss(&mut self, full_reduce: bool) -> usize {
-        self.gauss_helper(full_reduce, 3, &mut (), &mut (), &mut vec![])
+        self.gauss_helper(full_reduce, 3, &mut (), &mut vec![])
     }
 
     pub fn gauss_x(&mut self, full_reduce: bool, blocksize: usize, x: &mut impl RowColOps) -> usize {
-        self.gauss_helper(full_reduce, blocksize, x, &mut (), &mut vec![])
-    }
-
-    pub fn gauss_y(&mut self, full_reduce: bool, blocksize: usize, y: &mut impl RowColOps) -> usize {
-        self.gauss_helper(full_reduce, blocksize, &mut (), y, &mut vec![])
+        self.gauss_helper(full_reduce, blocksize, x, &mut vec![])
     }
 
     pub fn rank(&self) -> usize {
@@ -253,7 +241,7 @@ impl Mat2 {
 
         let mut m = self.clone();
         let mut inv = Mat2::id(self.num_rows());
-        let rank = m.gauss_helper(true, 3, &mut inv, &mut (), &mut vec![]);
+        let rank = m.gauss_helper(true, 3, &mut inv, &mut vec![]);
 
         if rank < self.num_rows() {
             None

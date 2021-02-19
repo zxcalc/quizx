@@ -78,8 +78,12 @@ impl Circuit {
         self.add_gate_with_phase(name, qs, Rational::zero());
     }
 
-    pub fn adjoint(&mut self) {
+    pub fn reverse(&mut self) {
         self.gates.make_contiguous().reverse();
+    }
+
+    pub fn adjoint(&mut self) {
+        self.reverse();
         for g in &mut self.gates {
             g.adjoint();
         }
@@ -349,6 +353,21 @@ impl std::ops::Add<&Circuit> for &Circuit {
     type Output = Circuit;
     fn add(self, rhs: &Circuit) -> Self::Output { self.clone().add(rhs) } }
 
+/// A circuit can pretend to be a matrix, where row/column operations correspond
+/// to appending or prepending CNOT gates.
+///
+/// For example, we can synthesise a CNOT circuit corresponding to the parity
+/// matrix `m` as follows:
+///
+/// ```
+/// use quizx::circuit::Circuit;
+/// use quizx::linalg::*;
+/// let mut c = Circuit::new(3); // c|b> = |id * b>
+/// let mut m = Mat2::new(vec![vec![1,1,1], vec![0,1,1], vec![0,0,1]]);
+/// m.gauss_x(true, 1, &mut c);  // c|b> = |m^-1 * b>
+/// c.reverse();                 // c|b> = |m * b>
+///
+/// ```
 impl RowColOps for Circuit {
     fn row_add(&mut self, r0: usize, r1: usize) {
         self.push_back(Gate::new(GType::CNOT, vec![r1, r0]));
