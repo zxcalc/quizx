@@ -117,7 +117,7 @@ pub fn fuse_gadgets(g: &mut impl GraphLike) -> bool {
             fused = true;
             let mut it = gs.iter(); it.next();
             let mut ph = Rational::zero();
-            for i in 0..gs.len()-1 {
+            for i in 1..gs.len() {
                 ph += g.phase(gs[i].1);
                 g.remove_vertex(gs[i].0);
                 g.remove_vertex(gs[i].1);
