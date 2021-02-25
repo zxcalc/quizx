@@ -1,5 +1,7 @@
 use crate::graph::*;
 use crate::basic_rules::*;
+use rustc_hash::FxHashMap;
+use num::{Rational,Zero};
 
 pub fn vertex_simp<G: GraphLike>(
     g: &mut G,
@@ -63,11 +65,10 @@ pub fn interior_clifford_simp(g: &mut impl GraphLike) -> bool {
     let mut got_match = false;
     let mut m = true;
     while m {
-        m = false;
-        m = m || id_simp(g);
-        m = m || spider_simp(g);
-        m = m || pivot_simp(g);
-        m = m || local_comp_simp(g);
+        m = id_simp(g)
+         || spider_simp(g)
+         || pivot_simp(g)
+         || local_comp_simp(g);
         if m { got_match = true; }
     }
 
@@ -78,13 +79,55 @@ pub fn clifford_simp(g: &mut impl GraphLike) -> bool {
     let mut got_match = false;
     let mut m = true;
     while m {
-        m = false;
-        m = m || interior_clifford_simp(g);
-        m = m || gen_pivot_simp(g);
+        m = interior_clifford_simp(g)
+         || gen_pivot_simp(g);
         if m { got_match = true; }
     }
 
     got_match
+}
+
+pub fn fuse_gadgets(g: &mut impl GraphLike) -> bool {
+    let mut gadgets: FxHashMap<Vec<V>,Vec<(V,V)>> = FxHashMap::default();
+
+    for v in g.vertices() {
+        if g.vertex_type(v) != VType::Z ||
+           !g.phase(v).is_zero() { continue; }
+        if g.degree(v) == 1 {
+            let w = g.neighbors(v).next().unwrap();
+            let mut nhd = Vec::new();
+            for (n,et) in g.incident_edges(w) {
+                if g.vertex_type(n) != VType::Z ||
+                   et != EType::H { continue; }
+                if n != v { nhd.push(v); }
+            }
+            nhd.sort();
+
+            if let Some(gs) = gadgets.get_mut(&nhd) {
+                gs.push((w, v));
+            } else {
+                gadgets.insert(nhd, vec![(w,v)]);
+            }
+        }
+    }
+
+    let mut fused = false;
+    for gs in gadgets.values() {
+        if gs.len() > 1 {
+            fused = true;
+            let mut it = gs.iter(); it.next();
+            let mut ph = Rational::zero();
+            for i in 0..gs.len()-1 {
+                ph += g.phase(gs[i].1);
+                g.remove_vertex(gs[i].0);
+                g.remove_vertex(gs[i].1);
+            }
+
+            g.add_to_phase(gs[0].1, ph);
+        }
+    }
+
+    fused
 }
 
 #[cfg(test)]

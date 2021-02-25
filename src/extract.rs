@@ -414,4 +414,19 @@ mod tests {
         let c1 = g.to_circuit().expect("Circuit should extract.");
         assert!(Tensor4::scalar_compare(&c, &c1));
     }
+
+    #[test]
+    fn random_extract() {
+        let c = Circuit::random()
+            .seed(1337)
+            .qubits(10)
+            .depth(40)
+            .p_t(0.2)
+            .with_cliffords()
+            .build();
+        let mut g: Graph = c.to_graph();
+        clifford_simp(&mut g);
+        println!("{}", g.to_dot());
+        let c1 = g.to_circuit().expect("Circuit should extract.");
+    }
 }
