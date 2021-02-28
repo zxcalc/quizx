@@ -217,7 +217,7 @@ impl GraphLike for Graph {
             .expect("Vertex not found").qubit = qubit;
     }
 
-    fn qubit(&mut self, v: V) -> i32 {
+    fn qubit(&self, v: V) -> i32 {
         self.vdata.get(&v)
             .expect("Vertex not found").qubit
     }
@@ -227,7 +227,7 @@ impl GraphLike for Graph {
             .expect("Vertex not found").row = row;
     }
 
-    fn row(&mut self, v: V) -> i32 {
+    fn row(&self, v: V) -> i32 {
         self.vdata.get(&v)
             .expect("Vertex not found").row
     }

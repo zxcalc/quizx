@@ -259,9 +259,9 @@ pub trait GraphLike: Clone + std::fmt::Debug {
     fn set_coord(&mut self, v: V, coord: (i32,i32));
     fn coord(&mut self, v: V) -> (i32,i32);
     fn set_qubit(&mut self, v: V, qubit: i32);
-    fn qubit(&mut self, v: V) -> i32;
+    fn qubit(&self, v: V) -> i32;
     fn set_row(&mut self, v: V, row: i32);
-    fn row(&mut self, v: V) -> i32;
+    fn row(&self, v: V) -> i32;
     fn neighbors(&self, v: V) -> NeighborIter;
     fn incident_edges(&self, v: V) -> IncidentEdgeIter;
     fn degree(&self, v: V) -> usize;
@@ -373,7 +373,7 @@ pub trait GraphLike: Clone + std::fmt::Debug {
         for v in self.vertices() {
             let t = self.vertex_type(v);
             let p = self.phase(v);
-            dot += &format!("  {} [color={}, label=\"{}\"]\n", v,
+            dot += &format!("  {} [color={}, label=\"{}\"", v,
                             match t {
                                 VType::B => "black",
                                 VType::Z => "green",
@@ -385,6 +385,12 @@ pub trait GraphLike: Clone + std::fmt::Debug {
                             else if !p.is_zero() { format!("{}:{}", v, p) }
                             else { format!("{}", v) }
                            );
+            let q = self.qubit(v);
+            let r = self.row(v);
+            if q != 0 || r != 0 {
+                dot += &format!(", pos=\"{},{}!\"", q, r);
+            }
+            dot += "]\n";
         }
 
         dot += "\n";

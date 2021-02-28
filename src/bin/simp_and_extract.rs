@@ -7,6 +7,11 @@ use quizx::tensor::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let c = Circuit::from_file("../../circuits/mod5_4.qasm")?;
+    let c1 = c.to_basic_gates();
+    if !Tensor4::scalar_compare(&c, &c1) {
+        panic!("Tensors don't match: c, c1");
+    }
+
     // let c = Circuit::random()
     //     .seed(1337)
     //     .qubits(5)
@@ -14,8 +19,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //     .p_t(0.2)
     //     .with_cliffords()
     //     .build();
-    let mut g: Graph = c.to_graph();
+    let mut g: Graph = c1.to_graph();
     interior_clifford_simp(&mut g);
+    println!("{}", g.to_dot());
+    println!("{}", c1);
+
+    // if !Tensor4::scalar_compare(&g, &c1) {
+    //     panic!("Tensors don't match: g, c2");
+    // }
+
+    // return Ok(());
 
     // assert_eq!(c.to_tensor4(), g.to_tensor4());
 
@@ -32,7 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // println!("g scalar: {}", g.scalar());
             }
         },
-        Err(ExtractError(msg, _, g1)) => {
+        Err(ExtractError(msg, _, _)) => {
             println!("extract failed: {}", msg);
             //println!("{}\n\n{}", msg, g1.to_dot());
         },

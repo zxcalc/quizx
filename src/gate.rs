@@ -231,8 +231,8 @@ impl Gate {
             Sdg    => { Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Rational::new(-1,2)); },
             T      => { Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Rational::new(1,4)); },
             Tdg    => { Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Rational::new(-1,4)); },
-            XPhase => { Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, self.phase); },
-            NOT    => { Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Rational::new(1,1)); },
+            XPhase => { Gate::add_spider(graph, qs, self.qs[0], VType::X, EType::N, self.phase); },
+            NOT    => { Gate::add_spider(graph, qs, self.qs[0], VType::X, EType::N, Rational::new(1,1)); },
             HAD    => { Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::H, Rational::zero()); },
             CNOT => {
                 if let (Some(v1), Some(v2)) =

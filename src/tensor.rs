@@ -235,14 +235,14 @@ impl<G: GraphLike + Clone> ToTensor for G {
         for v in vs {
             let p = g.phase(v);
             if fst {
-                if p == Rational::new(0,1) {
+                if p.is_zero() {
                     a = array![A::one(), A::one()].into_dyn();
                 } else {
                     a = array![A::one(), A::from_phase(p)].into_dyn();
                 }
                 fst = false;
             } else {
-                if p == Rational::new(0,1) {
+                if p.is_zero() {
                     a = stack![Axis(0), a, a];
                 } else {
                     let f = A::from_phase(p);

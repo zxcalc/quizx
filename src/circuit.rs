@@ -269,12 +269,15 @@ impl Circuit {
         let mut graph = G::new();
         let mut qs = Vec::with_capacity(self.nqubits);
         let mut inputs = Vec::with_capacity(self.nqubits);
+
+        // we start counting rows from 1, to allow coordinate
+        // (0,0) to mean "no coordinate"
         for i in 0..self.nqubits {
             let v = graph.add_vertex_with_data(VData {
                 ty: VType::B,
                 phase: Rational::zero(),
                 qubit: i as i32,
-                row: 0
+                row: 1
             });
             qs.push(Some(v));
             inputs.push(v);
