@@ -117,15 +117,16 @@ impl GraphLike for Graph {
 
     fn add_vertex_with_data(&mut self, d: VData) -> V {
         self.numv += 1;
-        if let Some(v) = self.holes.pop() {
-            self.vdata[v] = Some(d);
-            self.edata[v] = Some(Vec::new());
-            v
-        } else {
+        // FIXME: currently not re-using holes, for debug purposes
+        // if let Some(v) = self.holes.pop() {
+        //     self.vdata[v] = Some(d);
+        //     self.edata[v] = Some(Vec::new());
+        //     v
+        // } else {
             self.vdata.push(Some(d));
             self.edata.push(Some(Vec::new()));
             self.vdata.len() - 1
-        }
+        // }
     }
 
     fn remove_vertex(&mut self, v: V) {

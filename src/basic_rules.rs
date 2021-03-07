@@ -78,9 +78,10 @@ macro_rules! checked_rule2 {
 /// assert!(!check_spider_fusion(&g, v1, v2));
 /// ```
 pub fn check_spider_fusion(g: &impl GraphLike, v0: V, v1: V) -> bool {
+    v0 != v1 &&
+    g.edge_type_opt(v0,v1) == Some(EType::N) &&
     ((g.vertex_type(v0) == VType::Z && g.vertex_type(v1) == VType::Z) ||
-     (g.vertex_type(v0) == VType::X && g.vertex_type(v1) == VType::X)) &&
-        g.connected(v0,v1) && g.edge_type(v0,v1) == EType::N
+     (g.vertex_type(v0) == VType::X && g.vertex_type(v1) == VType::X))
 }
 
 
@@ -290,7 +291,7 @@ pub fn pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     let y = ns1.len() as i32; // the number of neighbors of v1
     g.scalar_mut().mul_sqrt2_pow((x - 2) * (y - 2));
 
-    if *p0.numer() != 0 && *p1.numer() != 0 {
+    if !p0.is_zero() && !p1.is_zero() {
         g.scalar_mut().mul_phase(Rational::new(1,1));
     }
 }
@@ -364,6 +365,13 @@ fn is_interior_pauli(g: &impl GraphLike, v: V) -> bool {
                                g.degree(n) > 1)
 }
 
+// check that a vertex is interior, has phase 0 or pi, and is not
+// a phase gadget
+fn is_boundary_pauli(g: &impl GraphLike, v: V) -> bool {
+    g.phase(v).is_integer() &&
+        g.neighbors(v).any(|n| g.vertex_type(n) == VType::B)
+}
+
 /// Check gen_pivot applies and at least one vertex is interior Pauli
 ///
 /// Unlike `check_gen_pivot`, this guarantees applying `gen_pivot` will
@@ -373,6 +381,13 @@ pub fn check_gen_pivot_reduce(g: &impl GraphLike, v0: V, v1: V) -> bool {
     check_gen_pivot(g, v0, v1) &&
         (is_interior_pauli(g, v0) || is_interior_pauli(g, v1))
 }
+
+
+pub fn check_boundary_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
+    check_gen_pivot(g, v0, v1) &&
+        is_boundary_pauli(g, v0)
+}
+
 
 /// Generic version of the pivot rule
 ///
@@ -392,12 +407,15 @@ pub fn gen_pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 
     pivot_unchecked(g, v0, v1);
 
-    for &n in nhd0.iter().chain(nhd1.iter()) {
-        if g.contains_vertex(n) { remove_id(g, n); }
-    }
+    // for &n in nhd0.iter().chain(nhd1.iter()) {
+    //     if g.contains_vertex(n) {
+    //         if remove_id(g, n) { println!("REMOVED EXTRA: {}", n); }
+    //     }
+    // }
 }
 
 checked_rule2!(check_gen_pivot, gen_pivot_unchecked, gen_pivot);
+checked_rule2!(check_boundary_pivot, gen_pivot_unchecked, boundary_pivot);
 
 pub fn check_gadget_fusion(g: &impl GraphLike, v0: V, v1: V) -> bool {
     if v0 == v1 { return false; }

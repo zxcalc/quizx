@@ -5,7 +5,7 @@ use crate::linalg::*;
 use std::fmt;
 use num::{Rational, Zero};
 use rustc_hash::FxHashSet;
-use crate::basic_rules::{gen_pivot, remove_id};
+use crate::basic_rules::{boundary_pivot, remove_id};
 
 /// Extraction couldn't finish. Returns a message, a
 /// partially-extracted circuit, and the remainder of
@@ -106,7 +106,7 @@ fn prepare_frontier<G: GraphLike>(g: &mut G, c: &mut Circuit) -> Result<Vec<(usi
                     }
 
                 // if the frontier vertex is connected to another frontier vertex, replace
-                // the edge witha CZ gate
+                // the edge with a CZ gate
                 } else if let Some(&(r,_)) = frontier.iter().find(|&&(_,n1)| n == n1) {
                     // TODO: CZ optimisation (maybe)
                     g.remove_edge(v, n);
@@ -140,7 +140,8 @@ fn fix_gadgets<G: GraphLike>(g: &mut G,
             if gadgets.contains(&n) {
                 // TODO: this can be probably be done with
                 // gen_pivot_unsafe
-                if gen_pivot(g, v, n) {
+                if boundary_pivot(g, v, n) {
+                    println!("FIXED GADGET: ({}, gad = {})", v, n);
                     gadgets.remove(&n);
                     return Ok(true);
                 } else {
@@ -159,7 +160,12 @@ fn fix_gadgets<G: GraphLike>(g: &mut G,
 /// with identity. Returns true if we got any.
 fn extract_from_frontier<G: GraphLike>(g: &mut G, frontier: &Vec<(usize,V)>) -> bool {
     let mut found = false;
-    for &(_,v) in frontier { found = found || remove_id(g, v); }
+    for &(_,v) in frontier {
+        if remove_id(g, v) {
+            found = true;
+            println!("EXTRACTED: {}", v);
+        }
+    }
     found
 }
 
@@ -217,6 +223,7 @@ impl<G: GraphLike + Clone> ToCircuit for G {
                 }
             }
         }
+        println!("gadgets: {:?}", gadgets);
 
         loop {
             // PREPROCESSING PHASE
@@ -226,6 +233,7 @@ impl<G: GraphLike + Clone> ToCircuit for G {
             // we are done.
             let frontier = prepare_frontier(&mut self, &mut c)?;
             if frontier.is_empty() { break; }
+            println!("frontier: {:?}", frontier);
 
             // GADGET PHASE
             //
@@ -427,6 +435,6 @@ mod tests {
         let mut g: Graph = c.to_graph();
         clifford_simp(&mut g);
         println!("{}", g.to_dot());
-        let c1 = g.to_circuit().expect("Circuit should extract.");
+        let _c1 = g.to_circuit().expect("Circuit should extract.");
     }
 }

@@ -116,7 +116,8 @@ impl Gate {
         let mut s = String::from(self.qasm_name());
 
         if let ZPhase | XPhase = self.t {
-            s += &format!("({}*pi)", self.phase);
+            let fphase = (*self.phase.numer() as f64) / (*self.phase.denom() as f64);
+            s += &format!("({}*pi)", fphase);
         }
 
         s += " ";
