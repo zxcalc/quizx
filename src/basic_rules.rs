@@ -407,11 +407,11 @@ pub fn gen_pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 
     pivot_unchecked(g, v0, v1);
 
-    // for &n in nhd0.iter().chain(nhd1.iter()) {
-    //     if g.contains_vertex(n) {
-    //         if remove_id(g, n) { println!("REMOVED EXTRA: {}", n); }
-    //     }
-    // }
+    for &n in nhd0.iter().chain(nhd1.iter()) {
+        if g.contains_vertex(n) {
+            if remove_id(g, n) { println!("REMOVED EXTRA: {}", n); }
+        }
+    }
 }
 
 checked_rule2!(check_gen_pivot, gen_pivot_unchecked, gen_pivot);

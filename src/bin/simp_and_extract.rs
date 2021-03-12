@@ -8,12 +8,19 @@ use quizx::tensor::*;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // let c = Circuit::from_file("../../circuits/mod5_4.qasm")?;
     let c = Circuit::from_qasm(r#"
-qreg qubits[5];
-ccx qubits[0],qubits[3],qubits[4];
-cx qubits[3],qubits[4];
-ccx qubits[0],qubits[1],qubits[4];
+qreg q[5];
+cx q[3], q[4];
+tdg q[4];
+cx q[0], q[3];
+tdg q[3];
+cx q[0], q[3];
+cx q[1], q[4];
+cx q[0], q[4];
+cx q[1], q[4];
+tdg q[4];
+t q[0];
     "#)?;
-    let c = c.to_basic_gates();
+    // let c = c.to_basic_gates();
     // let c1 = c.to_basic_gates();
     // if !Tensor4::scalar_compare(&c, &c1) {
     //     panic!("Tensors don't match: c, c1");
@@ -29,6 +36,7 @@ ccx qubits[0],qubits[1],qubits[4];
     let mut g: Graph = c.to_graph();
     clifford_simp(&mut g);
     println!("{}", g.to_dot());
+    println!("{:?}", g);
     // return Ok(());
     // println!("{}", c1);
 
@@ -49,7 +57,7 @@ ccx qubits[0],qubits[1],qubits[4];
                 println!("Tensors match!");
             } else {
                 // println!("Tensors don't match!");
-                println!("Tensors don't match. \nc={}\n\nc1={}", c, c1);
+                println!("Tensors don't match. \n{}\n\n{}", c, c1);
                 // println!("g scalar: {}", g.scalar());
             }
         },
