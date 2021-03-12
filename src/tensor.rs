@@ -85,6 +85,11 @@ pub trait QubitOps<A: TensorElem> {
 
     /// split into two non-overlapping pieces, where index q=0 and q=1
     fn slice_qubit_mut(&mut self, q: usize) -> (ArrayViewMut<A, IxDyn>, ArrayViewMut<A, IxDyn>);
+
+    /// contract the last n qubit indices with the first n qubits of other
+    ///
+    /// panics if n is greater than the number of qubits of self or other.
+    fn plug_n_qubits(self, n: usize, other: &Tensor<A>) -> Tensor<A>;
 }
 
 pub trait CompareTensors {
@@ -198,6 +203,21 @@ impl<A: TensorElem> QubitOps<A> for Tensor<A> {
             *a = n * (*a + *b);
             *b = n * (a1 + minus * *b);
         });
+    }
+
+    fn plug_n_qubits(self, n: usize, other: &Tensor<A>) -> Tensor<A> {
+        let d1 = self.shape().len();
+        let d2 = other.shape().len();
+        let shape1: Vec<usize> = (0..(d1+d2-n)).map(|i| if i < d1 { 2 } else { 1 }).collect();
+        let shape2: Vec<usize> = (0..(d1+d2-n)).map(|i| if i < d1-n { 1 } else { 2 }).collect();
+
+        let t1 = self.into_shared().reshape(shape1);
+        let t1p = t1.broadcast(vec![2; d1+n]).unwrap();
+        let t2 = other.clone().into_shared().reshape(shape2);
+        let mut t3 = &t1p * &t2;
+        for _ in 0..n { t3 = t3.sum_axis(Axis(d1-n)); }
+
+        t3
     }
 }
 
@@ -462,6 +482,31 @@ mod tests {
         println!("{}", c1.to_tensor4());
         println!("{}", c2.to_tensor4());
         assert_eq!(c1.to_tensor4(), c2.to_tensor4());
+
+    }
+
+    #[test]
+    fn tensor_plug() {
+        let c1 = Circuit::from_qasm(r#"
+        qreg q[2];
+        cz q[0], q[1];
+        "#).unwrap();
+
+        let c2 = Circuit::from_qasm(r#"
+        qreg q[2];
+        cx q[0], q[1];
+        "#).unwrap();
+
+        let c3 = &c1 + &c2;
+
+        let t1 = c1.to_tensor4();
+        let t2 = c2.to_tensor4();
+        let t3 = t1.plug_n_qubits(2, &t2);
+
+        println!("{}", t3);
+        println!("{}", c3.to_tensor4());
+
+        assert_eq!(t3, c3.to_tensor4());
 
     }
 }
