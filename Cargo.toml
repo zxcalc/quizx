@@ -5,6 +5,9 @@ authors = ["Aleks Kissinger <aleks0@gmail.com>"]
 edition = "2018"
 default-run = "big_simp"
 
+[lib]
+crate-type = ["lib", "cdylib"]
+
 [dependencies]
 num = "0.3.1"
 rustc-hash = "1.1.0"
@@ -12,3 +15,7 @@ ndarray = { version = "0.14.0", features = [ "rayon" ] }
 approx = "0.4.0"
 regex = "1.4.3"
 rand = "0.8.3"
+
+[dependencies.pyo3]
+version = "0.13.2"
+features = ["extension-module"]

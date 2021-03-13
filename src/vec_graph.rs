@@ -18,9 +18,11 @@ pub use crate::graph::*;
 use crate::scalar::*;
 use num::rational::Rational;
 use std::iter::FromIterator;
+use pyo3::prelude::*;
 
 pub type VTab<T> = Vec<Option<T>>;
 
+#[pyclass]
 #[derive(Debug,Clone,PartialEq)]
 pub struct Graph {
     vdata: VTab<VData>,
