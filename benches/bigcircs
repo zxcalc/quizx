@@ -1,0 +1,11 @@
+hwb8 (13 mar)
+
+RUST:
+
+had 2083 CNOT+CZ
+simplifying...
+Done in 1.64s
+extracting...
+Done in 37.22ms
+extracted ok
+got 29622 CNOT+CZ

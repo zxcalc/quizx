@@ -1,7 +1,7 @@
 use crate::circuit::*;
 use crate::gate::*;
 use crate::graph::*;
-use crate::tensor::*;
+// use crate::tensor::*;
 use crate::linalg::*;
 use std::fmt;
 use num::{Rational, Zero};
@@ -141,12 +141,11 @@ fn fix_gadgets<G: GraphLike>(g: &mut G,
             if gadgets.contains(&n) {
                 // TODO: this can be probably be done with
                 // gen_pivot_unsafe
-                println!("{:?}", g);
-                let t = g.to_tensor4();
+                // let t = g.to_tensor4();
                 if boundary_pivot(g, v, n) {
-                    println!("FIXED GADGET: ({}, gad = {})", v, n);
-                    assert_eq!(t, g.to_tensor4());
-                    println!("{}", g.to_dot());
+                    // println!("FIXED GADGET: ({}, gad = {})", v, n);
+                    // assert_eq!(t, g.to_tensor4());
+                    // println!("{}", g.to_dot());
                     gadgets.remove(&n);
                     return Ok(true);
                 } else {
@@ -168,7 +167,7 @@ fn extract_from_frontier<G: GraphLike>(g: &mut G, frontier: &Vec<(usize,V)>) -> 
     for &(_,v) in frontier {
         if remove_id(g, v) {
             found = true;
-            println!("EXTRACTED: {}", v);
+            // println!("EXTRACTED: {}", v);
         }
     }
     found
@@ -199,7 +198,14 @@ fn gauss_frontier<G: GraphLike>(g: &mut G, c: &mut Circuit, frontier: &Vec<(usiz
     // should end up in reverse order.
     let mut c1 = Circuit::new(c.num_qubits());
     m.gauss_x(true, 3, &mut c1);
-    for g in c1.gates { c.push_front(g); }
+    for gate in c1.gates {
+        // note the frontier might only be a subset of the qubits, so we should
+        // lift to the global qubit index before adding a CNOT to the circuit
+        let mut gate = gate.clone();
+        gate.qs[0] = frontier[gate.qs[0]].0;
+        gate.qs[1] = frontier[gate.qs[1]].0;
+        c.push_front(gate);
+    }
 
     for (i, &(_,v)) in frontier.iter().enumerate() {
         for (j, &w) in neighbors.iter().enumerate() {
@@ -214,6 +220,7 @@ fn gauss_frontier<G: GraphLike>(g: &mut G, c: &mut Circuit, frontier: &Vec<(usiz
 
 impl<G: GraphLike + Clone> ToCircuit for G {
     fn into_circuit(mut self) -> Result<Circuit, ExtractError<G>> {
+        // let t = self.to_tensor4(); // DEBUG
         let mut c = Circuit::new(self.outputs().len());
 
         // Pre-generate a set of all the phase gadgets. The extraction should
@@ -228,7 +235,7 @@ impl<G: GraphLike + Clone> ToCircuit for G {
                 }
             }
         }
-        println!("gadgets: {:?}", gadgets);
+        // println!("gadgets: {:?}", gadgets);
 
         loop {
             // PREPROCESSING PHASE
@@ -238,7 +245,9 @@ impl<G: GraphLike + Clone> ToCircuit for G {
             // we are done.
             let frontier = prepare_frontier(&mut self, &mut c)?;
             if frontier.is_empty() { break; }
-            println!("frontier: {:?}", frontier);
+            // println!("frontier: {:?}", frontier);
+            // let t1 = self.to_tensor4().plug_n_qubits(c.num_qubits(), &c.to_tensor4());
+            // assert!(Tensor4::scalar_eq(&t, &t1));
 
             // GADGET PHASE
             //
@@ -251,8 +260,24 @@ impl<G: GraphLike + Clone> ToCircuit for G {
             // Look for extractible vertices. If we found some, loop. If not, try gaussian
             // elimination via CNOTs and look again.
             if extract_from_frontier(&mut self, &frontier) { continue; }
+
+            // println!("first extract");
+            // let t1 = self.to_tensor4().plug_n_qubits(c.num_qubits(), &c.to_tensor4());
+            // assert!(Tensor4::scalar_eq(&t, &t1));
+            // println!("{}\n\n", self.to_dot());
+
             gauss_frontier(&mut self, &mut c, &frontier);
+
+            // println!("{}\n\n", self.to_dot());
+            // println!("gauss");
+            // let t1 = self.to_tensor4().plug_n_qubits(c.num_qubits(), &c.to_tensor4());
+            // assert!(Tensor4::scalar_eq(&t, &t1));
+
             if extract_from_frontier(&mut self, &frontier) { continue; }
+
+            // println!("second extract");
+            // let t1 = self.to_tensor4().plug_n_qubits(c.num_qubits(), &c.to_tensor4());
+            // assert!(Tensor4::scalar_eq(&t, &t1));
 
             // If we didn't make progress, terminate with an error. This prevents infinite loops
             // in the case where a graph is not extractible.
@@ -429,7 +454,7 @@ mod tests {
     }
 
     //#[test]
-    fn random_extract() {
+    fn _random_extract() {
         let c = Circuit::random()
             .seed(1337)
             .qubits(10)
@@ -441,5 +466,30 @@ mod tests {
         clifford_simp(&mut g);
         println!("{}", g.to_dot());
         let _c1 = g.to_circuit().expect("Circuit should extract.");
+    }
+
+    #[test]
+    fn regression_extract_1() {
+        // caused bug toward the end of extraction, when frontier was only
+        // a subset of qubits
+        let c = Circuit::from_qasm(r#"
+          qreg q[5];
+          cx q[3], q[4];
+          tdg q[4];
+          cx q[0], q[3];
+          tdg q[3];
+          cx q[0], q[3];
+          cx q[1], q[4];
+          cx q[0], q[4];
+          cx q[1], q[4];
+          tdg q[4];
+          t q[0];
+          "#).unwrap();
+
+          let mut g: Graph = c.to_graph();
+          clifford_simp(&mut g);
+          assert!(Tensor4::scalar_compare(&g, &c));
+          let c1 = g.to_circuit().unwrap();
+          assert!(Tensor4::scalar_compare(&c, &c1));
     }
 }

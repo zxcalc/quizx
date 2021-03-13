@@ -3,7 +3,7 @@ name = "quizx"
 version = "0.1.0"
 authors = ["Aleks Kissinger <aleks0@gmail.com>"]
 edition = "2018"
-default-run = "simp_and_extract"
+default-run = "big_simp"
 
 [dependencies]
 num = "0.3.1"
