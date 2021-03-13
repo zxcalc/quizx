@@ -3,6 +3,12 @@ use crate::basic_rules::*;
 use rustc_hash::FxHashMap;
 use num::{Rational,Zero};
 
+/// Repeatedly apply the given rule at any vertex
+/// that matches the check function
+///
+/// We assume the rule will at most delete the current
+/// vertex, and leave other vertices in place (although
+/// edges might change).
 pub fn vertex_simp<G: GraphLike>(
     g: &mut G,
     check: fn(&G, V) -> bool,
@@ -10,12 +16,16 @@ pub fn vertex_simp<G: GraphLike>(
     ) -> bool
 {
     let mut got_match = false;
-    loop {
-        match g.find_vertex(|v| check(g, v)) {
-            Some(v) => rule(g, v),
-            None => break,
-        };
-        got_match = true;
+    let mut new_matches = true;
+    while new_matches {
+        new_matches = false;
+        for v in g.vertex_vec() {
+            if check(g, v) {
+                rule(g, v);
+                new_matches = true;
+                got_match = true;
+            }
+        }
     }
 
     got_match
@@ -23,17 +33,25 @@ pub fn vertex_simp<G: GraphLike>(
 
 pub fn edge_simp<G: GraphLike>(
     g: &mut G,
+    edge_type: EType,
     check: fn(&G, V, V) -> bool,
     rule: fn(&mut G, V, V) -> ()
     ) -> bool
 {
     let mut got_match = false;
-    loop {
-        match g.find_edge(|v0, v1, _| check(g, v0, v1)) {
-            Some((v0, v1, _)) => rule(g, v0, v1),
-            None => break,
-        };
-        got_match = true;
+    let mut new_matches = true;
+    while new_matches {
+        new_matches = false;
+        for (s,t,et) in g.edge_vec() {
+            if et != edge_type ||
+               !g.contains_vertex(s) ||
+               !g.contains_vertex(t) ||
+               !check(g, s, t)
+               { continue; }
+            rule(g, s, t);
+            new_matches = true;
+            got_match = true;
+        }
     }
 
     got_match
@@ -48,15 +66,15 @@ pub fn local_comp_simp(g: &mut impl GraphLike) -> bool {
 }
 
 pub fn spider_simp(g: &mut impl GraphLike) -> bool {
-    edge_simp(g, check_spider_fusion, spider_fusion_unchecked)
+    edge_simp(g, EType::N, check_spider_fusion, spider_fusion_unchecked)
 }
 
 pub fn pivot_simp(g: &mut impl GraphLike) -> bool {
-    edge_simp(g, check_pivot, pivot_unchecked)
+    edge_simp(g, EType::H, check_pivot, pivot_unchecked)
 }
 
 pub fn gen_pivot_simp(g: &mut impl GraphLike) -> bool {
-    edge_simp(g, check_gen_pivot_reduce, gen_pivot_unchecked)
+    edge_simp(g, EType::H, check_gen_pivot_reduce, gen_pivot_unchecked)
 }
 
 pub fn interior_clifford_simp(g: &mut impl GraphLike) -> bool {
