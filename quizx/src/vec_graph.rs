@@ -30,7 +30,7 @@ pub struct Graph {
     outputs: Vec<V>,
     numv: usize,
     nume: usize,
-    pub scalar: ScalarN,
+    scalar: ScalarN,
 }
 
 impl Graph {
@@ -86,6 +86,10 @@ impl GraphLike for Graph {
             nume: 0,
             scalar: Scalar::one(),
         }
+    }
+
+    fn vindex(&self) -> V {
+        self.vdata.len()
     }
 
     fn num_vertices(&self) -> usize {

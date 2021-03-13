@@ -541,7 +541,7 @@ mod tests {
         assert_eq!(g.num_edges(), 7);
         assert_eq!(g.degree(vs[2]), 4);
         assert_eq!(g.degree(vs[4]), 3);
-        assert_eq!(g.scalar, Scalar::one());
+        assert_eq!(*g.scalar(), Scalar::one());
 
         let h = g.clone();
         let success = spider_fusion(&mut g, vs[2], vs[3]);
@@ -551,7 +551,7 @@ mod tests {
         assert_eq!(g.num_edges(), 4);
         assert_eq!(g.degree(vs[2]), 3);
         assert_eq!(g.degree(vs[4]), 1);
-        assert_eq!(g.scalar, Scalar::sqrt2_pow(-2));
+        assert_eq!(*g.scalar(), Scalar::sqrt2_pow(-2));
 
         let tg = g.to_tensor4();
         let th = h.to_tensor4();

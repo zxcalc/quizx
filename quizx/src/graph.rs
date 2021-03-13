@@ -196,6 +196,9 @@ pub trait GraphLike: Clone + std::fmt::Debug {
     /// Initialise a new empty graph
     fn new() -> Self;
 
+    /// Next fresh vertex index
+    fn vindex(&self) -> V;
+
     /// Number of vertices
     fn num_vertices(&self) -> usize;
 

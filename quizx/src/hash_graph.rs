@@ -31,7 +31,7 @@ pub struct Graph {
     numv: usize,
     nume: usize,
     freshv: V,
-    pub scalar: ScalarN,
+    scalar: ScalarN,
 }
 
 pub struct EdgeIter<'a> {
@@ -83,6 +83,10 @@ impl GraphLike for Graph {
             freshv: 0,
             scalar: Scalar::one(),
         }
+    }
+
+    fn vindex(&self) -> V {
+        self.freshv
     }
 
     fn num_vertices(&self) -> usize {

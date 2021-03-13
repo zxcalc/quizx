@@ -15,6 +15,7 @@ fn dummy(a: i64) -> String {
     format!("FOO! {}", a)
 }
 
+/// Wrapper for quizx::vec_graph::Graph
 #[pyclass]
 struct VecGraph{ pub g: quizx::vec_graph::Graph }
 
@@ -25,14 +26,14 @@ impl VecGraph {
         VecGraph{ g: quizx::vec_graph::Graph::new() }
     }
 
+    fn vindex(&self) -> usize { self.g.vindex() }
     fn num_vertices(&self) -> usize { self.g.num_vertices() }
     fn num_edges(&self) -> usize { self.g.num_edges() }
     fn add_vertex(&mut self,
                   ty_num: u8,
                   qubit: i32,
                   row: i32,
-                  phase_num: isize,
-                  phase_denom: isize) -> usize
+                  phase: (isize, isize)) -> usize
     {
         let ty = match ty_num {
             1 => VType::Z,
@@ -40,7 +41,7 @@ impl VecGraph {
             3 => VType::H,
             _ => VType::B
         };
-        let phase = Rational::new(phase_num, phase_denom);
+        let phase = Rational::new(phase.0, phase.1);
         self.g.add_vertex_with_data(VData {
             ty, phase, qubit, row,
         })
@@ -60,6 +61,7 @@ impl VecGraph {
     fn remove_edge(&mut self, e: (usize, usize)) { self.g.remove_edge(e.0, e.1) }
     fn degree(&self, v: usize) -> usize { self.g.degree(v) }
     fn connected(&self, s: usize, t: usize) -> bool { self.g.connected(s,t) }
+
     fn vertex_type(&self, v: usize) -> u8 {
         match self.g.vertex_type(v) {
             VType::Z => 1,
@@ -97,12 +99,12 @@ impl VecGraph {
         (*p.numer(), *p.denom())
     }
 
-    fn set_phase(&mut self, v: usize, p_num: isize, p_denom: isize) {
-        self.g.set_phase(v, Rational::new(p_num, p_denom));
+    fn set_phase(&mut self, v: usize, phase: (isize, isize)) {
+        self.g.set_phase(v, Rational::new(phase.0, phase.1));
     }
 
-    fn add_to_phase(&mut self, v: usize, p_num: isize, p_denom: isize) {
-        self.g.add_to_phase(v, Rational::new(p_num, p_denom));
+    fn add_to_phase(&mut self, v: usize, phase: (isize, isize)) {
+        self.g.add_to_phase(v, Rational::new(phase.0, phase.1));
     }
 
     fn qubit(&mut self, v: usize) -> i32 { self.g.qubit(v) }
