@@ -1,0 +1,19 @@
+[package]
+name = "quizx_pybindings"
+version = "0.1.0"
+authors = ["Aleks Kissinger <aleks0@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "quizx"
+crate-type = ["cdylib"]
+
+[dependencies]
+quizx = { path = "../quizx" }
+num = "0.3.1"
+
+[dependencies.pyo3]
+version = "0.13.2"
+features = ["extension-module"]
