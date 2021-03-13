@@ -26,5 +26,4 @@ pub mod linalg;
 pub mod basic_rules;
 pub mod simplify;
 pub mod extract;
-pub mod pymodule;
 
