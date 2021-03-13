@@ -91,4 +91,22 @@ impl VecGraph {
         self.g.set_edge_type(e.0, e.1,
           if et_num == 1 { EType::H } else { EType::N });
     }
+
+    fn phase(&self, v: usize) -> (isize, isize) {
+        let p = self.g.phase(v);
+        (*p.numer(), *p.denom())
+    }
+
+    fn set_phase(&mut self, v: usize, p_num: isize, p_denom: isize) {
+        self.g.set_phase(v, Rational::new(p_num, p_denom));
+    }
+
+    fn add_to_phase(&mut self, v: usize, p_num: isize, p_denom: isize) {
+        self.g.add_to_phase(v, Rational::new(p_num, p_denom));
+    }
+
+    fn qubit(&mut self, v: usize) -> i32 { self.g.qubit(v) }
+    fn set_qubit(&mut self, v: usize, q: i32) { self.g.set_qubit(v, q); }
+    fn row(&mut self, v: usize) -> i32 { self.g.row(v) }
+    fn set_row(&mut self, v: usize, r: i32) { self.g.set_row(v, r); }
 }
