@@ -24,7 +24,7 @@ use std::collections::VecDeque;
 use crate::scalar::Mod2;
 use crate::gate::*;
 use crate::graph::*;
-use crate::linalg::RowColOps;
+use crate::linalg::RowOps;
 
 /// A type for quantum circuits
 #[derive(PartialEq,Eq,Clone,Debug)]
@@ -371,22 +371,13 @@ impl std::ops::Add<&Circuit> for &Circuit {
 /// c.reverse();                 // c|b> = |m * b>
 ///
 /// ```
-impl RowColOps for Circuit {
+impl RowOps for Circuit {
     fn row_add(&mut self, r0: usize, r1: usize) {
         self.push_back(Gate::new(GType::CNOT, vec![r1, r0]));
     }
 
-    fn col_add(&mut self, c0: usize, c1: usize) {
-        self.push_front(Gate::new(GType::CNOT, vec![c1, c0]));
-    }
-
-
     fn row_swap(&mut self, r0: usize, r1: usize) {
         self.push_back(Gate::new(GType::SWAP, vec![r0, r1]));
-    }
-
-    fn col_swap(&mut self, c0: usize, c1: usize) {
-        self.push_front(Gate::new(GType::SWAP, vec![c0, c1]));
     }
 }
 

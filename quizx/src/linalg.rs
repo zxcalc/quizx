@@ -26,23 +26,22 @@ pub struct Mat2 {
     d: Vec<Vec<u8>>
 }
 
-pub trait RowColOps {
+pub trait RowOps {
     /// Add r0 to r1
     fn row_add(&mut self, r0: usize, r1: usize);
-    /// Add c0 to c1
-    fn col_add(&mut self, c0: usize, c1: usize);
     /// Swap r0 and r1
     fn row_swap(&mut self, r0: usize, r1: usize);
-    /// Swap c0 and c1
-    fn col_swap(&mut self, c0: usize, c1: usize);
+
+    // Add c0 to c1
+    // fn col_add(&mut self, c0: usize, c1: usize);
+    // Swap c0 and c1
+    // fn col_swap(&mut self, c0: usize, c1: usize);
 }
 
-/// Make unit implement RowColOps to allow optional args
-impl RowColOps for () {
+/// Make unit implement RowOps to allow optional args
+impl RowOps for () {
     fn row_add(&mut self, _: usize, _: usize) {}
-    fn col_add(&mut self, _: usize, _: usize) {}
     fn row_swap(&mut self, _: usize, _: usize) {}
-    fn col_swap(&mut self, _: usize, _: usize) {}
 }
 
 impl Mat2 {
@@ -123,8 +122,8 @@ impl Mat2 {
     /// Then, x --> g * x. In particular, if m is invertible and full_reduce is true,
     /// m' = id. So, g = m^-1 and x --> m^-1 * x.
     ///
-    /// Note x and y need not be matrices, and can be any type that implements RowColOps.
-    fn gauss_helper<T: RowColOps>(&mut self, full_reduce: bool, blocksize: usize,
+    /// Note x and y need not be matrices, and can be any type that implements RowOps.
+    fn gauss_helper<T: RowOps>(&mut self, full_reduce: bool, blocksize: usize,
                                   x: &mut T, pivot_cols: &mut Vec<usize>) -> usize
     {
         let rows = self.num_rows();
@@ -225,7 +224,7 @@ impl Mat2 {
         self.gauss_helper(full_reduce, 3, &mut (), &mut vec![])
     }
 
-    pub fn gauss_x(&mut self, full_reduce: bool, blocksize: usize, x: &mut impl RowColOps) -> usize {
+    pub fn gauss_x(&mut self, full_reduce: bool, blocksize: usize, x: &mut impl RowOps) -> usize {
         self.gauss_helper(full_reduce, blocksize, x, &mut vec![])
     }
 
@@ -259,28 +258,28 @@ impl Mat2 {
     }
 }
 
-impl RowColOps for Mat2 {
+impl RowOps for Mat2 {
     fn row_add(&mut self, r0: usize, r1: usize) {
         for i in 0..self.num_cols() {
             self.d[r1][i] = self.d[r0][i] ^ self.d[r1][i];
         }
     }
 
-    fn col_add(&mut self, c0: usize, c1: usize) {
-        for i in 0..self.num_rows() {
-            self.d[i][c1] = self.d[i][c0] ^ self.d[i][c1];
-        }
-    }
+    // fn col_add(&mut self, c0: usize, c1: usize) {
+    //     for i in 0..self.num_rows() {
+    //         self.d[i][c1] = self.d[i][c0] ^ self.d[i][c1];
+    //     }
+    // }
 
     fn row_swap(&mut self, r0: usize, r1: usize) {
         self.d.swap(r0, r1);
     }
 
-    fn col_swap(&mut self, c0: usize, c1: usize) {
-        for i in 0..self.num_rows() {
-            self.d[i].swap(c0, c1);
-        }
-    }
+    // fn col_swap(&mut self, c0: usize, c1: usize) {
+    //     for i in 0..self.num_rows() {
+    //         self.d[i].swap(c0, c1);
+    //     }
+    // }
 }
 
 impl fmt::Display for Mat2 {
