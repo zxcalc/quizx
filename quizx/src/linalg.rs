@@ -431,31 +431,31 @@ mod tests {
         assert_eq!(v, w2);
     }
 
-    #[test]
-    fn col_ops() {
-        let mut v = Mat2::new(vec![
-            vec![1, 0, 1, 0],
-            vec![1, 1, 1, 1],
-            vec![0, 0, 1, 1],
-        ]);
+    // #[test]
+    // fn col_ops() {
+    //     let mut v = Mat2::new(vec![
+    //         vec![1, 0, 1, 0],
+    //         vec![1, 1, 1, 1],
+    //         vec![0, 0, 1, 1],
+    //     ]);
 
-        let w1 = Mat2::new(vec![
-            vec![1, 1, 1, 0],
-            vec![1, 0, 1, 1],
-            vec![0, 1, 1, 1],
-        ]);
+    //     let w1 = Mat2::new(vec![
+    //         vec![1, 1, 1, 0],
+    //         vec![1, 0, 1, 1],
+    //         vec![0, 1, 1, 1],
+    //     ]);
 
-        let w2 = Mat2::new(vec![
-            vec![0, 1, 1, 1],
-            vec![1, 0, 1, 1],
-            vec![1, 1, 1, 0],
-        ]);
+    //     let w2 = Mat2::new(vec![
+    //         vec![0, 1, 1, 1],
+    //         vec![1, 0, 1, 1],
+    //         vec![1, 1, 1, 0],
+    //     ]);
 
-        v.col_add(2, 1);
-        assert_eq!(v, w1);
-        v.col_swap(0, 3);
-        assert_eq!(v, w2);
-    }
+    //     v.col_add(2, 1);
+    //     assert_eq!(v, w1);
+    //     v.col_swap(0, 3);
+    //     assert_eq!(v, w2);
+    // }
 
     #[test]
     fn gauss() {
