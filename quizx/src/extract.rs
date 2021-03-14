@@ -28,7 +28,7 @@ impl<G: GraphLike> fmt::Debug for ExtractError<G> {
 impl<G: GraphLike> std::error::Error for ExtractError<G> {}
 
 pub trait ToCircuit: GraphLike {
-    fn into_circuit(self) -> Result<Circuit, ExtractError<Self>>;
+    fn into_circuit(&mut self) -> Result<Circuit, ExtractError<Self>>;
     fn to_circuit(&self) -> Result<Circuit, ExtractError<Self>> {
         self.clone().into_circuit()
     }
@@ -219,7 +219,7 @@ fn gauss_frontier<G: GraphLike>(g: &mut G, c: &mut Circuit, frontier: &Vec<(usiz
 }
 
 impl<G: GraphLike + Clone> ToCircuit for G {
-    fn into_circuit(mut self) -> Result<Circuit, ExtractError<G>> {
+    fn into_circuit(&mut self) -> Result<Circuit, ExtractError<G>> {
         // let t = self.to_tensor4(); // DEBUG
         let mut c = Circuit::new(self.outputs().len());
 
@@ -243,7 +243,7 @@ impl<G: GraphLike + Clone> ToCircuit for G {
             // Remove any phases, Hadamards, or CZs from the output and generate
             // a list of frontier vertices. If the frontier is empty after pre-processing,
             // we are done.
-            let frontier = prepare_frontier(&mut self, &mut c)?;
+            let frontier = prepare_frontier(self, &mut c)?;
             if frontier.is_empty() { break; }
             // println!("frontier: {:?}", frontier);
             // let t1 = self.to_tensor4().plug_n_qubits(c.num_qubits(), &c.to_tensor4());
@@ -253,27 +253,27 @@ impl<G: GraphLike + Clone> ToCircuit for G {
             //
             // If any gadgets are adjacent to the frontier, do a generalised pivot to remove
             // them. In that case, some edges will change, so we need to re-generate the frontier.
-            if fix_gadgets(&mut self, &c, &mut gadgets, &frontier)? { continue; }
+            if fix_gadgets(self, &c, &mut gadgets, &frontier)? { continue; }
 
             // MAIN PHASE
             //
             // Look for extractible vertices. If we found some, loop. If not, try gaussian
             // elimination via CNOTs and look again.
-            if extract_from_frontier(&mut self, &frontier) { continue; }
+            if extract_from_frontier(self, &frontier) { continue; }
 
             // println!("first extract");
             // let t1 = self.to_tensor4().plug_n_qubits(c.num_qubits(), &c.to_tensor4());
             // assert!(Tensor4::scalar_eq(&t, &t1));
             // println!("{}\n\n", self.to_dot());
 
-            gauss_frontier(&mut self, &mut c, &frontier);
+            gauss_frontier(self, &mut c, &frontier);
 
             // println!("{}\n\n", self.to_dot());
             // println!("gauss");
             // let t1 = self.to_tensor4().plug_n_qubits(c.num_qubits(), &c.to_tensor4());
             // assert!(Tensor4::scalar_eq(&t, &t1));
 
-            if extract_from_frontier(&mut self, &frontier) { continue; }
+            if extract_from_frontier(self, &frontier) { continue; }
 
             // println!("second extract");
             // let t1 = self.to_tensor4().plug_n_qubits(c.num_qubits(), &c.to_tensor4());
@@ -281,13 +281,13 @@ impl<G: GraphLike + Clone> ToCircuit for G {
 
             // If we didn't make progress, terminate with an error. This prevents infinite loops
             // in the case where a graph is not extractible.
-            return Err(ExtractError("No extractible vertex found.".into(), c, self));
+            return Err(ExtractError("No extractible vertex found.".into(), c, self.clone()));
         }
 
         // FINAL PERMUATION PHASE
         //
         // Generate CNOTs to turn the final permutation into the identity
-        perm_to_cnots(&self, &mut c, 3);
+        perm_to_cnots(self, &mut c, 3);
 
         Ok(c)
     }

@@ -34,6 +34,12 @@ pub struct Graph {
 }
 
 impl Graph {
+    /// Explicitly index neighbors of a vertex. Used for iteration.
+    pub fn neighbor_at(&self, v: V, n: usize) -> V {
+        if let Some(d) = &self.edata[v] { d[n].0 }
+        else { 0 }
+    }
+
     fn index<U>(nhd: &Vec<(V,U)>, v: V) -> Option<usize> {
         nhd.iter().position(|&(v0,_)| v == v0)
     }

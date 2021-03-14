@@ -310,7 +310,7 @@ pub trait GraphLike: Clone + std::fmt::Debug {
     }
 
     /// Add an edge and simplify if necessary to remove parallel edges
-    /// 
+    ///
     /// The behaviour of this function depends on the type of source/target
     /// vertex as well as the type of the existing edge (if there is one).
     fn add_edge_smart(&mut self, s: V, t: V, ety: EType) {
