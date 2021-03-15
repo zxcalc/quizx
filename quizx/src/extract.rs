@@ -41,6 +41,7 @@ pub trait ToCircuit: GraphLike {
 pub struct Extractor<'a, G: GraphLike> {
     g: &'a mut G,
     frontier: Vec<(usize,V)>,
+    up_to_perm: bool,
     gaussf: fn(&mut Extractor<'a,G>, &mut Circuit),
 }
 
@@ -49,12 +50,18 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
         Extractor {
             g,
             frontier: Vec::new(),
-            gaussf: Extractor::simple_gauss,
+            up_to_perm: false,
+            gaussf: Extractor::single_sln_set,
         }
     }
 
     pub fn with_gaussf(&mut self, f: fn(&mut Extractor<'a,G>, &mut Circuit)) -> &mut Self {
         self.gaussf = f;
+        self
+    }
+
+    pub fn up_to_perm(&mut self) -> &mut Self {
+        self.up_to_perm = true;
         self
     }
 
@@ -64,6 +71,10 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
 
     pub fn gflow(&mut self) -> &mut Self {
         self.with_gaussf(Extractor::single_sln_set)
+    }
+
+    pub fn gflow_simple_gauss(&mut self) -> &mut Self {
+        self.with_gaussf(Extractor::simple_gauss)
     }
 
     /// Build a biadjacency matrix of frontier with its neighbors
@@ -101,6 +112,22 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
         }
     }
 
+
+    /// Push the gates in `c1` on to the front of `c`
+    ///
+    /// Note the order of gates will get reversed when doing this. Since c1 only refers to
+    /// gates between frontier qubits, qubit indexes may need to be translated.
+    fn update_frontier_circuit(&mut self, c1: &Circuit, c: &mut Circuit) {
+        for gate in &c1.gates {
+            // note the frontier might only be a subset of the qubits, so we should
+            // lift to the global qubit index before adding a CNOT to the circuit
+            let mut gate = gate.clone();
+            gate.qs[0] = self.frontier[gate.qs[0]].0;
+            gate.qs[1] = self.frontier[gate.qs[1]].0;
+            c.push_front(gate);
+        }
+    }
+
     /// Don't do gaussian elimination on frontier
     ///
     /// This function is intended for extracting graphs that aleady have
@@ -119,15 +146,8 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
         // should end up in reverse order.
         let mut c1 = Circuit::new(c.num_qubits());
         m.gauss_x(true, 3, &mut c1);
-        for gate in c1.gates {
-            // note the frontier might only be a subset of the qubits, so we should
-            // lift to the global qubit index before adding a CNOT to the circuit
-            let mut gate = gate.clone();
-            gate.qs[0] = e.frontier[gate.qs[0]].0;
-            gate.qs[1] = e.frontier[gate.qs[1]].0;
-            c.push_front(gate);
-        }
 
+        e.update_frontier_circuit(&c1, c);
         e.update_frontier_biadj(&neighbors, m);
     }
 
@@ -136,12 +156,16 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
         let (neighbors, mut m) = e.frontier_biadj();
         let mut row_ops = Mat2::id(m.num_rows());
         let mut m1 = m.clone();
-        m1.gauss_x(false, 1, &mut row_ops);
+        m1.gauss_x(true, 1, &mut row_ops);
         let mut min_weight = row_ops.num_cols() as u8;
+        let mut extr_rows = Vec::new();
         let mut min_weight_row = 0;
+
+        // find the vertex with the smallest solution set
         for i in 0..m1.num_rows() {
-            if m1[i].iter().copied().sum::<u8>() == 1 {
-                let weight = row_ops[i].iter().copied().sum::<u8>();
+            if m1.row_weight(i) == 1 {
+                extr_rows.push(i);
+                let weight = row_ops.row_weight(i);
                 if weight <= min_weight {
                     min_weight_row = i;
                     min_weight = weight;
@@ -149,28 +173,56 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
             }
         }
 
+        // compute the solution set
+        let sln_set: Vec<_> = (0..row_ops.num_cols())
+            .filter(|&i| row_ops[min_weight_row][i] == 1)
+            .collect();
+
+        if sln_set.len() < 2 { return; }
+
+
+        let target = sln_set[0];
+
+        // We can choose any qubit in the solution set as the target for the CNOTs. There are
+        // lots of ways to choose this. Here, we choose the one that minimises the size of
+        // the solution set of the next extractable vertex.
+
+        // if extr_rows.len() > 1 {
+        //     let cost_m = Mat2::build(extr_rows.len(), row_ops.num_cols(), |i,j| {
+        //         row_ops[extr_rows[i]][j] == 1
+        //     });
+        //     let mut min_cost = (row_ops.num_cols() * sln_set.len()) as u8;
+
+        //     for &t in &sln_set {
+        //         let mut cm = cost_m.clone();
+        //         for &i in &sln_set {
+        //             cm.col_add(t, i);
+        //         }
+
+        //         let cost = (0..cm.num_rows()).map(|i| cm.row_weight(i)).min().unwrap();
+        //         if cost < min_cost {
+        //             target = t;
+        //             min_cost = cost;
+        //         }
+        //     }
+        // }
+
+
         let mut c1 = Circuit::new(c.num_qubits());
-        let mut first = None;
-        for i in 0..row_ops.num_cols() {
-            if row_ops[min_weight_row][i] == 1 {
-                if let Some(j) = first {
-                    m.row_add(i, j);
-                    c1.row_add(i, j);
-                } else {
-                    first = Some(i);
-                }
+        for &i in &sln_set {
+            if i != target {
+                m.row_add(i, target);
+                c1.row_add(i, target);
             }
         }
 
-        for gate in c1.gates {
-            // note the frontier might only be a subset of the qubits, so we should
-            // lift to the global qubit index before adding a CNOT to the circuit
-            let mut gate = gate.clone();
-            gate.qs[0] = e.frontier[gate.qs[0]].0;
-            gate.qs[1] = e.frontier[gate.qs[1]].0;
-            c.push_front(gate);
-        }
+        // println!("Got {} extractable verts.", num_extr);
+        // println!("New adj:\n{}", m);
+        // let mut m2 = m.clone();
+        // m2.gauss(true);
+        // println!("Reduced:\n{}", m2);
 
+        e.update_frontier_circuit(&c1, c);
         e.update_frontier_biadj(&neighbors, m);
     }
 
@@ -370,7 +422,9 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
         // FINAL PERMUTATION PHASE
         //
         // Generate CNOTs to turn the final permutation into the identity
-        self.perm_to_cnots(&mut c, 3);
+        if !self.up_to_perm {
+            self.perm_to_cnots(&mut c, 3);
+        }
 
         Ok(c)
     }

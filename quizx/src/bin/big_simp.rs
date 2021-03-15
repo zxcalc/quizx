@@ -7,7 +7,7 @@ use std::time::Instant;
 // use quizx::tensor::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let c = Circuit::from_file("../../../circuits/hwb6.qasm")?;
+    let c = Circuit::from_file("../../../circuits/hwb8.qasm")?;
     // let c = Circuit::random()
     //     .seed(1337)
     //     .qubits(5)
@@ -33,6 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let result = g.extractor()
         .gflow()
+        .up_to_perm()
         .extract();
 
     match result {

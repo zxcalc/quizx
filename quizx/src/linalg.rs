@@ -31,11 +31,13 @@ pub trait RowOps {
     fn row_add(&mut self, r0: usize, r1: usize);
     /// Swap r0 and r1
     fn row_swap(&mut self, r0: usize, r1: usize);
+}
 
-    // Add c0 to c1
-    // fn col_add(&mut self, c0: usize, c1: usize);
-    // Swap c0 and c1
-    // fn col_swap(&mut self, c0: usize, c1: usize);
+pub trait ColOps {
+    /// Add c0 to c1
+    fn col_add(&mut self, c0: usize, c1: usize);
+    /// Swap c0 and c1
+    fn col_swap(&mut self, c0: usize, c1: usize);
 }
 
 /// Make unit implement RowOps to allow optional args
@@ -249,6 +251,16 @@ impl Mat2 {
         }
     }
 
+    /// Return the hamming weight of the given row
+    pub fn row_weight(&self, i: usize) -> u8 {
+        self.d[i].iter().sum::<u8>()
+    }
+
+    /// Return the hamming weight of the whole matrix
+    pub fn weight(&self) -> u8 {
+        self.d.iter().map(|r| r.iter().sum::<u8>()).sum::<u8>()
+    }
+
     /// Return a list of rows which have a single 1
     pub fn unit_rows(&self) -> Vec<usize> {
         self.d.iter().enumerate().filter_map(|(i,r)| {
@@ -265,21 +277,24 @@ impl RowOps for Mat2 {
         }
     }
 
-    // fn col_add(&mut self, c0: usize, c1: usize) {
-    //     for i in 0..self.num_rows() {
-    //         self.d[i][c1] = self.d[i][c0] ^ self.d[i][c1];
-    //     }
-    // }
 
     fn row_swap(&mut self, r0: usize, r1: usize) {
         self.d.swap(r0, r1);
     }
+}
 
-    // fn col_swap(&mut self, c0: usize, c1: usize) {
-    //     for i in 0..self.num_rows() {
-    //         self.d[i].swap(c0, c1);
-    //     }
-    // }
+impl ColOps for Mat2 {
+    fn col_add(&mut self, c0: usize, c1: usize) {
+        for i in 0..self.num_rows() {
+            self.d[i][c1] = self.d[i][c0] ^ self.d[i][c1];
+        }
+    }
+
+    fn col_swap(&mut self, c0: usize, c1: usize) {
+        for i in 0..self.num_rows() {
+            self.d[i].swap(c0, c1);
+        }
+    }
 }
 
 impl fmt::Display for Mat2 {
