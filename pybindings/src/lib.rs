@@ -46,9 +46,8 @@ impl Circuit {
     }
 
     fn to_qasm(&self) -> String { self.c.to_qasm() }
-    fn to_graph(&self) -> VecGraph {
-        VecGraph { g: self.c.to_graph() }
-    }
+    fn to_graph(&self) -> VecGraph { VecGraph { g: self.c.to_graph() } }
+    fn stats(&self) -> String { self.c.stats() }
 }
 
 /// Wrapper for quizx::vec_graph::Graph

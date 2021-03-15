@@ -25,3 +25,6 @@ class Circuit:
         g = VecGraph()
         g._g = self._c.to_graph()
         return g
+
+    def stats(self):
+        return self._c.stats()
