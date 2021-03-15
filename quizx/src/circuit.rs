@@ -311,6 +311,34 @@ impl Circuit {
         graph.set_outputs(outputs);
         graph
     }
+
+    pub fn stats(&self) -> String {
+        let mut oneq = 0;
+        let mut twoq = 0;
+        let mut moreq = 0;
+        let mut cliff = 0;
+        let mut non_cliff = 0;
+        for g in &self.gates {
+            match g.qs.len() {
+                1 => { oneq += 1; },
+                2 => { twoq += 1; },
+                _ => { moreq += 1; },
+            }
+
+            match g.t {
+                NOT | Z | S | Sdg | CNOT | CZ | SWAP | HAD => { cliff += 1; },
+                ZPhase | XPhase => {
+                    if *g.phase.denom() == 1 ||
+                       *g.phase.denom() == 2
+                    { cliff += 1; }
+                    else { non_cliff += 1; }
+                },
+                _ => { non_cliff += 1; }
+            }
+        }
+
+        format!("Circuit with {} qubits, {} gates\n  1-qubit: {}\n  2-qubit: {}\n  n-qubit: {}\n  clifford: {}\n  non-clifford: {}", self.num_qubits(), self.gates.len(), oneq, twoq, moreq, cliff, non_cliff)
+    }
 }
 
 impl fmt::Display for Circuit {
