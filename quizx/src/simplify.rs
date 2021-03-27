@@ -12,12 +12,15 @@ use num::{Rational,Zero};
 pub fn vertex_simp<G: GraphLike>(
     g: &mut G,
     check: fn(&G, V) -> bool,
-    rule: fn(&mut G, V) -> ()
+    rule: fn(&mut G, V) -> (),
+    force_reduce: bool
     ) -> bool
 {
     let mut got_match = false;
     let mut new_matches = true;
+    let mut numv;
     while new_matches {
+        numv = g.num_vertices();
         new_matches = false;
         for v in g.vertex_vec() {
             if check(g, v) {
@@ -26,6 +29,7 @@ pub fn vertex_simp<G: GraphLike>(
                 got_match = true;
             }
         }
+        if force_reduce && numv >= g.num_vertices() { break; }
     }
 
     got_match
@@ -35,12 +39,15 @@ pub fn edge_simp<G: GraphLike>(
     g: &mut G,
     edge_type: EType,
     check: fn(&G, V, V) -> bool,
-    rule: fn(&mut G, V, V) -> ()
+    rule: fn(&mut G, V, V) -> (),
+    force_reduce: bool
     ) -> bool
 {
     let mut got_match = false;
     let mut new_matches = true;
+    let mut numv;
     while new_matches {
+        numv = g.num_vertices();
         new_matches = false;
         for (s,t,et) in g.edge_vec() {
             if et != edge_type ||
@@ -52,29 +59,30 @@ pub fn edge_simp<G: GraphLike>(
             new_matches = true;
             got_match = true;
         }
+        if force_reduce && numv >= g.num_vertices() { break; }
     }
 
     got_match
 }
 
 pub fn id_simp(g: &mut impl GraphLike) -> bool {
-    vertex_simp(g, check_remove_id, remove_id_unchecked)
+    vertex_simp(g, check_remove_id, remove_id_unchecked, false)
 }
 
 pub fn local_comp_simp(g: &mut impl GraphLike) -> bool {
-    vertex_simp(g, check_local_comp, local_comp_unchecked)
+    vertex_simp(g, check_local_comp, local_comp_unchecked, false)
 }
 
 pub fn spider_simp(g: &mut impl GraphLike) -> bool {
-    edge_simp(g, EType::N, check_spider_fusion, spider_fusion_unchecked)
+    edge_simp(g, EType::N, check_spider_fusion, spider_fusion_unchecked, false)
 }
 
 pub fn pivot_simp(g: &mut impl GraphLike) -> bool {
-    edge_simp(g, EType::H, check_pivot, pivot_unchecked)
+    edge_simp(g, EType::H, check_pivot, pivot_unchecked, false)
 }
 
 pub fn gen_pivot_simp(g: &mut impl GraphLike) -> bool {
-    edge_simp(g, EType::H, check_gen_pivot_reduce, gen_pivot_unchecked)
+    edge_simp(g, EType::H, check_gen_pivot_reduce, gen_pivot_unchecked, false)
 }
 
 pub fn interior_clifford_simp(g: &mut impl GraphLike) -> bool {
@@ -97,9 +105,12 @@ pub fn clifford_simp(g: &mut impl GraphLike) -> bool {
     let mut got_match = false;
     let mut m = true;
     while m {
-        m = interior_clifford_simp(g)
-         || gen_pivot_simp(g);
+        // let numv = g.num_vertices();
+        // println!("v: {}", numv);
+        m = interior_clifford_simp(g) ||
+            gen_pivot_simp(g);
         if m { got_match = true; }
+        // if !(g.num_vertices() < numv) { break; }
     }
 
     got_match
@@ -146,6 +157,18 @@ pub fn fuse_gadgets(g: &mut impl GraphLike) -> bool {
     }
 
     fused
+}
+
+pub fn full_simp(g: &mut impl GraphLike) -> bool {
+    let mut got_match = false;
+    let mut m = true;
+    while m {
+        m = clifford_simp(g)
+         || fuse_gadgets(g);
+        if m { got_match = true; }
+    }
+
+    got_match
 }
 
 #[cfg(test)]

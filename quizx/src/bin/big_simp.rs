@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("simplifying...");
     let time = Instant::now();
-    interior_clifford_simp(&mut g);
+    clifford_simp(&mut g);
     println!("Done in {:.2?}", time.elapsed());
 
     let time = Instant::now();

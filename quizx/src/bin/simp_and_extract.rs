@@ -6,7 +6,9 @@ use quizx::extract::*;
 use quizx::tensor::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let c = Circuit::from_file("../../circuits/mod5_4.qasm")?;
+    let c = Circuit::from_file("../../../circuits/mod5_4.qasm")?;
+    let c0 = c.to_basic_gates();
+    println!("Before:\n{}", c0.stats());
     // let c = c.to_basic_gates();
     // let c1 = c.to_basic_gates();
     // if !Tensor4::scalar_compare(&c, &c1) {
@@ -21,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //     .with_cliffords()
     //     .build();
     let mut g: Graph = c.to_graph();
-    clifford_simp(&mut g);
+    full_simp(&mut g);
     // println!("{}", g.to_dot());
     // println!("{:?}", g);
     // assert_eq!(c.to_tensor4(), g.to_tensor4());
@@ -31,6 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("extracted ok");
             if Tensor4::scalar_compare(&c, &c1) {
                 println!("Tensors match!");
+                println!("After:\n{}", c1.stats());
             } else {
                 println!("Tensors don't match. \n{}\n\n{}", c, c1);
             }

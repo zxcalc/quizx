@@ -600,8 +600,8 @@ mod tests {
         assert!(Tensor4::scalar_compare(&c, &c1));
     }
 
-    //#[test]
-    fn _random_extract() {
+    #[test]
+    fn random_extract() {
         let c = Circuit::random()
             .seed(1337)
             .qubits(10)

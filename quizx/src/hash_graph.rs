@@ -335,19 +335,6 @@ mod tests {
        // assert!(g == h);
     }
 
-    // #[test]
-    // fn nhd() {
-    //     let (g,vs) = simple_graph();
-    //     let mut ws = Vec::from_iter(g.nhd(vs[2]));
-    //     ws.sort();
-    //     let mut expected_ws = vec![
-    //         (&vs[0], &EType::N),
-    //         (&vs[4], &EType::N),
-    //         (&vs[5], &EType::N)];
-    //     expected_ws.sort();
-    //     assert_eq!(expected_ws, ws);
-    // }
-
     #[test]
     fn vertex_iterator() {
         let (g, mut expected_vs) = simple_graph();
