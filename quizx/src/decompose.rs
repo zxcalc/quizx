@@ -155,7 +155,7 @@ mod tests {
     fn scalars() {
         // this test is just to record where the BSS scalars
         // came from. These were all globals at the top of
-        // simulate.py in PyZX, some of which are sometimes 
+        // simulate.py in PyZX, some of which are sometimes
         // combined with a rt2 power and a phase in the
         // replace_XXXX function. We do this all at once.
 
