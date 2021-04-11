@@ -85,7 +85,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
     fn replace_e6(g: &G, verts: &Vec<V>) -> G {
         let mut g = g.clone();
         // 4i * (10 - 7 rt(2))
-        *g.scalar_mut() *= ScalarN::Exact(2, vec![0, -7, 10, -7]);
+        *g.scalar_mut() *= ScalarN::Exact(2, vec![0, -7, 10, -7]); // e6
 
         let w = g.add_vertex_with_phase(VType::Z, Rational::one());
 
@@ -154,5 +154,52 @@ impl<'a, G: GraphLike> Decomposer<G> {
                                  verts[4],
                                  verts[5],
                                  verts[2]])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scalars() {
+        // this test is just to record where the BSS scalars
+        // came from. These were all globals at the top of
+        // simulate.py in PyZX, some of which are sometimes 
+        // combined with a rt2 power and a phase in the
+        // replace_XXXX function. We do this all at once.
+
+        // 1/(2+2j) = (2-2j)/8
+        let mut global = Scalar4::Exact(-3, [2, 0, -2, 0]);
+        // times -(7 + 5*rt2)
+        global *= Scalar4::Exact(0, [-7, -5, 0, -5]);
+
+        // -1/8 * (-16 + 12*rt2)
+        let b60 = Scalar4::Exact(-3, [-16, 12, 0, 12]) * &global;
+
+        // -1/8 * (96 - 68*rt2)
+        let b66 = Scalar4::Exact(-3, [-96, 68, 0, 68]) * &global;
+
+        // 4i * (10 - 7 rt(2))
+        let e6 = ScalarN::Exact(2, vec![0, -7, 10, -7]); // e6
+
+        // 2i * (-14 + 10*rt2)
+        let o6 = Scalar4::Exact(1, [0, 10, -14, 10]) * &global;
+
+        // rt2^5 * (7 - 5*rt2)
+        let mut k6 = Scalar4::Exact(0, [7, -5, 0, -5]) * &global;
+        k6.mul_sqrt2_pow(5);
+
+        // -i rt2^9 * (10 - 7*rt2)
+        let mut phi = Scalar4::Exact(0, [10, -7, 0, -7]) * &global;
+        phi.mul_sqrt2_pow(9);
+        phi.mul_phase(Rational::new(3,2));
+
+        println!("ScalarN::{:?}; // b60", b60);
+        println!("ScalarN::{:?}; // b66", b66);
+        println!("ScalarN::{:?}; // e6", e6);
+        println!("ScalarN::{:?}; // o6", o6);
+        println!("ScalarN::{:?}; // k6", k6);
+        println!("ScalarN::{:?}; // phi", phi);
     }
 }
