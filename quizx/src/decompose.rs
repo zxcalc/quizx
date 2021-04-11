@@ -62,33 +62,23 @@ impl<'a, G: GraphLike> Decomposer<G> {
 
     fn replace_b60(g: &G, verts: &Vec<V>) -> G {
         let mut g = g.clone();
-        *g.scalar_mut() *= ScalarN::Exact(-2, vec![29, -1, -29, 0]); // b60
-
-        for &v in verts {
-            g.add_to_phase(v, Rational::new(-1,4));
-        }
-
+        *g.scalar_mut() *= ScalarN::Exact(-2, vec![29, -1, -29, 0]);
+        for &v in verts { g.add_to_phase(v, Rational::new(-1,4)); }
         g
     }
 
     fn replace_b66(g: &G, verts: &Vec<V>) -> G {
         let mut g = g.clone();
-        *g.scalar_mut() *= ScalarN::Exact(-2, vec![169, 1, -169, 0]); // b66
-
-        for &v in verts {
-            g.add_to_phase(v, Rational::new(3,4));
-        }
-
+        *g.scalar_mut() *= ScalarN::Exact(-2, vec![169, 1, -169, 0]);
+        for &v in verts { g.add_to_phase(v, Rational::new(3,4)); }
         g
     }
 
     fn replace_e6(g: &G, verts: &Vec<V>) -> G {
         let mut g = g.clone();
-        // 4i * (10 - 7 rt(2))
-        *g.scalar_mut() *= ScalarN::Exact(2, vec![0, -7, 10, -7]); // e6
+        *g.scalar_mut() *= ScalarN::Exact(2, vec![0, -7, 10, -7]);
 
         let w = g.add_vertex_with_phase(VType::Z, Rational::one());
-
         for &v in verts {
             g.add_to_phase(v, Rational::new(1,4));
             g.add_edge_with_type(v, w, EType::H);
@@ -99,7 +89,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
 
     fn replace_o6(g: &G, verts: &Vec<V>) -> G {
         let mut g = g.clone();
-        *g.scalar_mut() *= ScalarN::Exact(0, vec![99, -70, -1, 70]); // o6
+        *g.scalar_mut() *= ScalarN::Exact(0, vec![99, -70, -1, 70]);
 
         let w = g.add_vertex(VType::Z);
         for &v in verts {
@@ -112,7 +102,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
 
     fn replace_k6(g: &G, verts: &Vec<V>) -> G {
         let mut g = g.clone();
-        *g.scalar_mut() *= ScalarN::Exact(1, vec![0, 0, 0, 99]); // k6
+        *g.scalar_mut() *= ScalarN::Exact(1, vec![0, 0, 0, 99]);
 
         let w = g.add_vertex(VType::Z);
         for &v in verts {
@@ -125,7 +115,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
 
     fn replace_phi1(g: &G, verts: &Vec<V>) -> G {
         let mut g = g.clone();
-        *g.scalar_mut() *= ScalarN::Exact(3, vec![-1, 140, 1, 0]); // phi
+        *g.scalar_mut() *= ScalarN::Exact(3, vec![-1, 140, 1, 0]);
 
         let ws: Vec<_> = verts.iter().map(|&v| {
             g.add_to_phase(v, Rational::new(-1,4));
@@ -201,5 +191,7 @@ mod tests {
         println!("ScalarN::{:?}; // o6", o6);
         println!("ScalarN::{:?}; // k6", k6);
         println!("ScalarN::{:?}; // phi", phi);
+
+        // TODO: test these are indeed the scalars each term gets
     }
 }
