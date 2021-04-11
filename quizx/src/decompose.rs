@@ -40,6 +40,15 @@ impl<'a, G: GraphLike> Decomposer<G> {
         else { panic!("decompose fewer than 6 T gates not implemented") }
     }
 
+    /// Perform the Bravyi-Smith-Smolin decomposition of 6 T gates
+    /// into a sum of 7 terms
+    ///
+    /// See Section IV of:
+    /// https://journals.aps.org/prx/pdf/10.1103/PhysRevX.6.021043
+    ///
+    /// In particular, see the text below equation (10) and
+    /// equation (11) itself.
+    ///
     fn push_bss_decomp(&mut self, g: &G, verts: Vec<V>) -> &mut Self {
         self.stack.push(Decomposer::replace_b60(g, &verts));
         self.stack.push(Decomposer::replace_b66(g, &verts));
@@ -78,8 +87,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
         // 4i * (10 - 7 rt(2))
         *g.scalar_mut() *= ScalarN::Exact(2, vec![0, -7, 10, -7]);
 
-        let w = g.add_vertex(VType::Z);
-        g.set_phase(w, Rational::one());
+        let w = g.add_vertex_with_phase(VType::Z, Rational::one());
 
         for &v in verts {
             g.add_to_phase(v, Rational::new(1,4));
@@ -119,11 +127,21 @@ impl<'a, G: GraphLike> Decomposer<G> {
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(3, vec![-1, 140, 1, 0]); // phi
 
-        let ws: Vec<_> = (0..6).map(|_| {
-            let w = g.add_vertex(VType::Z);
-            g.set_phase(w, Rational::one());
-            w
+        let ws: Vec<_> = verts.iter().map(|&v| {
+            g.add_to_phase(v, Rational::new(-1,4));
+            g.add_vertex_with_phase(VType::Z, Rational::one())
         }).collect();
+
+        for i in 0..5 {
+            g.add_edge_with_type(verts[i], ws[i], EType::H);
+            g.add_edge_with_type(ws[i], ws[5], EType::H);
+        }
+
+        g.add_edge_with_type(ws[0], ws[2], EType::H);
+        g.add_edge_with_type(ws[0], ws[3], EType::H);
+        g.add_edge_with_type(ws[1], ws[3], EType::H);
+        g.add_edge_with_type(ws[1], ws[4], EType::H);
+        g.add_edge_with_type(ws[2], ws[4], EType::H);
 
         g
     }
