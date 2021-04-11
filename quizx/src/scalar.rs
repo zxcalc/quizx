@@ -26,9 +26,14 @@ use approx::AbsDiffEq;
 /// numbers.
 ///
 /// The [Exact] representation of a scalar is given as an element of
-/// Q\[omega\], where omega is the 2N-th root of unity, represented by
-/// its first N coefficients. Addition for this type is O(N) and
-/// multiplication O(N^2).
+/// D\[omega\], where D is the ring if dyadic rationals and omega is
+/// the 2N-th root of unity, represented by its first N coefficients.
+/// Addition for this type is O(N) and multiplication O(N^2). Ring
+/// elements are stored as a global power of 2 and a list of integer
+/// coefficients. This is effectively a floating point number, but
+/// with a shared exponent and different behaviour w.r.t. limited
+/// precision (namely it panics if big numbers are added to small
+/// ones rather than approximating).
 ///
 /// The type of the coefficient list is given as a type parameter
 /// implementing a trait [Coeffs].  This is to allow fixed N (with an

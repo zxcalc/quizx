@@ -14,27 +14,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::time::Instant;
-use quizx::circuit::*;
-use std::fs;
+// use std::time::Instant;
+// use quizx::circuit::*;
+// use std::fs;
+use quizx::scalar::*;
+use num::Rational;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // let c = Circuit::from_file("../../circuits/mod5_4.qasm")?;
-    // let time = Instant::now();
-    // println!("loading circuit");
-    // let _c = Circuit::from_file("../../circuits/hwb12.qasm")?;
-    // println!("done in {:.2?}", time.elapsed());
-    // println!("{:?}", c);
-    // println!("{}", c);
+    // 1/(2+2j) = (2-2j)/8
+    let mut global = Scalar4::Exact(-3, [2, 0, -2, 0]);
+    // times -(7 + 5*rt2)
+    global *= Scalar4::Exact(0, [-7, -5, 0, -5]);
 
-    for e in fs::read_dir("../../circuits")? {
-        if let Some(f) = e?.path().to_str() {
-            let time = Instant::now();
-            println!("{}", f);
-            Circuit::from_file(f).expect(&format!("circuit failed to parse: {}", f));
-            println!("...done in {:.2?}", time.elapsed());
-        }
-    }
+    let b60 = Scalar4::Exact(-3, [-16, 12, 0, 12]) * &global;
+    let b66 = Scalar4::Exact(-3, [-96, 68, 0, 68]) * &global;
+    let o6 = Scalar4::Exact(1, [0, 10, -14, 10]) * &global;
+    let mut k6 = Scalar4::Exact(0, [7, -5, 0, -5]) * &global;
+    k6.mul_sqrt2_pow(5);
+    let mut phi = Scalar4::Exact(0, [10, -7, 0, -7]) * &global;
+    phi.mul_sqrt2_pow(9);
+    phi.mul_phase(Rational::new(3,2));
+
+    println!("let scalar = ScalarN::{:?}; // b60", b60);
+    println!("let scalar = ScalarN::{:?}; // b66", b66);
+    println!("let scalar = ScalarN::{:?}; // o6", o6);
+    println!("let scalar = ScalarN::{:?}; // k6", k6);
+    println!("let scalar = ScalarN::{:?}; // phi", phi);
 
     Ok(())
 }

@@ -309,6 +309,12 @@ pub trait GraphLike: Clone + std::fmt::Debug {
         }
     }
 
+    fn add_vertex_with_phase(&mut self, ty: VType, phase: Rational) -> V {
+        let v = self.add_vertex(ty);
+        self.set_phase(v, phase);
+        v
+    }
+
     /// Add an edge and simplify if necessary to remove parallel edges
     ///
     /// The behaviour of this function depends on the type of source/target
