@@ -62,21 +62,21 @@ impl<'a, G: GraphLike> Decomposer<G> {
 
     fn replace_b60(g: &G, verts: &Vec<V>) -> G {
         let mut g = g.clone();
-        *g.scalar_mut() *= ScalarN::Exact(-2, vec![29, -1, -29, 0]);
+        *g.scalar_mut() *= ScalarN::Exact(-2, vec![-1, 0, 1, 1]);
         for &v in verts { g.add_to_phase(v, Rational::new(-1,4)); }
         g
     }
 
     fn replace_b66(g: &G, verts: &Vec<V>) -> G {
         let mut g = g.clone();
-        *g.scalar_mut() *= ScalarN::Exact(-2, vec![169, 1, -169, 0]);
+        *g.scalar_mut() *= ScalarN::Exact(-2, vec![-1, 0, 1, -1]);
         for &v in verts { g.add_to_phase(v, Rational::new(3,4)); }
         g
     }
 
     fn replace_e6(g: &G, verts: &Vec<V>) -> G {
         let mut g = g.clone();
-        *g.scalar_mut() *= ScalarN::Exact(2, vec![0, -7, 10, -7]);
+        *g.scalar_mut() *= ScalarN::Exact(1, vec![0, -1, 0, 0]);
 
         let w = g.add_vertex_with_phase(VType::Z, Rational::one());
         for &v in verts {
@@ -89,7 +89,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
 
     fn replace_o6(g: &G, verts: &Vec<V>) -> G {
         let mut g = g.clone();
-        *g.scalar_mut() *= ScalarN::Exact(0, vec![99, -70, -1, 70]);
+        *g.scalar_mut() *= ScalarN::Exact(1, vec![-1, 0, -1, 0]);
 
         let w = g.add_vertex(VType::Z);
         for &v in verts {
@@ -102,9 +102,9 @@ impl<'a, G: GraphLike> Decomposer<G> {
 
     fn replace_k6(g: &G, verts: &Vec<V>) -> G {
         let mut g = g.clone();
-        *g.scalar_mut() *= ScalarN::Exact(1, vec![0, 0, 0, 99]);
+        *g.scalar_mut() *= ScalarN::Exact(1, vec![1, 0, 0, 0]);
 
-        let w = g.add_vertex(VType::Z);
+        let w = g.add_vertex_with_phase(VType::Z, Rational::new(-1,2));
         for &v in verts {
             g.add_to_phase(v, Rational::new(-1,4));
             g.add_edge_with_type(v, w, EType::N);
@@ -115,17 +115,18 @@ impl<'a, G: GraphLike> Decomposer<G> {
 
     fn replace_phi1(g: &G, verts: &Vec<V>) -> G {
         let mut g = g.clone();
-        *g.scalar_mut() *= ScalarN::Exact(3, vec![-1, 140, 1, 0]);
+        *g.scalar_mut() *= ScalarN::Exact(3, vec![1, 0, 1, 0]);
 
-        let ws: Vec<_> = verts.iter().map(|&v| {
-            g.add_to_phase(v, Rational::new(-1,4));
-            g.add_vertex_with_phase(VType::Z, Rational::one())
-        }).collect();
-
+        let mut ws = vec![];
         for i in 0..5 {
+            let w = g.add_vertex(VType::Z);
+            ws.push(w);
             g.add_edge_with_type(verts[i], ws[i], EType::H);
-            g.add_edge_with_type(ws[i], ws[5], EType::H);
+            g.add_edge_with_type(ws[i], verts[5], EType::H);
+            g.add_to_phase(verts[i], Rational::new(-1,4));
         }
+
+        g.add_to_phase(verts[5], Rational::new(3,4));
 
         g.add_edge_with_type(ws[0], ws[2], EType::H);
         g.add_edge_with_type(ws[0], ws[3], EType::H);
@@ -150,9 +151,49 @@ impl<'a, G: GraphLike> Decomposer<G> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // use crate::graph::*;
+    use crate::tensor::*;
+    use crate::vec_graph::Graph;
 
     #[test]
-    fn scalars() {
+    fn new_scalars() {
+        // John's simplified scalars
+        let one = ScalarN::one();
+        let om = ScalarN::Exact(0, vec![0, 1, 0, 0]);
+        let om2 = &om * &om;
+        let om7 = ScalarN::Exact(0, vec![0, 0, 0, -1]);
+        assert_eq!(&om * &om7, ScalarN::one());
+        let minus = ScalarN::Exact(0, vec![-1, 0, 0, 0]);
+        let onefourth = ScalarN::Exact(-2, vec![1, 0, 0, 0]);
+        let two = &one + &one;
+        let sqrt2 = ScalarN::sqrt2();
+        let eight = &two * &two * &two;
+
+        let k6 = &om7 * &two * &om;
+        let phi = &om7 * &eight * &sqrt2 * &om2;
+        let b60 = &om7 * &minus * &onefourth * (&one + &sqrt2);
+        let b66 = &om7 * &onefourth * (&one + (&minus * &sqrt2));
+        let o6 = &om7 * &minus * &two * &sqrt2 * &om2;
+        let e6 = &om7 * &minus * &two * &om2;
+
+        assert_eq!(b60, ScalarN::Exact(-2, vec![-1, 0, 1, 1]));
+        assert_eq!(b66, ScalarN::Exact(-2, vec![-1, 0, 1, -1]));
+        assert_eq!(e6, ScalarN::Exact(1, vec![0, -1, 0, 0]));
+        assert_eq!(o6, ScalarN::Exact(1, vec![-1, 0, -1, 0]));
+        assert_eq!(k6, ScalarN::Exact(1, vec![1, 0, 0, 0]));
+        assert_eq!(phi, ScalarN::Exact(3, vec![1, 0, 1, 0]));
+
+        // println!("ScalarN::{:?}; // b60", b60);
+        // println!("ScalarN::{:?}; // b66", b66);
+        // println!("ScalarN::{:?}; // e6", e6);
+        // println!("ScalarN::{:?}; // o6", o6);
+        // println!("ScalarN::{:?}; // k6", k6);
+        // println!("ScalarN::{:?}; // phi", phi);
+        // panic!("foo");
+    }
+
+    #[test]
+    fn old_scalars() {
         // this test is just to record where the BSS scalars
         // came from. These were all globals at the top of
         // simulate.py in PyZX, some of which are sometimes
@@ -162,26 +203,26 @@ mod tests {
         // 1/(2+2j) = (2-2j)/8
         let mut global = Scalar4::Exact(-3, [2, 0, -2, 0]);
         // times -(7 + 5*rt2)
-        global *= Scalar4::Exact(0, [-7, -5, 0, -5]);
+        global *= Scalar4::Exact(0, [-7, -5, 0, 5]);
 
         // -1/8 * (-16 + 12*rt2)
-        let b60 = Scalar4::Exact(-3, [-16, 12, 0, 12]) * &global;
+        let b60 = Scalar4::Exact(-3, [-16, 12, 0, -12]) * &global;
 
         // -1/8 * (96 - 68*rt2)
-        let b66 = Scalar4::Exact(-3, [-96, 68, 0, 68]) * &global;
+        let b66 = Scalar4::Exact(-3, [-96, 68, 0, -68]) * &global;
 
         // 4i * (10 - 7 rt(2))
-        let e6 = ScalarN::Exact(2, vec![0, -7, 10, -7]); // e6
+        let e6 = Scalar4::Exact(2, [0, 7, 10, -7]) * &global; // e6
 
         // 2i * (-14 + 10*rt2)
-        let o6 = Scalar4::Exact(1, [0, 10, -14, 10]) * &global;
+        let o6 = Scalar4::Exact(1, [0, -10, -14, 10]) * &global;
 
         // rt2^5 * (7 - 5*rt2)
-        let mut k6 = Scalar4::Exact(0, [7, -5, 0, -5]) * &global;
+        let mut k6 = Scalar4::Exact(0, [7, -5, 0, 5]) * &global;
         k6.mul_sqrt2_pow(5);
 
         // -i rt2^9 * (10 - 7*rt2)
-        let mut phi = Scalar4::Exact(0, [10, -7, 0, -7]) * &global;
+        let mut phi = Scalar4::Exact(0, [10, -7, 0, 7]) * &global;
         phi.mul_sqrt2_pow(9);
         phi.mul_phase(Rational::new(3,2));
 
@@ -191,7 +232,31 @@ mod tests {
         println!("ScalarN::{:?}; // o6", o6);
         println!("ScalarN::{:?}; // k6", k6);
         println!("ScalarN::{:?}; // phi", phi);
+        // panic!("here");
 
-        // TODO: test these are indeed the scalars each term gets
+    }
+
+    #[test]
+    fn test_bss() {
+        let mut g = Graph::new();
+        let mut outs = vec![];
+        for _ in 0..6 {
+            let v = g.add_vertex_with_phase(VType::Z, Rational::new(1,4));
+            let w = g.add_vertex(VType::B);
+            outs.push(w);
+            g.add_edge(v, w);
+        }
+        g.set_outputs(outs);
+
+        let mut d = Decomposer::new(&g);
+        d.decomp_top();
+
+        let t = g.to_tensor4();
+        let mut tsum: Tensor4 = d.stack[0].to_tensor4();
+        for i in 1..d.stack.len() {
+            tsum = tsum + d.stack[i].to_tensor4();
+        }
+
+        assert_eq!(t, tsum);
     }
 }
