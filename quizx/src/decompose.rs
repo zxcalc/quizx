@@ -205,7 +205,7 @@ mod tests {
         assert_eq!(d.stack.len(), 7);
 
         let t = g.to_tensor4();
-        let mut tsum: Tensor4 = Tensor4::zeros(vec![2,2,2,2,2,2]);
+        let mut tsum = Tensor4::zeros(vec![2,2,2,2,2,2]);
         for h in &d.stack { tsum = tsum + h.to_tensor4(); }
         assert_eq!(t, tsum);
     }
