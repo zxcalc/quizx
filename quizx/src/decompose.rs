@@ -18,6 +18,7 @@ use num::Rational;
 use crate::graph::*;
 use crate::scalar::*;
 
+/// Store the (partial) decomposition of a graph into stabilisers
 pub struct Decomposer<G: GraphLike> {
     pub stack: Vec<G>,
 }
@@ -27,6 +28,8 @@ impl<'a, G: GraphLike> Decomposer<G> {
         Decomposer { stack: vec![g.clone()] }
     }
 
+    /// Decompose up to 6 T gates in the graph on the top of the
+    /// stack.
     pub fn decomp_top(&mut self) -> &mut Self {
         let g = self.stack.pop().unwrap();
         let mut t = vec![];
@@ -151,18 +154,19 @@ impl<'a, G: GraphLike> Decomposer<G> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // use crate::graph::*;
     use crate::tensor::*;
     use crate::vec_graph::Graph;
 
     #[test]
-    fn new_scalars() {
-        // John's simplified scalars
+    fn bss_scalars() {
+        // this test is mainly to record how each of the exact
+        // form scalars for the BSS decomposition were computed
         let one = ScalarN::one();
         let om = ScalarN::Exact(0, vec![0, 1, 0, 0]);
         let om2 = &om * &om;
         let om7 = ScalarN::Exact(0, vec![0, 0, 0, -1]);
         assert_eq!(&om * &om7, ScalarN::one());
+
         let minus = ScalarN::Exact(0, vec![-1, 0, 0, 0]);
         let onefourth = ScalarN::Exact(-2, vec![1, 0, 0, 0]);
         let two = &one + &one;
@@ -182,62 +186,10 @@ mod tests {
         assert_eq!(o6, ScalarN::Exact(1, vec![-1, 0, -1, 0]));
         assert_eq!(k6, ScalarN::Exact(1, vec![1, 0, 0, 0]));
         assert_eq!(phi, ScalarN::Exact(3, vec![1, 0, 1, 0]));
-
-        // println!("ScalarN::{:?}; // b60", b60);
-        // println!("ScalarN::{:?}; // b66", b66);
-        // println!("ScalarN::{:?}; // e6", e6);
-        // println!("ScalarN::{:?}; // o6", o6);
-        // println!("ScalarN::{:?}; // k6", k6);
-        // println!("ScalarN::{:?}; // phi", phi);
-        // panic!("foo");
     }
 
     #[test]
-    fn old_scalars() {
-        // this test is just to record where the BSS scalars
-        // came from. These were all globals at the top of
-        // simulate.py in PyZX, some of which are sometimes
-        // combined with a rt2 power and a phase in the
-        // replace_XXXX function. We do this all at once.
-
-        // 1/(2+2j) = (2-2j)/8
-        let mut global = Scalar4::Exact(-3, [2, 0, -2, 0]);
-        // times -(7 + 5*rt2)
-        global *= Scalar4::Exact(0, [-7, -5, 0, 5]);
-
-        // -1/8 * (-16 + 12*rt2)
-        let b60 = Scalar4::Exact(-3, [-16, 12, 0, -12]) * &global;
-
-        // -1/8 * (96 - 68*rt2)
-        let b66 = Scalar4::Exact(-3, [-96, 68, 0, -68]) * &global;
-
-        // 4i * (10 - 7 rt(2))
-        let e6 = Scalar4::Exact(2, [0, 7, 10, -7]) * &global; // e6
-
-        // 2i * (-14 + 10*rt2)
-        let o6 = Scalar4::Exact(1, [0, -10, -14, 10]) * &global;
-
-        // rt2^5 * (7 - 5*rt2)
-        let mut k6 = Scalar4::Exact(0, [7, -5, 0, 5]) * &global;
-        k6.mul_sqrt2_pow(5);
-
-        // -i rt2^9 * (10 - 7*rt2)
-        let mut phi = Scalar4::Exact(0, [10, -7, 0, 7]) * &global;
-        phi.mul_sqrt2_pow(9);
-        phi.mul_phase(Rational::new(3,2));
-
-        println!("ScalarN::{:?}; // b60", b60);
-        println!("ScalarN::{:?}; // b66", b66);
-        println!("ScalarN::{:?}; // e6", e6);
-        println!("ScalarN::{:?}; // o6", o6);
-        println!("ScalarN::{:?}; // k6", k6);
-        println!("ScalarN::{:?}; // phi", phi);
-        // panic!("here");
-
-    }
-
-    #[test]
-    fn test_bss() {
+    fn bss() {
         let mut g = Graph::new();
         let mut outs = vec![];
         for _ in 0..6 {
@@ -257,6 +209,7 @@ mod tests {
             tsum = tsum + d.stack[i].to_tensor4();
         }
 
+        assert_eq!(d.stack.len(), 7);
         assert_eq!(t, tsum);
     }
 }
