@@ -202,14 +202,11 @@ mod tests {
 
         let mut d = Decomposer::new(&g);
         d.decomp_top();
+        assert_eq!(d.stack.len(), 7);
 
         let t = g.to_tensor4();
-        let mut tsum: Tensor4 = d.stack[0].to_tensor4();
-        for i in 1..d.stack.len() {
-            tsum = tsum + d.stack[i].to_tensor4();
-        }
-
-        assert_eq!(d.stack.len(), 7);
+        let mut tsum: Tensor4 = Tensor4::zeros(vec![2,2,2,2,2,2]);
+        for h in &d.stack { tsum = tsum + h.to_tensor4(); }
         assert_eq!(t, tsum);
     }
 }
