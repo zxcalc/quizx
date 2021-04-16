@@ -21,11 +21,12 @@ use crate::scalar::*;
 /// Store the (partial) decomposition of a graph into stabilisers
 pub struct Decomposer<G: GraphLike> {
     pub stack: Vec<G>,
+    pub done: Vec<G>,
 }
 
 impl<'a, G: GraphLike> Decomposer<G> {
     pub fn new(g: &G) -> Decomposer<G> {
-        Decomposer { stack: vec![g.clone()] }
+        Decomposer { stack: vec![g.clone()], done: vec![] }
     }
 
     /// Decompose up to 6 T gates in the graph on the top of the
@@ -40,7 +41,12 @@ impl<'a, G: GraphLike> Decomposer<G> {
         }
 
         if t.len() == 6 { self.push_bss_decomp(&g, t) }
-        else { panic!("decompose fewer than 6 T gates not implemented") }
+        else if t.len() >= 2 { self.push_sym_decomp(&g, t) }
+        else if t.len() == 1 { self.push_single_decomp(&g, t[0]) }
+        else {
+            self.done.push(g);
+            self
+        }
     }
 
     /// Perform the Bravyi-Smith-Smolin decomposition of 6 T gates
@@ -149,6 +155,58 @@ impl<'a, G: GraphLike> Decomposer<G> {
                                  verts[5],
                                  verts[2]])
     }
+
+    /// Perform a decomposition of 2 T gates in the symmetric 2-qubit
+    /// space spanned by stabilisers
+    fn push_sym_decomp(&mut self, g: &G, verts: Vec<V>) -> &mut Self {
+        self.stack.push(Decomposer::replace_bell_s(g, &verts));
+        self.stack.push(Decomposer::replace_epr(g, &verts));
+        self
+    }
+
+    fn replace_bell_s(g: &G, verts: &Vec<V>) -> G {
+        let mut g = g.clone();
+        g.add_edge(verts[0], verts[1]);
+        g.add_to_phase(verts[0], Rational::new(-1,4));
+        g.add_to_phase(verts[1], Rational::new(1,4));
+
+        g
+    }
+
+    fn replace_epr(g: &G, verts: &Vec<V>) -> G {
+        let mut g = g.clone();
+        *g.scalar_mut() *= ScalarN::from_phase(Rational::new(1,4));
+        let w = g.add_vertex_with_phase(VType::Z, Rational::one());
+        for &v in verts {
+            g.add_edge_with_type(v, w, EType::H);
+            g.add_to_phase(v, Rational::new(-1,4));
+        }
+
+        g
+    }
+
+    /// Replace a single T gate with its decomposition
+    fn push_single_decomp(&mut self, g: &G, v: V) -> &mut Self {
+        self.stack.push(Decomposer::replace_t0(g, v));
+        self.stack.push(Decomposer::replace_t1(g, v));
+        self
+    }
+
+    fn replace_t0(g: &G, v: V) -> G {
+        let mut g = g.clone();
+        *g.scalar_mut() *= ScalarN::sqrt2_pow(-1);
+        let w = g.add_vertex(VType::Z);
+        g.add_edge_with_type(v, w, EType::H);
+        g
+    }
+
+    fn replace_t1(g: &G, v: V) -> G {
+        let mut g = g.clone();
+        *g.scalar_mut() *= ScalarN::sqrt2_pow(-1);
+        let w = g.add_vertex_with_phase(VType::Z, Rational::one());
+        g.add_edge_with_type(v, w, EType::H);
+        g
+    }
 }
 
 #[cfg(test)]
@@ -189,6 +247,46 @@ mod tests {
     }
 
     #[test]
+    fn single() {
+        let mut g = Graph::new();
+        let v = g.add_vertex_with_phase(VType::Z, Rational::new(1,4));
+        let w = g.add_vertex(VType::B);
+        g.add_edge(v,w);
+        g.set_outputs(vec![w]);
+
+        let mut d = Decomposer::new(&g);
+        d.decomp_top();
+        assert_eq!(d.stack.len(), 2);
+
+        let t = g.to_tensor4();
+        let mut tsum = Tensor4::zeros(vec![2]);
+        for h in &d.stack { tsum = tsum + h.to_tensor4(); }
+        assert_eq!(t, tsum);
+    }
+
+    #[test]
+    fn sym() {
+        let mut g = Graph::new();
+        let mut outs = vec![];
+        for _ in 0..2 {
+            let v = g.add_vertex_with_phase(VType::Z, Rational::new(1,4));
+            let w = g.add_vertex(VType::B);
+            outs.push(w);
+            g.add_edge(v, w);
+        }
+        g.set_outputs(outs);
+
+        let mut d = Decomposer::new(&g);
+        d.decomp_top();
+        assert_eq!(d.stack.len(), 2);
+
+        let t = g.to_tensor4();
+        let mut tsum = Tensor4::zeros(vec![2; 2]);
+        for h in &d.stack { tsum = tsum + h.to_tensor4(); }
+        assert_eq!(t, tsum);
+    }
+
+    #[test]
     fn bss() {
         let mut g = Graph::new();
         let mut outs = vec![];
@@ -205,7 +303,7 @@ mod tests {
         assert_eq!(d.stack.len(), 7);
 
         let t = g.to_tensor4();
-        let mut tsum = Tensor4::zeros(vec![2,2,2,2,2,2]);
+        let mut tsum = Tensor4::zeros(vec![2; 6]);
         for h in &d.stack { tsum = tsum + h.to_tensor4(); }
         assert_eq!(t, tsum);
     }
