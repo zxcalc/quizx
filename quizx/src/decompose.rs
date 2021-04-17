@@ -22,12 +22,19 @@ use crate::scalar::*;
 pub struct Decomposer<G: GraphLike> {
     pub stack: Vec<G>,
     pub done: Vec<G>,
+    simp: fn (&mut G),
 }
 
 impl<'a, G: GraphLike> Decomposer<G> {
     pub fn new(g: &G) -> Decomposer<G> {
-        Decomposer { stack: vec![g.clone()], done: vec![] }
+        Decomposer {
+            stack: vec![g.clone()],
+            done: vec![],
+            simp: Decomposer::trivial_simp,
+        }
     }
+
+    fn trivial_simp(_: &mut G) {}
 
     /// Decompose up to 6 T gates in the graph on the top of the
     /// stack.
@@ -42,12 +49,22 @@ impl<'a, G: GraphLike> Decomposer<G> {
 
         if t.len() == 6 { self.push_bss_decomp(&g, &t) }
         else if t.len() >= 2 { self.push_sym_decomp(&g, &t[0..2]) }
-        else if t.len() == 1 { self.push_single_decomp(&g, t[0]) }
+        else if t.len() == 1 { self.push_single_decomp(&g, &t) }
         else {
             println!("done");
             self.done.push(g);
             self
         }
+    }
+
+    fn push_decomp(&mut self, fs: &[fn (&G, &[V]) -> G], g: &G, verts: &[V]) -> &mut Self {
+        for f in fs {
+            let mut g = f(g, verts);
+            (self.simp)(&mut g);
+            self.stack.push(g);
+        }
+
+        self
     }
 
     /// Perform the Bravyi-Smith-Smolin decomposition of 6 T gates
@@ -60,14 +77,32 @@ impl<'a, G: GraphLike> Decomposer<G> {
     /// equation (11) itself.
     ///
     fn push_bss_decomp(&mut self, g: &G, verts: &[V]) -> &mut Self {
-        self.stack.push(Decomposer::replace_b60(g, verts));
-        self.stack.push(Decomposer::replace_b66(g, verts));
-        self.stack.push(Decomposer::replace_e6(g, verts));
-        self.stack.push(Decomposer::replace_o6(g, verts));
-        self.stack.push(Decomposer::replace_k6(g, verts));
-        self.stack.push(Decomposer::replace_phi1(g, verts));
-        self.stack.push(Decomposer::replace_phi2(g, verts));
-        self
+        self.push_decomp(&[
+            Decomposer::replace_b60,
+            Decomposer::replace_b66,
+            Decomposer::replace_e6,
+            Decomposer::replace_o6,
+            Decomposer::replace_k6,
+            Decomposer::replace_phi1,
+            Decomposer::replace_phi2,
+        ], g, verts)
+    }
+
+    /// Perform a decomposition of 2 T gates in the symmetric 2-qubit
+    /// space spanned by stabilisers
+    fn push_sym_decomp(&mut self, g: &G, verts: &[V]) -> &mut Self {
+        self.push_decomp(&[
+            Decomposer::replace_bell_s,
+            Decomposer::replace_epr,
+        ], g, verts)
+    }
+
+    /// Replace a single T gate with its decomposition
+    fn push_single_decomp(&mut self, g: &G, verts: &[V]) -> &mut Self {
+        self.push_decomp(&[
+            Decomposer::replace_t0,
+            Decomposer::replace_t1,
+        ], g, verts)
     }
 
     fn replace_b60(g: &G, verts: &[V]) -> G {
@@ -164,14 +199,6 @@ impl<'a, G: GraphLike> Decomposer<G> {
                                  verts[2]])
     }
 
-    /// Perform a decomposition of 2 T gates in the symmetric 2-qubit
-    /// space spanned by stabilisers
-    fn push_sym_decomp(&mut self, g: &G, verts: &[V]) -> &mut Self {
-        self.stack.push(Decomposer::replace_bell_s(g, &verts));
-        self.stack.push(Decomposer::replace_epr(g, &verts));
-        self
-    }
-
     fn replace_bell_s(g: &G, verts: &[V]) -> G {
         // println!("replace_bell_s");
         let mut g = g.clone();
@@ -195,30 +222,23 @@ impl<'a, G: GraphLike> Decomposer<G> {
         g
     }
 
-    /// Replace a single T gate with its decomposition
-    fn push_single_decomp(&mut self, g: &G, v: V) -> &mut Self {
-        self.stack.push(Decomposer::replace_t0(g, v));
-        self.stack.push(Decomposer::replace_t1(g, v));
-        self
-    }
-
-    fn replace_t0(g: &G, v: V) -> G {
+    fn replace_t0(g: &G, verts: &[V]) -> G {
         // println!("replace_t0");
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(-1, vec![0,1,0,-1]);
         let w = g.add_vertex(VType::Z);
-        g.add_edge_with_type(v, w, EType::H);
-        g.add_to_phase(v, Rational::new(-1,4));
+        g.add_edge_with_type(verts[0], w, EType::H);
+        g.add_to_phase(verts[0], Rational::new(-1,4));
         g
     }
 
-    fn replace_t1(g: &G, v: V) -> G {
+    fn replace_t1(g: &G, verts: &[V]) -> G {
         // println!("replace_t1");
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(-1, vec![1,0,1,0]);
         let w = g.add_vertex_with_phase(VType::Z, Rational::one());
-        g.add_edge_with_type(v, w, EType::H);
-        g.add_to_phase(v, Rational::new(-1,4));
+        g.add_edge_with_type(verts[0], w, EType::H);
+        g.add_to_phase(verts[0], Rational::new(-1,4));
         g
     }
 }
