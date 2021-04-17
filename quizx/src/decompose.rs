@@ -40,10 +40,11 @@ impl<'a, G: GraphLike> Decomposer<G> {
             if t.len() == 6 { break; }
         }
 
-        if t.len() == 6 { self.push_bss_decomp(&g, t) }
-        else if t.len() >= 2 { self.push_sym_decomp(&g, t) }
+        if t.len() == 6 { self.push_bss_decomp(&g, &t) }
+        else if t.len() >= 2 { self.push_sym_decomp(&g, &t[0..2]) }
         else if t.len() == 1 { self.push_single_decomp(&g, t[0]) }
         else {
+            println!("done");
             self.done.push(g);
             self
         }
@@ -58,32 +59,35 @@ impl<'a, G: GraphLike> Decomposer<G> {
     /// In particular, see the text below equation (10) and
     /// equation (11) itself.
     ///
-    fn push_bss_decomp(&mut self, g: &G, verts: Vec<V>) -> &mut Self {
-        self.stack.push(Decomposer::replace_b60(g, &verts));
-        self.stack.push(Decomposer::replace_b66(g, &verts));
-        self.stack.push(Decomposer::replace_e6(g, &verts));
-        self.stack.push(Decomposer::replace_o6(g, &verts));
-        self.stack.push(Decomposer::replace_k6(g, &verts));
-        self.stack.push(Decomposer::replace_phi1(g, &verts));
-        self.stack.push(Decomposer::replace_phi2(g, &verts));
+    fn push_bss_decomp(&mut self, g: &G, verts: &[V]) -> &mut Self {
+        self.stack.push(Decomposer::replace_b60(g, verts));
+        self.stack.push(Decomposer::replace_b66(g, verts));
+        self.stack.push(Decomposer::replace_e6(g, verts));
+        self.stack.push(Decomposer::replace_o6(g, verts));
+        self.stack.push(Decomposer::replace_k6(g, verts));
+        self.stack.push(Decomposer::replace_phi1(g, verts));
+        self.stack.push(Decomposer::replace_phi2(g, verts));
         self
     }
 
-    fn replace_b60(g: &G, verts: &Vec<V>) -> G {
+    fn replace_b60(g: &G, verts: &[V]) -> G {
+        // println!("replace_b60");
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(-2, vec![-1, 0, 1, 1]);
-        for &v in verts { g.add_to_phase(v, Rational::new(-1,4)); }
+        for &v in &verts[0..6] { g.add_to_phase(v, Rational::new(-1,4)); }
         g
     }
 
-    fn replace_b66(g: &G, verts: &Vec<V>) -> G {
+    fn replace_b66(g: &G, verts: &[V]) -> G {
+        // println!("replace_b66");
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(-2, vec![-1, 0, 1, -1]);
         for &v in verts { g.add_to_phase(v, Rational::new(3,4)); }
         g
     }
 
-    fn replace_e6(g: &G, verts: &Vec<V>) -> G {
+    fn replace_e6(g: &G, verts: &[V]) -> G {
+        // println!("replace_e6");
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(1, vec![0, -1, 0, 0]);
 
@@ -96,7 +100,8 @@ impl<'a, G: GraphLike> Decomposer<G> {
         g
     }
 
-    fn replace_o6(g: &G, verts: &Vec<V>) -> G {
+    fn replace_o6(g: &G, verts: &[V]) -> G {
+        // println!("replace_o6");
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(1, vec![-1, 0, -1, 0]);
 
@@ -109,7 +114,8 @@ impl<'a, G: GraphLike> Decomposer<G> {
         g
     }
 
-    fn replace_k6(g: &G, verts: &Vec<V>) -> G {
+    fn replace_k6(g: &G, verts: &[V]) -> G {
+        // println!("replace_k6");
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(1, vec![1, 0, 0, 0]);
 
@@ -122,7 +128,8 @@ impl<'a, G: GraphLike> Decomposer<G> {
         g
     }
 
-    fn replace_phi1(g: &G, verts: &Vec<V>) -> G {
+    fn replace_phi1(g: &G, verts: &[V]) -> G {
+        // println!("replace_phi1");
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(3, vec![1, 0, 1, 0]);
 
@@ -146,7 +153,8 @@ impl<'a, G: GraphLike> Decomposer<G> {
         g
     }
 
-    fn replace_phi2(g: &G, verts: &Vec<V>) -> G {
+    fn replace_phi2(g: &G, verts: &[V]) -> G {
+        // print!("replace_phi2 -> ");
         Decomposer::replace_phi1(g, &vec![
                                  verts[0],
                                  verts[1],
@@ -158,13 +166,14 @@ impl<'a, G: GraphLike> Decomposer<G> {
 
     /// Perform a decomposition of 2 T gates in the symmetric 2-qubit
     /// space spanned by stabilisers
-    fn push_sym_decomp(&mut self, g: &G, verts: Vec<V>) -> &mut Self {
+    fn push_sym_decomp(&mut self, g: &G, verts: &[V]) -> &mut Self {
         self.stack.push(Decomposer::replace_bell_s(g, &verts));
         self.stack.push(Decomposer::replace_epr(g, &verts));
         self
     }
 
-    fn replace_bell_s(g: &G, verts: &Vec<V>) -> G {
+    fn replace_bell_s(g: &G, verts: &[V]) -> G {
+        // println!("replace_bell_s");
         let mut g = g.clone();
         g.add_edge(verts[0], verts[1]);
         g.add_to_phase(verts[0], Rational::new(-1,4));
@@ -173,7 +182,8 @@ impl<'a, G: GraphLike> Decomposer<G> {
         g
     }
 
-    fn replace_epr(g: &G, verts: &Vec<V>) -> G {
+    fn replace_epr(g: &G, verts: &[V]) -> G {
+        // println!("replace_epr");
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::from_phase(Rational::new(1,4));
         let w = g.add_vertex_with_phase(VType::Z, Rational::one());
@@ -193,18 +203,22 @@ impl<'a, G: GraphLike> Decomposer<G> {
     }
 
     fn replace_t0(g: &G, v: V) -> G {
+        // println!("replace_t0");
         let mut g = g.clone();
-        *g.scalar_mut() *= ScalarN::sqrt2_pow(-1);
+        *g.scalar_mut() *= ScalarN::Exact(-1, vec![0,1,0,-1]);
         let w = g.add_vertex(VType::Z);
         g.add_edge_with_type(v, w, EType::H);
+        g.add_to_phase(v, Rational::new(-1,4));
         g
     }
 
     fn replace_t1(g: &G, v: V) -> G {
+        // println!("replace_t1");
         let mut g = g.clone();
-        *g.scalar_mut() *= ScalarN::sqrt2_pow(-1);
+        *g.scalar_mut() *= ScalarN::Exact(-1, vec![1,0,1,0]);
         let w = g.add_vertex_with_phase(VType::Z, Rational::one());
         g.add_edge_with_type(v, w, EType::H);
+        g.add_to_phase(v, Rational::new(-1,4));
         g
     }
 }
@@ -244,6 +258,15 @@ mod tests {
         assert_eq!(o6, ScalarN::Exact(1, vec![-1, 0, -1, 0]));
         assert_eq!(k6, ScalarN::Exact(1, vec![1, 0, 0, 0]));
         assert_eq!(phi, ScalarN::Exact(3, vec![1, 0, 1, 0]));
+    }
+
+    #[test]
+    fn single_scalars() {
+        let s0 = ScalarN::sqrt2_pow(-1);
+        let s1 = ScalarN::from_phase(Rational::new(1,4)) * &s0;
+        println!("s0 = {:?}\ns1 = {:?}", s0, s1);
+        assert_eq!(s0, ScalarN::Exact(-1, vec![0,1,0,-1]));
+        assert_eq!(s1, ScalarN::Exact(-1, vec![1,0,1,0]));
     }
 
     #[test]
@@ -306,5 +329,29 @@ mod tests {
         let mut tsum = Tensor4::zeros(vec![2; 6]);
         for h in &d.stack { tsum = tsum + h.to_tensor4(); }
         assert_eq!(t, tsum);
+    }
+
+    #[test]
+    fn mixed() {
+        let mut g = Graph::new();
+        let mut outs = vec![];
+        for _ in 0..9 {
+            let v = g.add_vertex_with_phase(VType::Z, Rational::new(1,4));
+            let w = g.add_vertex(VType::B);
+            outs.push(w);
+            g.add_edge(v, w);
+        }
+        g.set_outputs(outs);
+
+        let mut d = Decomposer::new(&g);
+        while d.stack.len() > 0 { d.decomp_top(); }
+
+        assert_eq!(d.done.len(), 7*2*2);
+
+        // thorough but SLOW
+        // let t = g.to_tensor4();
+        // let mut tsum = Tensor4::zeros(vec![2; 9]);
+        // for h in &d.done { tsum = tsum + h.to_tensor4(); }
+        // assert_eq!(t, tsum);
     }
 }
