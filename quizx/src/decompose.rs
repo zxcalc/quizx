@@ -15,31 +15,130 @@
 // limitations under the License.
 
 use num::Rational;
+use std::collections::VecDeque;
+use rand::{SeedableRng, Rng};
+use rand::rngs::StdRng;
 use crate::graph::*;
 use crate::scalar::*;
 
 /// Store the (partial) decomposition of a graph into stabilisers
+#[derive(Clone)]
 pub struct Decomposer<G: GraphLike> {
-    pub stack: Vec<G>,
+    pub rng: StdRng,
+    pub stack: VecDeque<(usize,G)>,
     pub done: Vec<G>,
-    simp: fn (&mut G),
+    pub scalar: ScalarN,
+    pub nterms: usize,
+    simp: fn (&mut G) -> bool,
+    random_t: bool,
+    save: bool, // save graphs on 'done' stack
 }
 
 impl<'a, G: GraphLike> Decomposer<G> {
     pub fn new(g: &G) -> Decomposer<G> {
+        let mut stack = VecDeque::new();
+        stack.push_back((0, g.clone()));
         Decomposer {
-            stack: vec![g.clone()],
+            rng: StdRng::from_entropy(),
+            stack,
             done: vec![],
+            scalar: ScalarN::zero(),
+            nterms: 0,
             simp: Decomposer::trivial_simp,
+            random_t: false,
+            save: false,
         }
     }
 
-    fn trivial_simp(_: &mut G) {}
+    fn trivial_simp(_: &mut G) -> bool { false }
 
-    /// Decompose up to 6 T gates in the graph on the top of the
+    pub fn seed(&mut self, seed: u64) -> &mut Self { self.rng = StdRng::seed_from_u64(seed); self }
+
+    pub fn with_simp(&mut self, simp: fn (&mut G) -> bool) -> &mut Self {
+        self.simp = simp;
+        self
+    }
+
+    pub fn with_full_simp(&mut self) -> &mut Self {
+        self.simp = crate::simplify::full_simp;
+        self
+    }
+
+    pub fn random_t(&mut self, b: bool) -> &mut Self {
+        self.random_t = b;
+        self
+    }
+
+    pub fn save(&mut self, b: bool) -> &mut Self {
+        self.save = b;
+        self
+    }
+
+    /// Gives upper bound for number of terms needed for BSS decomposition
+    pub fn max_terms(&self) -> usize {
+        let mut n = 0;
+        for (_,g) in &self.stack {
+            let mut t = g.tcount() as u32;
+            let mut count = 7usize.pow(t / 6u32);
+            t = t % 6;
+            count *= 2usize.pow(t / 2u32);
+            if t % 2 == 1 { count *= 2; }
+            n += count;
+        }
+
+        n
+    }
+
+    /// Decompose the first <= 6 T gates in the graph on the top of the
     /// stack.
     pub fn decomp_top(&mut self) -> &mut Self {
-        let g = self.stack.pop().unwrap();
+        let (depth, g) = self.stack.pop_back().unwrap();
+        self.decomp_ts(depth, g);
+        self
+    }
+
+    /// Decompose until there are no T gates left
+    pub fn decomp_all(&mut self) -> &mut Self {
+        while self.stack.len() > 0 { self.decomp_top(); }
+        self
+    }
+
+    /// Decompose breadth-first until the given depth
+    pub fn decomp_until_depth(&mut self, depth: usize) -> &mut Self {
+        while self.stack.len() > 0 {
+            // pop from the bottom of the stack to work breadth-first
+            let (d, g) = self.stack.pop_front().unwrap();
+            if d >= depth {
+                self.stack.push_front((d,g));
+                break;
+            } else {
+                self.decomp_ts(d, g);
+            }
+        }
+
+        self
+    }
+
+    pub fn decomp_ts(&mut self, depth: usize, g: G) {
+        let t = if self.random_t { self.random_ts(&g) }
+        else { self.first_ts(&g) };
+
+        if t.len() == 6 { self.push_bss_decomp(depth+1, &g, &t); }
+        else if t.len() >= 2 { self.push_sym_decomp(depth+1, &g, &t[0..2]); }
+        else if t.len() == 1 { self.push_single_decomp(depth+1, &g, &t); }
+        else {
+            self.scalar = &self.scalar + g.scalar();
+            self.nterms += 1;
+            if g.num_vertices() != 0 {
+                println!("warning: graph was not fully reduced");
+                // println!("{}", g.to_dot());
+            }
+            if self.save { self.done.push(g); }
+        }
+    }
+
+    /// Pick the first <= 6 T gates from the given graph
+    fn first_ts(&self, g: &G) -> Vec<V> {
         let mut t = vec![];
 
         for v in g.vertices() {
@@ -47,21 +146,27 @@ impl<'a, G: GraphLike> Decomposer<G> {
             if t.len() == 6 { break; }
         }
 
-        if t.len() == 6 { self.push_bss_decomp(&g, &t) }
-        else if t.len() >= 2 { self.push_sym_decomp(&g, &t[0..2]) }
-        else if t.len() == 1 { self.push_single_decomp(&g, &t) }
-        else {
-            println!("done");
-            self.done.push(g);
-            self
-        }
+        t
     }
 
-    fn push_decomp(&mut self, fs: &[fn (&G, &[V]) -> G], g: &G, verts: &[V]) -> &mut Self {
+    /// Pick <= 6 T gates from the given graph, chosen at random
+    fn random_ts(&mut self, g: &G) -> Vec<V> {
+        let mut all_t: Vec<_> = g.vertices().filter(|&v| *g.phase(v).denom() == 4).collect();
+        let mut t = vec![];
+
+        while t.len() < 6 && all_t.len() > 0 {
+            let i = self.rng.gen_range(0..all_t.len());
+            t.push(all_t.swap_remove(i));
+        }
+
+        t
+    }
+
+    fn push_decomp(&mut self, fs: &[fn (&G, &[V]) -> G], depth: usize, g: &G, verts: &[V]) -> &mut Self {
         for f in fs {
             let mut g = f(g, verts);
             (self.simp)(&mut g);
-            self.stack.push(g);
+            self.stack.push_back((depth, g));
         }
 
         self
@@ -76,7 +181,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
     /// In particular, see the text below equation (10) and
     /// equation (11) itself.
     ///
-    fn push_bss_decomp(&mut self, g: &G, verts: &[V]) -> &mut Self {
+    fn push_bss_decomp(&mut self, depth: usize, g: &G, verts: &[V]) -> &mut Self {
         self.push_decomp(&[
             Decomposer::replace_b60,
             Decomposer::replace_b66,
@@ -85,24 +190,24 @@ impl<'a, G: GraphLike> Decomposer<G> {
             Decomposer::replace_k6,
             Decomposer::replace_phi1,
             Decomposer::replace_phi2,
-        ], g, verts)
+        ], depth, g, verts)
     }
 
     /// Perform a decomposition of 2 T gates in the symmetric 2-qubit
     /// space spanned by stabilisers
-    fn push_sym_decomp(&mut self, g: &G, verts: &[V]) -> &mut Self {
+    fn push_sym_decomp(&mut self, depth: usize, g: &G, verts: &[V]) -> &mut Self {
         self.push_decomp(&[
             Decomposer::replace_bell_s,
             Decomposer::replace_epr,
-        ], g, verts)
+        ], depth, g, verts)
     }
 
     /// Replace a single T gate with its decomposition
-    fn push_single_decomp(&mut self, g: &G, verts: &[V]) -> &mut Self {
+    fn push_single_decomp(&mut self, depth: usize, g: &G, verts: &[V]) -> &mut Self {
         self.push_decomp(&[
             Decomposer::replace_t0,
             Decomposer::replace_t1,
-        ], g, verts)
+        ], depth, g, verts)
     }
 
     fn replace_b60(g: &G, verts: &[V]) -> G {
@@ -202,7 +307,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
     fn replace_bell_s(g: &G, verts: &[V]) -> G {
         // println!("replace_bell_s");
         let mut g = g.clone();
-        g.add_edge(verts[0], verts[1]);
+        g.add_edge_smart(verts[0], verts[1], EType::N);
         g.add_to_phase(verts[0], Rational::new(-1,4));
         g.add_to_phase(verts[1], Rational::new(1,4));
 
@@ -303,7 +408,7 @@ mod tests {
 
         let t = g.to_tensor4();
         let mut tsum = Tensor4::zeros(vec![2]);
-        for h in &d.stack { tsum = tsum + h.to_tensor4(); }
+        for (_,h) in &d.stack { tsum = tsum + h.to_tensor4(); }
         assert_eq!(t, tsum);
     }
 
@@ -325,7 +430,7 @@ mod tests {
 
         let t = g.to_tensor4();
         let mut tsum = Tensor4::zeros(vec![2; 2]);
-        for h in &d.stack { tsum = tsum + h.to_tensor4(); }
+        for (_,h) in &d.stack { tsum = tsum + h.to_tensor4(); }
         assert_eq!(t, tsum);
     }
 
@@ -347,7 +452,7 @@ mod tests {
 
         let t = g.to_tensor4();
         let mut tsum = Tensor4::zeros(vec![2; 6]);
-        for h in &d.stack { tsum = tsum + h.to_tensor4(); }
+        for (_,h) in &d.stack { tsum = tsum + h.to_tensor4(); }
         assert_eq!(t, tsum);
     }
 
@@ -364,6 +469,8 @@ mod tests {
         g.set_outputs(outs);
 
         let mut d = Decomposer::new(&g);
+        d.save(true);
+        assert_eq!(d.max_terms(), 7*2*2);
         while d.stack.len() > 0 { d.decomp_top(); }
 
         assert_eq!(d.done.len(), 7*2*2);
@@ -373,5 +480,44 @@ mod tests {
         // let mut tsum = Tensor4::zeros(vec![2; 9]);
         // for h in &d.done { tsum = tsum + h.to_tensor4(); }
         // assert_eq!(t, tsum);
+    }
+
+    #[test]
+    fn all_and_depth() {
+        let mut g = Graph::new();
+        let mut outs = vec![];
+        for _ in 0..9 {
+            let v = g.add_vertex_with_phase(VType::Z, Rational::new(1,4));
+            let w = g.add_vertex(VType::B);
+            outs.push(w);
+            g.add_edge(v, w);
+        }
+        g.set_outputs(outs);
+
+        let mut d = Decomposer::new(&g);
+        d.save(true).decomp_all();
+        assert_eq!(d.done.len(), 7*2*2);
+        let mut d = Decomposer::new(&g);
+        d.decomp_until_depth(2);
+        assert_eq!(d.stack.len(), 7*2);
+    }
+
+    #[test]
+    fn full_simp() {
+        let mut g = Graph::new();
+        let mut outs = vec![];
+        for _ in 0..9 {
+            let v = g.add_vertex_with_phase(VType::Z, Rational::new(1,4));
+            let w = g.add_vertex(VType::B);
+            outs.push(w);
+            g.add_edge(v, w);
+        }
+        g.set_outputs(outs);
+
+        let mut d = Decomposer::new(&g);
+        d.with_full_simp()
+         .save(true)
+         .decomp_all();
+        assert_eq!(d.done.len(), 7*2*2);
     }
 }

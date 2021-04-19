@@ -440,6 +440,18 @@ pub trait GraphLike: Clone + std::fmt::Debug {
         self.scalar_mut().mul_sqrt2_pow(-(sz as i32));
     }
 
+    /// Return number of Z or X spiders with non-Clifford phase
+    fn tcount(&self) -> usize {
+        let mut n = 0;
+        for v in self.vertices() {
+            let t = self.vertex_type(v);
+            if (t == VType::Z || t == VType::X) && *self.phase(v).denom() > 2 {
+                n += 1;
+            }
+        }
+        n
+    }
+
     /// Return a graphviz-friendly string representation of the graph
     fn to_dot(&self) -> String {
         let mut dot = String::from("graph {\n");

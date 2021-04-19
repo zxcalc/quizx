@@ -154,6 +154,7 @@ impl GraphLike for Graph {
 
     fn add_edge_with_type(&mut self, s: V, t: V, ety: EType) {
         self.nume += 1;
+        // if self.connected(s,t) { panic!("introducing parallel edge!"); }
 
         if let Some(Some(nhd)) = self.edata.get_mut(s) {
             nhd.push((t,ety));
