@@ -233,7 +233,8 @@ impl<G: GraphLike + Clone> ToTensor for G {
             }
         }
 
-        let mut a = array![A::one()].into_dyn();
+        // initialise the trivial tensor
+        let mut a = Tensor::from_shape_vec(vec![], vec![A::one()]).unwrap();
         let inp = g.inputs().iter().copied();
         let mid = g.vertices().filter(|&v| g.vertex_type(v) != VType::B);
         let outp = g.outputs().iter().copied();
@@ -249,25 +250,18 @@ impl<G: GraphLike + Clone> ToTensor for G {
         let mut indexv: VecDeque<V> = VecDeque::new();
         let mut seenv: FxHashMap<V,usize> = FxHashMap::default();
 
-        let mut fst = true;
         let mut num_had = 0;
 
         for v in vs {
             let p = g.phase(v);
-            if fst {
-                if p.is_zero() {
-                    a = array![A::one(), A::one()].into_dyn();
-                } else {
-                    a = array![A::one(), A::from_phase(p)].into_dyn();
-                }
-                fst = false;
+
+            // the stack! call computes the tensor product of a new spider
+            // (1, e^(i pi p)) with the existing tensor 'a'
+            if p.is_zero() {
+                a = stack![Axis(0), a, a];
             } else {
-                if p.is_zero() {
-                    a = stack![Axis(0), a, a];
-                } else {
-                    let f = A::from_phase(p);
-                    a = stack![Axis(0), a, &a * f];
-                }
+                let f = A::from_phase(p);
+                a = stack![Axis(0), a, &a * f];
             }
 
             indexv.push_front(v);
