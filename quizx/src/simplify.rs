@@ -53,7 +53,6 @@ pub fn vertex_simp<G: GraphLike>(
 
 pub fn edge_simp<G: GraphLike>(
     g: &mut G,
-    edge_type: EType,
     check: fn(&G, V, V) -> bool,
     rule: fn(&mut G, V, V) -> (),
     force_reduce: bool
@@ -65,9 +64,8 @@ pub fn edge_simp<G: GraphLike>(
     while new_matches {
         numv = g.num_vertices();
         new_matches = false;
-        for (s,t,et) in g.edge_vec() {
-            if et != edge_type ||
-               !g.contains_vertex(s) ||
+        for (s,t,_) in g.edge_vec() {
+            if !g.contains_vertex(s) ||
                !g.contains_vertex(t) ||
                !check(g, s, t)
                { continue; }
@@ -90,15 +88,21 @@ pub fn local_comp_simp(g: &mut impl GraphLike) -> bool {
 }
 
 pub fn spider_simp(g: &mut impl GraphLike) -> bool {
-    edge_simp(g, EType::N, check_spider_fusion, spider_fusion_unchecked, false)
+    edge_simp(g, check_spider_fusion, spider_fusion_unchecked, false)
 }
 
 pub fn pivot_simp(g: &mut impl GraphLike) -> bool {
-    edge_simp(g, EType::H, check_pivot, pivot_unchecked, false)
+    edge_simp(g, check_pivot, pivot_unchecked, false)
 }
 
 pub fn gen_pivot_simp(g: &mut impl GraphLike) -> bool {
-    edge_simp(g, EType::H, check_gen_pivot_reduce, gen_pivot_unchecked, false)
+    edge_simp(g, check_gen_pivot_reduce, gen_pivot_unchecked, false)
+}
+
+pub fn scalar_simp(g: &mut impl GraphLike) -> bool {
+    let mut m = vertex_simp(g, check_remove_single, remove_single_unchecked, false);
+    m = edge_simp(g, check_remove_pair, remove_pair_unchecked, false) || m;
+    m
 }
 
 pub fn interior_clifford_simp(g: &mut impl GraphLike) -> bool {
@@ -107,10 +111,11 @@ pub fn interior_clifford_simp(g: &mut impl GraphLike) -> bool {
     let mut got_match = false;
     let mut m = true;
     while m {
-        m = id_simp(g)
-         || spider_simp(g)
-         || pivot_simp(g)
-         || local_comp_simp(g);
+        m = id_simp(g);
+        m = spider_simp(g) || m;
+        m = pivot_simp(g) || m;
+        m = local_comp_simp(g) || m;
+        m = scalar_simp(g) || m;
         if m { got_match = true; }
     }
 
@@ -123,8 +128,8 @@ pub fn clifford_simp(g: &mut impl GraphLike) -> bool {
     while m {
         // let numv = g.num_vertices();
         // println!("v: {}", numv);
-        m = interior_clifford_simp(g) ||
-            gen_pivot_simp(g);
+        m = interior_clifford_simp(g);
+        m = gen_pivot_simp(g) || m;
         if m { got_match = true; }
         // if !(g.num_vertices() < numv) { break; }
     }
@@ -179,8 +184,8 @@ pub fn full_simp(g: &mut impl GraphLike) -> bool {
     let mut got_match = false;
     let mut m = true;
     while m {
-        m = clifford_simp(g)
-         || fuse_gadgets(g);
+        m = clifford_simp(g);
+        m = fuse_gadgets(g) || m;
         if m { got_match = true; }
     }
 
@@ -264,6 +269,23 @@ mod tests {
         assert!(clifford_simp(&mut h));
         println!("{}", g.to_dot());
         println!("{}", h.to_dot());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
+    }
+
+    #[test]
+    fn full_scalar() {
+        let c = Circuit::random()
+            .seed(1337)
+            .qubits(5)
+            .depth(50)
+            .with_cliffords()
+            .build();
+        let mut g: Graph = c.to_graph();
+        g.plug_inputs(&[BasisElem::Z0; 5]);
+        g.plug_outputs(&[BasisElem::Z0; 5]);
+        let mut h = g.clone();
+        full_simp(&mut h);
+        assert_eq!(h.num_vertices(), 0);
         assert_eq!(g.to_tensor4(), h.to_tensor4());
     }
 }

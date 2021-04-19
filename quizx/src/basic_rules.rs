@@ -27,6 +27,7 @@
 //! transformations, or even panic, if `check_X` doesn't return true.
 
 use crate::graph::*;
+use crate::scalar::*;
 use std::iter::FromIterator;
 use num::Rational;
 use num::traits::Zero;
@@ -459,10 +460,63 @@ pub fn gadget_fusion_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 
 checked_rule2!(check_gadget_fusion, gadget_fusion_unchecked, gadget_fusion);
 
+pub fn check_remove_single(g: &impl GraphLike, v: V) -> bool {
+    let t = g.vertex_type(v);
+    g.neighbors(v).len() == 0 && (t == VType::Z || t == VType::X)
+}
+
+/// Remove an isolated Z or X vertex and add it as a global scalar
+pub fn remove_single_unchecked(g: &mut impl GraphLike, v: V) {
+    let p = g.phase(v);
+    *g.scalar_mut() *= ScalarN::one_plus_phase(p);
+    g.remove_vertex(v);
+}
+
+checked_rule1!(check_remove_single, remove_single_unchecked, remove_single);
+
+pub fn check_remove_pair(g: &impl GraphLike, v0: V, v1: V) -> bool {
+    let t0 = g.vertex_type(v0);
+    let t1 = g.vertex_type(v1);
+
+    g.neighbors(v0).len() == 1 &&
+        g.neighbors(v1).len() == 1 &&
+        (t0 == VType::Z || t0 == VType::X) &&
+        (t1 == VType::Z || t1 == VType::X) &&
+        g.connected(v0, v1)
+}
+
+/// Remove an isolated Z or X vertex and add it as a global scalar
+pub fn remove_pair_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
+    let t0 = g.vertex_type(v0);
+    let t1 = g.vertex_type(v1);
+    let et = g.edge_type(v0, v1);
+    let p0 = g.phase(v0);
+    let p1 = g.phase(v1);
+
+    // same color
+    if (t0 == t1 && et == EType::N) || (t0 != t1 && et == EType::H) {
+        *g.scalar_mut() *= ScalarN::one_plus_phase(p0 + p1);
+    // different colors
+    } else {
+        let p2 = Rational::one() + &p0 + &p1;
+        *g.scalar_mut() *= ScalarN::one() +
+            ScalarN::from_phase(p0) +
+            ScalarN::from_phase(p1) +
+            ScalarN::from_phase(p2);
+        g.scalar_mut().mul_sqrt2_pow(-1);
+    }
+
+    g.remove_vertex(v0);
+    g.remove_vertex(v1);
+}
+
+checked_rule2!(check_remove_pair, remove_pair_unchecked, remove_pair);
+
+// Tests {{{
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scalar::*;
     use crate::tensor::*;
     use crate::vec_graph::Graph;
     use num::Rational;
@@ -783,4 +837,34 @@ mod tests {
             assert_eq!(g.to_tensor4(), h.to_tensor4());
         }
     }
+
+    #[test]
+    fn scalar_rules() {
+        for &t in &[VType::Z, VType::X] {
+            let mut g = Graph::new();
+            g.add_vertex_with_phase(t, Rational::new(1,4));
+            let mut h = g.clone();
+            assert!(remove_single(&mut h, 0));
+            assert_eq!(h.num_vertices(), 0, "h still has vertices");
+            assert_eq!(g.to_tensor4(), h.to_tensor4());
+        }
+
+        for &t0 in &[VType::Z, VType::X] {
+            for &t1 in &[VType::Z, VType::X] {
+                for &et in &[EType::N, EType::H] {
+                    let mut g = Graph::new();
+                    g.add_vertex_with_phase(t0, Rational::new(1,4));
+                    g.add_vertex_with_phase(t1, Rational::new(-1,2));
+                    g.add_edge_with_type(0, 1, et);
+                    let mut h = g.clone();
+                    assert!(remove_pair(&mut h, 0, 1));
+                    assert_eq!(h.num_vertices(), 0, "h still has vertices");
+                    assert_eq!(g.to_tensor4(), h.to_tensor4(), "Eq failed on case: {:?}, {:?}, {:?}", t0, t1, et);
+                }
+            }
+        }
+    }
 }
+
+    // }}}
+    // vim:foldlevel=0:

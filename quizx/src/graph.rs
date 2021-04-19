@@ -51,6 +51,30 @@ impl EType {
     }
 }
 
+/// An enum specifying an X or Z basis element
+#[derive(Debug,Copy,Clone,PartialEq,Eq,PartialOrd,Ord)]
+pub enum BasisElem {
+    Z0, // |0>
+    Z1, // |1>
+    X0, // |+>
+    X1, // |->
+}
+
+impl BasisElem {
+    pub fn phase(&self) -> Rational {
+        if *self == BasisElem::Z1 || *self == BasisElem::X1 { Rational::one() }
+        else { Rational::zero() }
+    }
+
+    pub fn is_z(&self) -> bool {
+        *self == BasisElem::Z0 || *self == BasisElem::Z1
+    }
+
+    pub fn is_x(&self) -> bool {
+        *self == BasisElem::X0 || *self == BasisElem::X1
+    }
+}
+
 pub enum VIter<'a> {
     Vec(usize,std::iter::Enumerate<std::slice::Iter<'a,Option<VData>>>),
     Hash(std::collections::hash_map::Keys<'a,V,VData>)
@@ -374,6 +398,46 @@ pub trait GraphLike: Clone + std::fmt::Debug {
         } else {
             self.add_edge_with_type(s, t, ety);
         }
+    }
+
+    /// Replace a boundary vertex with the given basis element
+    ///
+    /// Note this does not replace the vertex from the input/output list or do
+    /// normalisation.
+    fn plug_boundary(&mut self, v: V, b: BasisElem) {
+        self.set_vertex_type(v, VType::Z);
+        self.set_phase(v, b.phase());
+
+        if b.is_x() {
+            let n = self.neighbors(v).next().expect("Boundary should have 1 neighbor.");
+            self.toggle_edge_type(v, n);
+        }
+    }
+
+    /// Plug the given list of basis elements in as inputs and renormalise
+    ///
+    /// The list `plug` should be the same size as the number of inputs.
+    fn plug_inputs(&mut self, plug: &[BasisElem]) {
+        let sz = plug.len();
+        assert_eq!(sz, self.inputs().len(), "Inputs and plugging list size should match");
+        for (i,&b) in plug.iter().enumerate() {
+            self.plug_boundary(self.inputs()[i], b);
+        }
+        self.set_inputs(vec![]);
+        self.scalar_mut().mul_sqrt2_pow(-(sz as i32));
+    }
+
+    /// Plug the given list of basis elements in as outputs and renormalise
+    ///
+    /// The list `plug` should be the same size as the number of outputs.
+    fn plug_outputs(&mut self, plug: &[BasisElem]) {
+        let sz = plug.len();
+        assert_eq!(sz, self.outputs().len(), "Outputs and plugging list size should match");
+        for (i,&b) in plug.iter().enumerate() {
+            self.plug_boundary(self.outputs()[i], b);
+        }
+        self.set_outputs(vec![]);
+        self.scalar_mut().mul_sqrt2_pow(-(sz as i32));
     }
 
     /// Return a graphviz-friendly string representation of the graph
