@@ -16,51 +16,95 @@
 
 use num::Rational;
 use std::collections::VecDeque;
-use rand::{SeedableRng, Rng};
-use rand::rngs::StdRng;
+use rand::{thread_rng, Rng};
+use rayon::prelude::*;
 use crate::graph::*;
 use crate::scalar::*;
+
+#[derive(Copy,Clone,PartialEq,Eq,Debug)]
+pub enum SimpFunc {
+    FullSimp,
+    NoSimp,
+}
+use SimpFunc::*;
 
 /// Store the (partial) decomposition of a graph into stabilisers
 #[derive(Clone)]
 pub struct Decomposer<G: GraphLike> {
-    pub rng: StdRng,
     pub stack: VecDeque<(usize,G)>,
     pub done: Vec<G>,
     pub scalar: ScalarN,
     pub nterms: usize,
-    simp: fn (&mut G) -> bool,
+    simp_func: SimpFunc,
     random_t: bool,
     save: bool, // save graphs on 'done' stack
 }
 
+// impl<G: GraphLike> Send for Decomposer<G> {}
+
 impl<'a, G: GraphLike> Decomposer<G> {
-    pub fn new(g: &G) -> Decomposer<G> {
-        let mut stack = VecDeque::new();
-        stack.push_back((0, g.clone()));
+    pub fn empty() -> Decomposer<G> {
         Decomposer {
-            rng: StdRng::from_entropy(),
-            stack,
+            stack: VecDeque::new(),
             done: vec![],
             scalar: ScalarN::zero(),
             nterms: 0,
-            simp: Decomposer::trivial_simp,
+            simp_func: NoSimp,
             random_t: false,
             save: false,
         }
     }
 
-    fn trivial_simp(_: &mut G) -> bool { false }
+    pub fn new(g: &G) -> Decomposer<G> {
+        let mut d = Decomposer::empty();
+        d.stack.push_back((0, g.clone()));
+        d
+    }
 
-    pub fn seed(&mut self, seed: u64) -> &mut Self { self.rng = StdRng::seed_from_u64(seed); self }
+    /// Split a Decomposer with N graphs on the stack into N Decomposers
+    /// with 1 graph each.
+    ///
+    /// Used for parallelising. The last decomposer in the list keeps the
+    /// current state (e.g. `nterms` and `scalar`).
+    pub fn split(mut self) -> Vec<Decomposer<G>> {
+        let mut ds = vec![];
+        while self.stack.len() > 1 {
+            let (_,g) = self.stack.pop_front().unwrap();
+            let mut d1 = Decomposer::new(&g);
+            d1.save(self.save)
+              .random_t(self.random_t)
+              .with_simp(self.simp_func);
+            ds.push(d1);
+        }
+        ds.push(self);
+        ds
+    }
 
-    pub fn with_simp(&mut self, simp: fn (&mut G) -> bool) -> &mut Self {
-        self.simp = simp;
+    /// Merge N decomposers into 1, adding scalars together
+    pub fn merge(mut ds: Vec<Decomposer<G>>) -> Decomposer<G> {
+        if let Some(mut d) = ds.pop() {
+            while !ds.is_empty() {
+                let d1 = ds.pop().unwrap();
+                d.scalar = d.scalar + d1.scalar;
+                d.nterms += d1.nterms;
+                d.stack.extend(d1.stack);
+                d.done.extend(d1.done);
+            }
+            d
+        } else {
+            Decomposer::empty()
+        }
+    }
+
+    // pub fn seed(&mut self, seed: u64) -> &mut Self { self.rng = StdRng::seed_from_u64(seed); self }
+
+    pub fn with_simp(&mut self, f: SimpFunc) -> &mut Self {
+        self.simp_func = f;
         self
     }
 
     pub fn with_full_simp(&mut self) -> &mut Self {
-        self.simp = crate::simplify::full_simp;
+        self.simp_func = FullSimp;
         self
     }
 
@@ -119,6 +163,15 @@ impl<'a, G: GraphLike> Decomposer<G> {
         self
     }
 
+    /// Decompose in parallel, starting at the given depth
+    pub fn decomp_parallel(mut self, depth: usize) -> Self {
+        self.decomp_until_depth(depth);
+        let ds = self.split();
+        Decomposer::merge(ds.into_par_iter().map(|mut d| {
+            d.decomp_all(); d
+        }).collect())
+    }
+
     pub fn decomp_ts(&mut self, depth: usize, g: G) {
         let t = if self.random_t { self.random_ts(&g) }
         else { self.first_ts(&g) };
@@ -153,9 +206,10 @@ impl<'a, G: GraphLike> Decomposer<G> {
     fn random_ts(&mut self, g: &G) -> Vec<V> {
         let mut all_t: Vec<_> = g.vertices().filter(|&v| *g.phase(v).denom() == 4).collect();
         let mut t = vec![];
+        let mut rng = thread_rng();
 
         while t.len() < 6 && all_t.len() > 0 {
-            let i = self.rng.gen_range(0..all_t.len());
+            let i = rng.gen_range(0..all_t.len());
             t.push(all_t.swap_remove(i));
         }
 
@@ -165,7 +219,10 @@ impl<'a, G: GraphLike> Decomposer<G> {
     fn push_decomp(&mut self, fs: &[fn (&G, &[V]) -> G], depth: usize, g: &G, verts: &[V]) -> &mut Self {
         for f in fs {
             let mut g = f(g, verts);
-            (self.simp)(&mut g);
+            match self.simp_func {
+                FullSimp => { crate::simplify::full_simp(&mut g); },
+                _ => {}
+            }
             self.stack.push_back((depth, g));
         }
 

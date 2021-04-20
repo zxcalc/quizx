@@ -16,9 +16,9 @@
 
 use std::time::Instant;
 use quizx::circuit::*;
-use quizx::scalar::*;
 use quizx::graph::*;
-use quizx::tensor::*;
+// use quizx::scalar::*;
+// use quizx::tensor::*;
 use quizx::vec_graph::Graph;
 use quizx::decompose::Decomposer;
 
@@ -31,26 +31,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .p_t(0.4)
         .with_cliffords()
         .build();
-    println!("Circuit:\n{}", c.stats());
+    println!("{}", c.stats());
     let mut g: Graph = c.to_graph();
     g.plug_inputs(&vec![BasisElem::Z0; qs]);
     g.plug_outputs(&vec![BasisElem::Z0; qs]);
     quizx::simplify::full_simp(&mut g);
 
-    println!("Decomposing g with (reduced) T-count: {}", g.tcount());
 
     let time = Instant::now();
     let mut d = Decomposer::new(&g);
+    d.with_full_simp();
     let max = d.max_terms();
-    d.with_full_simp()
-     // .random_t(true)
-     .decomp_all();
+
+    println!("Decomposing g with (reduced) T-count: {}", g.tcount());
+    let d = d.decomp_parallel(2);
+    // d.decomp_all();
     println!("Finished in {:.2?}", time.elapsed());
-    println!("got {} terms for T-count {} (naive {} terms)", d.nterms, g.tcount(), max);
+
+    println!("Got {} terms for T-count {} (naive {} terms)", d.nterms, g.tcount(), max);
+    println!("{:?}", d.scalar);
 
     // let t = g.to_tensor4();
     // println!("{:?}", t.first().unwrap());
-    // println!("{:?}", d.scalar);
     // let s = ScalarN::from_scalar(&t.first().unwrap());
 
     // assert_eq!(s, d.scalar);

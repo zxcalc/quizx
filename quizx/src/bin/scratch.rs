@@ -16,9 +16,9 @@
 
 use std::time::Instant;
 use quizx::circuit::*;
-use quizx::scalar::*;
 use quizx::graph::*;
-use quizx::tensor::*;
+// use quizx::tensor::*;
+// use quizx::scalar::*;
 use quizx::vec_graph::Graph;
 use quizx::decompose::Decomposer;
 
