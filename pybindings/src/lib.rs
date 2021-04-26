@@ -33,6 +33,9 @@ fn extract_circuit(g: &mut VecGraph) -> Circuit {
 #[pyclass]
 struct Circuit { pub c: quizx::circuit::Circuit }
 
+#[pyclass]
+struct CircuitStats { pub s: quizx::circuit::CircuitStats }
+
 #[pymethods]
 impl Circuit {
     #[staticmethod]
@@ -49,10 +52,19 @@ impl Circuit {
     fn to_graph(&self) -> VecGraph { VecGraph { g: self.c.to_graph() } }
 
     fn num_gates(&self) -> usize { self.c.num_gates() }
-    fn stats(&self) -> String { self.c.stats().to_string() }
-    fn stats_array(&self) -> [usize; 7] { self.c.stats().into_array() }
-    fn num_twoq(&self) -> usize { self.c.stats().twoq }
-    fn num_oneq(&self) -> usize { self.c.stats().oneq }
+    fn stats(&self) -> CircuitStats { CircuitStats { s: self.c.stats() } }
+}
+
+#[pymethods]
+impl CircuitStats {
+    fn qubits(&self) -> usize { self.s.qubits }
+    fn total(&self) -> usize { self.s.total }
+    fn oneq(&self) -> usize { self.s.oneq }
+    fn twoq(&self) -> usize { self.s.twoq }
+    fn moreq(&self) -> usize { self.s.moreq }
+    fn cliff(&self) -> usize { self.s.cliff }
+    fn non_cliff(&self) -> usize { self.s.non_cliff }
+    fn to_string(&self) -> String { self.s.to_string() }
 }
 
 /// Wrapper for quizx::vec_graph::Graph
