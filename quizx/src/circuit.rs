@@ -33,6 +33,53 @@ pub struct Circuit {
     pub gates: VecDeque<Gate>
 }
 
+#[derive(PartialEq,Eq,Clone,Debug)]
+pub struct CircuitStats {
+    pub qubits: usize,
+    pub total: usize,
+    pub oneq: usize,
+    pub twoq: usize,
+    pub moreq: usize,
+    pub cliff: usize,
+    pub non_cliff: usize,
+}
+
+impl CircuitStats {
+    pub fn make(c: &Circuit) -> Self {
+        let mut s = CircuitStats { qubits: c.num_qubits(), total: c.num_gates(),
+          oneq: 0, twoq: 0, moreq: 0, cliff: 0, non_cliff: 0, };
+        for g in &c.gates {
+            match g.qs.len() {
+                1 => { s.oneq += 1; },
+                2 => { s.twoq += 1; },
+                _ => { s.moreq += 1; },
+            }
+
+            match g.t {
+                NOT | Z | S | Sdg | CNOT | CZ | SWAP | HAD => { s.cliff += 1; },
+                ZPhase | XPhase => {
+                    if *g.phase.denom() == 1 ||
+                       *g.phase.denom() == 2
+                    { s.cliff += 1; }
+                    else { s.non_cliff += 1; }
+                },
+                _ => { s.non_cliff += 1; }
+            }
+        }
+        s
+    }
+
+    pub fn into_array(self) -> [usize; 7] {
+        [self.qubits, self.total, self.oneq, self.twoq, self.moreq, self.cliff, self.non_cliff]
+    }
+}
+
+impl fmt::Display for CircuitStats {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Circuit with {} qubits, {} gates\n  1-qubit: {}\n  2-qubit: {}\n  n-qubit: {}\n  clifford: {}\n  non-clifford: {}", self.qubits, self.total, self.oneq, self.twoq, self.moreq, self.cliff, self.non_cliff)
+    }
+}
+
 impl Circuit {
     pub fn new(nqubits: usize) -> Circuit {
         Circuit {
@@ -312,32 +359,8 @@ impl Circuit {
         graph
     }
 
-    pub fn stats(&self) -> String {
-        let mut oneq = 0;
-        let mut twoq = 0;
-        let mut moreq = 0;
-        let mut cliff = 0;
-        let mut non_cliff = 0;
-        for g in &self.gates {
-            match g.qs.len() {
-                1 => { oneq += 1; },
-                2 => { twoq += 1; },
-                _ => { moreq += 1; },
-            }
-
-            match g.t {
-                NOT | Z | S | Sdg | CNOT | CZ | SWAP | HAD => { cliff += 1; },
-                ZPhase | XPhase => {
-                    if *g.phase.denom() == 1 ||
-                       *g.phase.denom() == 2
-                    { cliff += 1; }
-                    else { non_cliff += 1; }
-                },
-                _ => { non_cliff += 1; }
-            }
-        }
-
-        format!("Circuit with {} qubits, {} gates\n  1-qubit: {}\n  2-qubit: {}\n  n-qubit: {}\n  clifford: {}\n  non-clifford: {}", self.num_qubits(), self.gates.len(), oneq, twoq, moreq, cliff, non_cliff)
+    pub fn stats(&self) -> CircuitStats {
+        CircuitStats::make(self)
     }
 }
 

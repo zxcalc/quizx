@@ -47,7 +47,12 @@ impl Circuit {
 
     fn to_qasm(&self) -> String { self.c.to_qasm() }
     fn to_graph(&self) -> VecGraph { VecGraph { g: self.c.to_graph() } }
-    fn stats(&self) -> String { self.c.stats() }
+
+    fn num_gates(&self) -> usize { self.c.num_gates() }
+    fn stats(&self) -> String { self.c.stats().to_string() }
+    fn stats_array(&self) -> [usize; 7] { self.c.stats().into_array() }
+    fn num_twoq(&self) -> usize { self.c.stats().twoq }
+    fn num_oneq(&self) -> usize { self.c.stats().oneq }
 }
 
 /// Wrapper for quizx::vec_graph::Graph

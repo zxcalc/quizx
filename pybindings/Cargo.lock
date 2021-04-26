@@ -441,6 +441,7 @@ dependencies = [
  "ndarray",
  "num",
  "rand",
+ "rayon",
  "regex",
  "rustc-hash",
 ]
