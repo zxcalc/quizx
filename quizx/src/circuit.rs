@@ -33,7 +33,7 @@ pub struct Circuit {
     pub gates: VecDeque<Gate>
 }
 
-#[derive(PartialEq,Eq,Clone,Debug)]
+#[derive(PartialEq,Eq,Clone,Copy,Debug)]
 pub struct CircuitStats {
     pub qubits: usize,
     pub total: usize,

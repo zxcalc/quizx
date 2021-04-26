@@ -26,33 +26,41 @@ fn interior_clifford_simp(g: &mut VecGraph) {
 
 #[pyfunction]
 fn extract_circuit(g: &mut VecGraph) -> Circuit {
-    Circuit { c: g.g.into_circuit().unwrap() }
+    Circuit { c: g.g.into_circuit().unwrap(), s: None }
 }
+
+#[pyclass]
+struct CircuitStats { s: quizx::circuit::CircuitStats }
 
 /// A (mostly) opaque wrapper for quizx circuits
 #[pyclass]
-struct Circuit { pub c: quizx::circuit::Circuit }
+struct Circuit {
+    c: quizx::circuit::Circuit,
+    s: Option<quizx::circuit::CircuitStats>,
+}
 
-#[pyclass]
-struct CircuitStats { pub s: quizx::circuit::CircuitStats }
 
 #[pymethods]
 impl Circuit {
     #[staticmethod]
     fn from_qasm(qasm: String) -> Circuit {
-        Circuit { c: quizx::circuit::Circuit::from_qasm(&qasm).unwrap() }
+        Circuit { c: quizx::circuit::Circuit::from_qasm(&qasm).unwrap(), s: None }
     }
 
     #[staticmethod]
     fn load(file: String) -> Circuit {
-        Circuit { c: quizx::circuit::Circuit::from_file(&file).unwrap() }
+        Circuit { c: quizx::circuit::Circuit::from_file(&file).unwrap(), s: None }
     }
 
     fn to_qasm(&self) -> String { self.c.to_qasm() }
     fn to_graph(&self) -> VecGraph { VecGraph { g: self.c.to_graph() } }
 
     fn num_gates(&self) -> usize { self.c.num_gates() }
-    fn stats(&self) -> CircuitStats { CircuitStats { s: self.c.stats() } }
+    fn stats(&mut self) -> CircuitStats {
+        // generate stats the first time this method is called
+        if self.s.is_none() { self.s = Some(self.c.stats()); }
+        CircuitStats { s: self.s.unwrap() }
+    }
 }
 
 #[pymethods]
