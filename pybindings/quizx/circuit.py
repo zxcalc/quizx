@@ -28,3 +28,6 @@ class Circuit:
 
     def stats(self):
         return self._c.stats()
+
+    def __str__(self):
+        return self._c.stats().to_string()
