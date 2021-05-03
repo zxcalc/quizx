@@ -17,7 +17,7 @@
 pub use crate::graph::*;
 use crate::scalar::*;
 use num::rational::Rational;
-use std::iter::FromIterator;
+use std::mem;
 
 pub type VTab<T> = Vec<Option<T>>;
 
@@ -127,29 +127,28 @@ impl GraphLike for Graph {
 
     fn add_vertex_with_data(&mut self, d: VData) -> V {
         self.numv += 1;
-        // FIXME: currently not re-using holes, for debug purposes
-        // if let Some(v) = self.holes.pop() {
-        //     self.vdata[v] = Some(d);
-        //     self.edata[v] = Some(Vec::new());
-        //     v
-        // } else {
+        if let Some(v) = self.holes.pop() {
+            self.vdata[v] = Some(d);
+            self.edata[v] = Some(Vec::new());
+            v
+        } else {
             self.vdata.push(Some(d));
             self.edata.push(Some(Vec::new()));
             self.vdata.len() - 1
-        // }
+        }
     }
 
     fn remove_vertex(&mut self, v: V) {
         self.numv -= 1;
         self.holes.push(v);
 
-        for v1 in Vec::from_iter(self.neighbors(v)) {
+        self.vdata[v] = None;
+        let adj = mem::take(&mut self.edata[v]).expect("No such vertex.");
+
+        for (v1,_) in adj {
             self.nume -= 1;
             self.remove_half_edge(v1,v);
         }
-
-        self.vdata[v] = None;
-        self.edata[v] = None;
     }
 
     fn add_edge_with_type(&mut self, s: V, t: V, ety: EType) {
@@ -385,7 +384,7 @@ mod tests {
     #[test]
     fn vertex_iterator() {
         let (g, mut expected_vs) = simple_graph();
-        let mut vs = Vec::from_iter(g.vertices());
+        let mut vs: Vec<_> = g.vertices().collect();
         vs.sort();
         expected_vs.sort();
         assert_eq!(expected_vs, vs);
@@ -396,7 +395,7 @@ mod tests {
         let (mut g, vs) = simple_graph();
         g.set_edge_type(vs[1], vs[3], EType::H);
 
-        let mut edges = Vec::from_iter(g.edges());
+        let mut edges: Vec<_> = g.edges().collect();
         let mut expected_edges = vec![
             (vs[0], vs[2], EType::N),
             (vs[1], vs[3], EType::H),

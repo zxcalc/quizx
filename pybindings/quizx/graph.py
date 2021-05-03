@@ -53,6 +53,9 @@ class VecGraph(BaseGraph[int,Tuple[int,int]]):
                 if self.g.contains_vertex(v): return v
                 else: return next(self)
 
+        def __len__(self):
+            return self.g.num_vertices()
+
     class EIter:
         def __init__(self, g, nhd=False):
             self.v = 0
@@ -80,13 +83,19 @@ class VecGraph(BaseGraph[int,Tuple[int,int]]):
             self.v += 1
             return next(self)
 
+        def __len__(self):
+            if self.nhd:
+                return self.g.degree(self.v)
+            else:
+                return self.g.num_edges()
+
     def vindex(self): return self._g.vindex()
 
     def depth(self):
-        return max((self._g.row(v) for v in self._g.vertices()), default=-1)
+        return max((self._g.row(v) for v in self.vertices()), default=-1)
 
     def qubit_count(self):
-        return max((self._g.qubit(v)+1 for v in self._g.vertices()), default=-1)
+        return max((self._g.qubit(v)+1 for v in self.vertices()), default=-1)
 
     def add_vertices(self, amount):
         index_before = self._g.vindex()
@@ -203,7 +212,7 @@ class VecGraph(BaseGraph[int,Tuple[int,int]]):
 
     def types(self):
         d = dict()
-        for v in self._g.vertices():
+        for v in self.vertices():
             d[v] = self._g.vertex_type(v)
         return d
 
@@ -216,8 +225,8 @@ class VecGraph(BaseGraph[int,Tuple[int,int]]):
 
     def phases(self):
         d = dict()
-        for v in self._g.vertices():
-            d[v] = self._g.phase(v)
+        for v in self.vertices():
+            d[v] = self.phase(v)
         return d
 
     def set_phase(self, vertex, phase):
@@ -233,7 +242,7 @@ class VecGraph(BaseGraph[int,Tuple[int,int]]):
 
     def qubits(self):
         d = dict()
-        for v in self._g.vertices():
+        for v in self.vertices():
             d[v] = self._g.qubit(v)
         return d
 
@@ -245,7 +254,7 @@ class VecGraph(BaseGraph[int,Tuple[int,int]]):
 
     def rows(self):
         d = dict()
-        for v in self._g.vertices():
+        for v in self.vertices():
             d[v] = self._g.row(v)
         return d
 
