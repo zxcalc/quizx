@@ -174,4 +174,11 @@ impl VecGraph {
     fn set_qubit(&mut self, v: usize, q: i32) { self.g.set_qubit(v, q); }
     fn row(&mut self, v: usize) -> i32 { self.g.row(v) }
     fn set_row(&mut self, v: usize, r: i32) { self.g.set_row(v, r); }
+
+    fn inputs(&self) -> Vec<V> { self.g.inputs().clone() }
+    fn num_inputs(&self) -> usize { self.g.inputs().len() }
+    fn set_inputs(&mut self, inputs: Vec<V>) { self.g.set_inputs(inputs) }
+    fn outputs(&self) -> Vec<V> { self.g.outputs().clone() }
+    fn num_outputs(&self) -> usize { self.g.outputs().len() }
+    fn set_outputs(&mut self, outputs: Vec<V>) { self.g.set_outputs(outputs) }
 }

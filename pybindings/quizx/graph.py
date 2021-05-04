@@ -276,3 +276,10 @@ class VecGraph(BaseGraph[int,Tuple[int,int]]):
         else:
             self._vdata[vertex] = {key:val}
 
+    def inputs(self): return tuple(self._g.inputs())
+    def num_inputs(self): return self._g.num_inputs()
+    def set_inputs(self, inputs): self._g.set_inputs(list(inputs))
+    def outputs(self): return tuple(self._g.outputs())
+    def num_outputs(self): return self._g.num_outputs()
+    def set_outputs(self, outputs): self._g.set_outputs(list(outputs))
+
