@@ -484,7 +484,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
             let (ni, et1) = other.incident_edges(i).next().expect(&format!("Bad input: {}", i));
             let et = EType::merge(et0, et1);
 
-            self.add_edge_with_type(no, vmap[&ni], et);
+            self.add_edge_smart(no, vmap[&ni], et);
             self.remove_vertex(o);
             self.remove_vertex(vmap[&i]);
         }
@@ -551,7 +551,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
             let p = self.phase(v);
             self.set_phase(v, -p);
         }
-        
+
         let inp = self.inputs().clone();
         self.set_inputs(self.outputs().clone());
         self.set_outputs(inp);
