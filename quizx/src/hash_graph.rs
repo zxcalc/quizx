@@ -181,6 +181,11 @@ impl GraphLike for Graph {
             .ty = ty;
     }
 
+    fn vertex_data(&self, v: V) -> VData {
+        *self.vdata.get(&v)
+             .expect("Vertex not found")
+    }
+
     fn vertex_type(&self, v: V) -> VType {
         self.vdata.get(&v)
             .expect("Vertex not found")

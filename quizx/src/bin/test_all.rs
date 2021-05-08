@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", f);
             let c = Circuit::from_file(f).expect(&format!("circuit failed to parse: {}", f));
             println!("...done reading in {:.2?}", time.elapsed());
-            if c.num_qubits() > 10 { continue; }
+            // if c.num_qubits() > 10 { continue; }
 
             println!("Simplifying circuit...");
             let time = Instant::now();
@@ -50,7 +50,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("Done in {:.2?}", time.elapsed());
                     println!("extracted ok");
 
-                    // if c1.num_qubits() > 10 { continue; }
+                    if c1.num_qubits() > 10 {
+                        println!("Circuit too big, not comparing tensors.");
+                        continue;
+                    }
 
                     println!("Comparing tensors...");
                     let time = Instant::now();

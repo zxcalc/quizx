@@ -17,6 +17,7 @@
 use crate::scalar::*;
 use num::rational::Rational;
 use std::iter::FromIterator;
+use rustc_hash::FxHashMap;
 
 pub type V = usize;
 
@@ -48,6 +49,10 @@ impl EType {
             EType::N => EType::H,
             EType::H => EType::N,
         }
+    }
+
+    pub fn merge(et0: EType, et1: EType) -> EType {
+        if et0 == EType::N { et1 } else { et1.opposite() }
     }
 }
 
@@ -281,6 +286,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     fn add_to_phase(&mut self, v: V, phase: Rational);
     fn set_vertex_type(&mut self, v: V, ty: VType);
     fn vertex_type(&self, v: V) -> VType;
+    fn vertex_data(&self, v: V) -> VData;
     fn set_edge_type(&mut self, s: V, t: V, ety: EType);
     fn edge_type_opt(&self, s: V, t: V) -> Option<EType>;
     fn set_coord(&mut self, v: V, coord: (i32,i32));
@@ -414,7 +420,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         }
     }
 
-    /// Plug the given list of basis elements in as inputs and renormalise
+    /// Plug the given list of normalised basis elements in as inputs
     ///
     /// The list `plug` should be the same size as the number of inputs.
     fn plug_inputs(&mut self, plug: &[BasisElem]) {
@@ -427,7 +433,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         self.scalar_mut().mul_sqrt2_pow(-(sz as i32));
     }
 
-    /// Plug the given list of basis elements in as outputs and renormalise
+    /// Plug the given list of normalised basis elements in as outputs
     ///
     /// The list `plug` should be the same size as the number of outputs.
     fn plug_outputs(&mut self, plug: &[BasisElem]) {
@@ -438,6 +444,54 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         }
         self.set_outputs(vec![]);
         self.scalar_mut().mul_sqrt2_pow(-(sz as i32));
+    }
+
+    /// Appends the given graph to the current one, with fresh names.
+    ///
+    /// The renaming map is returned. The scalars are multiplied, but the inputs/outputs
+    /// of `self` are NOT updated.
+    fn append_graph(&mut self, other: &impl GraphLike) -> FxHashMap<V,V> {
+        let mut vmap = FxHashMap::default();
+
+        for v in other.vertices() {
+            let v1 = self.add_vertex_with_data(other.vertex_data(v));
+            vmap.insert(v, v1);
+        }
+
+        for (v0, v1, et) in other.edges() {
+            self.add_edge_with_type(vmap[&v0], vmap[&v1], et);
+        }
+
+        *self.scalar_mut() *= other.scalar();
+
+        vmap
+    }
+
+    /// Plug the given graph into the outputs and multiply scalars
+    ///
+    /// Panics if the outputs of `self` are not the same length as the inputs of `other`.
+    fn plug(&mut self, other: &impl GraphLike) {
+        if other.inputs().len() != self.outputs().len() {
+            panic!("Outputs and inputs must match");
+        }
+
+        let vmap = self.append_graph(other);
+
+        for k in 0..self.outputs().len() {
+            let o = self.outputs()[k];
+            let i = other.inputs()[k];
+            let (no, et0) = self.incident_edges(o).next().expect(&format!("Bad output: {}", o));
+            let (ni, et1) = other.incident_edges(i).next().expect(&format!("Bad input: {}", i));
+            let et = EType::merge(et0, et1);
+
+            self.add_edge_with_type(no, vmap[&ni], et);
+            self.remove_vertex(o);
+            self.remove_vertex(vmap[&i]);
+        }
+
+        let outp = other.outputs()
+            .iter().map(|o| vmap[o]).collect();
+        self.set_outputs(outp);
     }
 
     /// Return number of Z or X spiders with non-Clifford phase
@@ -489,6 +543,25 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         dot += "}\n";
 
         dot
+    }
+
+    /// Exchange inputs and outputs and reverse all phases
+    fn adjoint(&mut self) {
+        for v in self.vertex_vec() {
+            let p = self.phase(v);
+            self.set_phase(v, -p);
+        }
+        
+        let inp = self.inputs().clone();
+        self.set_inputs(self.outputs().clone());
+        self.set_outputs(inp);
+    }
+
+    /// Same as GraphLike::adjoint(), but return as a copy
+    fn to_adjoint(&self) -> Self {
+        let mut g = self.clone();
+        g.adjoint();
+        g
     }
 }
 

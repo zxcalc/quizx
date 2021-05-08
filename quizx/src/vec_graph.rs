@@ -205,10 +205,12 @@ impl GraphLike for Graph {
         }
     }
 
+    fn vertex_data(&self, v: V) -> VData {
+        self.vdata[v].expect("Vertex not found")
+    }
+
     fn vertex_type(&self, v: V) -> VType {
-        self.vdata[v]
-            .expect("Vertex not found")
-            .ty
+        self.vertex_data(v).ty
     }
 
     fn set_edge_type(&mut self, s: V, t: V, ety: EType) {
