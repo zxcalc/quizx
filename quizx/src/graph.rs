@@ -494,6 +494,15 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         self.set_outputs(outp);
     }
 
+    /// Checks if the given graph only consists of wires from the inputs to outputs (in order)
+    fn is_identity(&self) -> bool {
+        let n = self.inputs().len();
+        self.inputs().len() == n &&
+            self.outputs().len() == n &&
+            self.num_vertices() == 2 * n &&
+            (0..n).all(|i| self.connected(self.inputs()[i], self.outputs()[i]))
+    }
+
     /// Return number of Z or X spiders with non-Clifford phase
     fn tcount(&self) -> usize {
         let mut n = 0;
@@ -603,5 +612,37 @@ mod tests {
        println!("\n\ntg =\n{}", tg);
        println!("\n\nth =\n{}", th);
        assert_eq!(tg, th);
+    }
+
+    #[test]
+    fn plugs() {
+        let mut g = Graph::new();
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::Z);
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::B);
+        g.add_edge(0, 1);
+        g.add_edge(1, 2);
+        g.add_edge(1, 3);
+        g.set_inputs(vec![0]);
+        g.set_outputs(vec![2, 3]);
+
+        let mut h = Graph::new();
+        h.add_vertex(VType::B);
+        h.add_vertex(VType::B);
+        h.add_vertex(VType::Z);
+        h.add_vertex(VType::B);
+        h.add_edge(0, 2);
+        h.add_edge(1, 2);
+        h.add_edge(2, 3);
+        h.set_inputs(vec![0, 1]);
+        h.set_outputs(vec![3]);
+
+        g.plug(&h);
+        assert_eq!(g.num_vertices(), 4);
+        assert_eq!(g.num_edges(), 3);
+        let zs: Vec<_> = g.vertices().filter(|&v| g.vertex_type(v) == VType::Z).collect();
+        assert_eq!(zs.len(), 2);
+        assert!(g.connected(zs[0], zs[1]));
     }
 }
