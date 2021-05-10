@@ -420,29 +420,29 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         }
     }
 
-    /// Plug the given list of normalised basis elements in as inputs
+    /// Plug the given list of normalised basis elements in as inputs, starting from the left
     ///
-    /// The list `plug` should be the same size as the number of inputs.
+    /// The list `plug` should be of length <= the number of inputs.
     fn plug_inputs(&mut self, plug: &[BasisElem]) {
         let sz = plug.len();
-        assert_eq!(sz, self.inputs().len(), "Inputs and plugging list size should match");
+        assert!(sz <= self.inputs().len(), "Too many input states");
         for (i,&b) in plug.iter().enumerate() {
             self.plug_boundary(self.inputs()[i], b);
         }
-        self.set_inputs(vec![]);
+        self.set_inputs(self.inputs()[sz..].to_owned());
         self.scalar_mut().mul_sqrt2_pow(-(sz as i32));
     }
 
-    /// Plug the given list of normalised basis elements in as outputs
+    /// Plug the given list of normalised basis elements in as outputs, starting from the left
     ///
-    /// The list `plug` should be the same size as the number of outputs.
+    /// The list `plug` should of length <= the number of outputs.
     fn plug_outputs(&mut self, plug: &[BasisElem]) {
         let sz = plug.len();
-        assert_eq!(sz, self.outputs().len(), "Outputs and plugging list size should match");
+        assert!(sz <= self.outputs().len(), "Too many output effects");
         for (i,&b) in plug.iter().enumerate() {
             self.plug_boundary(self.outputs()[i], b);
         }
-        self.set_outputs(vec![]);
+        self.set_outputs(self.outputs()[sz..].to_owned());
         self.scalar_mut().mul_sqrt2_pow(-(sz as i32));
     }
 

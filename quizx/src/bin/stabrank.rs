@@ -15,6 +15,7 @@
 // limitations under the License.
 
 use std::time::Instant;
+use std::fs;
 use quizx::circuit::*;
 use quizx::graph::*;
 // use quizx::scalar::*;
@@ -26,30 +27,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let qs = 40;
     let c = Circuit::random()
         .qubits(qs)
-        .depth(400)
+        .depth(1400)
         .seed(1337)
-        .p_t(0.4)
+        .p_t(0.05)
         .with_cliffords()
         .build();
-    println!("{}", c.stats());
-    let mut g: Graph = c.to_graph();
-    g.plug_inputs(&vec![BasisElem::Z0; qs]);
-    g.plug_outputs(&vec![BasisElem::Z0; qs]);
-    quizx::simplify::full_simp(&mut g);
+    // for e in fs::read_dir("../circuits")? {
+    //     if let Some(f) = e?.path().to_str() {
+            // let c = Circuit::from_file(f).unwrap();
+            // let qs = c.num_qubits();
+            // println!("{}\n{}", f, c.stats());
+            // if c.num_gates() > 10000 { continue; }
+            let mut g: Graph = c.to_graph();
+            g.plug_inputs(&vec![BasisElem::Z0; qs]);
+            g.plug_outputs(&vec![BasisElem::Z0; qs]);
+            // let h = g.to_adjoint();
+            // println!("qs {} outs {} ins {}", qs, g.outputs().len(), h.inputs().len());
+            // g.plug(&h);
+
+            println!("g has T-count: {}", g.tcount());
+            quizx::simplify::full_simp(&mut g);
 
 
-    let time = Instant::now();
-    let mut d = Decomposer::new(&g);
-    d.with_full_simp();
-    let max = d.max_terms();
+            let time = Instant::now();
+            let mut d = Decomposer::new(&g);
+            d.with_full_simp();
+            let max = d.max_terms();
 
-    println!("Decomposing g with (reduced) T-count: {}", g.tcount());
-    let d = d.decomp_parallel(2);
-    // d.decomp_all();
-    println!("Finished in {:.2?}", time.elapsed());
+            // if g.tcount() > 100 { continue; }
+            println!("Decomposing g with (reduced) T-count: {}", g.tcount());
+            let d = d.decomp_parallel(2);
+            // d.decomp_all();
+            println!("Finished in {:.2?}", time.elapsed());
 
-    println!("Got {} terms for T-count {} (naive {} terms)", d.nterms, g.tcount(), max);
-    println!("{:?}", d.scalar);
+            println!("Got {} terms for T-count {} (naive {} terms)", d.nterms, g.tcount(), max);
+            println!("{:?}", d.scalar);
+        // }
+    // }
 
     // let t = g.to_tensor4();
     // println!("{:?}", t.first().unwrap());
