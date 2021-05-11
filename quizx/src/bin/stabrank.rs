@@ -42,7 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("g has T-count: {}", g.tcount());
     quizx::simplify::full_simp(&mut g);
-
+    println!("g has reduced T-count: {}", g.tcount());
 
     let time = Instant::now();
     let mut d = Decomposer::new(&g);
@@ -74,7 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     d.decomp_ts(0, g1, &ts);
 
     // if g.tcount() > 100 { continue; }
-    println!("Decomposing g with (reduced) T-count: {}", g.tcount());
+    println!("Decomposing g...");
     let d = d.decomp_parallel(3);
     // d.decomp_all();
     println!("Finished in {:.2?}", time.elapsed());
