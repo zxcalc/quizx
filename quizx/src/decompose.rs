@@ -133,11 +133,18 @@ impl<'a, G: GraphLike> Decomposer<G> {
         n
     }
 
+    pub fn pop_graph(&mut self) -> G {
+        let (_, g) = self.stack.pop_back().unwrap();
+        g
+    }
+
     /// Decompose the first <= 6 T gates in the graph on the top of the
     /// stack.
     pub fn decomp_top(&mut self) -> &mut Self {
         let (depth, g) = self.stack.pop_back().unwrap();
-        self.decomp_ts(depth, g);
+        let ts = if self.random_t { Decomposer::random_ts(&g) }
+                 else { Decomposer::first_ts(&g) };
+        self.decomp_ts(depth, g, &ts);
         self
     }
 
@@ -156,7 +163,9 @@ impl<'a, G: GraphLike> Decomposer<G> {
                 self.stack.push_front((d,g));
                 break;
             } else {
-                self.decomp_ts(d, g);
+                let ts = if self.random_t { Decomposer::random_ts(&g) }
+                         else { Decomposer::first_ts(&g) };
+                self.decomp_ts(d, g, &ts);
             }
         }
 
@@ -172,13 +181,10 @@ impl<'a, G: GraphLike> Decomposer<G> {
         }).collect())
     }
 
-    pub fn decomp_ts(&mut self, depth: usize, g: G) {
-        let t = if self.random_t { self.random_ts(&g) }
-        else { self.first_ts(&g) };
-
-        if t.len() == 6 { self.push_bss_decomp(depth+1, &g, &t); }
-        else if t.len() >= 2 { self.push_sym_decomp(depth+1, &g, &t[0..2]); }
-        else if t.len() == 1 { self.push_single_decomp(depth+1, &g, &t); }
+    pub fn decomp_ts(&mut self, depth: usize, g: G, ts: &[usize]) {
+        if ts.len() == 6 { self.push_bss_decomp(depth+1, &g, ts); }
+        else if ts.len() >= 2 { self.push_sym_decomp(depth+1, &g, &ts[0..2]); }
+        else if ts.len() == 1 { self.push_single_decomp(depth+1, &g, ts); }
         else {
             self.scalar = &self.scalar + g.scalar();
             self.nterms += 1;
@@ -191,7 +197,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
     }
 
     /// Pick the first <= 6 T gates from the given graph
-    fn first_ts(&self, g: &G) -> Vec<V> {
+    pub fn first_ts(g: &G) -> Vec<V> {
         let mut t = vec![];
 
         for v in g.vertices() {
@@ -203,7 +209,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
     }
 
     /// Pick <= 6 T gates from the given graph, chosen at random
-    fn random_ts(&mut self, g: &G) -> Vec<V> {
+    pub fn random_ts(g: &G) -> Vec<V> {
         let mut all_t: Vec<_> = g.vertices().filter(|&v| *g.phase(v).denom() == 4).collect();
         let mut t = vec![];
         let mut rng = thread_rng();

@@ -15,7 +15,8 @@
 // limitations under the License.
 
 use std::time::Instant;
-use std::fs;
+use std::io;
+use std::io::Write;
 use quizx::circuit::*;
 use quizx::graph::*;
 // use quizx::scalar::*;
@@ -27,49 +28,48 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let qs = 40;
     let c = Circuit::random()
         .qubits(qs)
-        .depth(1400)
+        .depth(400)
         .seed(1337)
-        .p_t(0.05)
+        .p_t(0.25)
         .with_cliffords()
         .build();
-    // for e in fs::read_dir("../circuits")? {
-    //     if let Some(f) = e?.path().to_str() {
-            // let c = Circuit::from_file(f).unwrap();
-            // let qs = c.num_qubits();
-            // println!("{}\n{}", f, c.stats());
-            // if c.num_gates() > 10000 { continue; }
-            let mut g: Graph = c.to_graph();
-            g.plug_inputs(&vec![BasisElem::Z0; qs]);
-            g.plug_outputs(&vec![BasisElem::Z0; qs]);
-            // let h = g.to_adjoint();
-            // println!("qs {} outs {} ins {}", qs, g.outputs().len(), h.inputs().len());
-            // g.plug(&h);
+    let mut g: Graph = c.to_graph();
+    g.plug_inputs(&vec![BasisElem::Z0; qs]);
+    g.plug_outputs(&vec![BasisElem::Z0; qs]);
 
-            println!("g has T-count: {}", g.tcount());
-            quizx::simplify::full_simp(&mut g);
+    println!("g has T-count: {}", g.tcount());
+    quizx::simplify::full_simp(&mut g);
 
 
-            let time = Instant::now();
-            let mut d = Decomposer::new(&g);
-            d.with_full_simp();
-            let max = d.max_terms();
+    let time = Instant::now();
+    let mut d = Decomposer::new(&g);
+    d.with_full_simp();
+    let max = d.max_terms();
+    let mut dbest = d.clone();
+    println!("Naive: {} terms", max);
 
-            // if g.tcount() > 100 { continue; }
-            println!("Decomposing g with (reduced) T-count: {}", g.tcount());
-            let d = d.decomp_parallel(2);
-            // d.decomp_all();
-            println!("Finished in {:.2?}", time.elapsed());
+    print!("Trying candidates");
+    for i in 0..500 {
+        if i % 100 == 0 { print!("."); io::stdout().flush().unwrap(); }
+        let mut d1 = d.clone();
+        let g1 = d1.pop_graph();
+        let ts1 = Decomposer::random_ts(&g1);
+        d1.decomp_ts(0, g1, &ts1);
+        d1.decomp_until_depth(3);
+        if d1.max_terms() < dbest.max_terms() {
+            dbest = d1;
+        }
+    }
+    println!("done.");
 
-            println!("Got {} terms for T-count {} (naive {} terms)", d.nterms, g.tcount(), max);
-            println!("{:?}", d.scalar);
-        // }
-    // }
+    // if g.tcount() > 100 { continue; }
+    println!("Decomposing g with (reduced) T-count: {}", g.tcount());
+    let d = dbest.decomp_parallel(2);
+    // d.decomp_all();
+    println!("Finished in {:.2?}", time.elapsed());
 
-    // let t = g.to_tensor4();
-    // println!("{:?}", t.first().unwrap());
-    // let s = ScalarN::from_scalar(&t.first().unwrap());
-
-    // assert_eq!(s, d.scalar);
+    println!("Got {} terms for T-count {} (naive {} terms)", d.nterms, g.tcount(), max);
+    println!("{:?}", d.scalar);
 
     Ok(())
 }
