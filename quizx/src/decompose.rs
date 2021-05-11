@@ -142,7 +142,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
     /// stack.
     pub fn decomp_top(&mut self) -> &mut Self {
         let (depth, g) = self.stack.pop_back().unwrap();
-        let ts = if self.random_t { Decomposer::random_ts(&g) }
+        let ts = if self.random_t { Decomposer::random_ts(&g, &mut thread_rng()) }
                  else { Decomposer::first_ts(&g) };
         self.decomp_ts(depth, g, &ts);
         self
@@ -163,7 +163,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
                 self.stack.push_front((d,g));
                 break;
             } else {
-                let ts = if self.random_t { Decomposer::random_ts(&g) }
+                let ts = if self.random_t { Decomposer::random_ts(&g, &mut thread_rng()) }
                          else { Decomposer::first_ts(&g) };
                 self.decomp_ts(d, g, &ts);
             }
@@ -209,10 +209,9 @@ impl<'a, G: GraphLike> Decomposer<G> {
     }
 
     /// Pick <= 6 T gates from the given graph, chosen at random
-    pub fn random_ts(g: &G) -> Vec<V> {
+    pub fn random_ts(g: &G, rng: &mut impl Rng) -> Vec<V> {
         let mut all_t: Vec<_> = g.vertices().filter(|&v| *g.phase(v).denom() == 4).collect();
         let mut t = vec![];
-        let mut rng = thread_rng();
 
         while t.len() < 6 && all_t.len() > 0 {
             let i = rng.gen_range(0..all_t.len());

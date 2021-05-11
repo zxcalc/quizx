@@ -15,8 +15,8 @@
 // limitations under the License.
 
 use std::time::Instant;
-use std::io;
-use std::io::Write;
+// use std::io;
+// use std::io::Write;
 use quizx::circuit::*;
 use quizx::graph::*;
 // use quizx::scalar::*;
@@ -24,6 +24,8 @@ use quizx::graph::*;
 use quizx::vec_graph::Graph;
 use quizx::decompose::Decomposer;
 use rayon::prelude::*;
+use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let qs = 40;
@@ -48,14 +50,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let max = d.max_terms();
     println!("Naive: {} terms", max);
 
-    let n = 500;
-    println!("Trying {} candidates...", n);
-    let v: Vec<_> = (0..n).collect();
-    let (_, ts) = v.par_iter().map(|_| {
+    let mut rng = StdRng::seed_from_u64(1337);
+    
+    // pre-compute condidates on a single thread to use a fixed seed
+    let n = 1000;
+    println!("Generating {} candidates...", n);
+    let candidates: Vec<_> = (0..n)
+        .map(|_| Decomposer::random_ts(&d.stack[0].1, &mut rng))
+        .collect();
+    println!("done.");
+
+    println!("Computing max terms...");
+    let (_, ts) = candidates.par_iter().map(|ts1| {
         let mut d1 = d.clone();
         let g1 = d1.pop_graph();
-        let ts1 = Decomposer::random_ts(&g1);
-        d1.decomp_ts(0, g1, &ts1);
+        d1.decomp_ts(0, g1, ts1);
         d1.decomp_until_depth(3);
         (d1.max_terms(), ts1)
     }).min().unwrap();
