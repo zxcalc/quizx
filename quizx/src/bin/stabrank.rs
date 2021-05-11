@@ -23,6 +23,7 @@ use quizx::graph::*;
 // use quizx::tensor::*;
 use quizx::vec_graph::Graph;
 use quizx::decompose::Decomposer;
+use rayon::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let qs = 40;
@@ -45,26 +46,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut d = Decomposer::new(&g);
     d.with_full_simp();
     let max = d.max_terms();
-    let mut dbest = d.clone();
     println!("Naive: {} terms", max);
 
-    print!("Trying candidates");
-    for i in 0..500 {
-        if i % 100 == 0 { print!("."); io::stdout().flush().unwrap(); }
+    let n = 500;
+    println!("Trying {} candidates...", n);
+    let v: Vec<_> = (0..n).collect();
+    let (_, ts) = v.par_iter().map(|_| {
         let mut d1 = d.clone();
         let g1 = d1.pop_graph();
         let ts1 = Decomposer::random_ts(&g1);
         d1.decomp_ts(0, g1, &ts1);
         d1.decomp_until_depth(3);
-        if d1.max_terms() < dbest.max_terms() {
-            dbest = d1;
-        }
-    }
+        (d1.max_terms(), ts1)
+    }).min().unwrap();
     println!("done.");
+
+    let g1 = d.pop_graph();
+    d.decomp_ts(0, g1, &ts);
 
     // if g.tcount() > 100 { continue; }
     println!("Decomposing g with (reduced) T-count: {}", g.tcount());
-    let d = dbest.decomp_parallel(2);
+    let d = d.decomp_parallel(3);
     // d.decomp_all();
     println!("Finished in {:.2?}", time.elapsed());
 
