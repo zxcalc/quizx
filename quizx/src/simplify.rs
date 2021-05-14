@@ -141,15 +141,14 @@ pub fn fuse_gadgets(g: &mut impl GraphLike) -> bool {
     let mut gadgets: FxHashMap<Vec<V>,Vec<(V,V)>> = FxHashMap::default();
 
     for v in g.vertices() {
-        if g.vertex_type(v) != VType::Z ||
-           !g.phase(v).is_zero() { continue; }
-        if g.degree(v) == 1 {
+        if g.degree(v) == 1 && g.vertex_type(v) == VType::Z {
             let w = g.neighbors(v).next().unwrap();
+            if g.vertex_type(w) != VType::Z || !g.phase(w).is_zero() { continue; }
             let mut nhd = Vec::new();
             for (n,et) in g.incident_edges(w) {
                 if g.vertex_type(n) != VType::Z ||
                    et != EType::H { continue; }
-                if n != v { nhd.push(v); }
+                if n != v { nhd.push(n); }
             }
             nhd.sort();
 
@@ -161,11 +160,12 @@ pub fn fuse_gadgets(g: &mut impl GraphLike) -> bool {
         }
     }
 
+    println!("{:?}", gadgets);
+
     let mut fused = false;
     for gs in gadgets.values() {
         if gs.len() > 1 {
             fused = true;
-            let mut it = gs.iter(); it.next();
             let mut ph = Rational::zero();
             for i in 1..gs.len() {
                 ph += g.phase(gs[i].1);
@@ -287,5 +287,25 @@ mod tests {
         full_simp(&mut h);
         assert_eq!(h.num_vertices(), 0);
         assert_eq!(g.to_tensor4(), h.to_tensor4());
+    }
+
+    #[test]
+    fn full1() {
+        let c = Circuit::random()
+            .seed(1337)
+            .qubits(35)
+            .depth(500)
+            .p_t(0.2)
+            .with_cliffords()
+            .build();
+        let mut g: Graph = c.to_graph();
+        let mut h = g.clone();
+        full_simp(&mut h);
+        g.plug(&h.to_adjoint());
+        assert!(!g.is_identity());
+        full_simp(&mut g);
+        assert!(g.is_identity());
+        // assert_eq!(h.num_vertices(), 0);
+        // assert_eq!(g.to_tensor4(), h.to_tensor4());
     }
 }

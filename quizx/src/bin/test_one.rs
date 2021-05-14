@@ -19,20 +19,31 @@ use quizx::circuit::*;
 use quizx::vec_graph::*;
 use quizx::simplify::*;
 use quizx::extract::*;
+use std::{thread, time};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let f = "../circuits/bug2.qasm";
+    let f = "../circuits/bug3.qasm";
     let time = Instant::now();
     println!("{}", f);
     let c = Circuit::from_file(f).expect(&format!("circuit failed to parse: {}", f));
     println!("...done reading in {:.2?}", time.elapsed());
-    // if c.num_qubits() > 10 { continue; }
 
     println!("Simplifying circuit...");
     let time = Instant::now();
     let mut g: Graph = c.to_graph();
+    let mut h = g.clone();
     full_simp(&mut g);
     println!("Done simplifying in {:.2?}", time.elapsed());
+
+    h.plug(&g.to_adjoint());
+    println!("Checking");
+    full_simp(&mut h);
+    fuse_gadgets(&mut h);
+    println!("Is identity: {}", h.is_identity());
+    println!("{}", h.to_dot());
+    thread::sleep(time::Duration::from_secs(2));
+    println!("done");
+    return Ok(());
 
     println!("{}", g.to_dot());
 
