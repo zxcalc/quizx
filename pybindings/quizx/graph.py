@@ -98,10 +98,10 @@ class VecGraph(BaseGraph[int,Tuple[int,int]]):
         return max((self._g.qubit(v)+1 for v in self.vertices()), default=-1)
 
     def add_vertices(self, amount):
-        index_before = self._g.vindex()
-        for i in range(0, amount):
-            self._g.add_vertex(VertexType.BOUNDARY, 0, 0, (0, 1))
-        return range(index_before, self._g.vindex())
+        newv = []
+        for i in range(amount):
+            newv.append(self._g.add_vertex(VertexType.BOUNDARY, 0, 0, (0, 1)))
+        return newv
 
     # TODO
     # def add_vertex_indexed(self, index):
