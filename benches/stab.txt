@@ -1,0 +1,13 @@
+    let c = Circuit::random()
+        .qubits(qs)
+        .depth(1400)
+        .seed(1337)
+        .p_t(0.05)
+        .with_cliffords()
+        .build();
+
+g has T-count: 68
+Decomposing g with (reduced) T-count: 63
+Finished in 17683.38s
+Got 389191653 terms for T-count 63 (naive 1129900996 terms)
+Exact(-35, [-403, -6602, 4598, 26818])
