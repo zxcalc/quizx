@@ -23,7 +23,7 @@ use quizx::extract::*;
 use quizx::tensor::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    for e in fs::read_dir("../circuits")? {
+    for e in fs::read_dir("../circuits/small")? {
         if let Some(f) = e?.path().to_str() {
 
             let time = Instant::now();
@@ -50,7 +50,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("Done in {:.2?}", time.elapsed());
                     println!("extracted ok");
 
-                    if c1.num_qubits() > 10 {
+                    if c1.num_qubits() > 5 {
                         println!("Circuit too big, not comparing tensors.");
                         continue;
                     }

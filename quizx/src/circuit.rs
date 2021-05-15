@@ -267,7 +267,10 @@ impl Circuit {
                         if let Ok(q) = q_str.parse::<usize>() {
                             if let Some(&(_,offset,sz)) = reg.iter().find(|(s,_,_)| s == &rname) {
                                 if q < sz {
-                                    qs.push(offset + q as usize);
+                                    let abs_q = offset + q as usize;
+                                    if !qs.contains(&abs_q) {
+                                        qs.push(abs_q);
+                                    } else { return Err(format!("Duplicate qubit in gate: {}", line)); }
                                 } else { return Err(format!("Index out of bounds: {}", line)); }
                             } else { return Err(format!("Undeclared register: {}", line)); }
                         } else { return Err(format!("Expected numeric qubit index: {}", line)); }
