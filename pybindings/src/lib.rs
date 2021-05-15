@@ -8,6 +8,8 @@ use num::Rational;
 fn libquizx(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(dummy, m)?)?;
     m.add_function(wrap_pyfunction!(interior_clifford_simp, m)?)?;
+    m.add_function(wrap_pyfunction!(clifford_simp, m)?)?;
+    m.add_function(wrap_pyfunction!(full_simp, m)?)?;
     m.add_function(wrap_pyfunction!(extract_circuit, m)?)?;
     m.add_class::<VecGraph>()?;
     m.add_class::<Circuit>()?;
@@ -22,6 +24,16 @@ fn dummy(a: i64) -> String {
 #[pyfunction]
 fn interior_clifford_simp(g: &mut VecGraph) {
     quizx::simplify::interior_clifford_simp(&mut g.g);
+}
+
+#[pyfunction]
+fn clifford_simp(g: &mut VecGraph) {
+    quizx::simplify::clifford_simp(&mut g.g);
+}
+
+#[pyfunction]
+fn full_simp(g: &mut VecGraph) {
+    quizx::simplify::full_simp(&mut g.g);
 }
 
 #[pyfunction]
