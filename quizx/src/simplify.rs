@@ -160,7 +160,7 @@ pub fn fuse_gadgets(g: &mut impl GraphLike) -> bool {
         }
     }
 
-    println!("{:?}", gadgets);
+    // println!("{:?}", gadgets);
 
     let mut fused = false;
     for gs in gadgets.values() {

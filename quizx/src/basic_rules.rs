@@ -347,11 +347,9 @@ pub fn check_gen_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
     for &v in &[v0,v1] {
         if g.vertex_type(v) != VType::Z { return false; }
         for (w, et) in g.incident_edges(v) {
-            if g.vertex_type(w) == VType::Z {
-                if et != EType::H { return false; }
-            } else if g.vertex_type(w) != VType::B {
-                return false;
-            }
+            let t = g.vertex_type(w);
+            if !((t == VType::Z && et == EType::H) || t == VType::B)
+            { return false; }
         }
     }
 

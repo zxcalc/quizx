@@ -14,38 +14,43 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::time::Instant;
 use quizx::circuit::*;
 use quizx::vec_graph::*;
 use quizx::simplify::*;
 use quizx::extract::*;
+use quizx::tensor::*;
+use std::time::Instant;
 use std::{thread, time};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let f = "../circuits/bug3.qasm";
+    let f = "../circuits/bug.qasm";
     let time = Instant::now();
     println!("{}", f);
     let c = Circuit::from_file(f).expect(&format!("circuit failed to parse: {}", f));
     println!("...done reading in {:.2?}", time.elapsed());
 
+    // println!("Computing tensor");
+    // let t = c.to_tensor4();
+    // println!("Done");
+    // assert!(Tensor4::scalar_eq(&c.to_tensor4(), &c.to_basic_gates().to_tensor4()));
+
     println!("Simplifying circuit...");
     let time = Instant::now();
     let mut g: Graph = c.to_graph();
-    let mut h = g.clone();
     full_simp(&mut g);
     println!("Done simplifying in {:.2?}", time.elapsed());
 
-    h.plug(&g.to_adjoint());
-    println!("Checking");
-    full_simp(&mut h);
-    fuse_gadgets(&mut h);
-    println!("Is identity: {}", h.is_identity());
-    println!("{}", h.to_dot());
-    thread::sleep(time::Duration::from_secs(2));
-    println!("done");
-    return Ok(());
+    // h.plug(&g.to_adjoint());
+    // println!("Checking");
+    // full_simp(&mut h);
+    // fuse_gadgets(&mut h);
+    // println!("Is identity: {}", h.is_identity());
+    // println!("{}", h.to_dot());
+    // thread::sleep(time::Duration::from_secs(2));
+    // println!("done");
+    // return Ok(());
 
-    println!("{}", g.to_dot());
+    // println!("{}", g.to_dot());
 
     println!("Extracting circuit...");
     let time = Instant::now();
@@ -61,10 +66,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
         Err(ExtractError(msg, _c, _g)) => {
             println!("extract failed: {}", msg);
-            // println!("{}\n\n{}\n\n{}", msg, _c, _g.to_dot());
+            // println!("\n\n{}", _g.to_dot());
         },
     }
 
 
+    thread::sleep(time::Duration::from_millis(100));
     Ok(())
 }
