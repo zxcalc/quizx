@@ -15,15 +15,14 @@
 // limitations under the License.
 
 use quizx::circuit::*;
-use quizx::vec_graph::*;
+use quizx::hash_graph::*;
 use quizx::simplify::*;
 use quizx::extract::*;
-use quizx::tensor::*;
 use std::time::Instant;
 use std::{thread, time};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let f = "../circuits/large/mod_adder_1048576.qasm";
+    let f = "../circuits/large/gf2^64_mult.qasm";
     let time = Instant::now();
     println!("{}", f);
     let c = Circuit::from_file(f).expect(&format!("circuit failed to parse: {}", f));

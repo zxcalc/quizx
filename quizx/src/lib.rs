@@ -27,4 +27,5 @@ pub mod basic_rules;
 pub mod simplify;
 pub mod extract;
 pub mod decompose;
+pub mod annealer;
 
