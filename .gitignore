@@ -1,3 +1,6 @@
 __pycache__
 target
 *.so
+build
+dist
+libquizx.egg-info
