@@ -105,6 +105,21 @@ pub fn scalar_simp(g: &mut impl GraphLike) -> bool {
     m
 }
 
+pub fn flow_simp(g: &mut impl GraphLike) -> bool {
+    spider_simp(g);
+    g.x_to_z();
+    let mut got_match = false;
+    let mut m = true;
+    while m {
+        m = id_simp(g);
+        m = spider_simp(g) || m;
+        m = scalar_simp(g) || m;
+        if m { got_match = true; }
+    }
+
+    got_match
+}
+
 pub fn interior_clifford_simp(g: &mut impl GraphLike) -> bool {
     spider_simp(g);
     g.x_to_z();

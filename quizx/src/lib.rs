@@ -19,6 +19,7 @@ pub mod vec_graph;
 pub mod hash_graph;
 pub mod gate;
 pub mod circuit;
+pub mod optimize_circuit;
 pub mod generate;
 pub mod scalar;
 pub mod tensor;

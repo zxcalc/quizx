@@ -18,6 +18,7 @@
 // use crate::gate::*;
 use crate::graph::*;
 use crate::extract::*;
+use crate::basic_rules::*;
 
 use rand::{SeedableRng, Rng};
 use rand::rngs::StdRng;
@@ -38,12 +39,33 @@ impl <G: GraphLike> Annealer<G> {
         c.stats().twoq
     }
 
+    pub fn random_local_comp(rng: &mut StdRng, g: &mut G) {
+        let candidates: Vec<_> = g.vertices().filter(|&v| check_local_comp(g, v)).collect();
+        if candidates.is_empty() { return; }
+        let i = rng.gen_range(0..candidates.len());
+        local_comp(g, candidates[i]);
+    }
+
+    pub fn random_pivot(rng: &mut StdRng, g: &mut G) {
+        let candidates: Vec<_> = g.edges().filter(|&(s,t,_)| check_pivot(g, s, t)).collect();
+        if candidates.is_empty() { return; }
+        let i = rng.gen_range(0..candidates.len());
+        pivot(g, candidates[i].0, candidates[i].1);
+    }
+
+    pub fn random_gen_pivot(rng: &mut StdRng, g: &mut G) {
+        let candidates: Vec<_> = g.edges().filter(|&(s,t,_)| check_gen_pivot(g, s, t)).collect();
+        if candidates.is_empty() { return; }
+        let i = rng.gen_range(0..candidates.len());
+        gen_pivot(g, candidates[i].0, candidates[i].1);
+    }
+
     pub fn new(g: G) -> Self {
         Annealer {
             g,
             rng: StdRng::from_entropy(),
             scoref: Annealer::extract_2q_score,
-            actions: Vec::new(),
+            actions: vec![Annealer::random_local_comp, Annealer::random_pivot],
             temp: 25.0,
             cool: 0.005,
             iters: 1000,
@@ -62,14 +84,16 @@ impl <G: GraphLike> Annealer<G> {
     pub fn anneal(&mut self) {
         if self.actions.is_empty() { return; }
         let mut temp = self.temp;
-        let mut current_score = (self.scoref)(&self.g);
+        let mut current_score = (self.scoref)(&self.g) as isize;
 
-        for _ in 0..self.iters {
+        let chunk = self.iters / 20;
+        for it in 0..self.iters {
+            if it % chunk == 0 { println!("{}/{}", it, self.iters); }
             // select and action uniformly at random
             let i = self.rng.gen_range(0..self.actions.len());
             let mut g = self.g.clone();
             self.actions[i](&mut self.rng, &mut g);
-            let new_score = (self.scoref)(&self.g);
+            let new_score = (self.scoref)(&self.g) as isize;
             if new_score < current_score || 
                 (temp != 0.0 &&
                  self.rng.gen_bool(f64::min(1.0, ((current_score - new_score) as f64 / temp).exp())))
@@ -80,5 +104,7 @@ impl <G: GraphLike> Annealer<G> {
 
             temp *= 1.0 - self.cool;
         }
+
+        println!("{}/{}", self.iters, self.iters);
     }
 }
