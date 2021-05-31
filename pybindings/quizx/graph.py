@@ -17,23 +17,34 @@
 # type: ignore
 
 from fractions import Fraction
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, Optional
 from pyzx.graph.base import BaseGraph
-from pyzx.utils import VertexType, EdgeType #, FractionLike
+from pyzx.utils import VertexType, EdgeType  #, FractionLike
 
-import libquizx
+import libquizx  #type: ignore
+
 
 class VecGraph(BaseGraph[int,Tuple[int,int]]):
     """Rust implementation of :class:`~graph.base.BaseGraph`, based on quizx::vec_graph::Graph."""
     backend = 'quizx-vec'
 
-    #The documentation of what these methods do
-    #can be found in base.BaseGraph
-    def __init__(self):
+    # The documentation of what these methods do
+    # can be found in base.BaseGraph
+    def __init__(self, rust_graph: Optional[libquizx.VecGraph] = None):
         BaseGraph.__init__(self)
-        self._g: Any = libquizx.VecGraph()
+        if rust_graph: self._g: libquizx.VecGraph = rust_graph
+        else: self._g: libquizx.VecGraph = libquizx.VecGraph()
         self._vdata: Dict[int,Any] = dict()
 
+    def get_raw_graph(self) -> libquizx.VecGraph:
+        """Return the underlying Rust graph instance."""
+        return self._g
+
+    @staticmethod
+    def from_raw_graph(rust_g):
+        g = VecGraph()
+        g._g = rust_g
+        return g
 
     # n.b. we use python iterators to avoid issues with rust lifetimes
 

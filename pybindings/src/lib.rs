@@ -13,6 +13,7 @@ fn libquizx(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(extract_circuit, m)?)?;
     m.add_class::<VecGraph>()?;
     m.add_class::<Circuit>()?;
+    m.add_class::<Decomposer>()?;
     Ok(())
 }
 
@@ -193,4 +194,42 @@ impl VecGraph {
     fn outputs(&self) -> Vec<V> { self.g.outputs().clone() }
     fn num_outputs(&self) -> usize { self.g.outputs().len() }
     fn set_outputs(&mut self, outputs: Vec<V>) { self.g.set_outputs(outputs) }
+}
+
+#[pyclass]
+struct Decomposer {
+    d: quizx::decompose::Decomposer<quizx::vec_graph::Graph>
+}
+
+
+
+#[pymethods]
+impl Decomposer {
+    #[staticmethod]
+    fn empty() -> Decomposer {
+        Decomposer { d: quizx::decompose::Decomposer::empty() }
+    }
+
+    #[new]
+    fn new(g: &VecGraph) -> Decomposer {
+        Decomposer { d: quizx::decompose::Decomposer::new(&g.g) }
+    }
+
+    fn graphs(&self) -> PyResult<Vec<VecGraph>> {
+        let mut gs = vec![];
+        for (_a,g) in &self.d.stack {
+            gs.push(VecGraph {g: g.clone() });
+        }
+        Ok(gs)
+    }
+
+    fn apply_optimizations(&mut self, b: bool) { 
+        if b { self.d.with_simp(quizx::decompose::SimpFunc::FullSimp); } 
+        else { self.d.with_simp(quizx::decompose::SimpFunc::NoSimp); }
+    }
+
+    fn max_terms(&self) -> usize { self.d.max_terms() }
+    fn decomp_top(&mut self) { self.d.decomp_top(); }
+    fn decomp_all(&mut self) { self.d.decomp_all(); }
+    fn decomp_until_depth(&mut self, depth: usize) { self.d.decomp_until_depth(depth); }
 }
