@@ -1,9 +1,11 @@
+#!/usr/bin/python
+
 from setuptools import setup
-from setuptools_rust import Binding, RustExtension
 
 setup(
-    name="libquizx",
+    name="quizx",
     version="0.1",
-    rust_extensions=[RustExtension("libquizx", binding=Binding.PyO3)],
-    zip_safe=False,
+    packages=[
+        "quizx",
+    ],
 )
