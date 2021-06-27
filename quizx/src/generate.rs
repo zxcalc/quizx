@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::mem;
+
 use crate::circuit::*;
 use crate::gate::*;
 use rand::{SeedableRng, Rng};
@@ -30,6 +32,13 @@ pub struct RandomCircuitBuilder {
     pub p_t: f32,
 }
 
+pub struct RandomHiddenShiftCircuitBuilder {
+    pub rng: StdRng,
+    pub qubits: usize,
+    pub clifford_depth: usize,
+    pub n_ccz: usize,
+}
+
 impl Circuit {
     pub fn random() -> RandomCircuitBuilder {
         RandomCircuitBuilder {
@@ -41,6 +50,15 @@ impl Circuit {
             p_h:    0.0,
             p_s:    0.0,
             p_t:    0.0,
+        }
+    }
+
+    pub fn random_hidden_shift() -> RandomHiddenShiftCircuitBuilder {
+        RandomHiddenShiftCircuitBuilder {
+            rng: StdRng::from_entropy(),
+            qubits: 0,
+            clifford_depth: 200,
+            n_ccz: 5,
         }
     }
 }
@@ -108,6 +126,69 @@ impl RandomCircuitBuilder {
 
         }
 
+        c
+    }
+}
+
+impl RandomHiddenShiftCircuitBuilder {
+    pub fn seed(&mut self, seed: u64) -> &mut Self { self.rng = StdRng::seed_from_u64(seed); self }
+    pub fn qubits(&mut self, qubits: usize) -> &mut Self { self.qubits = qubits; self }
+    pub fn clifford_depth(&mut self, clifford_depth: usize) -> &mut Self { self.clifford_depth = clifford_depth; self }
+    pub fn n_ccz(&mut self, n_ccz: usize) -> &mut Self { self.n_ccz = n_ccz; self }
+
+    fn random_clifford_layer(&mut self, c: &mut Circuit) {
+        let qs = self.qubits/2;
+        for _ in 0..self.clifford_depth {
+            let q0 = self.rng.gen_range(0..qs);
+
+            if self.rng.gen_bool(0.5) {
+                c.push(Gate::new(Z, vec![q0]));
+            } else {
+                let mut q1 = self.rng.gen_range(0..qs-1);
+                if q1 >= q0 { q1 += 1; }
+                c.push(Gate::new(CZ, vec![q0,q1]));
+            }
+        }
+    }
+
+    fn random_ccz(&mut self, c: &mut Circuit) {
+        let qs = self.qubits/2;
+        let mut q0 = self.rng.gen_range(0..qs);
+        let mut q1 = self.rng.gen_range(0..qs-1);
+        let mut q2 = self.rng.gen_range(0..qs-2);
+        if q1 >= q0 { q1 += 1; } else { mem::swap(&mut q0, &mut q1); }
+        if q2 >= q0 { q2 += 1; }
+        if q2 >= q1 { q2 += 1; }
+        c.push(Gate::new(CCZ, vec![q0,q1,q2]));
+    }
+
+    pub fn build(&mut self) -> Circuit {
+        let mut oracle = Circuit::new(self.qubits);
+        for _ in 0..self.n_ccz {
+            self.random_clifford_layer(&mut oracle);
+            self.random_ccz(&mut oracle);
+        }
+        self.random_clifford_layer(&mut oracle);
+        for q in 0..self.qubits/2 {
+            oracle.push(Gate::new(CZ, vec![q,q+(self.qubits/2)]))
+        }
+
+        let mut shift = Circuit::new(self.qubits);
+        for q in 0..self.qubits {
+            if self.rng.gen_bool(0.5) { shift.push(Gate::new(NOT, vec![q])); }
+        }
+
+        let mut hs = Circuit::new(self.qubits);
+        for q in 0..self.qubits { hs.push(Gate::new(HAD, vec![q])); }
+
+        let mut c = Circuit::new(self.qubits);
+        c += &hs;
+        c += &oracle;
+        c += &hs;
+        c += &shift;
+        c += &oracle;
+        c += &shift;
+        c += &hs;
         c
     }
 }

@@ -23,22 +23,25 @@ use quizx::graph::*;
 // use quizx::tensor::*;
 use quizx::vec_graph::Graph;
 use quizx::decompose::Decomposer;
-use rayon::prelude::*;
-use rand::SeedableRng;
-use rand::rngs::StdRng;
+// use rayon::prelude::*;
+// use rand::SeedableRng;
+// use rand::rngs::StdRng;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let qs = 40;
     let c = Circuit::random()
         .qubits(qs)
-        .depth(400)
+        .depth(1600)
         .seed(1337)
-        .p_t(0.25)
+        .p_t(0.02)
         .with_cliffords()
         .build();
     let mut g: Graph = c.to_graph();
-    g.plug_inputs(&vec![BasisElem::Z0; qs]);
-    g.plug_outputs(&vec![BasisElem::Z0; qs]);
+    g.plug_inputs(&vec![BasisElem::X0; qs]);
+    g.plug_outputs(&vec![BasisElem::X0; qs-1]);
+    let mut h = g.clone();
+    h.adjoint();
+    g.plug(&h);
 
     println!("g has T-count: {}", g.tcount());
     quizx::simplify::full_simp(&mut g);
@@ -50,28 +53,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let max = d.max_terms();
     println!("Naive: {} terms", max);
 
-    let mut rng = StdRng::seed_from_u64(1337);
+    // let mut rng = StdRng::seed_from_u64(1337);
     
-    // pre-compute condidates on a single thread to use a fixed seed
-    let n = 1000;
-    println!("Generating {} candidates...", n);
-    let candidates: Vec<_> = (0..n)
-        .map(|_| Decomposer::random_ts(&d.stack[0].1, &mut rng))
-        .collect();
-    println!("done.");
+    // pre-compute candidates on a single thread to use a fixed seed
+    // let n = 1000;
+    // println!("Generating {} candidates...", n);
+    // let candidates: Vec<_> = (0..n)
+    //     .map(|_| Decomposer::random_ts(&d.stack[0].1, &mut rng))
+    //     .collect();
+    // println!("done.");
 
-    println!("Computing max terms...");
-    let (_, ts) = candidates.par_iter().map(|ts1| {
-        let mut d1 = d.clone();
-        let g1 = d1.pop_graph();
-        d1.decomp_ts(0, g1, ts1);
-        d1.decomp_until_depth(3);
-        (d1.max_terms(), ts1)
-    }).min().unwrap();
-    println!("done.");
+    // println!("Computing max terms...");
+    // let (_, ts) = candidates.par_iter().map(|ts1| {
+    //     let mut d1 = d.clone();
+    //     let g1 = d1.pop_graph();
+    //     d1.decomp_ts(0, g1, ts1);
+    //     d1.decomp_until_depth(3);
+    //     (d1.max_terms(), ts1)
+    // }).min().unwrap();
+    // println!("done.");
 
-    let g1 = d.pop_graph();
-    d.decomp_ts(0, g1, &ts);
+    // let g1 = d.pop_graph();
+    // d.decomp_ts(0, g1, &ts);
 
     // if g.tcount() > 100 { continue; }
     println!("Decomposing g...");

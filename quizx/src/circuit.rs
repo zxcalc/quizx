@@ -410,6 +410,12 @@ impl std::ops::Add<&Circuit> for &Circuit {
     type Output = Circuit;
     fn add(self, rhs: &Circuit) -> Self::Output { self.clone().add(rhs) } }
 
+impl std::ops::AddAssign<&Circuit> for Circuit {
+    fn add_assign(&mut self, rhs: &Self) {
+        self.gates.extend(rhs.gates.iter().cloned());
+    }
+}
+
 /// A circuit can pretend to be a matrix, where row/column operations correspond
 /// to appending or prepending CNOT gates.
 ///
