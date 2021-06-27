@@ -3,4 +3,5 @@ target
 *.so
 build
 dist
+quizx.egg-info
 libquizx.egg-info

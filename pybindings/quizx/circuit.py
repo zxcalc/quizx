@@ -2,6 +2,7 @@ import libquizx
 
 from .graph import VecGraph
 
+
 class Circuit:
     def __init__(self):
         self._c = None
