@@ -602,4 +602,21 @@ mod tests {
         let g: Graph = c.to_graph();
         assert_eq!(c.to_tensor4(), g.to_tensor4());
     }
+
+    #[test]
+    fn tograph_postsel() {
+        let c = Circuit::from_qasm(r#"
+            qreg q[3];
+            ccz q[0], q[1], q[2];
+        "#).unwrap();
+        let g: Graph = c.to_graph_with_options(true);
+        assert_eq!(c.to_tensor4(), g.to_tensor4());
+
+        let c = Circuit::from_qasm(r#"
+            qreg q[3];
+            ccx q[0], q[1], q[2];
+        "#).unwrap();
+        let g: Graph = c.to_graph_with_options(true);
+        assert_eq!(c.to_tensor4(), g.to_tensor4());
+    }
 }

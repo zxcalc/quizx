@@ -18,6 +18,7 @@ use std::cmp::max;
 use num::{Rational,Zero};
 use crate::graph::*;
 use crate::circuit::Circuit;
+use crate::scalar::*;
 
 #[derive(PartialEq,Eq,Clone,Copy,Debug)]
 pub enum GType {
@@ -241,11 +242,11 @@ impl Gate {
     /// Based on the circuit construction of Cody Jones (Phys Rev A 022328, 2013). Note this is intended
     /// only for applications where the circuit doesn't need to be re-extracted (e.g. classical simulation).
     fn add_ccz_postselected<G: GraphLike>(graph: &mut G, qs: &mut Vec<Option<usize>>, qubits: &[usize]) {
-        if let (Some(v0), Some(v1), Some(v2)) = (qs[qubits[0]], qs[qubits[1]], qs[qubits[2]]) {
+        if qs[qubits[0]].is_some() && qs[qubits[1]].is_some() && qs[qubits[2]].is_some() {
+            let v0 = Gate::add_spider(graph, qs, qubits[0], VType::Z, EType::N, Rational::zero()).unwrap();
+            let v1 = Gate::add_spider(graph, qs, qubits[1], VType::Z, EType::N, Rational::zero()).unwrap();
+            let v2 = Gate::add_spider(graph, qs, qubits[2], VType::Z, EType::N, Rational::new(-1,2)).unwrap();
             // add spiders, 3 in "circuit-like" positions, and one extra
-            let v0 = Gate::add_spider(graph, qs, v0, VType::Z, EType::N, Rational::zero()).unwrap();
-            let v1 = Gate::add_spider(graph, qs, v1, VType::Z, EType::N, Rational::zero()).unwrap();
-            let v2 = Gate::add_spider(graph, qs, v2, VType::Z, EType::N, Rational::new(-1,2)).unwrap();
             let s = graph.add_vertex(VType::Z);
             graph.set_phase(s, Rational::new(-1,4));
             graph.add_edge_with_type(s, v2, EType::H);
@@ -267,8 +268,8 @@ impl Gate {
             graph.add_edge_with_type(g0[2], v1, EType::H);
             graph.add_edge_with_type(g0[2], s, EType::H);
 
-            // renormalise to get CCZ on the nose
-            graph.scalar_mut().mul_sqrt2_pow(5);
+            // fix scalar
+            *graph.scalar_mut() *= Scalar::Exact(2, vec![0,1,0,0]);
         }
     }
 
@@ -370,13 +371,16 @@ impl Gate {
                 }
             },
             TOFF => {
-                let gs = [
-                    Gate::new(HAD, vec![self.qs[2]]),
-                    Gate::new(CCZ, self.qs.clone()),
-                    Gate::new(HAD, vec![self.qs[2]]),
-                ];
-                for g in gs {
-                    g.add_to_graph(graph, qs, postselect);
+                if postselect {
+                    Gate::add_spider(graph, qs, self.qs[2], VType::Z, EType::H, Rational::zero());
+                    Gate::add_ccz_postselected(graph, qs, &self.qs);
+                    Gate::add_spider(graph, qs, self.qs[2], VType::Z, EType::H, Rational::zero());
+                } else {
+                    let mut c = Circuit::new(0);
+                    self.push_basic_gates(&mut c);
+                    for g in c.gates {
+                        g.add_to_graph(graph, qs, postselect);
+                    }
                 }
             },
             ParityPhase => {
