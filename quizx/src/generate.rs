@@ -56,7 +56,7 @@ impl Circuit {
     pub fn random_hidden_shift() -> RandomHiddenShiftCircuitBuilder {
         RandomHiddenShiftCircuitBuilder {
             rng: StdRng::from_entropy(),
-            qubits: 0,
+            qubits: 40,
             clifford_depth: 200,
             n_ccz: 5,
         }
@@ -270,6 +270,24 @@ mod tests {
             assert_ne!(c.num_gates_of_type(HAD), 0);
             assert_ne!(c.num_gates_of_type(S), 0);
             assert_ne!(c.num_gates_of_type(T), 0);
+        }
+    }
+
+    #[test]
+    fn random_hidden_shift() {
+        // this could fail with some (small) probablity, so try some fixed seeds
+        for &seed in &[1337, 800, 40104] {
+            let q = 40;
+            let c = Circuit::random_hidden_shift().seed(seed)
+                .qubits(q)
+                .clifford_depth(200)
+                .n_ccz(6)
+                .build();
+            assert_ne!(c.num_gates_of_type(NOT), 0);
+            assert_ne!(c.num_gates_of_type(Z), 0);
+            assert_ne!(c.num_gates_of_type(CZ), 0);
+            assert_eq!(c.num_gates_of_type(HAD), q*3);
+            assert_eq!(c.num_gates_of_type(CCZ), 12);
         }
     }
 }

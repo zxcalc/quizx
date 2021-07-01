@@ -236,11 +236,47 @@ impl Gate {
         }
     }
 
+    /// A postselected ZX implementation of CCZ with 4 T-like phases
+    ///
+    /// Based on the circuit construction of Cody Jones (Phys Rev A 022328, 2013). Note this is intended
+    /// only for applications where the circuit doesn't need to be re-extracted (e.g. classical simulation).
+    fn add_ccz_postselected<G: GraphLike>(graph: &mut G, qs: &mut Vec<Option<usize>>, qubits: &[usize]) {
+        if let (Some(v0), Some(v1), Some(v2)) = (qs[qubits[0]], qs[qubits[1]], qs[qubits[2]]) {
+            // add spiders, 3 in "circuit-like" positions, and one extra
+            let v0 = Gate::add_spider(graph, qs, v0, VType::Z, EType::N, Rational::zero()).unwrap();
+            let v1 = Gate::add_spider(graph, qs, v1, VType::Z, EType::N, Rational::zero()).unwrap();
+            let v2 = Gate::add_spider(graph, qs, v2, VType::Z, EType::N, Rational::new(-1,2)).unwrap();
+            let s = graph.add_vertex(VType::Z);
+            graph.set_phase(s, Rational::new(-1,4));
+            graph.add_edge_with_type(s, v2, EType::H);
+
+            // add 3 phase gadgets
+            let g0 = [graph.add_vertex(VType::Z), graph.add_vertex(VType::Z), graph.add_vertex(VType::Z)];
+            let g1 = [graph.add_vertex(VType::Z), graph.add_vertex(VType::Z), graph.add_vertex(VType::Z)];
+            graph.set_phase(g1[0], Rational::new(-1,4));
+            graph.set_phase(g1[1], Rational::new(-1,4));
+            graph.set_phase(g1[2], Rational::new(1,4));
+            for i in 0..3 { graph.add_edge_with_type(g1[i], g0[i], EType::H); }
+
+            // connect gadgets to v0, v1, and s
+            graph.add_edge_with_type(g0[0], v0, EType::H);
+            graph.add_edge_with_type(g0[0], s, EType::H);
+            graph.add_edge_with_type(g0[1], v1, EType::H);
+            graph.add_edge_with_type(g0[1], s, EType::H);
+            graph.add_edge_with_type(g0[2], v0, EType::H);
+            graph.add_edge_with_type(g0[2], v1, EType::H);
+            graph.add_edge_with_type(g0[2], s, EType::H);
+
+            // renormalise to get CCZ on the nose
+            graph.scalar_mut().mul_sqrt2_pow(5);
+        }
+    }
+
     /// add the gate to the given graph using spiders
     ///
     /// This method takes mutable parameters for the graph being built, and a vec `qs` mapping qubit
     /// number to the most recent vertex in that spot.
-    pub fn add_to_graph(&self, graph: &mut impl GraphLike, qs: &mut Vec<Option<usize>>) {
+    pub fn add_to_graph(&self, graph: &mut impl GraphLike, qs: &mut Vec<Option<usize>>, postselect: bool) {
         match self.t {
             ZPhase => { Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, self.phase); },
             Z      => { Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Rational::new(1,1)); },
@@ -322,13 +358,35 @@ impl Gate {
                 // all later gates involving this qubit are quietly ignored
                 qs[self.qs[0]] = None;
             },
-            CCZ | TOFF | ParityPhase => {
+            CCZ => {
+                if postselect {
+                    Gate::add_ccz_postselected(graph, qs, &self.qs);
+                } else {
+                    let mut c = Circuit::new(0);
+                    self.push_basic_gates(&mut c);
+                    for g in c.gates {
+                        g.add_to_graph(graph, qs, postselect);
+                    }
+                }
+            },
+            TOFF => {
+                let gs = [
+                    Gate::new(HAD, vec![self.qs[2]]),
+                    Gate::new(CCZ, self.qs.clone()),
+                    Gate::new(HAD, vec![self.qs[2]]),
+                ];
+                for g in gs {
+                    g.add_to_graph(graph, qs, postselect);
+                }
+            },
+            ParityPhase => {
+                // TODO add directly as phase gadget?
                 let mut c = Circuit::new(0);
                 self.push_basic_gates(&mut c);
                 for g in c.gates {
-                    g.add_to_graph(graph, qs);
+                    g.add_to_graph(graph, qs, postselect);
                 }
-            }
+            },
             UnknownGate => {},
         };
     }

@@ -315,7 +315,7 @@ impl Circuit {
         c
     }
 
-    pub fn to_graph<G: GraphLike>(&self) -> G {
+    pub fn to_graph_with_options<G: GraphLike>(&self, postselect: bool) -> G {
         let mut graph = G::new();
         let mut qs = Vec::with_capacity(self.nqubits);
         let mut inputs = Vec::with_capacity(self.nqubits);
@@ -336,7 +336,7 @@ impl Circuit {
         graph.set_inputs(inputs);
 
         for g in &self.gates {
-            g.add_to_graph(&mut graph, &mut qs);
+            g.add_to_graph(&mut graph, &mut qs, postselect);
         }
 
         let last_row = qs.iter()
@@ -360,6 +360,10 @@ impl Circuit {
 
         graph.set_outputs(outputs);
         graph
+    }
+
+    pub fn to_graph<G: GraphLike>(&self) -> G {
+        self.to_graph_with_options(false)
     }
 
     pub fn stats(&self) -> CircuitStats {
