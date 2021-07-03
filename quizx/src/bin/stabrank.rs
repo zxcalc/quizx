@@ -33,12 +33,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .qubits(qs)
         .depth(1600)
         .seed(1337)
-        .p_t(0.02)
+        .p_t(0.5)
         .with_cliffords()
         .build();
     let mut g: Graph = c.to_graph();
     g.plug_inputs(&vec![BasisElem::X0; qs]);
-    g.plug_outputs(&vec![BasisElem::X0; qs-1]);
+    // g.plug_outputs(&vec![BasisElem::X0; qs-1]);
     let mut h = g.clone();
     h.adjoint();
     g.plug(&h);

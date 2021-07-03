@@ -410,14 +410,28 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     ///
     /// Note this does not replace the vertex from the input/output list or do
     /// normalisation.
-    fn plug_boundary(&mut self, v: V, b: BasisElem) {
+    fn plug_vertex(&mut self, v: V, b: BasisElem) {
         self.set_vertex_type(v, VType::Z);
         self.set_phase(v, b.phase());
 
-        if b.is_x() {
+        if b.is_z() {
             let n = self.neighbors(v).next().expect("Boundary should have 1 neighbor.");
             self.toggle_edge_type(v, n);
         }
+    }
+
+    /// Plug the given basis vertex into the i-th output.
+    fn plug_output(&mut self, i: usize, b: BasisElem) {
+        self.plug_vertex(self.outputs()[i], b);
+        self.outputs_mut().remove(i);
+        self.scalar_mut().mul_sqrt2_pow(-1);
+    }
+
+    /// Plug the given basis vertex into the i-th input.
+    fn plug_input(&mut self, i: usize, b: BasisElem) {
+        self.plug_vertex(self.inputs()[i], b);
+        self.inputs_mut().remove(i);
+        self.scalar_mut().mul_sqrt2_pow(-1);
     }
 
     /// Plug the given list of normalised basis elements in as inputs, starting from the left
@@ -427,7 +441,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         let sz = plug.len();
         assert!(sz <= self.inputs().len(), "Too many input states");
         for (i,&b) in plug.iter().enumerate() {
-            self.plug_boundary(self.inputs()[i], b);
+            self.plug_vertex(self.inputs()[i], b);
         }
         self.set_inputs(self.inputs()[sz..].to_owned());
         self.scalar_mut().mul_sqrt2_pow(-(sz as i32));
@@ -440,7 +454,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         let sz = plug.len();
         assert!(sz <= self.outputs().len(), "Too many output effects");
         for (i,&b) in plug.iter().enumerate() {
-            self.plug_boundary(self.outputs()[i], b);
+            self.plug_vertex(self.outputs()[i], b);
         }
         self.set_outputs(self.outputs()[sz..].to_owned());
         self.scalar_mut().mul_sqrt2_pow(-(sz as i32));

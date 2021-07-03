@@ -163,14 +163,24 @@ impl RandomHiddenShiftCircuitBuilder {
     }
 
     pub fn build(&mut self) -> Circuit {
-        let mut oracle = Circuit::new(self.qubits);
-        for _ in 0..self.n_ccz {
-            self.random_clifford_layer(&mut oracle);
-            self.random_ccz(&mut oracle);
+        if self.qubits < 6 {
+            panic!("Random hidden shift circuits must be at least 6 qubits.");
         }
-        self.random_clifford_layer(&mut oracle);
+        let mut oraclef = Circuit::new(self.qubits);
+        for _ in 0..self.n_ccz {
+            self.random_clifford_layer(&mut oraclef);
+            self.random_ccz(&mut oraclef);
+        }
+        self.random_clifford_layer(&mut oraclef);
+
+        let mut oracleg = oraclef.clone();
+        oracleg.gates.iter_mut().for_each(|g|
+            g.qs.iter_mut().for_each(|q| *q += self.qubits/2)
+        );
+
         for q in 0..self.qubits/2 {
-            oracle.push(Gate::new(CZ, vec![q,q+(self.qubits/2)]))
+            oraclef.push(Gate::new(CZ, vec![q,q+(self.qubits/2)]));
+            oracleg.push(Gate::new(CZ, vec![q,q+(self.qubits/2)]));
         }
 
         let mut shift = Circuit::new(self.qubits);
@@ -183,10 +193,10 @@ impl RandomHiddenShiftCircuitBuilder {
 
         let mut c = Circuit::new(self.qubits);
         c += &hs;
-        c += &oracle;
+        c += &oraclef;
         c += &hs;
         c += &shift;
-        c += &oracle;
+        c += &oracleg;
         c += &shift;
         c += &hs;
         c
