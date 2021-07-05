@@ -17,19 +17,22 @@
 use std::time::Instant;
 use quizx::circuit::*;
 use quizx::graph::*;
-use quizx::tensor::*;
+// use quizx::tensor::*;
+use quizx::scalar::*;
 use quizx::vec_graph::Graph;
 use quizx::decompose::Decomposer;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let qs = 50;
 
+    let (c,shift) = Circuit::random_hidden_shift()
+        .qubits(qs)
+        .n_ccz(11)
+        .seed(1337)
+        .build();
+    let mut shift_m = vec![];
+
     for i in 0..qs {
-        let c = Circuit::random_hidden_shift()
-            .qubits(qs)
-            .n_ccz(10)
-            .seed(1337)
-            .build();
         let mut g: Graph = c.to_graph_with_options(false);
         g.plug_inputs(&vec![BasisElem::Z0; qs]);
         g.plug_output(i, BasisElem::Z1);
@@ -54,7 +57,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("Got {} terms for T-count {} (naive {} terms)", d.nterms, g.tcount(), max);
         println!("{:?}", d.scalar);
+        if d.scalar.is_zero() { shift_m.push(0); }
+        else { shift_m.push(1); }
     }
+
+    println!("       Hidden shift: {:?}", shift);
+    println!("Measurement outcome: {:?}", shift_m);
 
     Ok(())
 }
