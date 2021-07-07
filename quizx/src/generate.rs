@@ -297,8 +297,7 @@ mod tests {
                 .qubits(q)
                 .clifford_depth(200)
                 .n_ccz(6)
-                .build();
-            assert_ne!(c.num_gates_of_type(NOT), 0);
+                .build().0;
             assert_ne!(c.num_gates_of_type(Z), 0);
             assert_ne!(c.num_gates_of_type(CZ), 0);
             assert_eq!(c.num_gates_of_type(HAD), q*3);
