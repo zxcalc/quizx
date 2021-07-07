@@ -23,15 +23,8 @@ use std::time::Instant;
 // use quizx::tensor::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let c = Circuit::from_file("../../../circuits/hwb8.qasm")?;
-    // let c = Circuit::random()
-    //     .seed(1337)
-    //     .qubits(5)
-    //     .depth(30)
-    //     .p_t(0.2)
-    //     .with_cliffords()
-    //     .build();
-    let c = c.to_basic_gates();
+    let c = Circuit::from_file("../circuits/large/hwb10.qasm")?
+                    .to_basic_gates();
     println!("stats before: {}", c.stats());
     let mut g: Graph = c.to_graph();
 
@@ -42,10 +35,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let time = Instant::now();
     println!("extracting...");
-    // println!("{}", g.to_dot());
-    // println!("{:?}", g);
-    // assert_eq!(c.to_tensor4(), g.to_tensor4());
-    //
 
     let result = g.extractor()
         .gflow()
