@@ -17,7 +17,6 @@
 use std::time::Instant;
 use quizx::circuit::*;
 use quizx::graph::*;
-// use quizx::tensor::*;
 use quizx::scalar::*;
 use quizx::vec_graph::Graph;
 use quizx::decompose::Decomposer;
@@ -30,8 +29,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .n_ccz(11)
         .seed(1337)
         .build();
-    let mut shift_m = vec![];
-    let mut terms = 0;
 
     let mut g: Graph = c.to_graph();
     let tcount = g.tcount();
@@ -39,6 +36,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut d = Decomposer::new(&g);
     let naive = d.max_terms();
 
+    let mut shift_m = vec![];
+    let mut terms = 0;
     for i in 0..qs {
         g = c.to_graph();
         g.plug_inputs(&vec![BasisElem::Z0; qs]);
