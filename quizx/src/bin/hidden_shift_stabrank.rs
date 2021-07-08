@@ -31,38 +31,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .seed(1337)
         .build();
     let mut shift_m = vec![];
+    let mut terms = 0;
+
+    let mut g: Graph = c.to_graph();
+    let tcount = g.tcount();
+    g.plug(&g.to_adjoint());
+    let mut d = Decomposer::new(&g);
+    let naive = d.max_terms();
 
     for i in 0..qs {
-        let mut g: Graph = c.to_graph_with_options(false);
+        g = c.to_graph();
         g.plug_inputs(&vec![BasisElem::Z0; qs]);
         g.plug_output(i, BasisElem::Z1);
-        println!("g has T-count: {}", g.tcount());
-
         let h = g.to_adjoint();
         g.plug(&h);
 
-        println!("g^dag o g has T-count: {}", g.tcount());
         quizx::simplify::full_simp(&mut g);
-        println!("g^dag o g has reduced T-count: {}", g.tcount());
 
         let time = Instant::now();
-        let mut d = Decomposer::new(&g);
+        d = Decomposer::new(&g);
         d.with_full_simp();
-        let max = d.max_terms();
-        println!("Naive: {} terms", max);
+        // let max = d.max_terms();
 
-        println!("Decomposing g...");
         let d = d.decomp_parallel(3);
-        println!("Finished in {:.2?}", time.elapsed());
-
-        println!("Got {} terms for T-count {} (naive {} terms)", d.nterms, g.tcount(), max);
-        println!("{:?}", d.scalar);
+        println!("Computed Q{} in {:.2?} ({} terms for reduced T-count {})", i, time.elapsed(), d.nterms, g.tcount());
+        terms += d.nterms;
         if d.scalar.is_zero() { shift_m.push(0); }
         else { shift_m.push(1); }
     }
 
-    println!("       Hidden shift: {:?}", shift);
-    println!("Measurement outcome: {:?}", shift_m);
+    println!("Shift: {:?}", shift);
+    println!("Simul: {:?}", shift_m);
+    println!("From circuit with {} qubits and T-count {}.\n{} terms ({} naive)", qs, tcount, terms, qs * naive);
 
     Ok(())
 }
