@@ -119,14 +119,16 @@ impl<'a, G: GraphLike> Decomposer<G> {
     }
 
     /// Gives upper bound for number of terms needed for BSS decomposition
-    pub fn max_terms(&self) -> usize {
-        let mut n = 0;
+    ///
+    /// Note this number can be very large. We use a float here to avoid overflows.
+    pub fn max_terms(&self) -> f64 {
+        let mut n = 0.0;
         for (_,g) in &self.stack {
-            let mut t = g.tcount() as u32;
-            let mut count = 7usize.pow(t / 6u32);
+            let mut t = g.tcount() as i32;
+            let mut count = 7f64.powi(t / 6i32);
             t = t % 6;
-            count *= 2usize.pow(t / 2u32);
-            if t % 2 == 1 { count *= 2; }
+            count *= 2f64.powi(t / 2i32);
+            if t % 2 == 1 { count *= 2.0; }
             n += count;
         }
 

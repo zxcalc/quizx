@@ -3,7 +3,7 @@ name = "quizx"
 version = "0.1.0"
 authors = ["Aleks Kissinger <aleks0@gmail.com>"]
 edition = "2018"
-default-run = "cnot_anneal"
+default-run = "hidden_shift_stabrank"
 
 [dependencies]
 num = "0.3.1"
@@ -13,4 +13,5 @@ ndarray = { version = "0.14.0", features = [ "rayon" ] }
 approx = "0.4.0"
 regex = "1.4.3"
 rand = "0.8.3"
+itertools = "0.10.1"
 
