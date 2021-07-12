@@ -26,7 +26,7 @@ use quizx::vec_graph::Graph;
 use quizx::decompose::Decomposer;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let debug = false;
+    let debug = true;
     let args: Vec<_> = env::args().collect();
     let (qs, n_ccz, seed) =
         if args.len() >= 4 {
