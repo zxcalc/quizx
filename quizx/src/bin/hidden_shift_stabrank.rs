@@ -16,6 +16,8 @@
 
 use std::time::Instant;
 use std::io::{self,Write};
+use std::fs;
+use std::env;
 use itertools::Itertools;
 use quizx::circuit::*;
 use quizx::graph::*;
@@ -24,13 +26,21 @@ use quizx::vec_graph::Graph;
 use quizx::decompose::Decomposer;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let qs = 50;
+    let debug = false;
+    let args: Vec<_> = env::args().collect();
+    let (qs, n_ccz, seed) =
+        if args.len() >= 4 {
+            (args[1].parse().unwrap(),
+             args[2].parse().unwrap(),
+             args[3].parse().unwrap())
+        } else { (50, 30, 1337) };
+    if debug { println!("qubits: {}, # ccz: {}, seed: {}", qs, n_ccz, seed); }
 
-    // Bravyi-Gosset 2016
+    // generate hidden shift circuit as in Bravyi-Gosset 2016
     let (c,shift) = Circuit::random_hidden_shift()
         .qubits(qs)
-        .n_ccz(30) // T = CCZ * 2 * 7
-        .seed(1337)
+        .n_ccz(n_ccz) // T = CCZ * 2 * 7
+        .seed((seed*qs*n_ccz) as u64)
         .build();
 
     // compute T-count and theoretical max terms
@@ -44,6 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let time_all = Instant::now();
     let mut shift_m = vec![];
     let mut terms = 0;
+    let mut tcounts = vec![];
 
     // Hidden shift is deterministic ==> only need 1-qubit marginals
 
@@ -61,8 +72,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         g.plug(&g.to_adjoint());
 
         quizx::simplify::full_simp(&mut g);
+        tcounts.push(g.tcount());
 
-        print!("Q{} ({}T):\t", i, g.tcount());
+        if debug { print!("Q{} ({}T):\t", i, g.tcount()); }
         io::stdout().flush().unwrap();
 
         let time = Instant::now();
@@ -78,13 +90,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let outcome = if d.scalar.is_zero() { 0 } else { 1 };
         shift_m.push(outcome);
 
-        println!("{} (terms: {}, time: {:.2?})", outcome, d.nterms, time.elapsed());
+        if debug { println!("{} (terms: {}, time: {:.2?})", outcome, d.nterms, time.elapsed()); }
     }
 
-    println!("Shift: {}", shift.iter().format(""));
-    println!("Simul: {}", shift_m.iter().format(""));
-    println!("Circuit with {} qubits and T-count {} simulated in {:.2?}", qs, tcount, time_all.elapsed());
-    println!("Got {} terms ({:+e} naive)", terms, (qs as f64) * naive);
+    let time = time_all.elapsed();
+    if debug {
+        println!("Shift: {}", shift.iter().format(""));
+        println!("Simul: {}", shift_m.iter().format(""));
+        println!("Check: {}", shift == shift_m);
+        println!("Circuit with {} qubits and T-count {} simulated in {:.2?}", qs, tcount, time);
+        println!("Got {} terms ({:+e} naive)", terms, (qs as f64) * naive);
+    }
 
+    let data = format!("\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"\n",
+                       qs, n_ccz, seed, terms, time.as_millis(), tcounts.iter().format(","));
+    if shift == shift_m {
+        print!("OK {}", data);
+        fs::write(&format!("hidden_shift_{}_{}_{}", qs, n_ccz, seed), data).expect("Unable to write file");
+    } else {
+        print!("FAILED {}", data);
+    }
     Ok(())
 }
