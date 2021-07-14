@@ -28,22 +28,20 @@ use quizx::decompose::Decomposer;
 // use rand::rngs::StdRng;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let qs = 40;
+    let qs = 50;
     let c = Circuit::random()
         .qubits(qs)
-        .depth(1600)
+        .depth(6000)
         .seed(1337)
-        .p_t(0.5)
+        .p_t(0.01)
         .with_cliffords()
         .build();
     let mut g: Graph = c.to_graph();
-    g.plug_inputs(&vec![BasisElem::X0; qs]);
-    // g.plug_outputs(&vec![BasisElem::X0; qs-1]);
-    let mut h = g.clone();
-    h.adjoint();
-    g.plug(&h);
+    g.plug_inputs(&vec![BasisElem::Z0; qs]);
+    g.plug_output(0, BasisElem::Z1);
+    g.plug(&g.to_adjoint());
 
-    println!("g has T-count: {}", g.tcount());
+    println!("g has T-count: {}", g.tcount()/2);
     quizx::simplify::full_simp(&mut g);
     println!("g has reduced T-count: {}", g.tcount());
 
