@@ -534,7 +534,7 @@ mod tests {
 
         let mut d = Decomposer::new(&g);
         d.save(true);
-        assert_eq!(d.max_terms(), 7*2*2);
+        assert_eq!(d.max_terms(), 7.0*2.0*2.0);
         while d.stack.len() > 0 { d.decomp_top(); }
 
         assert_eq!(d.done.len(), 7*2*2);

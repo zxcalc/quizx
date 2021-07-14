@@ -20,6 +20,7 @@ use crate::circuit::*;
 use crate::gate::*;
 use rand::{SeedableRng, Rng};
 use rand::rngs::StdRng;
+use num::Rational;
 
 pub struct RandomCircuitBuilder {
     pub rng: StdRng,
@@ -37,6 +38,15 @@ pub struct RandomHiddenShiftCircuitBuilder {
     pub qubits: usize,
     pub clifford_depth: usize,
     pub n_ccz: usize,
+}
+
+pub struct RandomPauliGadgetCircuitBuilder {
+    pub rng: StdRng,
+    pub qubits: usize,
+    pub depth: usize,
+    pub min_weight: usize,
+    pub max_weight: usize,
+    pub phase_denom: usize,
 }
 
 impl Circuit {
@@ -59,6 +69,17 @@ impl Circuit {
             qubits: 40,
             clifford_depth: 200,
             n_ccz: 5,
+        }
+    }
+
+    pub fn random_pauli_gadget() -> RandomPauliGadgetCircuitBuilder {
+        RandomPauliGadgetCircuitBuilder {
+            rng:         StdRng::from_entropy(),
+            qubits:      40,
+            depth:       10,
+            min_weight:  2,
+            max_weight:  4,
+            phase_denom: 4,
         }
     }
 }
@@ -184,14 +205,14 @@ impl RandomHiddenShiftCircuitBuilder {
         }
 
         let mut shift = vec![];
-	let mut shift_c = Circuit::new(self.qubits);
+        let mut shift_c = Circuit::new(self.qubits);
         for q in 0..self.qubits {
             if self.rng.gen_bool(0.5) {
-		shift.push(1);
-		shift_c.push(Gate::new(Z, vec![q]));
-	    } else {
-		shift.push(0);
-	    }
+                shift.push(1);
+                shift_c.push(Gate::new(Z, vec![q]));
+            } else {
+                shift.push(0);
+            }
         }
 
         let mut hs = Circuit::new(self.qubits);
@@ -205,6 +226,77 @@ impl RandomHiddenShiftCircuitBuilder {
         c += &oracleg;
         c += &hs;
         (c, shift)
+    }
+}
+
+impl RandomPauliGadgetCircuitBuilder {
+    pub fn seed(&mut self, seed: u64) -> &mut Self { self.rng = StdRng::seed_from_u64(seed); self }
+    pub fn qubits(&mut self, qubits: usize) -> &mut Self { self.qubits = qubits; self }
+    pub fn depth(&mut self, depth: usize) -> &mut Self { self.depth = depth; self }
+    pub fn min_weight(&mut self, min_weight: usize) -> &mut Self { self.min_weight = min_weight; self }
+    pub fn max_weight(&mut self, max_weight: usize) -> &mut Self { self.max_weight = max_weight; self }
+    pub fn weight(&mut self, weight: usize) -> &mut Self { self.min_weight = weight; self.max_weight = weight; self }
+    pub fn phase_denom(&mut self, phase_denom: usize) -> &mut Self { self.phase_denom = phase_denom; self }
+
+    pub fn build(&mut self) -> Circuit {
+        let mut c = Circuit::new(self.qubits);
+
+        // add "depth" pauli gadgets
+        for _ in 0..self.depth {
+            // pick a random weight in the provided range, inclusive
+            let w = self.rng.gen_range(self.min_weight..=self.max_weight);
+            if w > self.qubits { panic!("Weight larger than total qubits"); }
+
+            // randomly pick w qubits
+            let mut all_qs: Vec<_> = (0..self.qubits).collect();
+            let mut qs = vec![];
+            for _ in 0..w {
+                let q = all_qs.swap_remove(self.rng.gen_range(0..all_qs.len()));
+                qs.push(q);
+            }
+            qs.sort();
+
+            // local clifford circuit randomly applies I, H, or HSH to each chosen qubit to make
+            // phase gadget into random pauli gadget
+            let mut lc = Circuit::new(self.qubits);
+            for &q in &qs {
+                match self.rng.gen_range(0..=2) {
+                    1 => { lc.push(Gate::new(HAD, vec![q])) },
+                    2 => {
+                        let mut g = Gate::new(XPhase, vec![q]);
+                        g.phase = Rational::new(1,2);
+                        lc.push(g);
+                    },
+                    _ => {},
+                }
+            }
+
+            // choose random non-clifford (if possible) phase with a fixed denominator
+            let phase_num =
+                if self.phase_denom >= 4 && self.phase_denom % 2 == 0 {
+                    // if the denominator is even, avoid picking rationals equal to 1/2, 1, or 3/2
+                    let mut p = self.rng.gen_range(1..(2*self.phase_denom)-3);
+                    if p >= self.phase_denom/2 { p += 1; }
+                    if p >= self.phase_denom { p += 1; }
+                    if p >= (3*self.phase_denom)/2 { p += 1; }
+
+                    p
+                } else {
+                    // if the denominator is odd or too small, just choose any non-trivial phase
+                    self.rng.gen_range(1..2*self.phase_denom)
+                };
+
+            let mut g = Gate::new(ParityPhase, qs);
+            g.phase = Rational::new(phase_num as isize, self.phase_denom as isize);
+
+            // add pauli gadget to the circuit
+            c += &lc;
+            c.push(g);
+            lc.adjoint();
+            c += &lc;
+        }
+
+        c
     }
 }
 
@@ -302,6 +394,28 @@ mod tests {
             assert_ne!(c.num_gates_of_type(CZ), 0);
             assert_eq!(c.num_gates_of_type(HAD), q*3);
             assert_eq!(c.num_gates_of_type(CCZ), 12);
+        }
+    }
+
+    #[test]
+    fn random_pauli_gadget() {
+        for &seed in &[1337, 800, 40104] {
+            let depth = 100;
+            let c = Circuit::random_pauli_gadget().seed(seed)
+                .qubits(50)
+                .min_weight(4)
+                .max_weight(10)
+                .depth(depth)
+                .phase_denom(8)
+                .build();
+
+            assert_eq!(c.num_gates_of_type(ParityPhase), depth);
+            assert_ne!(c.num_gates_of_type(HAD), 0);
+            assert_ne!(c.num_gates_of_type(XPhase), 0);
+
+            let c = c.to_basic_gates();
+            assert!(c.num_gates_of_type(CNOT) >= depth * 4 * 2);
+            assert_eq!(c.num_gates_of_type(ZPhase), depth);
         }
     }
 }
