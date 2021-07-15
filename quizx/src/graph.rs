@@ -578,6 +578,8 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         let inp = self.inputs().clone();
         self.set_inputs(self.outputs().clone());
         self.set_outputs(inp);
+        let s = self.scalar().conj();
+        *(self.scalar_mut()) = s;
     }
 
     /// Same as GraphLike::adjoint(), but return as a copy
