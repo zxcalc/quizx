@@ -191,6 +191,50 @@ impl<T: Coeffs> Scalar<T> {
 
         self
     }
+
+
+    /// Compute the complex conjugate of a scalar and return it
+    pub fn conj(&self) -> Scalar<T> {
+        match self {
+            Exact(pow, coeffs) => {
+                // create a new coeff list. n.b. this should always be a good size for T, so we unwrap()
+                let mut new_coeffs = T::new(coeffs.len()).unwrap().0;
+
+                // copy the real coeff
+                new_coeffs[0] = coeffs[0];
+
+                // for each complex coeff, invert the index mod N and add the negative coeff
+                // to that position
+                for i in 1..coeffs.len() {
+                    new_coeffs[coeffs.len() - i] = -coeffs[i];
+                }
+
+                Exact(*pow, new_coeffs)
+            },
+            Float(c) => { Float(c.conj()) },
+        }
+    }
+
+    // TODO: this is non-trivial (code below is wrong). Think about this some more.
+    // /// Returns true if scalar is real
+    // pub fn is_real(&self) -> bool {
+    //     match self {
+    //         Exact(_, coeffs) => {
+    //             for i in 0..coeffs.len() { if coeffs[i] != 0 { return false; }}
+    //             true
+    //         },
+    //         Float(c) => c.im == 0.0,
+    //     }
+    // }
+
+    // /// Returns true if scalar is real and >= 0
+    // pub fn is_non_negative(&self) -> bool {
+    //     if !self.is_real() { return false; }
+    //     match self {
+    //         Exact(_, coeffs) => coeffs[0] >= 0,
+    //         Float(c) => c.re >= 0.0,
+    //     }
+    // }
 }
 
 impl<T: Coeffs> Zero for Scalar<T> {
@@ -618,5 +662,32 @@ mod tests {
         // adding very different powers of 2 will panic
         let p3 = &p1 + &p2;
         assert_eq!(p3, Scalar4::one());
+    }
+
+    #[test]
+    fn conjugates() {
+        let ps = vec![
+            Scalar4::Exact(0, [1, 1, 0, 0]),
+            Scalar4::Exact(0, [1, 2, 0, 5]),
+            Scalar4::Exact(10, [1, 1, 0, 0]),
+            Scalar4::Exact(-3, [1, 1, 1, 1]),
+        ];
+
+        for p in ps {
+            let p_conj = p.conj();
+
+            let lhs = p.float_value().conj();
+            let rhs = p_conj.float_value();
+            assert_abs_diff_eq!(lhs.re, rhs.re, epsilon = 0.00001);
+            assert_abs_diff_eq!(lhs.im, rhs.im, epsilon = 0.00001);
+
+            let abs = &p * &p_conj;
+            let absf = abs.float_value();
+            println!("p = {:?}", p);
+            println!("p_conj = {:?}", p_conj);
+            println!("abs = {:?}", abs);
+            assert_abs_diff_eq!(absf.im, 0.0, epsilon = 0.00001);
+            assert!(absf.re > 0.0);
+        }
     }
 }
