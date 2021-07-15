@@ -36,11 +36,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
              args[3].parse().unwrap(),
              args[4].parse().unwrap(),
              args[5].parse().unwrap())
-        } else { (50, 40, 2, 4, 1337) };
+        } else { (50, 50, 4, 4, 1337) };
     if debug { println!("qubits: {}, depth: {}, min_weight: {}, max_weight: {}, seed: {}",
                         qs, depth, min_weight, max_weight, seed); }
-    let qs = 50;
-    let seed = 1337;
     let c = Circuit::random_pauli_gadget()
         .qubits(qs)
         .depth(depth)
@@ -64,7 +62,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for i in 0..qs {
         let mut h = g.clone();
+
+        // let |h> = (<1| ⊗ I)|g>
         h.plug_output(0, BasisElem::Z1);
+
+        // form <h|h>
         h.plug(&h.to_adjoint());
 
         quizx::simplify::full_simp(&mut h);
@@ -76,37 +78,46 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let time = Instant::now();
         let mut d = Decomposer::new(&h);
         d.with_full_simp();
-        // let max = d.max_terms();
 
         let d = d.decomp_parallel(3);
-        // d.decomp_all();
-        // println!("Finished in {:.2?}", time.elapsed());
 
-        // println!("Got {} terms for T-count {} (naive {} terms)", d.nterms, h.tcount(), max);
-        // println!("{:?}", d.scalar);
-
+        // compute <h|h> by stabiliser decomposition
         prob = d.scalar;
-        let mut p = prob.float_value().re / renorm.float_value().re;
-        // println!("prob(1): {}", p);
-        // println!("prior: {}", renorm);
-        // if p < 0.0 {
-        //     println!("WARNING: p < 0 qubit {}", i);
-        //     p = 0.0;
-        // } else if p > 1.0 {
-        //     println!("WARNING: p > 0 qubit {}", i);
-        //     p = 1.0;
-        // }
+        // if debug { println!("{} / {}", prob, renorm); }
 
+        // n.b. |g> is sub-normalised in general, so let p = <h|h>/<g|g>
+        let mut p = prob.float_value().re / renorm.float_value().re;
+
+        // should not happen (unless there are some rounding errors)
+        if p < 0.0 {
+            println!("WARNING: p < 0 qubit {}. p = {}", i, p);
+            p = 0.0;
+        } else if p > 1.0 {
+            println!("WARNING: p > 1 qubit {}. p = {}", i, p);
+            p = 1.0;
+        }
+
+        // randomly pick an outcome according to p
         let outcome =
             if rng.gen_bool(p) {
-                renorm = prob.clone();
+                // outcome 1: let |g> = |h> = (<1| ⊗ I)|g>
                 g.plug_output(0, BasisElem::Z1);
+                // and save <g|g> = <h|h>
+                renorm = prob.clone();
                 1
             } else {
-                p = 1.0 - p;
+                // outcome 0: for |h'> = (<0| ⊗ I)|g>
+                //   we have <g|g> = <h'|h'> + <h|h>, so <h'|h'> = <g|g> - <h|h>
+                
+                // let |g> = |h'>
+                g.plug_output(0, BasisElem::Z0);
+
+                // and <g|g> = <h'|h'>
                 prob = renorm + Scalar::minus_one() * prob;
                 renorm = prob.clone();
-                g.plug_output(0, BasisElem::Z0);
+
+                p = 1.0 - p; // complement probability for output below
+
                 0
             };
 
