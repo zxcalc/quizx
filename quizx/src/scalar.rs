@@ -65,6 +65,7 @@ impl Mod2 for Rational {
 /// Produce a number from rational root of -1.
 pub trait FromPhase {
     fn from_phase(p: Rational) -> Self;
+    fn minus_one() -> Self;
 }
 
 /// Contains the numbers sqrt(2) and 1/sqrt(2), often used for
@@ -304,6 +305,10 @@ impl<T: Coeffs> FromPhase for Scalar<T> {
             }
         }
     }
+
+    fn minus_one() -> Scalar<T> {
+        Scalar::from_phase(Rational::one())
+    }
 }
 
 
@@ -311,20 +316,37 @@ impl<T: Coeffs> fmt::Display for Scalar<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Exact(pow, coeffs) => {
+                // special output for real clifford+T
+                if coeffs.len() == 4 && coeffs[1] == -coeffs[3] && coeffs[2] == 0 {
+                    if *pow != 0 { write!(f, "2^{} * (", pow)?; }
+                    write!(f, "{}", coeffs[0])?;
+                    if coeffs[1] != 0 { write!(f, " + {} * sqrt2", coeffs[1])?; }
+                    if *pow != 0 { write!(f, ")")?; }
+                    return Ok(());
+                }
+
+                // otherwise normal exact output
                 let mut fst = true;
                 for i in 0..coeffs.len() {
                     if !coeffs[i].is_zero() {
-                        if fst { fst = false; }
-                        else { write!(f, " + ")?; }
+                        if fst {
+                            fst = false;
+                            if *pow != 0 { write!(f, "2^{} * (", pow)?; }
+                        } else {
+                            write!(f, " + ")?;
+                        }
 
                         write!(f, "{}", coeffs[i])?;
-                        if *pow != 0 { write!(f, " * 2^{}", pow)?; }
+                        // if *pow != 0 { write!(f, " * 2^{}", pow)?; }
                         if i != 0 { write!(f, " * om^{}", i)?; }
                     }
                 }
 
                 if fst { write!(f, "0") }
-                else { Ok(()) }
+                else {
+                    if *pow != 0 { write!(f, ")")?; }
+                    Ok(())
+                }
             },
             Float(c) => write!(f, "{}", c),
         }

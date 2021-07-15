@@ -47,6 +47,8 @@ impl FromPhase for Complex<f64> {
         let exp = (*p.numer() as f64) / (*p.denom() as f64);
         Complex::new(-1.0, 0.0).powf(exp)
     }
+
+    fn minus_one() -> Complex<f64> { Self::from_phase(Rational::one()) }
 }
 
 /// Wraps all the traits we need to compute tensors from ZX-diagrams.
