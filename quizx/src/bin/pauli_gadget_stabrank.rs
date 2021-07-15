@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
              args[3].parse().unwrap(),
              args[4].parse().unwrap(),
              args[5].parse().unwrap())
-        } else { (50, 50, 4, 4, 1337) };
+        } else { (50, 40, 4, 4, 1337) };
     if debug { println!("qubits: {}, depth: {}, min_weight: {}, max_weight: {}, seed: {}",
                         qs, depth, min_weight, max_weight, seed); }
     let c = Circuit::random_pauli_gadget()
