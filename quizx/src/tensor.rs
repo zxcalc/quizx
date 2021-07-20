@@ -252,7 +252,7 @@ impl<G: GraphLike + Clone> ToTensor for G {
         let mut indexv: VecDeque<V> = VecDeque::new();
         let mut seenv: FxHashMap<V,usize> = FxHashMap::default();
 
-        let mut num_had = 0;
+        // let mut num_had = 0;
 
         for v in vs {
             let p = g.phase(v);
@@ -282,7 +282,9 @@ impl<G: GraphLike + Clone> ToTensor for G {
                         a.delta_at(&[0, wi]);
                     } else {
                         a.cphase_at(Rational::one(), &[0, wi]);
-                        num_had += 1;
+                        // TODO incorporate with cphase_at
+                        a *= A::one_over_sqrt2();
+                        // num_had += 1;
                     }
 
                     if g.vertex_type(w) != VType::B && g.degree(w) == *deg_w {
@@ -300,7 +302,7 @@ impl<G: GraphLike + Clone> ToTensor for G {
             seenv.insert(v, deg_v);
         }
 
-        let s = A::from_scalar(g.scalar()) * A::sqrt2_pow(-num_had);
+        let s = A::from_scalar(g.scalar()); // * A::sqrt2_pow(-num_had);
         a * s
     }
 }

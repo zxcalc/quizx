@@ -368,7 +368,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
                         (EType::N, EType::N) => {} // ignore new edge
                         (EType::H, EType::H) => {
                             self.remove_edge(s, t);
-                self.scalar_mut().mul_sqrt2_pow(-2);
+                            self.scalar_mut().mul_sqrt2_pow(-2);
                         }
                         (EType::H, EType::N) => {
                             self.set_edge_type(s, t, EType::N);
