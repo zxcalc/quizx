@@ -178,8 +178,10 @@ pub fn fuse_gadgets(g: &mut impl GraphLike) -> bool {
     // println!("{:?}", gadgets);
 
     let mut fused = false;
-    for gs in gadgets.values() {
+    for (vs, gs) in gadgets.iter() {
         if gs.len() > 1 {
+            let num = gs.len() as i32;
+            let degree = vs.len() as i32;
             fused = true;
             let mut ph = Rational::zero();
             for i in 1..gs.len() {
@@ -189,6 +191,7 @@ pub fn fuse_gadgets(g: &mut impl GraphLike) -> bool {
             }
 
             g.add_to_phase(gs[0].1, ph);
+            g.scalar_mut().mul_sqrt2_pow(-(num - 1)*(degree - 1));
         }
     }
 

@@ -36,7 +36,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
              args[3].parse().unwrap(),
              args[4].parse().unwrap(),
              args[5].parse().unwrap())
-        } else { (50, 40, 4, 4, 1337) };
+        } else {
+            // (50, 40, 4, 4, 1337)
+            (5, 15, 2, 2, 1337)
+        };
     if debug { println!("qubits: {}, depth: {}, min_weight: {}, max_weight: {}, seed: {}",
                         qs, depth, min_weight, max_weight, seed); }
     let c = Circuit::random_pauli_gadget()
@@ -77,12 +80,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let time = Instant::now();
         let mut d = Decomposer::new(&h);
-        d.with_clifford_simp();
+        d.with_full_simp();
 
         let d = d.decomp_parallel(3);
 
         // compute <h|h> by stabiliser decomposition
         prob = d.scalar;
+        println!("\nprob = {}", prob);
         // if debug { println!("{} / {}", prob, renorm); }
 
         // n.b. |g> is sub-normalised in general, so let p = <h|h>/<g|g>
