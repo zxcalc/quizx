@@ -77,7 +77,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let time = Instant::now();
         let mut d = Decomposer::new(&h);
-        d.with_full_simp();
+        d.with_clifford_simp();
 
         let d = d.decomp_parallel(3);
 
@@ -126,7 +126,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if debug { println!("{} (p: {}, terms: {}, time: {:.2?})", outcome, p, d.nterms, time.elapsed()); }
     }
 
-    println!("Got: {} (P: {})", meas.iter().format(""), prob);
+    println!("Got: {} (P: {}, re(P) ~ {})", meas.iter().format(""), prob, prob.float_value().re);
 
     Ok(())
 }

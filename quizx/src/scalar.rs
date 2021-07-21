@@ -416,6 +416,9 @@ impl<'a, 'b, T: Coeffs> std::ops::Add<&'b Scalar<T>> for &'a Scalar<T> {
     type Output = Scalar<T>;
 
     fn add(self, rhs: &Scalar<T>) -> Self::Output {
+        // catch zeros early to prevent overflows for very large numbers
+        if rhs.is_zero() { return self.clone(); }
+        if self.is_zero() { return rhs.clone(); }
         match (self,rhs) {
             (Float(c), x) => Float(c + x.float_value()),
             (x, Float(c)) => Float(x.float_value() + c),
@@ -575,6 +578,7 @@ impl Coeffs for Vec<isize> {
 
 pub type ScalarN = Scalar<Vec<isize>>;
 
+/// tests {{{
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -713,3 +717,6 @@ mod tests {
         }
     }
 }
+// }}}
+// vim:foldlevel=0:
+

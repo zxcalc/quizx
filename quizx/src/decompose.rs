@@ -24,6 +24,7 @@ use crate::scalar::*;
 #[derive(Copy,Clone,PartialEq,Eq,Debug)]
 pub enum SimpFunc {
     FullSimp,
+    CliffordSimp,
     NoSimp,
 }
 use SimpFunc::*;
@@ -103,10 +104,8 @@ impl<'a, G: GraphLike> Decomposer<G> {
         self
     }
 
-    pub fn with_full_simp(&mut self) -> &mut Self {
-        self.simp_func = FullSimp;
-        self
-    }
+    pub fn with_full_simp(&mut self) -> &mut Self { self.with_simp(FullSimp) }
+    pub fn with_clifford_simp(&mut self) -> &mut Self { self.with_simp(CliffordSimp) }
 
     pub fn random_t(&mut self, b: bool) -> &mut Self {
         self.random_t = b;
@@ -183,15 +182,18 @@ impl<'a, G: GraphLike> Decomposer<G> {
         }).collect())
     }
 
-    pub fn decomp_ts(&mut self, depth: usize, g: G, ts: &[usize]) {
+    pub fn decomp_ts(&mut self, depth: usize, mut g: G, ts: &[usize]) {
         if ts.len() == 6 { self.push_bss_decomp(depth+1, &g, ts); }
         else if ts.len() >= 2 { self.push_sym_decomp(depth+1, &g, &ts[0..2]); }
-        else if ts.len() == 1 { self.push_single_decomp(depth+1, &g, ts); }
+        else if ts.len() > 0 { self.push_single_decomp(depth+1, &g, ts); }
         else {
+            // crate::simplify::full_simp(&mut g);
             self.scalar = &self.scalar + g.scalar();
             self.nterms += 1;
             if g.num_vertices() != 0 {
-                println!("warning: graph was not fully reduced");
+                println!("{}", g.to_dot());
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                panic!("graph was not fully reduced");
                 // println!("{}", g.to_dot());
             }
             if self.save { self.done.push(g); }
@@ -228,6 +230,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
             let mut g = f(g, verts);
             match self.simp_func {
                 FullSimp => { crate::simplify::full_simp(&mut g); },
+                CliffordSimp => { crate::simplify::clifford_simp(&mut g); },
                 _ => {}
             }
             self.stack.push_back((depth, g));
@@ -545,6 +548,31 @@ mod tests {
         // for h in &d.done { tsum = tsum + h.to_tensor4(); }
         // assert_eq!(t, tsum);
     }
+
+    #[test]
+    fn mixed_sc() {
+        let mut g = Graph::new();
+        for i in 0..11 {
+            g.add_vertex_with_phase(VType::Z, Rational::new(1,4));
+
+            for j in 0..i {
+                g.add_edge_with_type(i, j, EType::H);
+            }
+            // let w = g.add_vertex(VType::Z);
+            // g.add_edge(v, w);
+        }
+
+
+        let mut d = Decomposer::new(&g);
+        d.with_full_simp();
+        // assert_eq!(d.max_terms(), 7.0*2.0*2.0);
+        d.decomp_all();
+        // assert_eq!(d.nterms, 7*2*2);
+
+        let sc = g.to_tensor4()[[]];
+        assert_eq!(Scalar::from_scalar(&sc), d.scalar);
+    }
+
 
     #[test]
     fn all_and_depth() {
