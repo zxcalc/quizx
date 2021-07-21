@@ -253,8 +253,12 @@ impl<G: GraphLike + Clone> ToTensor for G {
         let mut seenv: FxHashMap<V,usize> = FxHashMap::default();
 
         // let mut num_had = 0;
+        // let mut i = 1;
+        // let tot = vs.len();
 
         for v in vs {
+            // println!("contracting {} ({}/{})", v, i, tot);
+            i += 1;
             let p = g.phase(v);
 
             // the stack! call computes the tensor product of a new spider
