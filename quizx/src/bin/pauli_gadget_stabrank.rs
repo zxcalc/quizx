@@ -22,6 +22,7 @@ use itertools::Itertools;
 use quizx::circuit::*;
 use quizx::graph::*;
 use quizx::scalar::*;
+use quizx::tensor::*;
 use quizx::vec_graph::Graph;
 use quizx::decompose::{terms_for_tcount,Decomposer};
 use rand::rngs::StdRng;
@@ -39,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
              args[5].parse().unwrap())
         } else {
             // (50, 40, 4, 4, 1337)
-            (5, 15, 2, 2, 1337)
+            (15, 15, 2, 2, 1337)
         };
     if debug { println!("qubits: {}, depth: {}, min_weight: {}, max_weight: {}, seed: {}",
                         qs, depth, min_weight, max_weight, seed); }
@@ -142,6 +143,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Got: {} (P: {}, re(P) ~ {})", meas.iter().format(""), prob, prob.float_value().re);
     let time = time_all.elapsed();
+
+    // for small numbers of qubits, it is feasible to check the final probablility
+    let success =
+        if qs <= 15 {
+            print!("Checking tensor...");
+            io::stdout().flush().unwrap();
+            let mut check: Graph = c.to_graph();
+            let effect: Vec<_> = meas.iter().map(|&b| if b == 0 { BasisElem::Z0 } else { BasisElem::Z1 }).collect();
+            check.plug_inputs(&vec![BasisElem::Z0; qs]);
+            check.plug_outputs(&effect);
+            let amp = check.to_tensor4()[[]];
+            let check_prob = &amp * &amp.conj();
+            if Scalar::from_scalar(&check_prob) == prob {
+                println!("OK");
+                true
+            } else {
+                println!("FAILED {} != {}", check_prob, prob);
+                false
+            }
+        } else {
+            println!("Skipping tensor check (too big).");
+            true
+        };
+
     let naive: f64 = (qs as f64) * terms_for_tcount(2 * tcount);
     let no_simp: f64 = tcounts.iter().map(|&t| terms_for_tcount(t)).sum();
 
@@ -152,8 +177,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let data = format!("\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{:+e}\",\"{:+e}\"\n",
                        qs, depth, tcount, min_weight, max_weight, seed, terms, time.as_millis(), tcounts.iter().format(","), no_simp, naive);
-    print!("OK {}", data);
-    fs::write(&format!("pauli_gadget_{}_{}_{}_{}_{}", qs, depth, min_weight, max_weight, seed), data).expect("Unable to write file");
+    if success {
+        print!("OK {}", data);
+        fs::write(&format!("pauli_gadget_{}_{}_{}_{}_{}", qs, depth, min_weight, max_weight, seed), data).expect("Unable to write file");
+    } else {
+        print!("FAILED {}", data);
+    }
 
     Ok(())
 }
