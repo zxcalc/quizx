@@ -16,13 +16,14 @@
 
 use std::time::Instant;
 use std::env;
+use std::fs;
 use std::io::{self,Write};
 use itertools::Itertools;
 use quizx::circuit::*;
 use quizx::graph::*;
 use quizx::scalar::*;
 use quizx::vec_graph::Graph;
-use quizx::decompose::Decomposer;
+use quizx::decompose::{terms_for_tcount,Decomposer};
 use rand::rngs::StdRng;
 use rand::{SeedableRng, Rng};
 
@@ -53,7 +54,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = StdRng::seed_from_u64(seed * 37);
 
     let mut g: Graph = c.to_graph();
+    let tcount = g.tcount();
     if debug { println!("g has T-count: {}", g.tcount()); }
+
+
+    let time_all = Instant::now();
     quizx::simplify::full_simp(&mut g);
     if debug { println!("g has reduced T-count: {}", g.tcount()); }
 
@@ -62,6 +67,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut renorm = Scalar::one();
     let mut prob = Scalar::one();
     let mut meas = vec![];
+    let mut tcounts = vec![];
+    let mut terms = 0;
 
     for i in 0..qs {
         let mut h = g.clone();
@@ -78,6 +85,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             io::stdout().flush().unwrap();
         }
 
+        tcounts.push(h.tcount());
+
         let time = Instant::now();
         let mut d = Decomposer::new(&h);
         d.with_full_simp();
@@ -86,7 +95,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // compute <h|h> by stabiliser decomposition
         prob = d.scalar;
-        println!("\nprob = {}", prob);
+        // println!("\nprob = {}", prob);
         // if debug { println!("{} / {}", prob, renorm); }
 
         // n.b. |g> is sub-normalised in general, so let p = <h|h>/<g|g>
@@ -94,10 +103,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // should not happen (unless there are some rounding errors)
         if p < 0.0 {
-            println!("WARNING: p < 0 qubit {}. p = {}", i, p);
+            println!("\nWARNING: p < 0 qubit {}. p = {}", i, p);
             p = 0.0;
         } else if p > 1.0 {
-            println!("WARNING: p > 1 qubit {}. p = {}", i, p);
+            println!("\nWARNING: p > 1 qubit {}. p = {}", i, p);
             p = 1.0;
         }
 
@@ -128,9 +137,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         meas.push(outcome);
 
         if debug { println!("{} (p: {}, terms: {}, time: {:.2?})", outcome, p, d.nterms, time.elapsed()); }
+        terms += d.nterms;
     }
 
     println!("Got: {} (P: {}, re(P) ~ {})", meas.iter().format(""), prob, prob.float_value().re);
+    let time = time_all.elapsed();
+    let naive: f64 = (qs as f64) * terms_for_tcount(2 * tcount);
+    let no_simp: f64 = tcounts.iter().map(|&t| terms_for_tcount(t)).sum();
+
+    if debug {
+        println!("Circuit with {} qubits and T-count {} simulated in {:.2?}", qs, tcount, time);
+        println!("Got {} terms ({:+e} naive)", terms, naive);
+    }
+
+    let data = format!("\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{:+e}\",\"{:+e}\"\n",
+                       qs, depth, tcount, min_weight, max_weight, seed, terms, time.as_millis(), tcounts.iter().format(","), no_simp, naive);
+    print!("OK {}", data);
+    fs::write(&format!("pauli_gadget_{}_{}_{}_{}_{}", qs, depth, min_weight, max_weight, seed), data).expect("Unable to write file");
 
     Ok(())
 }

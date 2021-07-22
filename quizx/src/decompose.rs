@@ -43,6 +43,18 @@ pub struct Decomposer<G: GraphLike> {
 
 // impl<G: GraphLike> Send for Decomposer<G> {}
 
+/// Gives upper bound for number of terms needed for BSS decomposition
+///
+/// Note this number can be very large. We use a float here to avoid overflows.
+pub fn terms_for_tcount(tcount: usize) -> f64 {
+    let mut t = tcount as i32;
+    let mut count = 7f64.powi(t / 6i32);
+    t = t % 6;
+    count *= 2f64.powi(t / 2i32);
+    if t % 2 == 1 { count *= 2.0; }
+    return count;
+}
+
 impl<'a, G: GraphLike> Decomposer<G> {
     pub fn empty() -> Decomposer<G> {
         Decomposer {
@@ -117,22 +129,16 @@ impl<'a, G: GraphLike> Decomposer<G> {
         self
     }
 
-    /// Gives upper bound for number of terms needed for BSS decomposition
-    ///
-    /// Note this number can be very large. We use a float here to avoid overflows.
+    /// Computes `terms_for_tcount` for every graph on the stack
     pub fn max_terms(&self) -> f64 {
         let mut n = 0.0;
         for (_,g) in &self.stack {
-            let mut t = g.tcount() as i32;
-            let mut count = 7f64.powi(t / 6i32);
-            t = t % 6;
-            count *= 2f64.powi(t / 2i32);
-            if t % 2 == 1 { count *= 2.0; }
-            n += count;
+            n += terms_for_tcount(g.tcount());
         }
 
         n
     }
+
 
     pub fn pop_graph(&mut self) -> G {
         let (_, g) = self.stack.pop_back().unwrap();
@@ -182,7 +188,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
         }).collect())
     }
 
-    pub fn decomp_ts(&mut self, depth: usize, mut g: G, ts: &[usize]) {
+    pub fn decomp_ts(&mut self, depth: usize, g: G, ts: &[usize]) {
         if ts.len() == 6 { self.push_bss_decomp(depth+1, &g, ts); }
         else if ts.len() >= 2 { self.push_sym_decomp(depth+1, &g, &ts[0..2]); }
         else if ts.len() > 0 { self.push_single_decomp(depth+1, &g, ts); }
