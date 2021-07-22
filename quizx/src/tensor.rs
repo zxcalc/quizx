@@ -258,7 +258,7 @@ impl<G: GraphLike + Clone> ToTensor for G {
 
         for v in vs {
             // println!("contracting {} ({}/{})", v, i, tot);
-            i += 1;
+            // i += 1;
             let p = g.phase(v);
 
             // the stack! call computes the tensor product of a new spider
