@@ -15,20 +15,24 @@ SEEDS="7347 7945 1788 5178 3923 130 1077 1815 7455 801
 5596 9656 6169 9108 4921 3260 9426 7866 7712 2243"
 
 QUBIT_COUNTS="50"
-CCZ_COUNTS="5 10 15 20 25 30 35 40"
+DEPTHS="10 20 30 40 50 60 70"
+MIN_WEIGHT=2
+MAX_WEIGHT=4
+NSAMPLES=3
 
 mkdir -p data
 cd data
 
 for qubit in $QUBIT_COUNTS; do
-    for ccz in $CCZ_COUNTS; do
+    for depth in $DEPTHS; do
         for seed in $SEEDS; do
-            echo "hidden_shift_${qubit}_${ccz}_${seed}"
-            if [ -f "hidden_shift_${qubit}_${ccz}_${seed}" ]; then
-                echo "EXISTS $qubit $ccz $seed"
+            file="pauli_gadget_${qubit}_${depth}_${MIN_WEIGHT}_${MAX_WEIGHT}_${NSAMPLES}_${seed}"
+            echo $file
+            if [ -f $file ]; then
+                echo "EXISTS $file"
             else
-                timeout $TIMEOUT ../../quizx/target/release/hidden_shift_stabrank $qubit $ccz $seed
-                if [ $? == 124 ]; then echo "TIMEOUT $qubit $ccz $seed"; fi
+                timeout $TIMEOUT ../../quizx/target/release/pauli_gadget_stabrank $qubit $depth $MIN_WEIGHT $MAX_WEIGHT $NSAMPLES $seed
+                if [ $? == 124 ]; then echo "TIMEOUT $file"; fi
             fi
         done
     done
