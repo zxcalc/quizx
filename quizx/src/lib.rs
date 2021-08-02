@@ -21,6 +21,7 @@ pub mod gate;
 pub mod circuit;
 pub mod optimize_circuit;
 pub mod generate;
+pub mod random_graph;
 pub mod scalar;
 pub mod tensor;
 pub mod linalg;
