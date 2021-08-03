@@ -78,6 +78,15 @@ impl BasisElem {
     pub fn is_x(&self) -> bool {
         *self == BasisElem::X0 || *self == BasisElem::X1
     }
+
+    pub fn flipped(&self) -> BasisElem {
+        match self {
+            BasisElem::Z0 => BasisElem::Z1,
+            BasisElem::Z1 => BasisElem::Z0,
+            BasisElem::X0 => BasisElem::X1,
+            BasisElem::X1 => BasisElem::X0,
+        }
+    }
 }
 
 pub enum VIter<'a> {
