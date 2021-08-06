@@ -17,7 +17,7 @@
 use crate::scalar::*;
 use num::rational::Rational;
 use std::iter::FromIterator;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap,FxHashSet};
 
 pub type V = usize;
 
@@ -596,6 +596,42 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         let mut g = self.clone();
         g.adjoint();
         g
+    }
+
+    /// Returns vertices in the components of g
+    fn component_vertices(&self) -> Vec<Vec<V>> {
+        // vec of vecs storing components
+        let mut comps = vec![];
+
+        // set of vertices left to visit
+        let mut vset: FxHashSet<V> = self.vertices().collect();
+
+        // stack used in the DFS
+        let mut stack = vec![];
+
+        loop {
+            if let Some(&v) = vset.iter().next() {
+                // start a new component
+                comps.push(vec![]);
+                let i = comps.len() - 1;
+
+                // fill last vec in comps by DFS
+                stack.push(v);
+                while !stack.is_empty() {
+                    let v = stack.pop().unwrap();
+                    comps[i].push(v);
+                    vset.remove(&v);
+
+                    for w in self.neighbors(v) {
+                        if vset.contains(&w) { stack.push(w); }
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+
+        comps
     }
 }
 

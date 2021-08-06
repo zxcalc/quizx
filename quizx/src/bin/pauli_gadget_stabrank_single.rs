@@ -25,24 +25,26 @@ use quizx::scalar::*;
 use quizx::tensor::*;
 use quizx::vec_graph::Graph;
 use quizx::decompose::{terms_for_tcount,Decomposer};
-use quizx::random_graph::*;
 use rand::rngs::StdRng;
 use rand::{SeedableRng, Rng};
+
+fn meas_str(e: &[BasisElem]) -> String {
+    format!("{}", e.iter().map(|&b| if b == BasisElem::Z0 { 0 } else { 1 }).format(""))
+}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let debug = true;
     let args: Vec<_> = env::args().collect();
-    let (qs, depth, min_weight, max_weight, nsamples, norm_est_log_samples, seed) =
+    let (qs, depth, min_weight, max_weight, nsamples, seed) =
         if args.len() >= 6 {
             (args[1].parse().unwrap(),
             args[2].parse().unwrap(),
             args[3].parse().unwrap(),
             args[4].parse().unwrap(),
             args[5].parse().unwrap(),
-            args[6].parse().unwrap(),
-            args[7].parse().unwrap())
+            args[6].parse().unwrap())
         } else {
-            (50, 30, 10, 10, 1, 3, 1337)
+            (50, 70, 4, 4, 1, 1337)
             // (13, 15, 2, 4, 3, 1337)
         };
     if debug { println!("qubits: {}, depth: {}, min_weight: {}, max_weight: {}, seed: {}",
@@ -72,103 +74,42 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut success = true;
     let mut time = Duration::from_millis(0);
 
-    let mut random_state_builder = EquatorialStabilizerStateBuilder::new();
-    random_state_builder.seed(seed * 51);
-
     for s in 1..=nsamples {
-        println!("Sample {} of {}", s, nsamples);
+        println!("Amplitude {} of {}", s, nsamples);
         g = c.to_graph();
         g.plug_inputs(&vec![BasisElem::Z0; qs]);
         quizx::simplify::full_simp(&mut g);
 
-        let mut renorm = Scalar::one();
-        let mut prob = Scalar::one();
-        let mut meas = vec![];
+        // let time_single = Instant::now();
+        // let mut terms_single = 0;
 
-        for i in 0..qs {
-            if debug {
-                print!("Q{}:\t", i);
-                io::stdout().flush().unwrap();
-            }
+        let effect: Vec<_> = (0..qs).map(|_| {
+            if rng.gen_bool(0.5) { BasisElem::Z0 } else { BasisElem::Z1 }
+        }).collect();
 
-            // form <psi|h> for |psi> a random equatorial stabilizer state
-            random_state_builder.qubits(g.outputs().len() - 1);
+        let mut h = g.clone();
+        h.plug_outputs(&effect);
+        quizx::simplify::full_simp(&mut h);
+        tcounts.push(h.tcount());
+        // print!("{} ", h.tcount());
 
-            let time_single = Instant::now();
-            let mut mean = ScalarN::zero();
-            let mut terms_single = 0;
-
-            for _ in 0..2usize.pow(norm_est_log_samples) {
-                let mut h = g.clone();
-                // let |h> = (<1| ⊗ I)|g>
-                h.plug_output(0, BasisElem::Z1);
-                let mut psi: Graph = random_state_builder.build();
-                psi.adjoint();
-                h.plug(&psi);
-                quizx::simplify::full_simp(&mut h);
-                print!("{} ", h.tcount());
-                io::stdout().flush().unwrap();
-
-                tcounts.push(h.tcount());
-
-                let mut d = Decomposer::new(&h);
-                d.with_full_simp();
-
-                let d = d.decomp_parallel(3);
-                mean = mean + (&d.scalar * &d.scalar.conj());
-                terms_single += d.nterms;
-            }
-
-            let power = 2 * (qs as i32 - norm_est_log_samples as i32);
-            mean.mul_sqrt2_pow(power);
-
-            prob = mean;
-            // println!("\nprob = {}", prob);
-            // if debug { println!("{} / {}", prob, renorm); }
-
-            // n.b. |g> is sub-normalised in general, so let p = <h|h>/<g|g>
-            let mut p = prob.float_value().re / renorm.float_value().re;
-
-            // should not happen (unless there are some rounding errors)
-            if p < 0.0 {
-                println!("\nWARNING: p < 0 qubit {}. p = {}", i, p);
-                p = 0.0;
-            } else if p > 1.0 {
-                println!("\nWARNING: p > 1 qubit {}. p = {}", i, p);
-                p = 1.0;
-            }
-
-            // randomly pick an outcome according to p
-            let outcome =
-                if rng.gen_bool(p) {
-                    // outcome 1: let |g> = |h> = (<1| ⊗ I)|g>
-                    g.plug_output(0, BasisElem::Z1);
-                    // and save <g|g> = <h|h>
-                    renorm = prob.clone();
-                    1
-                } else {
-                    // outcome 0: for |h'> = (<0| ⊗ I)|g>
-                    //   we have <g|g> = <h'|h'> + <h|h>, so <h'|h'> = <g|g> - <h|h>
-
-                    // let |g> = |h'>
-                    g.plug_output(0, BasisElem::Z0);
-
-                    // and <g|g> = <h'|h'>
-                    prob = renorm + Scalar::minus_one() * prob;
-                    renorm = prob.clone();
-
-                    p = 1.0 - p; // complement probability for output below
-
-                    0
-                };
-
-            meas.push(outcome);
-
-            if debug { println!("{} (p: {}, terms: {}, time: {:.2?})", outcome, p, terms_single, time_single.elapsed()); }
-            terms += terms_single;
+        if debug {
+            println!("Plugging {} ({}T)", meas_str(&effect), h.tcount());
+            // io::stdout().flush().unwrap();
         }
 
-        println!("Got: {} (P: {}, re(P) ~ {})", meas.iter().format(""), prob, prob.float_value().re);
+        let mut d = Decomposer::new(&h);
+        d.with_full_simp();
+
+        let d = d.decomp_parallel(3);
+        let prob = &d.scalar * &d.scalar.conj();
+        terms += d.nterms;
+
+        if debug {
+            println!("terms = {}, P = {}, re(P) ~ {}", d.nterms, prob, prob.float_value().re);
+        }
+
+
         time += time_all.elapsed();
 
         // for small numbers of qubits, it is feasible to check the final probablility
@@ -177,7 +118,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 print!("Checking tensor...");
                 io::stdout().flush().unwrap();
                 let mut check: Graph = c.to_graph();
-                let effect: Vec<_> = meas.iter().map(|&b| if b == 0 { BasisElem::Z0 } else { BasisElem::Z1 }).collect();
                 check.plug_inputs(&vec![BasisElem::Z0; qs]);
                 check.plug_outputs(&effect);
                 let amp = check.to_tensor4()[[]];

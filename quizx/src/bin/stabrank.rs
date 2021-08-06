@@ -31,9 +31,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let qs = 50;
     let c = Circuit::random()
         .qubits(qs)
-        .depth(6000)
+        .depth(2000)
         .seed(1337)
-        .p_t(0.01)
+        .p_t(0.05)
         .with_cliffords()
         .build();
     let mut g: Graph = c.to_graph();

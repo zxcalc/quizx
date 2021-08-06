@@ -20,6 +20,7 @@ use rand::{thread_rng, Rng};
 use rayon::prelude::*;
 use crate::graph::*;
 use crate::scalar::*;
+use itertools::Itertools;
 
 #[derive(Copy,Clone,PartialEq,Eq,Debug)]
 pub enum SimpFunc {
@@ -239,6 +240,11 @@ impl<'a, G: GraphLike> Decomposer<G> {
                 CliffordSimp => { crate::simplify::clifford_simp(&mut g); },
                 _ => {}
             }
+
+            // let comps = g.component_vertices();
+            // if comps.len() > 1 {
+            //     println!("GOT {} COMPONENTS ({})", comps.len(), comps.iter().map(|c| c.len()).format(","));
+            // }
             self.stack.push_back((depth, g));
         }
 

@@ -25,7 +25,6 @@ use quizx::scalar::*;
 use quizx::tensor::*;
 use quizx::vec_graph::Graph;
 use quizx::decompose::{terms_for_tcount,Decomposer};
-use quizx::random_graph::*;
 use rand::rngs::StdRng;
 use rand::{SeedableRng, Rng};
 
