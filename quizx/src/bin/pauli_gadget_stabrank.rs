@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             args[5].parse().unwrap(),
             args[6].parse().unwrap())
         } else {
-            (50, 40, 4, 4, 3, 1337)
+            (100, 50, 2, 4, 1, 1337)
             // (13, 15, 2, 4, 3, 1337)
         };
     if debug { println!("qubits: {}, depth: {}, min_weight: {}, max_weight: {}, seed: {}",
