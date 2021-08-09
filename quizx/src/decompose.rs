@@ -20,7 +20,6 @@ use rand::{thread_rng, Rng};
 use rayon::prelude::*;
 use crate::graph::*;
 use crate::scalar::*;
-use itertools::Itertools;
 
 #[derive(Copy,Clone,PartialEq,Eq,Debug)]
 pub enum SimpFunc {

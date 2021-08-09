@@ -16,16 +16,16 @@
 
 use std::time::{Instant,Duration};
 use std::env;
-use std::fs;
+// use std::fs;
 use std::io::{self,Write};
-use itertools::Itertools;
+// use itertools::Itertools;
 use quizx::circuit::*;
 use quizx::graph::*;
-use quizx::scalar::*;
+// use quizx::scalar::*;
 use quizx::vec_graph::Graph;
 use quizx::decompose::{terms_for_tcount,Decomposer};
-use rand::rngs::StdRng;
-use rand::{SeedableRng, Rng};
+// use rand::rngs::StdRng;
+// use rand::{SeedableRng, Rng};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let debug = true;
@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .max_weight(max_weight)
         .build();
 
-    let mut rng = StdRng::seed_from_u64(seed * 37);
+    // let mut rng = StdRng::seed_from_u64(seed * 37);
 
     let mut g: Graph = c.to_graph();
     let tcount = g.tcount();
@@ -66,7 +66,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut tcounts = vec![];
     let mut terms = 0;
-    let mut success = true;
     let mut time = Duration::from_millis(0);
 
     for s in 1..=nsamples {

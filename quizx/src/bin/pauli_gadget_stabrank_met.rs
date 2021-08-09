@@ -100,6 +100,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut h = g.clone();
             h.plug_outputs(&effect1);
             quizx::simplify::full_simp(&mut h);
+            tcounts.push(h.tcount());
             // print!("{} ", h.tcount());
 
             if debug {
@@ -112,6 +113,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let d = d.decomp_parallel(3);
             let prob1 = &d.scalar * &d.scalar.conj();
+            terms += d.nterms;
 
             if debug {
                 println!("{} (P = {}, re(P) ~ {})", meas_str(&effect1), prob1, prob1.float_value().re);
