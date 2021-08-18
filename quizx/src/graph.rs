@@ -99,10 +99,16 @@ impl<'a> Iterator for VIter<'a> {
     fn next(&mut self) -> Option<V> {
         match self {
             VIter::Vec(_,inner)  => {
-                match inner.next() {
-                    Some((v, Some(_))) => Some(v),
-                    Some((_, None)) => self.next(),
-                    None => None
+                let mut next = inner.next();
+
+                // skip over "holes", i.e. vertices with vdata = None
+                while next.is_some() && !next.unwrap().1.is_some() {
+                    next = inner.next();
+                }
+
+                match next {
+                    Some((v, _)) => Some(v),
+                    None => None,
                 }
             },
             VIter::Hash(inner) => inner.next().map(|&v| v)
