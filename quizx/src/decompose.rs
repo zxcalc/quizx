@@ -198,8 +198,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
             self.nterms += 1;
             if g.num_vertices() != 0 {
                 println!("{}", g.to_dot());
-                std::thread::sleep(std::time::Duration::from_millis(100));
-                panic!("graph was not fully reduced");
+                println!("WARNING: graph was not fully reduced");
                 // println!("{}", g.to_dot());
             }
             if self.save { self.done.push(g); }
@@ -598,9 +597,11 @@ mod tests {
         g.set_outputs(outs);
 
         let mut d = Decomposer::new(&g);
+        d.with_full_simp();
         d.save(true).decomp_all();
         assert_eq!(d.done.len(), 7*2*2);
         let mut d = Decomposer::new(&g);
+        d.with_full_simp();
         d.decomp_until_depth(2);
         assert_eq!(d.stack.len(), 7*2);
     }
