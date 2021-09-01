@@ -1,4 +1,4 @@
-# QuiZX: a speedy Rust port of PyZX
+# QuiZX: a quick Rust port of PyZX
 
 [PyZX](https://github.com/Quantomatic/pyzx) is a Python library for quantum circuit optimisation and compiling using the [ZX-calculus](https://zxcalculus.com). It's great for hacking, learning, and trying things out in [Jupyter](https://jupyter.org/) notebooks. However, it's written to maximise clarity and fun, not performance.
 
