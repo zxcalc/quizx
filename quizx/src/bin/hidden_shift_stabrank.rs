@@ -81,6 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // do the decomposition, with full_simp called eagerly
         d = Decomposer::new(&g);
+        d.use_cats(true);
         d.with_full_simp();
         let d = d.decomp_parallel(3);
         terms += d.nterms;

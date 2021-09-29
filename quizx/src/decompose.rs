@@ -38,6 +38,7 @@ pub struct Decomposer<G: GraphLike> {
     pub nterms: usize,
     simp_func: SimpFunc,
     random_t: bool,
+    use_cats: bool,
     save: bool, // save graphs on 'done' stack
 }
 
@@ -64,6 +65,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
             nterms: 0,
             simp_func: NoSimp,
             random_t: false,
+            use_cats: false,
             save: false,
         }
     }
@@ -124,6 +126,11 @@ impl<'a, G: GraphLike> Decomposer<G> {
         self
     }
 
+    pub fn use_cats(&mut self, b: bool) -> &mut Self {
+        self.use_cats = b;
+        self
+    }
+
     pub fn save(&mut self, b: bool) -> &mut Self {
         self.save = b;
         self
@@ -149,6 +156,19 @@ impl<'a, G: GraphLike> Decomposer<G> {
     /// stack.
     pub fn decomp_top(&mut self) -> &mut Self {
         let (depth, g) = self.stack.pop_back().unwrap();
+        if self.use_cats {
+            let cat_nodes = Decomposer::cat_ts(&g);//gadget_ts(&g);
+            //println!("{:?}", gadget_nodes);
+            //let nts = cat_nodes.iter().fold(0, |acc, &x| if g.phase(x).denom() == &4 { acc + 1 } else { acc });
+            if cat_nodes.len() > 0 {
+                // println!("using cat!");
+                return self.push_cat_decomp(depth+1, &g, &cat_nodes)                
+            }
+            let ts = Decomposer::first_ts(&g);
+            if ts.len()>=5 {
+                return self.push_magic5_from_cat_decomp(depth+1, &g, &ts[..5])
+            }
+        }
         let ts = if self.random_t { Decomposer::random_ts(&g, &mut thread_rng()) }
                  else { Decomposer::first_ts(&g) };
         self.decomp_ts(depth, g, &ts);
@@ -170,12 +190,20 @@ impl<'a, G: GraphLike> Decomposer<G> {
                 self.stack.push_front((d,g));
                 break;
             } else {
+                if self.use_cats {
+                    let cat_nodes = Decomposer::cat_ts(&g);//gadget_ts(&g);
+                    //println!("{:?}", gadget_nodes);
+                    let nts = cat_nodes.iter().fold(0, |acc, &x| if g.phase(x).denom() == &4 { acc + 1 } else { acc });
+                    if nts > 2 {
+                        // println!("using cat!");
+                        return self.push_cat_decomp(depth+1, &g, &cat_nodes)                
+                    }
+                }
                 let ts = if self.random_t { Decomposer::random_ts(&g, &mut thread_rng()) }
                          else { Decomposer::first_ts(&g) };
                 self.decomp_ts(d, g, &ts);
             }
         }
-
         self
     }
 
@@ -228,6 +256,32 @@ impl<'a, G: GraphLike> Decomposer<G> {
         }
 
         t
+    }
+
+    /// Returns a best occurrence of a cat state
+    /// The fist vertex in the result is the Clifford spider
+    pub fn cat_ts(g: &G) -> Vec<V> {
+        // the graph g is supposed to be completely simplified
+        let prefered_order = [4,6,5,3];
+        let mut res = vec![];
+        let mut index = None;
+        for v in g.vertices() {
+            if g.phase(v).denom() == &1{
+                let mut neigh = g.neighbor_vec(v);
+                if neigh.len() <= 6 {
+                    match prefered_order.iter().position(|&r| r == neigh.len()) {
+                        Some(this_ind) => match index {
+                            Some(ind) if this_ind < ind => {res = vec![v]; res.append(&mut neigh); index = Some(this_ind);},
+                            None => {res = vec![v]; res.append(&mut neigh); index = Some(this_ind);},
+                            _ => (),
+                        },
+                        _ => (),
+                    }
+                    if index == Some(0){break;}
+                }
+            }
+        }
+        res
     }
 
     fn push_decomp(&mut self, fs: &[fn (&G, &[V]) -> G], depth: usize, g: &G, verts: &[V]) -> &mut Self {
@@ -285,6 +339,147 @@ impl<'a, G: GraphLike> Decomposer<G> {
             Decomposer::replace_t0,
             Decomposer::replace_t1,
         ], depth, g, verts)
+    }
+
+    /// Perform a decomposition of 5 T-spiders, with one remaining
+    fn push_magic5_from_cat_decomp(&mut self, depth: usize, g: &G, verts: &[V]) -> &mut Self {
+        //println!("magic5");
+        self.push_decomp(&[
+            Decomposer::replace_magic5_0,
+            Decomposer::replace_magic5_1,
+            Decomposer::replace_magic5_2,
+        ], depth, &g, &verts)
+    }
+
+    /// Perform a decomposition of cat states
+    fn push_cat_decomp(&mut self, depth: usize, g: &G, verts: &[V]) -> &mut Self {
+        // verts[0] is a 0- or pi-spider, linked to all and only to vs in verts[1..] which are T-spiders
+        let mut g = g.clone(); // that is annoying ... 
+        let mut verts = Vec::from(verts);
+        if g.phase(verts[0]).numer() == &1 {
+            g.set_phase(verts[0], Rational::new(0,1));
+            let mut neigh = g.neighbor_vec(verts[1]);
+            neigh.retain(|&x| x != verts[0]);
+            for &v in &neigh{
+                g.add_to_phase(v, Rational::new(1,1));
+            }
+            let tmp = g.phase(verts[1]);
+            *g.scalar_mut() *= ScalarN::from_phase(tmp);
+            g.set_phase(verts[1], g.phase(verts[1])*Rational::new(-1,1));
+        }
+        if [3,5].contains(&verts[1..].len()) {
+            let w = g.add_vertex(VType::Z);
+            let v = g.add_vertex(VType::Z);
+            g.add_edge_with_type(v, w, EType::H);
+            g.add_edge_with_type(v, verts[0], EType::H);
+            verts.push(v);     
+        }
+        if verts[1..].len() == 6 {
+            self.push_decomp(&[
+                Decomposer::replace_cat6_0,
+                Decomposer::replace_cat6_1,
+                Decomposer::replace_cat6_2,
+            ], depth, &g, &verts)
+        }else if verts[1..].len() == 4 {
+            self.push_decomp(&[
+                Decomposer::replace_cat4_0,
+                Decomposer::replace_cat4_1,
+            ], depth, &g, &verts)
+        }else { println!("this shouldn't be printed"); self }
+    }
+
+    fn replace_cat6_0(g: &G, verts: &[V]) -> G {
+        let mut g = g.clone();
+        *g.scalar_mut() *= ScalarN::Exact(-1, vec![1, 0, 0, 0]);    
+        for &v in &verts[1..] {
+            g.add_to_phase(v, Rational::new(-1,4));
+            g.set_edge_type(v, verts[0], EType::N);
+        }
+        g.set_phase(verts[0], Rational::new(-1,2));
+        g
+    }
+
+    fn replace_cat6_1(g: &G, verts: &[V]) -> G {
+        let mut g = g.clone();  
+        *g.scalar_mut() *= ScalarN::Exact(-1, vec![-1, 0, 1, 0]);    
+        for &v in &verts[1..] {
+            g.add_to_phase(v, Rational::new(-1,4));
+        }
+        g
+    }
+
+    fn replace_cat6_2(g: &G, verts: &[V]) -> G {
+        let mut g = g.clone();
+        *g.scalar_mut() *= ScalarN::Exact(7, vec![0, -1, 0, 0]);
+        for i in 1..verts.len() {
+            g.add_to_phase(verts[i], Rational::new(-1,4));
+            for j in i+1..verts.len() {
+                g.add_edge_smart(verts[i], verts[j], EType::H);
+            }
+        }
+        g
+    }
+
+    fn replace_magic5_0(g: &G, verts: &[V]) -> G {
+        let mut g = g.clone();
+        *g.scalar_mut() *= ScalarN::Exact(1, vec![1, 0, 0, 0]);    
+        for &v in verts {
+            g.add_to_phase(v, Rational::new(-1,4));
+            g.add_edge_smart(v, verts[0], EType::N);
+        }
+        g.add_to_phase(verts[0], Rational::new(-3,4));
+        g
+    }
+
+    fn replace_magic5_1(g: &G, verts: &[V]) -> G {
+        let mut g = g.clone();  
+        *g.scalar_mut() *= ScalarN::Exact(1, vec![-1, 0, 1, 0]);
+        let p = g.add_vertex(VType::Z);
+        for &v in verts {
+            g.add_to_phase(v, Rational::new(-1,4));
+            g.add_edge_with_type(v, p, EType::H);
+        }
+        let w = g.add_vertex_with_phase(VType::Z, Rational::new(-1,4));
+        g.add_edge_with_type(w, p, EType::H);
+        g
+    }
+
+    fn replace_magic5_2(g: &G, verts: &[V]) -> G {
+        let mut g = g.clone();
+        *g.scalar_mut() *= ScalarN::Exact(9, vec![0, -1, 0, 0]);
+        let p = g.add_vertex(VType::Z);
+        let w = g.add_vertex_with_phase(VType::Z, Rational::new(-1,4));
+        g.add_edge_with_type(p, w, EType::H);
+        for i in 0..verts.len() {
+            g.add_to_phase(verts[i], Rational::new(-1,4));
+            g.add_edge_with_type(verts[i], p, EType::H);
+            g.add_edge_with_type(verts[i], w, EType::H);
+            for j in i+1..verts.len() {
+                g.add_edge_smart(verts[i], verts[j], EType::H);
+            }
+        }
+        g
+    }
+
+    fn replace_cat4_0(g: &G, verts: &[V]) -> G {
+        let mut g = g.clone();
+        *g.scalar_mut() *= ScalarN::Exact(0, vec![0, 0, 1, 0]);    
+        for &v in &verts[1..] {
+            g.add_to_phase(v, Rational::new(-1,4));
+        }
+        g
+    }
+
+    fn replace_cat4_1(g: &G, verts: &[V]) -> G {
+        // same as replace_cat6_0, only with a different scalar
+        let mut g = g.clone();  
+        *g.scalar_mut() *= ScalarN::Exact(-1, vec![1, 0, -1, 0]);    
+        for &v in &verts[1..] {
+            g.add_to_phase(v, Rational::new(-1,4));
+            g.set_edge_type(v, verts[0], EType::N);
+        }
+        g.set_phase(verts[0], Rational::new(-1,2));
+        g
     }
 
     fn replace_b60(g: &G, verts: &[V]) -> G {
