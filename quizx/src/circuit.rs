@@ -17,14 +17,12 @@
 use std::fmt;
 use std::str;
 use num::{Rational,Zero};
-use regex::Regex;
-use std::fs::File;
-use std::io::prelude::*;
 use std::collections::VecDeque;
 use crate::scalar::Mod2;
 use crate::gate::*;
 use crate::graph::*;
 use crate::linalg::RowOps;
+use openqasm::{ast::Symbol, translate::Value, GenericError, ProgramVisitor};
 
 /// A type for quantum circuits
 #[derive(PartialEq,Eq,Clone,Debug)]
@@ -147,161 +145,51 @@ impl Circuit {
             &self.to_string()
     }
 
-    fn parse_phase(p: &str) -> Option<Rational> {
-        let spc = Regex::new(r#"\s*"#).unwrap();
-        let starts_pi = Regex::new(r#"^(-?)pi"#).unwrap();
-        let has_pi = Regex::new(r#"\*?pi"#).unwrap();
+    fn from_qasm_parser(read: impl FnOnce(&mut openqasm::Parser)) -> Result<Circuit, String> {
+        let mut cache = openqasm::SourceCache::new();
+        let mut parser = openqasm::Parser::new(&mut cache)
+            .with_file_policy(openqasm::parser::FilePolicy::Ignore);
+        read(&mut parser);
+        parser.parse_source::<String>("
+            opaque rz(phase) q;
+            opaque rx(phase) q;
+            opaque x q;
+            opaque z q;
+            opaque s q;
+            opaque t q;
+            opaque sdg q;
+            opaque tdg q;
+            opaque h q;
+            opaque cx a, b;
+            opaque cz a, b;
+            opaque ccx a, b, c;
+            opaque ccz a, b, c;
+            opaque swap a, b;
+            opaque xcx a, b;
+            opaque init_anc a;
+            opaque post_sel a;
+        ".to_string(), None);
 
-        // strip whitespace
-        let p1 = spc.replace_all(p, "");
+        let program = parser.done().to_errors().map_err(|e| e.to_string())?;
+        program.type_check().to_errors().map_err(|e| e.to_string())?;
 
-        if has_pi.is_match(p) {
-            // replace (-)pi with (-)1 at the beginning of the string
-            let p1 = starts_pi.replace(&p1, "${1}1");
-            // remove any other occurance of (*)pi
-            let p1 = has_pi.replace(&p1, "");
+        let mut writer = CircuitWriter { circuit: Circuit::new(0) };
+        let mut linearize = openqasm::Linearize::new(&mut writer, usize::MAX);
+        linearize.visit_program(&program).to_errors().map_err(|e| e.to_string())?;
 
-            // println!("p1 = '{}'", p1);
-
-            if let Ok(r) = p1.parse::<Rational>() { Some(r) }
-            else if let Ok(f) = p1.parse::<f32>() { Rational::approximate_float(f) }
-            else { None }
-        } else {
-            if let Ok(f) = p1.parse::<f32>() {
-                let f1: f32 = f / std::f32::consts::PI;
-                Rational::approximate_float(f1)
-            } else { None }
-        }
-    }
+        Ok(writer.circuit)  
+    } 
 
     pub fn from_qasm(source: &str) -> Result<Circuit, String> {
-        let lines = source.split(';');
-
-        // pattern matching a qreg declaration
-        let qreg: Regex = Regex::new(r#"^qreg\s+([a-zA-Z0-9_]+)\s*\[\s*([0-9]+)\s*\]"#).unwrap();
-
-        // the circuit we are building
-        let mut c = Circuit::new(0);
-
-        // a mapping from named registers to qubit offset and size. Note a vec
-        // with linear lookups seems better than hashing for ~15 or fewer
-        // registers.
-        let mut reg: Vec<(String,usize,usize)> = Vec::new();
-
-        let mut first = true;
-
-        for line in lines {
-            let line = line.trim_start();
-            if line.is_empty() { continue; }
-            if first && line.starts_with("OPENQASM") { first = false; continue; }
-
-            if line.starts_with("include") { continue; }
-
-            if line.starts_with("qreg") {
-                if let Some(caps) = qreg.captures(&line) {
-                    let rname = caps[1].to_owned();
-                    let sz = caps[2].parse::<usize>().unwrap();
-                    // println!("rname = {}, sz = {}", rname, sz);
-                    if reg.iter().any(|(s,_,_)| s == &rname) {
-                        return Err(format!("Re-declaration of qreg: {}", line));
-                    }
-
-                    reg.push((rname, c.nqubits, sz));
-                    c.nqubits += sz as usize;
-                }
-            } else {
-                // strip comments and look for a phase
-                let mut parts = line.splitn(2, "//").next().unwrap().splitn(2, '(');
-
-                // if a phase is found, this first part of the split is the
-                // gate name. If no phase is found, this is the whole command.
-                let mut name = parts.next().unwrap().trim_end();
-
-                // continue if this line only contains a comment
-                if name.is_empty() { continue; }
-
-                // parsed from argument gate has an argument, otherwise
-                // set to 0.
-                let phase;
-
-                // save the rest of the command which isn't gate name or arg
-                let rest;
-
-                if let Some(arg) = parts.next() {
-                    let mut parts = arg.splitn(2, ')');
-                    let arg = parts.next().unwrap();
-                    if let Some(p) = Circuit::parse_phase(arg) {
-                        if let Some(r) = parts.next() {
-                            rest = r;
-                        } else {
-                            return Err(format!("Bad gate application: {}", line));
-                        }
-                        phase = p.mod2()
-                    } else {
-                        return Err(format!("Bad phase: {}", line));
-                    }
-                } else {
-                    let mut parts = name.splitn(2, |c| c==' ' || c == '\t');
-                    name = parts.next().unwrap();
-                    if let Some(r) = parts.next() {
-                        rest = r;
-                    } else {
-                        return Err(format!("Bad gate application: {}", line));
-                    }
-                    phase = Rational::zero();
-                }
-
-                let t = GType::from_qasm_name(&name);
-                if t == UnknownGate {
-                    return Err(format!("Unknown gate: {}", line));
-                }
-
-                let mut qs: Vec<usize> = Vec::new();
-
-                for loc_str in rest.split(",") {
-                    let parts = loc_str.trim().splitn(2, "[").collect::<Vec<_>>();
-
-                    if parts.len() == 2 || parts[1].ends_with("]") {
-                        let rname = parts[0].to_owned();
-                        let q_str = &parts[1][0..parts[1].len()-1];
-                        if let Ok(q) = q_str.parse::<usize>() {
-                            if let Some(&(_,offset,sz)) = reg.iter().find(|(s,_,_)| s == &rname) {
-                                if q < sz {
-                                    let abs_q = offset + q as usize;
-                                    if !qs.contains(&abs_q) {
-                                        qs.push(abs_q);
-                                    } else { return Err(format!("Duplicate qubit in gate: {}", line)); }
-                                } else { return Err(format!("Index out of bounds: {}", line)); }
-                            } else { return Err(format!("Undeclared register: {}", line)); }
-                        } else { return Err(format!("Expected numeric qubit index: {}", line)); }
-                    } else { return Err(format!("Bad qubit location: {}", line)); }
-                }
-
-                if let Some(numq) = t.num_qubits() {
-                    if numq != qs.len() {
-                        return Err(format!("Wrong number of qubits for gate: {}", line));
-                    }
-                }
-
-                c.push(Gate { t, qs, phase });
-            }
-        }
-
-        Ok(c)
+        Circuit::from_qasm_parser(|parser| {
+            parser.parse_source::<String>(source.to_string(), None)
+        })
     }
 
     pub fn from_file(name: &str) -> Result<Circuit, String> {
-        let mut f = File::open(name).map_err(|e| e.to_string())?;
-        let mut source = String::new();
-        f.read_to_string(&mut source).map_err(|e| e.to_string())?;
-        Circuit::from_qasm(&source)
-        // let r = BufReader::new(f);
-        // let it = r.lines().map(|ln| ln.expect("IO error reading file"));
-        // let it = r.split(b';').map(|x|
-        //         String::from_utf8(
-        //             x.expect("IO error reading file.")
-        //         ).expect("Error converting to UTF8."));
-        // Circuit::from_lines(source.split(';'))
+        Circuit::from_qasm_parser(|parser| {
+            parser.parse_file(name)
+        })
     }
 
     /// returns a copy of the circuit, decomposed into 1- and 2-qubit Clifford +
@@ -445,6 +333,94 @@ impl RowOps for Circuit {
     }
 }
 
+struct CircuitWriter {
+    circuit: Circuit
+}
+
+#[derive(Debug)]
+enum CircuitWriterError {
+    UnitaryNotSupported,
+    BarrierNotSupported,
+    ResetNotSupported,
+    MeasureNotSupported,
+    ConditionalNotSupported
+}
+
+impl std::fmt::Display for CircuitWriterError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            CircuitWriterError::UnitaryNotSupported => write!(f, "arbitrary unitaries are not supported"),
+            CircuitWriterError::BarrierNotSupported => write!(f, "barriers are not supported"),
+            CircuitWriterError::ResetNotSupported => write!(f, "resets are not supported"),
+            CircuitWriterError::MeasureNotSupported => write!(f, "measurements are not supported"),
+            CircuitWriterError::ConditionalNotSupported => write!(f, "conditionals are not supported"),
+        }
+    }
+}
+
+impl std::error::Error for CircuitWriterError {}
+
+impl openqasm::GateWriter for &mut CircuitWriter {
+    type Error = CircuitWriterError;
+
+    fn initialize(&mut self, qubits: &[Symbol], _: &[Symbol]) -> Result<(), Self::Error> {
+        self.circuit = Circuit::new(qubits.len());
+        Ok(())
+    }
+
+    fn write_cx(&mut self, a: usize, b: usize) -> Result<(), Self::Error> {
+        self.circuit.push(Gate::new(GType::CNOT, vec![a, b]));
+        Ok(())
+    }
+
+    fn write_opaque(&mut self, name: &Symbol, params: &[Value], regs: &[usize]) -> Result<(), Self::Error> {
+        fn param_to_ratio(value: Value) -> num::Rational {
+            if value.a.is_zero() {
+                num::Rational::new(*value.b.numer() as isize, *value.b.denom() as isize).mod2()
+            } else {
+                let a = *value.a.numer() as f32 / *value.a.denom() as f32;
+                let mut p = num::Rational::approximate_float(a / std::f32::consts::PI).unwrap_or(0.into());
+                p += num::Rational::new(*value.b.numer() as isize, *value.b.denom() as isize);
+                p.mod2()
+            }
+        }
+
+        let mut g = Gate::from_qasm_name(name.as_str());
+        g.qs.extend_from_slice(regs);
+        if params.len() > 0 {
+            g.phase = param_to_ratio(params[0]);
+        }
+
+        self.circuit.push(g);
+
+        Ok(())
+    }
+
+    fn write_u(&mut self, _: Value, _: Value, _: Value, _: usize) -> Result<(), Self::Error> {
+        Err(CircuitWriterError::UnitaryNotSupported)
+    }
+
+    fn write_barrier(&mut self, _: &[usize]) -> Result<(), Self::Error> {
+        Err(CircuitWriterError::BarrierNotSupported)
+    }
+
+    fn write_reset(&mut self, _: usize) -> Result<(), Self::Error> {
+        Err(CircuitWriterError::ResetNotSupported)
+    }
+
+    fn write_measure(&mut self, _: usize, _: usize) -> Result<(), Self::Error> {
+        Err(CircuitWriterError::MeasureNotSupported)
+    }
+
+    fn start_conditional(&mut self, _: usize, _: usize, _: u64) -> Result<(), Self::Error> {
+        Err(CircuitWriterError::ConditionalNotSupported)
+    }
+
+    fn end_conditional(&mut self) -> Result<(), Self::Error> {
+        Err(CircuitWriterError::ConditionalNotSupported)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -498,7 +474,7 @@ mod tests {
             rz(-pi) q[0];
             rz(pi/3) q[0];
             rz(1/3 * pi) q[0];
-            rz(2pi/3) q[0];
+            rz(2*pi/3) q[0];
             rz(2/3 * pi) q[0];
             rz(-pi/3) q[0];
             rz(-1/3 * pi) q[0];
