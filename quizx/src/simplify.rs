@@ -17,7 +17,7 @@
 use crate::graph::*;
 use crate::basic_rules::*;
 use rustc_hash::FxHashMap;
-use num::{Rational,Zero};
+use num::{Rational, One, Zero};
 
 /// Repeatedly apply the given rule at any vertex
 /// that matches the check function
@@ -198,12 +198,45 @@ pub fn fuse_gadgets(g: &mut impl GraphLike) -> bool {
     fused
 }
 
+/// Perform a pi-copies to remove all pi phases from the 
+/// centers of phase gadgets.
+fn remove_gadget_pi(g: &mut impl GraphLike) -> bool {
+    let gadgets = g.vertices()
+        // Look for the outsides of phase gadgets
+        .filter(|&v| g.degree(v) == 1 && g.vertex_type(v) == VType::Z)
+        .map(|v| (g.neighbors(v).next().unwrap(), v))
+        // Check that the middle is a pi-phase
+        .filter(|&(n, v)| {
+            g.edge_type(v, n) == EType::H
+                && g.vertex_type(n) == VType::Z
+                && g.phase(n).is_one()
+        })
+        // Collect them in a hash-map keyed by the central vertex
+        // so that multiple phases hanging off a single gadget
+        // are only mapped to one phase to flip
+        .collect::<FxHashMap<_, _>>();
+
+    // If this isn't empty, we matched at least one
+    let matched = !gadgets.is_empty();
+
+    for &v in gadgets.values() {
+        // Use a pi-copy to remove all the pi phases.
+        // We can use unchecked because we verified that
+        // this vertex has the phase-gadget structure:
+        // Z-spider connected to a single Z-spider with a H edge
+        pi_copy_unchecked(g, v);
+    }
+
+    matched
+}
+
 pub fn full_simp(g: &mut impl GraphLike) -> bool {
     let mut got_match = false;
     let mut m = true;
     while m {
         m = clifford_simp(g);
         m = fuse_gadgets(g) || m;
+        m = remove_gadget_pi(g) || m;
         if m { got_match = true; }
     }
 

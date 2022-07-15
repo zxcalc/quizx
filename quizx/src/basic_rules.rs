@@ -155,6 +155,56 @@ pub fn spider_fusion(g: &mut impl GraphLike, v0: V, v1: V) -> bool {
     } else { false }
 }
 
+/// Check [pi_copy_unchecked] applies
+pub fn check_pi_copy(g: &impl GraphLike, v: V) -> bool {
+    let vt = g.vertex_type(v);
+    // Find the opposite color of this spider, or fail
+    // if it is not a colored spider.
+    let ovt = match vt {
+        VType::Z => VType::X,
+        VType::X => VType::Z,
+        _ => return false
+    };
+
+    // No pi-copy on empty spiders.
+    if g.degree(v) == 0 {
+        return false;
+    }
+
+    for neighbor in g.neighbors(v) {
+        // Every neighbor must be the same color and connected by
+        // a hadamard edge or the opposite color and connected by a normal edge.
+        match g.edge_type(v, neighbor) {
+            EType::N if g.vertex_type(neighbor) != ovt => return false,
+            EType::H if g.vertex_type(neighbor) != vt => return false,
+            _ => ()
+        }
+    }
+
+    true
+}
+
+/// Apply a pi-copy
+/// 
+/// This will flip the phase of a spider by adding a pi phase
+/// to all its neighbours, assuming that they are either the 
+/// same color and connected by a Hadamard edge, or the opposite
+/// color and connected by a normal edge. In particular, this means
+/// that this rule can always be applied when the graph is in gh form.
+pub fn pi_copy_unchecked(g: &mut impl GraphLike, v: V) {
+    // Flip the phase of this node
+    let phase = g.phase(v);
+    g.scalar_mut().mul_phase(phase);
+    g.set_phase(v, -phase);
+
+    // Push a pi to all the surrounding nodes
+    for neighbor in g.neighbor_vec(v) {
+        g.add_to_phase(neighbor, 1.into());
+    }
+}
+
+checked_rule1!(check_pi_copy, pi_copy_unchecked, pi_copy);
+
 /// Check [remove_id_unchecked] applies
 pub fn check_remove_id(g: &impl GraphLike, v: V) -> bool {
     let vt = g.vertex_type(v);
@@ -861,6 +911,45 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn pi_copy_1() {
+        let mut g = Graph::new();
+        let vs = [
+            g.add_vertex_with_phase(VType::Z, 1.into()),
+            g.add_vertex_with_phase(VType::Z, (1, 2).into()),
+            g.add_vertex_with_phase(VType::X, (1, 4).into()),
+            g.add_vertex_with_phase(VType::Z, 0.into()),
+            g.add_vertex_with_phase(VType::X, (3, 2).into()),
+            g.add_vertex_with_phase(VType::Z, (3, 4).into()),
+            g.add_vertex_with_phase(VType::B, 0.into())
+        ];
+
+        g.set_inputs(vec![vs[6]]);
+
+        g.add_edge_smart(vs[0], vs[1], EType::H);
+        g.add_edge_smart(vs[1], vs[2], EType::N);
+        g.add_edge_smart(vs[2], vs[3], EType::H);
+        g.add_edge_smart(vs[3], vs[4], EType::N);
+        g.add_edge_smart(vs[4], vs[5], EType::N);
+        g.add_edge_smart(vs[5], vs[6], EType::N);
+
+        assert!(check_pi_copy(&g, vs[0]));
+        assert!(check_pi_copy(&g, vs[1]));
+        assert!(!check_pi_copy(&g, vs[2]));
+        assert!(!check_pi_copy(&g, vs[3]));
+        assert!(check_pi_copy(&g, vs[4]));
+        assert!(!check_pi_copy(&g, vs[5]));
+        assert!(!check_pi_copy(&g, vs[6]));
+
+        let h = g.clone();
+        pi_copy(&mut g, vs[0]);
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
+        pi_copy(&mut g, vs[1]);
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
+        pi_copy(&mut g, vs[4]);
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
     }
 }
 
