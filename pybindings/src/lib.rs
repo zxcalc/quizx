@@ -228,7 +228,7 @@ impl Decomposer {
         else { self.d.with_simp(quizx::decompose::SimpFunc::NoSimp); }
     }
 
-    fn max_terms(&self) -> usize { self.d.max_terms() }
+    fn max_terms(&self) -> f64 { self.d.max_terms() }
     fn decomp_top(&mut self) { self.d.decomp_top(); }
     fn decomp_all(&mut self) { self.d.decomp_all(); }
     fn decomp_until_depth(&mut self, depth: usize) { self.d.decomp_until_depth(depth); }
