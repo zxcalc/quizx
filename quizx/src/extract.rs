@@ -324,7 +324,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
                             };
                             let n1 = self.g.add_vertex_with_data(vd);
                             self.g
-                                .add_edge_with_type(n, n1, self.g.edge_type(n, v).opposite());
+                                .add_edge_with_type(n, n1, self.g.edge_type(n, v).inv());
                             self.g.add_edge_with_type(n1, v, EType::H);
                             self.g.remove_edge(n, v);
                         }

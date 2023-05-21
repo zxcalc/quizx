@@ -44,18 +44,18 @@ pub enum EType {
 }
 
 impl EType {
-    pub fn opposite(&self) -> EType {
+    pub fn inv(&self) -> Self {
         match self {
-            EType::N => EType::H,
-            EType::H => EType::N,
+            Self::N => Self::H,
+            Self::H => Self::N,
         }
     }
 
-    pub fn merge(et0: EType, et1: EType) -> EType {
-        if et0 == EType::N {
+    pub fn merge(et0: Self, et1: Self) -> Self {
+        if et0 == Self::N {
             et1
         } else {
-            et1.opposite()
+            et1.inv()
         }
     }
 }
@@ -380,7 +380,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     }
 
     fn toggle_edge_type(&mut self, v0: V, v1: V) {
-        self.set_edge_type(v0, v1, self.edge_type(v0, v1).opposite());
+        self.set_edge_type(v0, v1, self.edge_type(v0, v1).inv());
     }
 
     fn vertex_vec(&self) -> Vec<V> {

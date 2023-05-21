@@ -373,7 +373,7 @@ fn unfuse_boundary(g: &mut impl GraphLike, v: V, b: V) {
     };
     let v1 = g.add_vertex_with_data(vd);
     g.add_edge_with_type(v, v1, EType::H);
-    g.add_edge_with_type(v1, b, g.edge_type(v, b).opposite());
+    g.add_edge_with_type(v1, b, g.edge_type(v, b).inv());
     g.remove_edge(v, b);
 }
 
