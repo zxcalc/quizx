@@ -256,7 +256,7 @@ impl Mat2 {
         }
 
         let mut m = self.clone();
-        let mut inv = Mat2::id(self.num_rows());
+        let mut inv = Self::id(self.num_rows());
         let rank = m.gauss_helper(true, 3, &mut inv, &mut vec![]);
 
         if rank < self.num_rows() {
@@ -383,14 +383,14 @@ impl<'a> std::ops::Mul<Mat2> for &'a Mat2 {
     }
 }
 impl<'a> std::ops::Mul<&'a Mat2> for Mat2 {
-    type Output = Mat2;
-    fn mul(self, rhs: &Mat2) -> Self::Output {
+    type Output = Self;
+    fn mul(self, rhs: &Self) -> Self {
         &self * rhs
     }
 }
 impl std::ops::Mul<Mat2> for Mat2 {
-    type Output = Mat2;
-    fn mul(self, rhs: Mat2) -> Self::Output {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self {
         &self * &rhs
     }
 }
