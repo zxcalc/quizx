@@ -265,12 +265,12 @@ impl Mat2 {
 
     /// Return the hamming weight of the given row
     pub fn row_weight(&self, i: usize) -> u8 {
-        self.0[i].iter().sum::<u8>()
+        self.0[i].iter().sum()
     }
 
     /// Return the hamming weight of the whole matrix
     pub fn weight(&self) -> u8 {
-        self.0.iter().map(|r| r.iter().sum::<u8>()).sum::<u8>()
+        self.0.iter().map(|r| r.iter().sum::<u8>()).sum()
     }
 
     /// Return a list of rows which have a single 1
@@ -358,9 +358,10 @@ impl<'a, 'b> std::ops::Mul<&'b Mat2> for &'a Mat2 {
     type Output = Mat2;
 
     fn mul(self, rhs: &Mat2) -> Self::Output {
-        if self.num_cols() != rhs.num_rows() {
-            panic!("Cannot multiply matrices with mismatched dimensions.");
-        }
+        assert!(
+            self.num_cols() == rhs.num_rows(),
+            "Cannot multiply matrices with mismatched dimensions."
+        );
 
         let k = self.num_cols();
         Mat2::build(self.num_rows(), rhs.num_cols(), |x, y| {
