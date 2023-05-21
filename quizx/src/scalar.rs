@@ -94,6 +94,10 @@ pub trait Coeffs: Clone + std::ops::IndexMut<usize, Output = isize> {
     fn new(sz: usize) -> Option<(Self, usize)>;
 }
 
+fn iter(c: &impl Coeffs) -> impl Iterator<Item = isize> + '_ {
+    (0..c.len()).map(move |x| c[x])
+}
+
 /// Implement Copy whenever our coefficient list allows us to.
 impl<T: Coeffs + Copy> Copy for Scalar<T> {}
 
@@ -173,30 +177,25 @@ impl<T: Coeffs> Scalar<T> {
     /// every coefficient is 0. For the zero scalar, set the power of 2 to 0.
     fn reduce(mut self) -> Self {
         if let Exact(pow, coeffs) = &mut self {
-            let mut all_zero = true;
-            for i in 0..coeffs.len() {
-                if coeffs[i] != 0 {
-                    all_zero = false;
-                    break;
-                }
-            }
+            let all_zero = iter(coeffs).all(|x| x == 0);
 
             if all_zero {
                 *pow = 0;
-            } else {
-                let one: isize = 1;
-                'outer: loop {
-                    for i in 0..coeffs.len() {
-                        if one & coeffs[i] == one {
-                            break 'outer;
-                        }
-                    }
+                return self;
+            }
 
-                    for i in 0..coeffs.len() {
-                        coeffs[i] = coeffs[i] >> 1;
+            let one: isize = 1;
+            'outer: loop {
+                for i in 0..coeffs.len() {
+                    if one & coeffs[i] == one {
+                        break 'outer;
                     }
-                    *pow += 1;
                 }
+
+                for i in 0..coeffs.len() {
+                    coeffs[i] = coeffs[i] >> 1;
+                }
+                *pow += 1;
             }
         }
 
