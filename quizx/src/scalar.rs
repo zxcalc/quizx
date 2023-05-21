@@ -127,7 +127,7 @@ impl<T: Coeffs> Scalar<T> {
     }
 
     pub fn real(re: f64) -> Self {
-        Float(Complex::new(re, 0.0))
+        Self::complex(re, 0.0)
     }
 
     pub fn float_value(&self) -> Complex<f64> {
@@ -245,7 +245,7 @@ impl<T: Coeffs> Zero for Scalar<T> {
     }
 
     fn is_zero(&self) -> bool {
-        *self == Scalar::zero()
+        *self == Self::zero()
     }
 }
 
@@ -255,7 +255,7 @@ impl<T: Coeffs> One for Scalar<T> {
     }
 
     fn is_one(&self) -> bool {
-        *self == Scalar::one()
+        *self == Self::one()
     }
 }
 
@@ -277,7 +277,7 @@ impl<T: Coeffs> Sqrt2 for Scalar<T> {
                     Exact((p - 1) / 2, coeffs)
                 }
             }
-            None => Float(Complex::new(2.0f64.powi(p), 0.0f64)),
+            None => Self::real(2.0f64.powi(p)),
         }
     }
 }
@@ -527,13 +527,13 @@ impl<T: Coeffs> AbsDiffEq<Self> for Scalar<T> {
     // since this is mainly used for testing, we allow rounding errors much bigger than
     // machine-epsilon
     fn default_epsilon() -> Self::Epsilon {
-        1e-6f64
+        1e-6
     }
 
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
         let c1 = self.float_value();
         let c2 = other.float_value();
-        f64::abs_diff_eq(&c1.re, &c2.re, epsilon) && f64::abs_diff_eq(&c1.im, &c2.im, epsilon)
+        c1.re.abs_diff_eq(&c2.re, epsilon) && c1.im.abs_diff_eq(&c2.im, epsilon)
     }
 }
 
@@ -549,12 +549,11 @@ impl<T: Coeffs> PartialEq for Scalar<T> {
                 }
                 let (lcm, pad0, pad1) = lcm_with_padding(coeffs0.len(), coeffs1.len());
 
-                let mut all_eq = true;
-                for i in 0..lcm {
+                let all_eq = (0..lcm).all(|i| {
                     let c0 = if i % pad0 == 0 { coeffs0[i / pad0] } else { 0 };
                     let c1 = if i % pad1 == 0 { coeffs1[i / pad1] } else { 0 };
-                    all_eq = all_eq && c0 == c1;
-                }
+                    c0 == c1
+                });
 
                 all_eq
             }
