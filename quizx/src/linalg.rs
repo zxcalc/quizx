@@ -17,14 +17,11 @@
 //! Matrices and linear algebra over F2
 
 use rustc_hash::FxHashMap;
-use std::cmp::min;
-use std::fmt;
+use std::{cmp::min, fmt};
 
 /// A type for matrices over F2
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct Mat2 {
-    d: Vec<Vec<u8>>,
-}
+pub struct Mat2(Vec<Vec<u8>>);
 
 pub trait RowOps {
     /// Add r0 to r1
@@ -48,7 +45,7 @@ impl RowOps for () {
 
 impl Mat2 {
     pub fn new(d: Vec<Vec<u8>>) -> Self {
-        Self { d }
+        Self(d)
     }
 
     /// Build a matrix with the given number of rows and columns. Place a 1
@@ -57,11 +54,11 @@ impl Mat2 {
     where
         F: Fn(usize, usize) -> bool,
     {
-        Self {
-            d: (0..rows)
+        Self(
+            (0..rows)
                 .map(|x| (0..cols).map(|y| if f(x, y) { 1 } else { 0 }).collect())
                 .collect(),
-        }
+        )
     }
 
     /// A matrix full of zeros
@@ -85,12 +82,12 @@ impl Mat2 {
     }
 
     pub fn num_rows(&self) -> usize {
-        self.d.len()
+        self.0.len()
     }
 
     pub fn num_cols(&self) -> usize {
-        if self.d.len() > 0 {
-            self.d[0].len()
+        if self.0.len() > 0 {
+            self.0[0].len()
         } else {
             0
         }
@@ -151,7 +148,7 @@ impl Mat2 {
 
             let mut chunks: FxHashMap<Vec<u8>, usize> = FxHashMap::default();
             for r in pivot_row..rows {
-                let ch = self.d[r][i0..i1].to_vec();
+                let ch = self.0[r][i0..i1].to_vec();
                 if ch.iter().all(|&x| x == 0) {
                     continue;
                 }
@@ -165,14 +162,14 @@ impl Mat2 {
 
             for p in i0..i1 {
                 for r0 in pivot_row..rows {
-                    if self.d[r0][p] != 0 {
+                    if self.0[r0][p] != 0 {
                         if r0 != pivot_row {
                             self.row_add(r0, pivot_row);
                             x.row_add(r0, pivot_row);
                         }
 
                         for r1 in pivot_row + 1..rows {
-                            if self.d[r1][p] != 0 {
+                            if self.0[r1][p] != 0 {
                                 self.row_add(pivot_row, r1);
                                 x.row_add(pivot_row, r1);
                             }
@@ -201,7 +198,7 @@ impl Mat2 {
                 let mut r = pivot_row + 1;
                 while r != 0 {
                     r -= 1;
-                    let ch = self.d[r][i0..i1].to_vec();
+                    let ch = self.0[r][i0..i1].to_vec();
                     if ch.iter().all(|&x| x == 0) {
                         continue;
                     }
@@ -220,7 +217,7 @@ impl Mat2 {
                         }
                         pivot_cols1.pop();
                         for r in 0..pivot_row {
-                            if self.d[r][pcol] != 0 {
+                            if self.0[r][pcol] != 0 {
                                 self.row_add(pivot_row, r);
                                 x.row_add(pivot_row, r);
                             }
@@ -268,17 +265,17 @@ impl Mat2 {
 
     /// Return the hamming weight of the given row
     pub fn row_weight(&self, i: usize) -> u8 {
-        self.d[i].iter().sum::<u8>()
+        self.0[i].iter().sum::<u8>()
     }
 
     /// Return the hamming weight of the whole matrix
     pub fn weight(&self) -> u8 {
-        self.d.iter().map(|r| r.iter().sum::<u8>()).sum::<u8>()
+        self.0.iter().map(|r| r.iter().sum::<u8>()).sum::<u8>()
     }
 
     /// Return a list of rows which have a single 1
     pub fn unit_rows(&self) -> Vec<usize> {
-        self.d
+        self.0
             .iter()
             .enumerate()
             .filter_map(|(i, r)| {
@@ -295,32 +292,32 @@ impl Mat2 {
 impl RowOps for Mat2 {
     fn row_add(&mut self, r0: usize, r1: usize) {
         for i in 0..self.num_cols() {
-            self.d[r1][i] = self.d[r0][i] ^ self.d[r1][i];
+            self.0[r1][i] = self.0[r0][i] ^ self.0[r1][i];
         }
     }
 
     fn row_swap(&mut self, r0: usize, r1: usize) {
-        self.d.swap(r0, r1);
+        self.0.swap(r0, r1);
     }
 }
 
 impl ColOps for Mat2 {
     fn col_add(&mut self, c0: usize, c1: usize) {
         for i in 0..self.num_rows() {
-            self.d[i][c1] = self.d[i][c0] ^ self.d[i][c1];
+            self.0[i][c1] = self.0[i][c0] ^ self.0[i][c1];
         }
     }
 
     fn col_swap(&mut self, c0: usize, c1: usize) {
         for i in 0..self.num_rows() {
-            self.d[i].swap(c0, c1);
+            self.0[i].swap(c0, c1);
         }
     }
 }
 
 impl fmt::Display for Mat2 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for row in &self.d {
+        for row in &self.0 {
             write!(f, "[ ")?;
             for x in row {
                 write!(f, "{} ", x)?;
@@ -334,26 +331,26 @@ impl fmt::Display for Mat2 {
 impl std::ops::Index<(usize, usize)> for Mat2 {
     type Output = u8;
     fn index(&self, idx: (usize, usize)) -> &Self::Output {
-        &self.d[idx.0][idx.1]
+        &self.0[idx.0][idx.1]
     }
 }
 
 impl std::ops::IndexMut<(usize, usize)> for Mat2 {
     fn index_mut(&mut self, idx: (usize, usize)) -> &mut Self::Output {
-        &mut self.d[idx.0][idx.1]
+        &mut self.0[idx.0][idx.1]
     }
 }
 
 impl std::ops::Index<usize> for Mat2 {
     type Output = Vec<u8>;
     fn index(&self, idx: usize) -> &Self::Output {
-        &self.d[idx]
+        &self.0[idx]
     }
 }
 
 impl std::ops::IndexMut<usize> for Mat2 {
     fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
-        &mut self.d[idx]
+        &mut self.0[idx]
     }
 }
 
@@ -369,7 +366,7 @@ impl<'a, 'b> std::ops::Mul<&'b Mat2> for &'a Mat2 {
         Mat2::build(self.num_rows(), rhs.num_cols(), |x, y| {
             let mut b = 0;
             for i in 0..k {
-                b = b ^ (self.d[x][i] & rhs.d[i][y]);
+                b = b ^ (self.0[x][i] & rhs.0[i][y]);
             }
             b == 1
         })
