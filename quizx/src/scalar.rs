@@ -143,11 +143,11 @@ impl<T: Coeffs> Scalar<T> {
     }
 
     pub fn mul_sqrt2_pow(&mut self, p: i32) {
-        *self *= Scalar::sqrt2_pow(p);
+        *self *= Self::sqrt2_pow(p);
     }
 
     pub fn mul_phase(&mut self, phase: Rational) {
-        *self *= Scalar::from_phase(phase);
+        *self *= Self::from_phase(phase);
     }
 
     pub fn to_float(&self) -> Self {
@@ -155,19 +155,16 @@ impl<T: Coeffs> Scalar<T> {
     }
 
     pub fn one_plus_phase(p: Rational) -> Self {
-        Scalar::one() + Scalar::from_phase(p)
+        Self::one() + Self::from_phase(p)
     }
 
     pub fn from_int_coeffs(coeffs: &[isize]) -> Self {
-        match T::new(coeffs.len()) {
-            Some((mut coeffs1, pad)) => {
-                for i in 0..coeffs.len() {
-                    coeffs1[i * pad] = coeffs[i];
-                }
-                Exact(0, coeffs1).reduce()
-            }
-            None => panic!("Wrong number of coefficients for scalar type"),
+        let (mut coeffs1, pad) =
+            T::new(coeffs.len()).expect("Wrong number of coefficients for scalar type");
+        for (i, c) in coeffs.iter().enumerate() {
+            coeffs1[i * pad] = *c;
         }
+        Exact(0, coeffs1).reduce()
     }
 
     /// Compute the reduced form of the scalar value
