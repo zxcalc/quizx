@@ -20,8 +20,19 @@ use crate::basic_rules::*;
 use crate::extract::*;
 use crate::graph::*;
 
+use itertools::Itertools;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+
+pub trait IteratorExt<Item> {
+    fn to_vec(self) -> Vec<Item>;
+}
+
+impl<I: Iterator> IteratorExt<I::Item> for I {
+    fn to_vec(self) -> Vec<I::Item> {
+        self.collect_vec()
+    }
+}
 
 pub struct Annealer<G: GraphLike> {
     pub g: G,
@@ -40,7 +51,7 @@ impl<G: GraphLike> Annealer<G> {
     }
 
     pub fn random_local_comp(rng: &mut StdRng, g: &mut G) {
-        let candidates: Vec<_> = g.vertices().filter(|&v| check_local_comp(g, v)).collect();
+        let candidates = g.vertices().filter(|&v| check_local_comp(g, v)).to_vec();
         if candidates.is_empty() {
             return;
         }
@@ -49,10 +60,7 @@ impl<G: GraphLike> Annealer<G> {
     }
 
     pub fn random_pivot(rng: &mut StdRng, g: &mut G) {
-        let candidates: Vec<_> = g
-            .edges()
-            .filter(|&(s, t, _)| check_pivot(g, s, t))
-            .collect();
+        let candidates = g.edges().filter(|&(s, t, _)| check_pivot(g, s, t)).to_vec();
         if candidates.is_empty() {
             return;
         }
@@ -61,10 +69,10 @@ impl<G: GraphLike> Annealer<G> {
     }
 
     pub fn random_gen_pivot(rng: &mut StdRng, g: &mut G) {
-        let candidates: Vec<_> = g
+        let candidates = g
             .edges()
             .filter(|&(s, t, _)| check_gen_pivot(g, s, t))
-            .collect();
+            .to_vec();
         if candidates.is_empty() {
             return;
         }
@@ -88,6 +96,7 @@ impl<G: GraphLike> Annealer<G> {
         self.rng = StdRng::seed_from_u64(seed);
         self
     }
+
     pub fn scoref(&mut self, scoref: fn(&G) -> usize) -> &mut Self {
         self.scoref = scoref;
         self
@@ -97,10 +106,12 @@ impl<G: GraphLike> Annealer<G> {
         self.temp = temp;
         self
     }
+
     pub fn cool(&mut self, cool: f64) -> &mut Self {
         self.cool = cool;
         self
     }
+
     pub fn iters(&mut self, iters: usize) -> &mut Self {
         self.iters = iters;
         self

@@ -15,6 +15,7 @@
 // limitations under the License.
 
 use itertools::Itertools;
+use quizx::annealer::IteratorExt;
 use quizx::circuit::*;
 use quizx::decompose::{terms_for_tcount, Decomposer};
 use quizx::graph::*;
@@ -197,10 +198,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 print!("Checking tensor...");
                 io::stdout().flush().unwrap();
                 let mut check: Graph = c.to_graph();
-                let effect: Vec<_> = meas
+                let effect = meas
                     .iter()
                     .map(|&b| if b == 0 { BasisElem::Z0 } else { BasisElem::Z1 })
-                    .collect();
+                    .to_vec();
                 check.plug_inputs(&vec![BasisElem::Z0; qs]);
                 check.plug_outputs(&effect);
                 let amp = check.to_tensor4()[[]];

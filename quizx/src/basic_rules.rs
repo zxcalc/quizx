@@ -26,6 +26,7 @@
 //! Note calling `X_unchecked` is allowed to make unsound ZX-diagram
 //! transformations, or even panic, if `check_X` doesn't return true.
 
+use crate::annealer::IteratorExt;
 use crate::graph::*;
 use crate::scalar::*;
 use num::traits::Zero;
@@ -229,7 +230,7 @@ pub fn check_remove_id(g: &impl GraphLike, v: V) -> bool {
 /// original 2 edges, namely: {N,N} -> N, {N,H} -> H, and
 /// {H, H} -> N.
 pub fn remove_id_unchecked(g: &mut impl GraphLike, v: V) {
-    let nhd: Vec<(V, EType)> = g.incident_edges(v).collect();
+    let nhd = g.incident_edges(v).to_vec();
     let new_et = match (nhd[0].1, nhd[1].1) {
         (EType::N, EType::N) => EType::N,
         (EType::N, EType::H) => EType::H,
@@ -282,7 +283,7 @@ pub fn local_comp_unchecked(g: &mut impl GraphLike, v: V) {
     let p = g.phase(v);
 
     // add a totally connected graph of the nhd of v
-    let ns: Vec<V> = g.neighbors(v).collect();
+    let ns= g.neighbors(v).to_vec();
     for i in 0..ns.len() {
         g.add_to_phase(ns[i], -p);
         for j in (i + 1)..ns.len() {
@@ -325,8 +326,8 @@ pub fn pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 
     // add a complete bipartite graph between the neighbors of v0
     // and the neighbors of v1
-    let ns0: Vec<V> = g.neighbors(v0).collect();
-    let ns1: Vec<V> = g.neighbors(v1).collect();
+    let ns0: Vec<V> = g.neighbors(v0).to_vec();
+    let ns1: Vec<V> = g.neighbors(v1).to_vec();
     // let mut z: i32 = 0; // the number of neighbors of v0 and v1
     for &n0 in &ns0 {
         g.add_to_phase(n0, p1);
@@ -912,10 +913,10 @@ mod tests {
         // fuse gadgets of various sizes
         for n in 1..5 {
             let mut g = Graph::new();
-            let bs: Vec<_> = (0..n).map(|_| g.add_vertex(VType::B)).collect();
-            let vs: Vec<_> = (0..n).map(|_| g.add_vertex(VType::Z)).collect();
-            let gs: Vec<_> = (0..2).map(|_| g.add_vertex(VType::Z)).collect();
-            let ps: Vec<_> = (0..2).map(|_| g.add_vertex(VType::Z)).collect();
+            let bs = (0..n).map(|_| g.add_vertex(VType::B)).to_vec();
+            let vs = (0..n).map(|_| g.add_vertex(VType::Z)).to_vec();
+            let gs = (0..2).map(|_| g.add_vertex(VType::Z)).to_vec();
+            let ps = (0..2).map(|_| g.add_vertex(VType::Z)).to_vec();
             g.set_inputs(bs.clone());
 
             for i in 0..n {

@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::annealer::IteratorExt;
 use crate::circuit::*;
 use crate::gate::*;
 use crate::graph::*;
@@ -107,7 +108,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
             }
         }
 
-        let neighbors: Vec<_> = neighbor_set.iter().copied().collect();
+        let neighbors = neighbor_set.iter().copied().to_vec();
 
         // Build an adjacency matrix between the frontier and its neighbors
         let m = Mat2::build(self.frontier.len(), neighbors.len(), |i, j| {
@@ -195,9 +196,9 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
         }
 
         // compute the solution set
-        let sln_set: Vec<_> = (0..row_ops.num_cols())
+        let sln_set = (0..row_ops.num_cols())
             .filter(|&i| row_ops[min_weight_row][i] == 1)
-            .collect();
+            .to_vec();
 
         if sln_set.len() < 2 {
             return;
@@ -498,8 +499,8 @@ mod tests {
     fn id_test() {
         let mut g = Graph::new();
 
-        let is: Vec<_> = (0..4).map(|_| g.add_vertex(VType::B)).collect();
-        let os: Vec<_> = (0..4).map(|_| g.add_vertex(VType::B)).collect();
+        let is = (0..4).map(|_| g.add_vertex(VType::B)).to_vec();
+        let os = (0..4).map(|_| g.add_vertex(VType::B)).to_vec();
         g.add_edge(is[0], os[0]);
         g.add_edge(is[1], os[1]);
         g.add_edge(is[2], os[2]);
@@ -522,8 +523,8 @@ mod tests {
     fn perm_test() {
         let mut g = Graph::new();
 
-        let is: Vec<_> = (0..4).map(|_| g.add_vertex(VType::B)).collect();
-        let os: Vec<_> = (0..4).map(|_| g.add_vertex(VType::B)).collect();
+        let is = (0..4).map(|_| g.add_vertex(VType::B)).to_vec();
+        let os = (0..4).map(|_| g.add_vertex(VType::B)).to_vec();
         g.add_edge(is[0], os[1]);
         g.add_edge(is[1], os[2]);
         g.add_edge(is[2], os[0]);

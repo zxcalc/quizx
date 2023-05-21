@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::annealer::IteratorExt;
 use crate::graph::*;
 use crate::scalar::*;
 use num::Rational;
@@ -280,7 +281,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
 
     /// Pick <= 6 T gates from the given graph, chosen at random
     pub fn random_ts(g: &G, rng: &mut impl Rng) -> Vec<V> {
-        let mut all_t: Vec<_> = g.vertices().filter(|&v| *g.phase(v).denom() == 4).collect();
+        let mut all_t = g.vertices().filter(|&v| *g.phase(v).denom() == 4).to_vec();
         let mut t = vec![];
 
         while t.len() < 6 && all_t.len() > 0 {

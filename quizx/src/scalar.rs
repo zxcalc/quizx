@@ -566,14 +566,17 @@ impl<const N: usize> Coeffs for [isize; N] {
     fn len(&self) -> usize {
         N
     }
+
     fn zero() -> Self {
         [0; N]
     }
+
     fn one() -> Self {
         let mut a = [0; N];
         a[0] = 1;
         a
     }
+
     fn new(sz: usize) -> Option<(Self, usize)> {
         if N.is_multiple_of(&sz) {
             Some(([0; N], N / sz))
@@ -605,12 +608,15 @@ impl Coeffs for Vec<isize> {
     fn len(&self) -> usize {
         self.len()
     }
+
     fn zero() -> Self {
         vec![0]
     }
+
     fn one() -> Self {
         vec![1]
     }
+
     fn new(sz: usize) -> Option<(Self, usize)> {
         Some((vec![0; sz], 1))
     }
