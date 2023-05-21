@@ -502,19 +502,6 @@ fixed_size_scalar!(Scalar6, 6);
 fixed_size_scalar!(Scalar7, 7);
 fixed_size_scalar!(Scalar8, 8);
 
-// impl Coeffs for [i32;4] {
-//     fn len(&self) -> usize { 4 }
-//     fn zero() -> [i32;4] { [0;4] }
-//     fn one() -> [i32;4] { let mut a = [0;4]; a[0] = 1; a }
-//     fn new(sz: usize) -> Option<([i32;4],usize)> {
-//         if (sz as i32).divides(&4) {
-//             Some(([0;4], 4/sz))
-//         } else {
-//             None
-//         }
-//     }
-// }
-
 impl Coeffs for Vec<i32> {
     fn len(&self) -> usize {
         self.len()

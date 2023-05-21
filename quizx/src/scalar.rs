@@ -76,9 +76,11 @@ pub trait Sqrt2: Sized {
     fn sqrt2() -> Self {
         Self::sqrt2_pow(1)
     }
+
     fn one_over_sqrt2() -> Self {
         Self::sqrt2_pow(-1)
     }
+
     fn sqrt2_pow(p: i32) -> Self;
 }
 
@@ -549,13 +551,11 @@ impl<T: Coeffs> PartialEq for Scalar<T> {
                 }
                 let (lcm, pad0, pad1) = lcm_with_padding(coeffs0.len(), coeffs1.len());
 
-                let all_eq = (0..lcm).all(|i| {
+                (0..lcm).all(|i| {
                     let c0 = if i % pad0 == 0 { coeffs0[i / pad0] } else { 0 };
                     let c1 = if i % pad1 == 0 { coeffs1[i / pad1] } else { 0 };
                     c0 == c1
-                });
-
-                all_eq
+                })
             }
             _ => false,
         }

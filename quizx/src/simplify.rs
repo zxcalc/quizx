@@ -213,7 +213,7 @@ pub fn fuse_gadgets(g: &mut impl GraphLike) -> bool {
 /// Perform a pi-copies to remove all pi phases from the
 /// centers of phase gadgets.
 fn remove_gadget_pi(g: &mut impl GraphLike) -> bool {
-    let gadgets = g
+    let gadgets: FxHashMap<_, _> = g
         .vertices()
         // Look for the outsides of phase gadgets
         .filter(|&v| g.degree(v) == 1 && g.vertex_type(v) == VType::Z)
@@ -225,7 +225,7 @@ fn remove_gadget_pi(g: &mut impl GraphLike) -> bool {
         // Collect them in a hash-map keyed by the central vertex
         // so that multiple phases hanging off a single gadget
         // are only mapped to one phase to flip
-        .collect::<FxHashMap<_, _>>();
+        .collect();
 
     // If this isn't empty, we matched at least one
     let matched = !gadgets.is_empty();
