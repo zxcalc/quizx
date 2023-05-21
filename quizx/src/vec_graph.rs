@@ -230,36 +230,24 @@ impl GraphLike for Graph {
     }
 
     fn set_edge_type(&mut self, s: V, t: V, ety: EType) {
-        if let Some(Some(nhd)) = self.edata.get_mut(s) {
-            let i = Graph::index(&nhd, t).expect("Edge not found");
-            nhd[i] = (t, ety);
-        } else {
-            panic!("Source vertex not found");
-        }
+        let Some(Some(nhd)) = self.edata.get_mut(s) else { panic!("Source vertex not found") };
+        let i = Graph::index(&nhd, t).expect("Edge not found");
+        nhd[i] = (t, ety);
 
-        if let Some(Some(nhd)) = self.edata.get_mut(t) {
-            let i = Graph::index(&nhd, s).expect("Edge not found");
-            nhd[i] = (s, ety);
-        } else {
-            panic!("Target vertex not found");
-        }
+        let Some(Some(nhd)) = self.edata.get_mut(t) else { panic!("Target vertex not found") };
+        let i = Graph::index(&nhd, s).expect("Edge not found");
+        nhd[i] = (s, ety);
     }
 
     fn edge_type_opt(&self, s: V, t: V) -> Option<EType> {
-        if let Some(Some(nhd)) = self.edata.get(s) {
-            Self::value(&nhd, t)
-        } else {
-            None
-        }
+        let Some(Some(nhd)) = self.edata.get(s) else { return None };
+        Self::value(&nhd, t)
     }
 
     fn set_coord(&mut self, v: V, coord: (i32, i32)) {
-        if let Some(Some(d)) = self.vdata.get_mut(v) {
-            d.qubit = coord.0;
-            d.row = coord.1;
-        } else {
-            panic!("Vertex not found")
-        }
+        let Some(Some(d)) = self.vdata.get_mut(v) else { panic!("Vertex not found") };
+        d.qubit = coord.0;
+        d.row = coord.1;
     }
 
     fn coord(&mut self, v: V) -> (i32, i32) {
@@ -268,11 +256,8 @@ impl GraphLike for Graph {
     }
 
     fn set_qubit(&mut self, v: V, qubit: i32) {
-        if let Some(Some(d)) = self.vdata.get_mut(v) {
-            d.qubit = qubit;
-        } else {
-            panic!("Vertex not found")
-        }
+        let Some(Some(d)) = self.vdata.get_mut(v) else { panic!("Vertex not found") };
+        d.qubit = qubit;
     }
 
     fn qubit(&self, v: V) -> i32 {
@@ -280,11 +265,8 @@ impl GraphLike for Graph {
     }
 
     fn set_row(&mut self, v: V, row: i32) {
-        if let Some(Some(d)) = self.vdata.get_mut(v) {
-            d.row = row;
-        } else {
-            panic!("Vertex not found")
-        }
+        let Some(Some(d)) = self.vdata.get_mut(v) else { panic!("Vertex not found") };
+        d.row = row;
     }
 
     fn row(&self, v: V) -> i32 {
@@ -292,27 +274,18 @@ impl GraphLike for Graph {
     }
 
     fn neighbors(&self, v: V) -> NeighborIter {
-        if let Some(Some(nhd)) = self.edata.get(v) {
-            NeighborIter::Vec(nhd.iter())
-        } else {
-            panic!("Vertex not found")
-        }
+        let Some(Some(nhd)) = self.edata.get(v) else { panic!("Vertex not found") };
+        NeighborIter::Vec(nhd.iter())
     }
 
     fn incident_edges(&self, v: V) -> IncidentEdgeIter {
-        if let Some(Some(nhd)) = self.edata.get(v) {
-            IncidentEdgeIter::Vec(nhd.iter())
-        } else {
-            panic!("Vertex not found")
-        }
+        let Some(Some(nhd)) = self.edata.get(v) else { panic!("Vertex not found") };
+        IncidentEdgeIter::Vec(nhd.iter())
     }
 
     fn degree(&self, v: V) -> usize {
-        if let Some(Some(nhd)) = self.edata.get(v) {
-            nhd.len()
-        } else {
-            panic!("Vertex not found")
-        }
+        let Some(Some(nhd)) = self.edata.get(v) else { panic!("Vertex not found") };
+        nhd.len()
     }
 
     fn scalar(&self) -> &ScalarN {
