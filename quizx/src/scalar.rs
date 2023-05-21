@@ -574,30 +574,30 @@ impl<T: Coeffs> PartialEq for Scalar<T> {
 /// the associated scalar type.
 macro_rules! fixed_size_scalar {
     ( $name:ident, $n:expr ) => {
-        impl Coeffs for [isize; $n] {
-            fn len(&self) -> usize {
-                $n
-            }
-            fn zero() -> Self {
-                [0; $n]
-            }
-            fn one() -> Self {
-                let mut a = [0; $n];
-                a[0] = 1;
-                a
-            }
-            fn new(sz: usize) -> Option<(Self, usize)> {
-                if $n.is_multiple_of(&sz) {
-                    Some(([0; $n], $n / sz))
-                } else {
-                    None
-                }
-            }
-        }
-
         pub type $name = Scalar<[isize; $n]>;
         impl ndarray::ScalarOperand for $name {}
     };
+}
+
+impl<const N: usize> Coeffs for [isize; N] {
+    fn len(&self) -> usize {
+        N
+    }
+    fn zero() -> Self {
+        [0; N]
+    }
+    fn one() -> Self {
+        let mut a = [0; N];
+        a[0] = 1;
+        a
+    }
+    fn new(sz: usize) -> Option<(Self, usize)> {
+        if N.is_multiple_of(&sz) {
+            Some(([0; N], N / sz))
+        } else {
+            None
+        }
+    }
 }
 
 fixed_size_scalar!(Scalar1, 1);
