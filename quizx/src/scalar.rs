@@ -570,15 +570,6 @@ impl<T: Coeffs> PartialEq for Scalar<T> {
     }
 }
 
-/// Implements Coeffs for an array of fixed size $n, and defines
-/// the associated scalar type.
-macro_rules! fixed_size_scalar {
-    ( $name:ident, $n:expr ) => {
-        pub type $name = Scalar<[isize; $n]>;
-        impl ndarray::ScalarOperand for $name {}
-    };
-}
-
 impl<const N: usize> Coeffs for [isize; N] {
     fn len(&self) -> usize {
         N
@@ -598,6 +589,15 @@ impl<const N: usize> Coeffs for [isize; N] {
             None
         }
     }
+}
+
+/// Implements Coeffs for an array of fixed size $n, and defines
+/// the associated scalar type.
+macro_rules! fixed_size_scalar {
+    ( $name:ident, $n:expr ) => {
+        pub type $name = Scalar<[isize; $n]>;
+        impl ndarray::ScalarOperand for $name {}
+    };
 }
 
 fixed_size_scalar!(Scalar1, 1);
