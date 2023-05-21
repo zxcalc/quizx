@@ -174,17 +174,11 @@ impl GraphLike for Graph {
         self.nume += 1;
         // if self.connected(s,t) { panic!("introducing parallel edge!"); }
 
-        if let Some(Some(nhd)) = self.edata.get_mut(s) {
-            nhd.push((t, ety));
-        } else {
-            panic!("Source vertex not found");
-        }
+        let Some(Some(nhd)) = self.edata.get_mut(s) else { panic!("Source vertex not found") };
+        nhd.push((t, ety));
 
-        if let Some(Some(nhd)) = self.edata.get_mut(t) {
-            nhd.push((s, ety));
-        } else {
-            panic!("Target vertex not found");
-        }
+        let Some(Some(nhd)) = self.edata.get_mut(t) else { panic!("Target vertex not found") };
+        nhd.push((s, ety));
     }
 
     fn remove_edge(&mut self, s: V, t: V) {
@@ -194,11 +188,8 @@ impl GraphLike for Graph {
     }
 
     fn set_phase(&mut self, v: V, phase: Rational) {
-        if let Some(Some(d)) = self.vdata.get_mut(v) {
-            d.phase = phase.mod2();
-        } else {
-            panic!("Vertex not found");
-        }
+        let Some(Some(d)) = self.vdata.get_mut(v) else {  panic!("Vertex not found") };
+        d.phase = phase.mod2();
     }
 
     fn phase(&self, v: V) -> Rational {
@@ -206,19 +197,13 @@ impl GraphLike for Graph {
     }
 
     fn add_to_phase(&mut self, v: V, phase: Rational) {
-        if let Some(Some(d)) = self.vdata.get_mut(v) {
-            d.phase = (d.phase + phase).mod2();
-        } else {
-            panic!("Vertex not found");
-        }
+        let Some(Some(d)) = self.vdata.get_mut(v) else { panic!("Vertex not found") };
+        d.phase = (d.phase + phase).mod2();
     }
 
     fn set_vertex_type(&mut self, v: V, ty: VType) {
-        if let Some(Some(d)) = self.vdata.get_mut(v) {
-            d.ty = ty;
-        } else {
-            panic!("Vertex not found");
-        }
+        let Some(Some(d)) = self.vdata.get_mut(v) else { panic!("Vertex not found") };
+        d.ty = ty;
     }
 
     fn vertex_data(&self, v: V) -> VData {
