@@ -176,28 +176,21 @@ impl<T: Coeffs> Scalar<T> {
     /// For non-zero scalars, increment the power of 2 as long as the last bit in
     /// every coefficient is 0. For the zero scalar, set the power of 2 to 0.
     fn reduce(mut self) -> Self {
-        if let Exact(pow, coeffs) = &mut self {
-            let all_zero = iter(coeffs).all(|x| x == 0);
+        let Exact(pow, coeffs) = &mut self else { return self };
 
-            if all_zero {
-                *pow = 0;
-                return self;
-            }
-
-            let one: isize = 1;
-            'outer: loop {
-                for i in 0..coeffs.len() {
-                    if one & coeffs[i] == one {
-                        break 'outer;
-                    }
-                }
-
-                for i in 0..coeffs.len() {
-                    coeffs[i] = coeffs[i] >> 1;
-                }
-                *pow += 1;
-            }
+        let all_zero = iter(coeffs).all(|x| x == 0);
+        if all_zero {
+            *pow = 0;
+            return self;
         }
+
+        // figure out by how much can we shift at most
+        let Some(max_shift) = iter(coeffs).map(|x| x.trailing_zeros()).min() else { return self };
+
+        for i in 0..coeffs.len() {
+            coeffs[i] >>= max_shift;
+        }
+        *pow += max_shift as i32;
 
         self
     }
