@@ -209,7 +209,7 @@ impl Circuit {
             .map_err(|e| e.to_string())?;
 
         let mut writer = CircuitWriter {
-            circuit: Circuit::new(0),
+            circuit: Self::new(0),
         };
         let mut linearize = openqasm::Linearize::new(&mut writer, usize::MAX);
         linearize
@@ -316,7 +316,7 @@ impl fmt::Display for Circuit {
     }
 }
 
-impl std::ops::Add<Circuit> for Circuit {
+impl std::ops::Add<Self> for Circuit {
     type Output = Self;
     fn add(mut self, mut rhs: Self) -> Self {
         assert!(
@@ -328,14 +328,14 @@ impl std::ops::Add<Circuit> for Circuit {
     }
 }
 
-impl std::ops::Add<&Circuit> for Circuit {
-    type Output = Circuit;
-    fn add(mut self, rhs: &Circuit) -> Self::Output {
+impl std::ops::Add<&Self> for Circuit {
+    type Output = Self;
+    fn add(mut self, rhs: &Self) -> Self {
         assert!(
             self.num_qubits() == rhs.num_qubits(),
             "Cannot append circuits with different numbers of qubits"
         );
-        self.gates.extend(rhs.gates.iter().cloned());
+        self.extend(rhs.gates.iter().cloned());
         self
     }
 }
@@ -401,15 +401,11 @@ enum CircuitWriterError {
 impl std::fmt::Display for CircuitWriterError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            CircuitWriterError::UnitaryNotSupported => {
-                write!(f, "arbitrary unitaries are not supported")
-            }
-            CircuitWriterError::BarrierNotSupported => write!(f, "barriers are not supported"),
-            CircuitWriterError::ResetNotSupported => write!(f, "resets are not supported"),
-            CircuitWriterError::MeasureNotSupported => write!(f, "measurements are not supported"),
-            CircuitWriterError::ConditionalNotSupported => {
-                write!(f, "conditionals are not supported")
-            }
+            Self::UnitaryNotSupported => write!(f, "arbitrary unitaries are not supported"),
+            Self::BarrierNotSupported => write!(f, "barriers are not supported"),
+            Self::ResetNotSupported => write!(f, "resets are not supported"),
+            Self::MeasureNotSupported => write!(f, "measurements are not supported"),
+            Self::ConditionalNotSupported => write!(f, "conditionals are not supported"),
         }
     }
 }
@@ -459,27 +455,27 @@ impl openqasm::GateWriter for &mut CircuitWriter {
     }
 
     fn write_u(&mut self, _: Value, _: Value, _: Value, _: usize) -> Result<(), Self::Error> {
-        Err(CircuitWriterError::UnitaryNotSupported)
+        Err(Self::Error::UnitaryNotSupported)
     }
 
     fn write_barrier(&mut self, _: &[usize]) -> Result<(), Self::Error> {
-        Err(CircuitWriterError::BarrierNotSupported)
+        Err(Self::Error::BarrierNotSupported)
     }
 
     fn write_reset(&mut self, _: usize) -> Result<(), Self::Error> {
-        Err(CircuitWriterError::ResetNotSupported)
+        Err(Self::Error::ResetNotSupported)
     }
 
     fn write_measure(&mut self, _: usize, _: usize) -> Result<(), Self::Error> {
-        Err(CircuitWriterError::MeasureNotSupported)
+        Err(Self::Error::MeasureNotSupported)
     }
 
     fn start_conditional(&mut self, _: usize, _: usize, _: u64) -> Result<(), Self::Error> {
-        Err(CircuitWriterError::ConditionalNotSupported)
+        Err(Self::Error::ConditionalNotSupported)
     }
 
     fn end_conditional(&mut self) -> Result<(), Self::Error> {
-        Err(CircuitWriterError::ConditionalNotSupported)
+        Err(Self::Error::ConditionalNotSupported)
     }
 }
 
