@@ -36,8 +36,8 @@ pub type Tensor4 = Tensor<Scalar4>;
 pub type Tensorf = Tensor<Complex<f64>>;
 
 impl Sqrt2 for Complex<f64> {
-    fn sqrt2_pow(p: i32) -> Complex<f64> {
-        let rt2 = Complex::new(f64::sqrt(2.0), 0.0);
+    fn sqrt2_pow(p: i32) -> Self {
+        let rt2 = Self::new(f64::sqrt(2.0), 0.0);
         if p == 1 {
             rt2
         } else {
@@ -47,12 +47,12 @@ impl Sqrt2 for Complex<f64> {
 }
 
 impl FromPhase for Complex<f64> {
-    fn from_phase(p: Rational) -> Complex<f64> {
+    fn from_phase(p: Rational) -> Self {
         let exp = (*p.numer() as f64) / (*p.denom() as f64);
-        Complex::new(-1.0, 0.0).powf(exp)
+        Self::new(-1.0, 0.0).powf(exp)
     }
 
-    fn minus_one() -> Complex<f64> {
+    fn minus_one() -> Self {
         Self::from_phase(Rational::one())
     }
 }
@@ -134,7 +134,7 @@ pub trait CompareTensors {
 }
 
 impl<A: TensorElem> CompareTensors for Tensor<A> {
-    fn scalar_eq(t0: &Tensor<A>, t1: &Tensor<A>) -> bool {
+    fn scalar_eq(t0: &Self, t1: &Self) -> bool {
         // if dimensions are different, tensors are different
         if t0.dim() != t1.dim() {
             return false;
@@ -198,8 +198,8 @@ impl<A: TensorElem> QubitOps<A> for Tensor<A> {
         self.multi_slice_mut((slice0.as_ref(), slice1.as_ref()))
     }
 
-    fn ident(q: usize) -> Tensor<A> {
-        Tensor::from_shape_fn(vec![2; q * 2], |ix| {
+    fn ident(q: usize) -> Self {
+        Self::from_shape_fn(vec![2; q * 2], |ix| {
             if (0..q).all(|i| ix[i] == ix[q + i]) {
                 A::one()
             } else {
@@ -208,8 +208,8 @@ impl<A: TensorElem> QubitOps<A> for Tensor<A> {
         })
     }
 
-    fn delta(q: usize) -> Tensor<A> {
-        Tensor::from_shape_fn(vec![2; q], |ix| {
+    fn delta(q: usize) -> Self {
+        Self::from_shape_fn(vec![2; q], |ix| {
             if (0..q).all(|i| ix[i] == 0) || (0..q).all(|i| ix[i] == 1) {
                 A::one()
             } else {
@@ -218,14 +218,14 @@ impl<A: TensorElem> QubitOps<A> for Tensor<A> {
         })
     }
 
-    fn cphase(p: Rational, q: usize) -> Tensor<A> {
-        let mut t = Tensor::ident(q);
+    fn cphase(p: Rational, q: usize) -> Self {
+        let mut t = Self::ident(q);
         let qs: Vec<_> = (0..q).collect();
         t.cphase_at(p, &qs);
         t
     }
 
-    fn hadamard() -> Tensor<A> {
+    fn hadamard() -> Self {
         let n = A::one_over_sqrt2();
         let minus = A::from_phase(Rational::one());
         array![[n, n], [n, minus * n]].into_dyn()
@@ -247,7 +247,7 @@ impl<A: TensorElem> QubitOps<A> for Tensor<A> {
         for &q in qs {
             shape[q] = 2;
         }
-        let cp: Tensor<A> = Tensor::from_shape_fn(vec![2; qs.len()], |ix| {
+        let cp = Self::from_shape_fn(vec![2; qs.len()], |ix| {
             if (0..qs.len()).all(|i| ix[i] == 1) {
                 A::from_phase(p)
             } else {
