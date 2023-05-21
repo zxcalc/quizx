@@ -46,7 +46,7 @@ pub enum GType {
 pub use GType::*;
 
 impl GType {
-    pub fn from_qasm_name(s: &str) -> GType {
+    pub fn from_qasm_name(s: &str) -> Self {
         match s {
             "rz" => ZPhase,
             "rx" => XPhase,
@@ -119,8 +119,8 @@ pub struct Gate {
 }
 
 impl Gate {
-    pub fn from_qasm_name(s: &str) -> Gate {
-        Gate {
+    pub fn from_qasm_name(s: &str) -> Self {
+        Self {
             t: GType::from_qasm_name(s),
             qs: vec![],
             phase: Rational::zero(),
@@ -161,32 +161,32 @@ impl Gate {
 }
 
 impl Gate {
-    pub fn new(t: GType, qs: Vec<usize>) -> Gate {
-        Gate {
+    pub fn new(t: GType, qs: Vec<usize>) -> Self {
+        Self {
             t,
             qs,
             phase: Rational::zero(),
         }
     }
 
-    pub fn new_with_phase(t: GType, qs: Vec<usize>, phase: Rational) -> Gate {
-        Gate { t, qs, phase }
+    pub fn new_with_phase(t: GType, qs: Vec<usize>, phase: Rational) -> Self {
+        Self { t, qs, phase }
     }
 
     fn push_ccz_decomp(circ: &mut Circuit, qs: &Vec<usize>) {
-        circ.push(Gate::new(CNOT, vec![qs[1], qs[2]]));
-        circ.push(Gate::new(Tdg, vec![qs[2]]));
-        circ.push(Gate::new(CNOT, vec![qs[0], qs[2]]));
-        circ.push(Gate::new(T, vec![qs[2]]));
-        circ.push(Gate::new(CNOT, vec![qs[1], qs[2]]));
-        circ.push(Gate::new(Tdg, vec![qs[2]]));
-        circ.push(Gate::new(CNOT, vec![qs[0], qs[2]]));
-        circ.push(Gate::new(T, vec![qs[1]]));
-        circ.push(Gate::new(T, vec![qs[2]]));
-        circ.push(Gate::new(CNOT, vec![qs[0], qs[1]]));
-        circ.push(Gate::new(T, vec![qs[0]]));
-        circ.push(Gate::new(Tdg, vec![qs[1]]));
-        circ.push(Gate::new(CNOT, vec![qs[0], qs[1]]));
+        circ.push(Self::new(CNOT, vec![qs[1], qs[2]]));
+        circ.push(Self::new(Tdg, vec![qs[2]]));
+        circ.push(Self::new(CNOT, vec![qs[0], qs[2]]));
+        circ.push(Self::new(T, vec![qs[2]]));
+        circ.push(Self::new(CNOT, vec![qs[1], qs[2]]));
+        circ.push(Self::new(Tdg, vec![qs[2]]));
+        circ.push(Self::new(CNOT, vec![qs[0], qs[2]]));
+        circ.push(Self::new(T, vec![qs[1]]));
+        circ.push(Self::new(T, vec![qs[2]]));
+        circ.push(Self::new(CNOT, vec![qs[0], qs[1]]));
+        circ.push(Self::new(T, vec![qs[0]]));
+        circ.push(Self::new(Tdg, vec![qs[1]]));
+        circ.push(Self::new(CNOT, vec![qs[0], qs[1]]));
     }
 
     /// number of 1- and 2-qubit Clifford + phase gates needed to realise this gate
@@ -211,22 +211,22 @@ impl Gate {
     pub fn push_basic_gates(&self, circ: &mut Circuit) {
         match self.t {
             CCZ => {
-                Gate::push_ccz_decomp(circ, &self.qs);
+                Self::push_ccz_decomp(circ, &self.qs);
             }
             TOFF => {
-                circ.push(Gate::new(HAD, vec![self.qs[2]]));
+                circ.push(Self::new(HAD, vec![self.qs[2]]));
                 Gate::push_ccz_decomp(circ, &self.qs);
-                circ.push(Gate::new(HAD, vec![self.qs[2]]));
+                circ.push(Self::new(HAD, vec![self.qs[2]]));
             }
             ParityPhase => {
                 if let Some(&t) = self.qs.last() {
                     let sz = self.qs.len();
                     for &c in self.qs[0..sz - 1].iter() {
-                        circ.push(Gate::new(CNOT, vec![c, t]));
+                        circ.push(Self::new(CNOT, vec![c, t]));
                     }
-                    circ.push(Gate::new_with_phase(ZPhase, vec![t], self.phase));
+                    circ.push(Self::new_with_phase(ZPhase, vec![t], self.phase));
                     for &c in self.qs[0..sz - 1].iter().rev() {
-                        circ.push(Gate::new(CNOT, vec![c, t]));
+                        circ.push(Self::new(CNOT, vec![c, t]));
                     }
                 }
             }
@@ -242,20 +242,17 @@ impl Gate {
         et: EType,
         phase: Rational,
     ) -> Option<usize> {
-        if let Some(v0) = qs[qubit] {
-            let row = graph.row(v0) + 1;
-            let v = graph.add_vertex_with_data(VData {
-                ty,
-                phase,
-                qubit: (qubit as i32),
-                row,
-            });
-            graph.add_edge_with_type(v0, v, et);
-            qs[qubit] = Some(v);
-            Some(v)
-        } else {
-            None
-        }
+        let Some(v0) = qs[qubit] else { return None };
+        let row = graph.row(v0) + 1;
+        let v = graph.add_vertex_with_data(VData {
+            ty,
+            phase,
+            qubit: qubit as _,
+            row,
+        });
+        graph.add_edge_with_type(v0, v, et);
+        qs[qubit] = Some(v);
+        Some(v)
     }
 
     /// A postselected ZX implementation of CCZ with 4 T-like phases
@@ -268,11 +265,11 @@ impl Gate {
         qubits: &[usize],
     ) {
         if qs[qubits[0]].is_some() && qs[qubits[1]].is_some() && qs[qubits[2]].is_some() {
-            let v0 = Gate::add_spider(graph, qs, qubits[0], VType::Z, EType::N, Rational::zero())
+            let v0 = Self::add_spider(graph, qs, qubits[0], VType::Z, EType::N, Rational::zero())
                 .unwrap();
-            let v1 = Gate::add_spider(graph, qs, qubits[1], VType::Z, EType::N, Rational::zero())
+            let v1 = Self::add_spider(graph, qs, qubits[1], VType::Z, EType::N, Rational::zero())
                 .unwrap();
-            let v2 = Gate::add_spider(
+            let v2 = Self::add_spider(
                 graph,
                 qs,
                 qubits[2],
@@ -330,10 +327,10 @@ impl Gate {
     ) {
         match self.t {
             ZPhase => {
-                Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, self.phase);
+                Self::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, self.phase);
             }
             Z => {
-                Gate::add_spider(
+                Self::add_spider(
                     graph,
                     qs,
                     self.qs[0],
@@ -343,7 +340,7 @@ impl Gate {
                 );
             }
             S => {
-                Gate::add_spider(
+                Self::add_spider(
                     graph,
                     qs,
                     self.qs[0],
@@ -353,7 +350,7 @@ impl Gate {
                 );
             }
             Sdg => {
-                Gate::add_spider(
+                Self::add_spider(
                     graph,
                     qs,
                     self.qs[0],
@@ -363,7 +360,7 @@ impl Gate {
                 );
             }
             T => {
-                Gate::add_spider(
+                Self::add_spider(
                     graph,
                     qs,
                     self.qs[0],
@@ -373,7 +370,7 @@ impl Gate {
                 );
             }
             Tdg => {
-                Gate::add_spider(
+                Self::add_spider(
                     graph,
                     qs,
                     self.qs[0],
@@ -383,10 +380,10 @@ impl Gate {
                 );
             }
             XPhase => {
-                Gate::add_spider(graph, qs, self.qs[0], VType::X, EType::N, self.phase);
+                Self::add_spider(graph, qs, self.qs[0], VType::X, EType::N, self.phase);
             }
             NOT => {
-                Gate::add_spider(
+                Self::add_spider(
                     graph,
                     qs,
                     self.qs[0],
@@ -396,12 +393,12 @@ impl Gate {
                 );
             }
             HAD => {
-                Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::H, Rational::zero());
+                Self::add_spider(graph, qs, self.qs[0], VType::Z, EType::H, Rational::zero());
             }
             CNOT => {
                 if let (Some(v1), Some(v2)) = (
-                    Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Rational::zero()),
-                    Gate::add_spider(graph, qs, self.qs[1], VType::X, EType::N, Rational::zero()),
+                    Self::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Rational::zero()),
+                    Self::add_spider(graph, qs, self.qs[1], VType::X, EType::N, Rational::zero()),
                 ) {
                     let row = max(graph.row(v1), graph.row(v2));
                     graph.set_row(v1, row);
@@ -413,8 +410,8 @@ impl Gate {
             }
             CZ => {
                 if let (Some(v1), Some(v2)) = (
-                    Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Rational::zero()),
-                    Gate::add_spider(graph, qs, self.qs[1], VType::Z, EType::N, Rational::zero()),
+                    Self::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Rational::zero()),
+                    Self::add_spider(graph, qs, self.qs[1], VType::Z, EType::N, Rational::zero()),
                 ) {
                     let row = max(graph.row(v1), graph.row(v2));
                     graph.set_row(v1, row);
@@ -426,8 +423,8 @@ impl Gate {
             }
             XCX => {
                 if let (Some(v1), Some(v2)) = (
-                    Gate::add_spider(graph, qs, self.qs[0], VType::X, EType::N, Rational::zero()),
-                    Gate::add_spider(graph, qs, self.qs[1], VType::X, EType::N, Rational::zero()),
+                    Self::add_spider(graph, qs, self.qs[0], VType::X, EType::N, Rational::zero()),
+                    Self::add_spider(graph, qs, self.qs[1], VType::X, EType::N, Rational::zero()),
                 ) {
                     let row = max(graph.row(v1), graph.row(v2));
                     graph.set_row(v1, row);
@@ -439,16 +436,16 @@ impl Gate {
             }
             SWAP => {
                 if let (Some(v1), Some(v2)) = (
-                    Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Rational::zero()),
-                    Gate::add_spider(graph, qs, self.qs[1], VType::Z, EType::N, Rational::zero()),
+                    Self::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Rational::zero()),
+                    Self::add_spider(graph, qs, self.qs[1], VType::Z, EType::N, Rational::zero()),
                 ) {
                     let row = max(graph.row(v1), graph.row(v2));
                     graph.set_row(v1, row);
                     graph.set_row(v2, row);
 
                     qs.swap(self.qs[0], self.qs[1]);
-                    Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Rational::zero());
-                    Gate::add_spider(graph, qs, self.qs[1], VType::Z, EType::N, Rational::zero());
+                    Self::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Rational::zero());
+                    Self::add_spider(graph, qs, self.qs[1], VType::Z, EType::N, Rational::zero());
                 }
             }
             InitAncilla => {
@@ -464,7 +461,7 @@ impl Gate {
                 }
             }
             PostSelect => {
-                Gate::add_spider(graph, qs, self.qs[0], VType::X, EType::N, Rational::zero());
+                Self::add_spider(graph, qs, self.qs[0], VType::X, EType::N, Rational::zero());
                 graph.scalar_mut().mul_sqrt2_pow(-1);
 
                 // all later gates involving this qubit are quietly ignored
@@ -472,7 +469,7 @@ impl Gate {
             }
             CCZ => {
                 if postselect {
-                    Gate::add_ccz_postselected(graph, qs, &self.qs);
+                    Self::add_ccz_postselected(graph, qs, &self.qs);
                 } else {
                     let mut c = Circuit::new(0);
                     self.push_basic_gates(&mut c);
@@ -483,9 +480,9 @@ impl Gate {
             }
             TOFF => {
                 if postselect {
-                    Gate::add_spider(graph, qs, self.qs[2], VType::Z, EType::H, Rational::zero());
-                    Gate::add_ccz_postselected(graph, qs, &self.qs);
-                    Gate::add_spider(graph, qs, self.qs[2], VType::Z, EType::H, Rational::zero());
+                    Self::add_spider(graph, qs, self.qs[2], VType::Z, EType::H, Rational::zero());
+                    Self::add_ccz_postselected(graph, qs, &self.qs);
+                    Self::add_spider(graph, qs, self.qs[2], VType::Z, EType::H, Rational::zero());
                 } else {
                     let mut c = Circuit::new(0);
                     self.push_basic_gates(&mut c);

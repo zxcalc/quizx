@@ -283,7 +283,7 @@ pub fn local_comp_unchecked(g: &mut impl GraphLike, v: V) {
     let p = g.phase(v);
 
     // add a totally connected graph of the nhd of v
-    let ns= g.neighbors(v).to_vec();
+    let ns = g.neighbors(v).to_vec();
     for i in 0..ns.len() {
         g.add_to_phase(ns[i], -p);
         for j in (i + 1)..ns.len() {
