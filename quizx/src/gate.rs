@@ -174,19 +174,21 @@ impl Gate {
     }
 
     fn push_ccz_decomp(circ: &mut Circuit, qs: &Vec<usize>) {
-        circ.push(Self::new(CNOT, vec![qs[1], qs[2]]));
-        circ.push(Self::new(Tdg, vec![qs[2]]));
-        circ.push(Self::new(CNOT, vec![qs[0], qs[2]]));
-        circ.push(Self::new(T, vec![qs[2]]));
-        circ.push(Self::new(CNOT, vec![qs[1], qs[2]]));
-        circ.push(Self::new(Tdg, vec![qs[2]]));
-        circ.push(Self::new(CNOT, vec![qs[0], qs[2]]));
-        circ.push(Self::new(T, vec![qs[1]]));
-        circ.push(Self::new(T, vec![qs[2]]));
-        circ.push(Self::new(CNOT, vec![qs[0], qs[1]]));
-        circ.push(Self::new(T, vec![qs[0]]));
-        circ.push(Self::new(Tdg, vec![qs[1]]));
-        circ.push(Self::new(CNOT, vec![qs[0], qs[1]]));
+        circ.extend([
+            Self::new(CNOT, vec![qs[1], qs[2]]),
+            Self::new(Tdg, vec![qs[2]]),
+            Self::new(CNOT, vec![qs[0], qs[2]]),
+            Self::new(T, vec![qs[2]]),
+            Self::new(CNOT, vec![qs[1], qs[2]]),
+            Self::new(Tdg, vec![qs[2]]),
+            Self::new(CNOT, vec![qs[0], qs[2]]),
+            Self::new(T, vec![qs[1]]),
+            Self::new(T, vec![qs[2]]),
+            Self::new(CNOT, vec![qs[0], qs[1]]),
+            Self::new(T, vec![qs[0]]),
+            Self::new(Tdg, vec![qs[1]]),
+            Self::new(CNOT, vec![qs[0], qs[1]]),
+        ]);
     }
 
     /// number of 1- and 2-qubit Clifford + phase gates needed to realise this gate

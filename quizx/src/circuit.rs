@@ -43,7 +43,7 @@ pub struct CircuitStats {
 }
 
 impl CircuitStats {
-    pub fn make(c: &Circuit) -> Self {
+    pub fn new(c: &Circuit) -> Self {
         let mut s = Self {
             qubits: c.num_qubits(),
             total: c.num_gates(),
@@ -134,6 +134,10 @@ impl Circuit {
 
     pub fn push_front(&mut self, g: Gate) {
         self.gates.push_front(g);
+    }
+
+    pub fn extend(&mut self, iter: impl IntoIterator<Item = Gate>) {
+        self.gates.extend(iter)
     }
 
     pub fn add_gate_with_phase(&mut self, name: &str, qs: Vec<usize>, phase: Rational) {
@@ -296,7 +300,7 @@ impl Circuit {
     }
 
     pub fn stats(&self) -> CircuitStats {
-        CircuitStats::make(self)
+        CircuitStats::new(self)
     }
 }
 
