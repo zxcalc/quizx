@@ -85,11 +85,11 @@ impl Graph {
 impl GraphLike for Graph {
     fn new() -> Self {
         Self {
-            vdata: Vec::new(),
-            edata: Vec::new(),
-            holes: Vec::new(),
-            inputs: Vec::new(),
-            outputs: Vec::new(),
+            vdata: vec![],
+            edata: vec![],
+            holes: vec![],
+            inputs: vec![],
+            outputs: vec![],
             numv: 0,
             nume: 0,
             scalar: Scalar::one(),
@@ -148,11 +148,11 @@ impl GraphLike for Graph {
         self.numv += 1;
         if let Some(v) = self.holes.pop() {
             self.vdata[v] = Some(d);
-            self.edata[v] = Some(Vec::new());
+            self.edata[v] = Some(vec![]);
             v
         } else {
             self.vdata.push(Some(d));
-            self.edata.push(Some(Vec::new()));
+            self.edata.push(Some(vec![]));
             self.vdata.len() - 1
         }
     }

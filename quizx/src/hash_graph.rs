@@ -82,8 +82,8 @@ impl GraphLike for Graph {
         Graph {
             vdata: FxHashMap::default(),
             edata: FxHashMap::default(),
-            inputs: Vec::new(),
-            outputs: Vec::new(),
+            inputs: vec![],
+            outputs: vec![],
             numv: 0,
             nume: 0,
             freshv: 0,

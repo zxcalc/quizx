@@ -65,7 +65,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
     pub fn new(g: &'a mut G) -> Extractor<G> {
         Extractor {
             g,
-            frontier: Vec::new(),
+            frontier: vec![],
             up_to_perm: false,
             gaussf: Extractor::single_sln_set,
         }
@@ -179,7 +179,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
         let mut m1 = m.clone();
         m1.gauss_x(true, 1, &mut row_ops);
         let mut min_weight = row_ops.num_cols() as u8;
-        let mut extr_rows = Vec::new();
+        let mut extr_rows = vec![];
         let mut min_weight_row = 0;
 
         // find the vertex with the smallest solution set
@@ -270,7 +270,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
     /// gates into the circuit. Returns the frontier as a Vec of pairs
     /// (qubit, frontier_vertex).
     fn prepare_frontier(&mut self, c: &mut Circuit) -> Result<(), ExtractError<G>> {
-        self.frontier = Vec::new();
+        self.frontier = vec![];
 
         for q in 0..self.g.outputs().len() {
             let o = self.g.outputs()[q];

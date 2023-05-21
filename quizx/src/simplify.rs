@@ -168,7 +168,7 @@ pub fn fuse_gadgets(g: &mut impl GraphLike) -> bool {
             if g.vertex_type(w) != VType::Z || !g.phase(w).is_zero() {
                 continue;
             }
-            let mut nhd = Vec::new();
+            let mut nhd = vec![];
             for (n, et) in g.incident_edges(w) {
                 if g.vertex_type(n) != VType::Z || et != EType::H {
                     continue;

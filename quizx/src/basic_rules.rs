@@ -786,8 +786,8 @@ mod tests {
         assert_eq!(h.phase(0), Rational::new(0, 1));
         assert_eq!(h.phase(6), Rational::new(1, 1));
 
-        let mut inputs: Vec<usize> = Vec::new();
-        let mut outputs: Vec<usize> = Vec::new();
+        let mut inputs: Vec<usize> = vec![];
+        let mut outputs: Vec<usize> = vec![];
         for i in 0..3 {
             let inp = g.add_vertex(VType::B);
             inputs.push(inp);
