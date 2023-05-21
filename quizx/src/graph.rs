@@ -108,7 +108,7 @@ impl<'a> Iterator for VIter<'a> {
     type Item = V;
     fn next(&mut self) -> Option<V> {
         match self {
-            VIter::Vec(_, inner) => {
+            Self::Vec(_, inner) => {
                 let mut next = inner.next();
 
                 // skip over "holes", i.e. vertices that have been deleted
@@ -122,14 +122,14 @@ impl<'a> Iterator for VIter<'a> {
                     None => None,
                 }
             }
-            VIter::Hash(inner) => inner.next().map(|&v| v),
+            Self::Hash(inner) => inner.next().copied(),
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = match self {
-            VIter::Vec(sz, _) => *sz,
-            VIter::Hash(inner) => inner.len(),
+            Self::Vec(sz, _) => *sz,
+            Self::Hash(inner) => inner.len(),
         };
         (len, Some(len))
     }
@@ -154,7 +154,7 @@ impl<'a> Iterator for EIter<'a> {
     type Item = (V, V, EType);
     fn next(&mut self) -> Option<(V, V, EType)> {
         match self {
-            EIter::Vec(_, outer, inner) => {
+            Self::Vec(_, outer, inner) => {
                 loop {
                     // "inner" iterates the neighborhood of a single vertex
                     if let Some((v, iter)) = inner {
@@ -194,7 +194,7 @@ impl<'a> Iterator for EIter<'a> {
                     }
                 }
             }
-            EIter::Hash(_, outer, inner) => match inner {
+            Self::Hash(_, outer, inner) => match inner {
                 Some((v, inner1)) => match inner1.next() {
                     Some((v1, et)) => {
                         if *v <= *v1 {
@@ -221,8 +221,8 @@ impl<'a> Iterator for EIter<'a> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = match self {
-            EIter::Vec(sz, ..) => *sz,
-            EIter::Hash(sz, ..) => *sz,
+            Self::Vec(sz, ..) => *sz,
+            Self::Hash(sz, ..) => *sz,
         };
         (len, Some(len))
     }
@@ -239,15 +239,15 @@ impl<'a> Iterator for NeighborIter<'a> {
     type Item = V;
     fn next(&mut self) -> Option<V> {
         match self {
-            NeighborIter::Vec(inner) => inner.next().map(|&(v, _)| v),
-            NeighborIter::Hash(inner) => inner.next().map(|&v| v),
+            Self::Vec(inner) => inner.next().map(|&(v, _)| v),
+            Self::Hash(inner) => inner.next().copied(),
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = match self {
-            NeighborIter::Vec(inner) => inner.len(),
-            NeighborIter::Hash(inner) => inner.len(),
+            Self::Vec(inner) => inner.len(),
+            Self::Hash(inner) => inner.len(),
         };
         (len, Some(len))
     }
@@ -264,15 +264,15 @@ impl<'a> Iterator for IncidentEdgeIter<'a> {
     type Item = (V, EType);
     fn next(&mut self) -> Option<(V, EType)> {
         match self {
-            IncidentEdgeIter::Vec(inner) => inner.next().map(|&x| x),
-            IncidentEdgeIter::Hash(inner) => inner.next().map(|(&v, &et)| (v, et)),
+            Self::Vec(inner) => inner.next().copied(),
+            Self::Hash(inner) => inner.next().map(|(&v, &et)| (v, et)),
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = match self {
-            IncidentEdgeIter::Vec(inner) => inner.len(),
-            IncidentEdgeIter::Hash(inner) => inner.len(),
+            Self::Vec(inner) => inner.len(),
+            Self::Hash(inner) => inner.len(),
         };
         (len, Some(len))
     }
