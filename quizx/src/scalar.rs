@@ -498,15 +498,15 @@ impl<'a, T: Coeffs> std::ops::Add<Scalar<T>> for &'a Scalar<T> {
     }
 }
 
-impl<'a, T: Coeffs> std::ops::Add<&'a Scalar<T>> for Scalar<T> {
-    type Output = Scalar<T>;
-    fn add(self, rhs: &Scalar<T>) -> Self::Output {
+impl<'a, T: Coeffs> std::ops::Add<&'a Self> for Scalar<T> {
+    type Output = Self;
+    fn add(self, rhs: &Self) -> Self {
         &self + rhs
     }
 }
 
 impl<T: Coeffs> FromScalar<Scalar<T>> for Complex<f64> {
-    fn from_scalar(s: &Scalar<T>) -> Complex<f64> {
+    fn from_scalar(s: &Scalar<T>) -> Self {
         s.float_value()
     }
 }
