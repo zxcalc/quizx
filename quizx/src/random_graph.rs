@@ -1,7 +1,7 @@
 use crate::graph::*;
-use rand::{SeedableRng, Rng};
-use rand::rngs::StdRng;
 use num::Rational;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 
 pub struct EquatorialStabilizerStateBuilder {
     pub rng: StdRng,
@@ -16,8 +16,14 @@ impl EquatorialStabilizerStateBuilder {
         }
     }
 
-    pub fn seed(&mut self, seed: u64) -> &mut Self { self.rng = StdRng::seed_from_u64(seed); self }
-    pub fn qubits(&mut self, qubits: usize) -> &mut Self { self.qubits = qubits; self }
+    pub fn seed(&mut self, seed: u64) -> &mut Self {
+        self.rng = StdRng::seed_from_u64(seed);
+        self
+    }
+    pub fn qubits(&mut self, qubits: usize) -> &mut Self {
+        self.qubits = qubits;
+        self
+    }
     pub fn build<G: GraphLike>(&mut self) -> G {
         let mut g = G::new();
         let outputs: Vec<_> = (0..self.qubits).map(|_| g.add_vertex(VType::B)).collect();
@@ -42,5 +48,3 @@ impl EquatorialStabilizerStateBuilder {
         g
     }
 }
-
-

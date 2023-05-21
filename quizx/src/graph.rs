@@ -16,12 +16,12 @@
 
 use crate::scalar::*;
 use num::rational::Rational;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::iter::FromIterator;
-use rustc_hash::{FxHashMap,FxHashSet};
 
 pub type V = usize;
 
-#[derive(Debug,Copy,Clone,PartialEq,Eq,PartialOrd,Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum VType {
     B, // Boundary
     Z, // Z-spider
@@ -29,7 +29,7 @@ pub enum VType {
     H, // H-box
 }
 
-#[derive(Debug,Copy,Clone,PartialEq,Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct VData {
     pub ty: VType,
     pub phase: Rational,
@@ -37,7 +37,7 @@ pub struct VData {
     pub row: i32,
 }
 
-#[derive(Debug,Copy,Clone,PartialEq,Eq,PartialOrd,Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum EType {
     N, // normal edge
     H, // hadamard edge
@@ -52,12 +52,16 @@ impl EType {
     }
 
     pub fn merge(et0: EType, et1: EType) -> EType {
-        if et0 == EType::N { et1 } else { et1.opposite() }
+        if et0 == EType::N {
+            et1
+        } else {
+            et1.opposite()
+        }
     }
 }
 
 /// An enum specifying an X or Z basis element
-#[derive(Debug,Copy,Clone,PartialEq,Eq,PartialOrd,Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BasisElem {
     Z0, // |0>
     Z1, // |1>
@@ -67,8 +71,11 @@ pub enum BasisElem {
 
 impl BasisElem {
     pub fn phase(&self) -> Rational {
-        if *self == BasisElem::Z1 || *self == BasisElem::X1 { Rational::one() }
-        else { Rational::zero() }
+        if *self == BasisElem::Z1 || *self == BasisElem::X1 {
+            Rational::one()
+        } else {
+            Rational::zero()
+        }
     }
 
     pub fn is_z(&self) -> bool {
@@ -90,15 +97,18 @@ impl BasisElem {
 }
 
 pub enum VIter<'a> {
-    Vec(usize,std::iter::Enumerate<std::slice::Iter<'a,Option<VData>>>),
-    Hash(std::collections::hash_map::Keys<'a,V,VData>)
+    Vec(
+        usize,
+        std::iter::Enumerate<std::slice::Iter<'a, Option<VData>>>,
+    ),
+    Hash(std::collections::hash_map::Keys<'a, V, VData>),
 }
 
 impl<'a> Iterator for VIter<'a> {
     type Item = V;
     fn next(&mut self) -> Option<V> {
         match self {
-            VIter::Vec(_,inner)  => {
+            VIter::Vec(_, inner) => {
                 let mut next = inner.next();
 
                 // skip over "holes", i.e. vertices that have been deleted
@@ -111,14 +121,14 @@ impl<'a> Iterator for VIter<'a> {
                     Some((_, None)) => panic!("encountered deleted vertex in VIter"), // should never happen
                     None => None,
                 }
-            },
-            VIter::Hash(inner) => inner.next().map(|&v| v)
+            }
+            VIter::Hash(inner) => inner.next().map(|&v| v),
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = match self {
-            VIter::Vec(sz,_)  => *sz,
+            VIter::Vec(sz, _) => *sz,
             VIter::Hash(inner) => inner.len(),
         };
         (len, Some(len))
@@ -128,19 +138,23 @@ impl<'a> Iterator for VIter<'a> {
 impl<'a> ExactSizeIterator for VIter<'a> {}
 
 pub enum EIter<'a> {
-    Vec(usize,
-        std::iter::Enumerate<std::slice::Iter<'a,Option<Vec<(V,EType)>>>>,
-        Option<(V,std::slice::Iter<'a,(V,EType)>)>),
-    Hash(usize,
-         std::collections::hash_map::Iter<'a,V,rustc_hash::FxHashMap<V,EType>>,
-         Option<(V,std::collections::hash_map::Iter<'a,V,EType>)>)
+    Vec(
+        usize,
+        std::iter::Enumerate<std::slice::Iter<'a, Option<Vec<(V, EType)>>>>,
+        Option<(V, std::slice::Iter<'a, (V, EType)>)>,
+    ),
+    Hash(
+        usize,
+        std::collections::hash_map::Iter<'a, V, rustc_hash::FxHashMap<V, EType>>,
+        Option<(V, std::collections::hash_map::Iter<'a, V, EType>)>,
+    ),
 }
 
 impl<'a> Iterator for EIter<'a> {
-    type Item = (V,V,EType);
-    fn next(&mut self) -> Option<(V,V,EType)> {
+    type Item = (V, V, EType);
+    fn next(&mut self) -> Option<(V, V, EType)> {
         match self {
-            EIter::Vec(_,outer,inner) => {
+            EIter::Vec(_, outer, inner) => {
                 loop {
                     // "inner" iterates the neighborhood of a single vertex
                     if let Some((v, iter)) = inner {
@@ -170,35 +184,44 @@ impl<'a> Iterator for EIter<'a> {
                         // proceed to the next vertex and loop
                         Some((v, Some(tab))) => {
                             *inner = Some((v, tab.iter()));
-                        },
+                        }
                         // should never happen
                         Some((_, None)) => panic!("encountered deleted vertex in EIter"),
                         // out of vertices, so terminate iteration
-                        None => { return None; }
+                        None => {
+                            return None;
+                        }
                     }
                 }
-            },
+            }
             EIter::Hash(_, outer, inner) => match inner {
                 Some((v, inner1)) => match inner1.next() {
-                    Some((v1,et)) =>
-                        if *v <= *v1 { Some((*v,*v1,*et)) }
-                        else { self.next() },
-                    None => { *inner = None; self.next() }
+                    Some((v1, et)) => {
+                        if *v <= *v1 {
+                            Some((*v, *v1, *et))
+                        } else {
+                            self.next()
+                        }
+                    }
+                    None => {
+                        *inner = None;
+                        self.next()
+                    }
                 },
                 None => match outer.next() {
                     Some((v, tab)) => {
                         *inner = Some((*v, tab.iter()));
                         self.next()
-                    },
-                    None => None
-                }
-            }
+                    }
+                    None => None,
+                },
+            },
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = match self {
-            EIter::Vec(sz, ..)  => *sz,
+            EIter::Vec(sz, ..) => *sz,
             EIter::Hash(sz, ..) => *sz,
         };
         (len, Some(len))
@@ -208,22 +231,22 @@ impl<'a> Iterator for EIter<'a> {
 impl<'a> ExactSizeIterator for EIter<'a> {}
 
 pub enum NeighborIter<'a> {
-    Vec(std::slice::Iter<'a,(V,EType)>),
-    Hash(std::collections::hash_map::Keys<'a,V,EType>)
+    Vec(std::slice::Iter<'a, (V, EType)>),
+    Hash(std::collections::hash_map::Keys<'a, V, EType>),
 }
 
 impl<'a> Iterator for NeighborIter<'a> {
     type Item = V;
     fn next(&mut self) -> Option<V> {
         match self {
-            NeighborIter::Vec(inner)  => inner.next().map(|&(v,_)| v),
-            NeighborIter::Hash(inner) => inner.next().map(|&v| v)
+            NeighborIter::Vec(inner) => inner.next().map(|&(v, _)| v),
+            NeighborIter::Hash(inner) => inner.next().map(|&v| v),
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = match self {
-            NeighborIter::Vec(inner)  => inner.len(),
+            NeighborIter::Vec(inner) => inner.len(),
             NeighborIter::Hash(inner) => inner.len(),
         };
         (len, Some(len))
@@ -232,24 +255,23 @@ impl<'a> Iterator for NeighborIter<'a> {
 
 impl<'a> ExactSizeIterator for NeighborIter<'a> {}
 
-
 pub enum IncidentEdgeIter<'a> {
-    Vec(std::slice::Iter<'a,(V,EType)>),
-    Hash(std::collections::hash_map::Iter<'a,V,EType>)
+    Vec(std::slice::Iter<'a, (V, EType)>),
+    Hash(std::collections::hash_map::Iter<'a, V, EType>),
 }
 
 impl<'a> Iterator for IncidentEdgeIter<'a> {
-    type Item = (V,EType);
-    fn next(&mut self) -> Option<(V,EType)> {
+    type Item = (V, EType);
+    fn next(&mut self) -> Option<(V, EType)> {
         match self {
-            IncidentEdgeIter::Vec(inner)  => inner.next().map(|&x| x),
-            IncidentEdgeIter::Hash(inner) => inner.next().map(|(&v,&et)| (v,et))
+            IncidentEdgeIter::Vec(inner) => inner.next().map(|&x| x),
+            IncidentEdgeIter::Hash(inner) => inner.next().map(|(&v, &et)| (v, et)),
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = match self {
-            IncidentEdgeIter::Vec(inner)  => inner.len(),
+            IncidentEdgeIter::Vec(inner) => inner.len(),
             IncidentEdgeIter::Hash(inner) => inner.len(),
         };
         (len, Some(len))
@@ -326,8 +348,8 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     fn vertex_data(&self, v: V) -> VData;
     fn set_edge_type(&mut self, s: V, t: V, ety: EType);
     fn edge_type_opt(&self, s: V, t: V) -> Option<EType>;
-    fn set_coord(&mut self, v: V, coord: (i32,i32));
-    fn coord(&mut self, v: V) -> (i32,i32);
+    fn set_coord(&mut self, v: V, coord: (i32, i32));
+    fn coord(&mut self, v: V) -> (i32, i32);
     fn set_qubit(&mut self, v: V, qubit: i32);
     fn qubit(&self, v: V) -> i32;
     fn set_row(&mut self, v: V, row: i32);
@@ -337,10 +359,12 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     fn degree(&self, v: V) -> usize;
     fn scalar(&self) -> &ScalarN;
     fn scalar_mut(&mut self) -> &mut ScalarN;
-    fn find_edge<F>(&self, f: F) -> Option<(V,V,EType)>
-        where F : Fn(V,V,EType) -> bool;
+    fn find_edge<F>(&self, f: F) -> Option<(V, V, EType)>
+    where
+        F: Fn(V, V, EType) -> bool;
     fn find_vertex<F>(&self, f: F) -> Option<V>
-        where F : Fn(V) -> bool;
+    where
+        F: Fn(V) -> bool;
     fn contains_vertex(&self, v: V) -> bool;
 
     fn add_edge(&mut self, s: V, t: V) {
@@ -348,7 +372,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     }
 
     fn edge_type(&self, s: V, t: V) -> EType {
-        self.edge_type_opt(s,t).expect("Edge not found")
+        self.edge_type_opt(s, t).expect("Edge not found")
     }
 
     fn connected(&self, v0: V, v1: V) -> bool {
@@ -359,10 +383,18 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         self.set_edge_type(v0, v1, self.edge_type(v0, v1).opposite());
     }
 
-    fn vertex_vec(&self) -> Vec<V> { self.vertices().collect() }
-    fn edge_vec(&self) -> Vec<(V,V,EType)> { self.edges().collect() }
-    fn neighbor_vec(&self, v: V) -> Vec<V> { self.neighbors(v).collect() }
-    fn incident_edge_vec(&self, v: V) -> Vec<(V,EType)> { self.incident_edges(v).collect() }
+    fn vertex_vec(&self) -> Vec<V> {
+        self.vertices().collect()
+    }
+    fn edge_vec(&self) -> Vec<(V, V, EType)> {
+        self.edges().collect()
+    }
+    fn neighbor_vec(&self, v: V) -> Vec<V> {
+        self.neighbors(v).collect()
+    }
+    fn incident_edge_vec(&self, v: V) -> Vec<(V, EType)> {
+        self.incident_edges(v).collect()
+    }
 
     /// Convert all X spiders to Z with the colour-change rule
     fn x_to_z(&mut self) {
@@ -370,7 +402,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
             if self.vertex_type(v) == VType::X {
                 self.set_vertex_type(v, VType::Z);
                 for w in Vec::from_iter(self.neighbors(v)) {
-                    self.toggle_edge_type(v,w);
+                    self.toggle_edge_type(v, w);
                 }
             }
         }
@@ -389,15 +421,15 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     fn add_edge_smart(&mut self, s: V, t: V, ety: EType) {
         let st = self.vertex_type(s);
         if s == t {
-           if st == VType::Z || st == VType::X {
-               if ety == EType::H {
-                   self.add_to_phase(s, Rational::new(1,1));
-                   self.scalar_mut().mul_sqrt2_pow(-1);
-               }
-           } else {
-               panic!("Self-loops only supported on Z and X nodes");
-           }
-        } else if let Some(ety0) = self.edge_type_opt(s,t) {
+            if st == VType::Z || st == VType::X {
+                if ety == EType::H {
+                    self.add_to_phase(s, Rational::new(1, 1));
+                    self.scalar_mut().mul_sqrt2_pow(-1);
+                }
+            } else {
+                panic!("Self-loops only supported on Z and X nodes");
+            }
+        } else if let Some(ety0) = self.edge_type_opt(s, t) {
             let tt = self.vertex_type(t);
             match (st, tt) {
                 (VType::Z, VType::Z) | (VType::X, VType::X) => {
@@ -409,11 +441,11 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
                         }
                         (EType::H, EType::N) => {
                             self.set_edge_type(s, t, EType::N);
-                            self.add_to_phase(s, Rational::new(1,1));
+                            self.add_to_phase(s, Rational::new(1, 1));
                             self.scalar_mut().mul_sqrt2_pow(-1);
                         }
                         (EType::N, EType::H) => {
-                            self.add_to_phase(s, Rational::new(1,1));
+                            self.add_to_phase(s, Rational::new(1, 1));
                             self.scalar_mut().mul_sqrt2_pow(-1);
                         }
                     }
@@ -426,17 +458,17 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
                         }
                         (EType::N, EType::H) => {
                             self.set_edge_type(s, t, EType::H);
-                            self.add_to_phase(s, Rational::new(1,1));
+                            self.add_to_phase(s, Rational::new(1, 1));
                             self.scalar_mut().mul_sqrt2_pow(-1);
                         }
                         (EType::H, EType::N) => {
-                            self.add_to_phase(s, Rational::new(1,1));
+                            self.add_to_phase(s, Rational::new(1, 1));
                             self.scalar_mut().mul_sqrt2_pow(-1);
                         }
                         (EType::H, EType::H) => {} // ignore new edge
                     }
                 }
-                _ => panic!("Parallel edges only supported between Z and X vertices")
+                _ => panic!("Parallel edges only supported between Z and X vertices"),
             }
         } else {
             self.add_edge_with_type(s, t, ety);
@@ -452,7 +484,10 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         self.set_phase(v, b.phase());
 
         if b.is_z() {
-            let n = self.neighbors(v).next().expect("Boundary should have 1 neighbor.");
+            let n = self
+                .neighbors(v)
+                .next()
+                .expect("Boundary should have 1 neighbor.");
             self.toggle_edge_type(v, n);
         }
     }
@@ -477,7 +512,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     fn plug_inputs(&mut self, plug: &[BasisElem]) {
         let sz = plug.len();
         assert!(sz <= self.inputs().len(), "Too many input states");
-        for (i,&b) in plug.iter().enumerate() {
+        for (i, &b) in plug.iter().enumerate() {
             self.plug_vertex(self.inputs()[i], b);
         }
         self.set_inputs(self.inputs()[sz..].to_owned());
@@ -490,7 +525,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     fn plug_outputs(&mut self, plug: &[BasisElem]) {
         let sz = plug.len();
         assert!(sz <= self.outputs().len(), "Too many output effects");
-        for (i,&b) in plug.iter().enumerate() {
+        for (i, &b) in plug.iter().enumerate() {
             self.plug_vertex(self.outputs()[i], b);
         }
         self.set_outputs(self.outputs()[sz..].to_owned());
@@ -501,7 +536,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     ///
     /// The renaming map is returned. The scalars are multiplied, but the inputs/outputs
     /// of `self` are NOT updated.
-    fn append_graph(&mut self, other: &impl GraphLike) -> FxHashMap<V,V> {
+    fn append_graph(&mut self, other: &impl GraphLike) -> FxHashMap<V, V> {
         let mut vmap = FxHashMap::default();
 
         for v in other.vertices() {
@@ -531,8 +566,14 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         for k in 0..self.outputs().len() {
             let o = self.outputs()[k];
             let i = other.inputs()[k];
-            let (no, et0) = self.incident_edges(o).next().expect(&format!("Bad output: {}", o));
-            let (ni, et1) = other.incident_edges(i).next().expect(&format!("Bad input: {}", i));
+            let (no, et0) = self
+                .incident_edges(o)
+                .next()
+                .expect(&format!("Bad output: {}", o));
+            let (ni, et1) = other
+                .incident_edges(i)
+                .next()
+                .expect(&format!("Bad input: {}", i));
             let et = EType::merge(et0, et1);
 
             self.add_edge_smart(no, vmap[&ni], et);
@@ -540,18 +581,17 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
             self.remove_vertex(vmap[&i]);
         }
 
-        let outp = other.outputs()
-            .iter().map(|o| vmap[o]).collect();
+        let outp = other.outputs().iter().map(|o| vmap[o]).collect();
         self.set_outputs(outp);
     }
 
     /// Checks if the given graph only consists of wires from the inputs to outputs (in order)
     fn is_identity(&self) -> bool {
         let n = self.inputs().len();
-        self.inputs().len() == n &&
-            self.outputs().len() == n &&
-            self.num_vertices() == 2 * n &&
-            (0..n).all(|i| self.connected(self.inputs()[i], self.outputs()[i]))
+        self.inputs().len() == n
+            && self.outputs().len() == n
+            && self.num_vertices() == 2 * n
+            && (0..n).all(|i| self.connected(self.inputs()[i], self.outputs()[i]))
     }
 
     /// Return number of Z or X spiders with non-Clifford phase
@@ -572,18 +612,25 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         for v in self.vertices() {
             let t = self.vertex_type(v);
             let p = self.phase(v);
-            dot += &format!("  {} [color={}, label=\"{}\"", v,
-                            match t {
-                                VType::B => "black",
-                                VType::Z => "green",
-                                VType::X => "red",
-                                VType::H => "yellow",
-                            },
-                            if self.inputs().contains(&v) { format!("{}:i", v) }
-                            else if self.outputs().contains(&v) { format!("{}:o", v) }
-                            else if !p.is_zero() { format!("{}:{}", v, p) }
-                            else { format!("{}", v) }
-                           );
+            dot += &format!(
+                "  {} [color={}, label=\"{}\"",
+                v,
+                match t {
+                    VType::B => "black",
+                    VType::Z => "green",
+                    VType::X => "red",
+                    VType::H => "yellow",
+                },
+                if self.inputs().contains(&v) {
+                    format!("{}:i", v)
+                } else if self.outputs().contains(&v) {
+                    format!("{}:o", v)
+                } else if !p.is_zero() {
+                    format!("{}:{}", v, p)
+                } else {
+                    format!("{}", v)
+                }
+            );
             let q = self.qubit(v);
             let r = self.row(v);
             if q != 0 || r != 0 {
@@ -596,7 +643,9 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
 
         for (s, t, ty) in self.edges() {
             dot += &format!("  {} -- {}", s, t);
-            if ty == EType::H { dot += " [color=blue]"; }
+            if ty == EType::H {
+                dot += " [color=blue]";
+            }
             dot += "\n";
         }
 
@@ -651,7 +700,9 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
                     vset.remove(&v);
 
                     for w in self.neighbors(v) {
-                        if vset.contains(&w) { stack.push(w); }
+                        if vset.contains(&w) {
+                            stack.push(w);
+                        }
                     }
                 }
             } else {
@@ -666,41 +717,41 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::vec_graph::Graph;
     use crate::tensor::ToTensor;
+    use crate::vec_graph::Graph;
     #[test]
     fn smart_edges() {
-       let mut g = Graph::new();
-       g.add_vertex(VType::B);
-       g.add_vertex(VType::Z);
-       g.add_vertex(VType::Z);
-       g.add_vertex(VType::X);
-       g.add_vertex(VType::B);
-       g.add_edge_smart(0,1,EType::N);
-       g.add_edge_smart(1,2,EType::N);
-       g.add_edge_smart(2,3,EType::N);
-       g.add_edge_smart(1,3,EType::N);
-       g.add_edge_smart(3,4,EType::N);
-       g.set_inputs(vec![0]);
-       g.set_outputs(vec![4]);
+        let mut g = Graph::new();
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::Z);
+        g.add_vertex(VType::Z);
+        g.add_vertex(VType::X);
+        g.add_vertex(VType::B);
+        g.add_edge_smart(0, 1, EType::N);
+        g.add_edge_smart(1, 2, EType::N);
+        g.add_edge_smart(2, 3, EType::N);
+        g.add_edge_smart(1, 3, EType::N);
+        g.add_edge_smart(3, 4, EType::N);
+        g.set_inputs(vec![0]);
+        g.set_outputs(vec![4]);
 
-       let mut h = Graph::new();
-       h.add_vertex(VType::B);
-       h.add_vertex(VType::Z);
-       h.add_vertex(VType::X);
-       h.add_vertex(VType::B);
-       h.add_edge_smart(0,1,EType::N);
-       h.add_edge_smart(1,2,EType::N);
-       h.add_edge_smart(1,2,EType::N);
-       h.add_edge_smart(2,3,EType::N);
-       h.set_inputs(vec![0]);
-       h.set_outputs(vec![3]);
+        let mut h = Graph::new();
+        h.add_vertex(VType::B);
+        h.add_vertex(VType::Z);
+        h.add_vertex(VType::X);
+        h.add_vertex(VType::B);
+        h.add_edge_smart(0, 1, EType::N);
+        h.add_edge_smart(1, 2, EType::N);
+        h.add_edge_smart(1, 2, EType::N);
+        h.add_edge_smart(2, 3, EType::N);
+        h.set_inputs(vec![0]);
+        h.set_outputs(vec![3]);
 
-       let tg = g.to_tensor4();
-       let th = h.to_tensor4();
-       println!("\n\ntg =\n{}", tg);
-       println!("\n\nth =\n{}", th);
-       assert_eq!(tg, th);
+        let tg = g.to_tensor4();
+        let th = h.to_tensor4();
+        println!("\n\ntg =\n{}", tg);
+        println!("\n\nth =\n{}", th);
+        assert_eq!(tg, th);
     }
 
     #[test]
@@ -730,7 +781,10 @@ mod tests {
         g.plug(&h);
         assert_eq!(g.num_vertices(), 4);
         assert_eq!(g.num_edges(), 3);
-        let zs: Vec<_> = g.vertices().filter(|&v| g.vertex_type(v) == VType::Z).collect();
+        let zs: Vec<_> = g
+            .vertices()
+            .filter(|&v| g.vertex_type(v) == VType::Z)
+            .collect();
         assert_eq!(zs.len(), 2);
         assert!(g.connected(zs[0], zs[1]));
     }

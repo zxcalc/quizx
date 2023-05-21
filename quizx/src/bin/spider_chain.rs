@@ -29,7 +29,7 @@ fn main() {
 
     for i in 1..sz {
         g.add_vertex(VType::Z);
-        g.add_edge(i-1, i);
+        g.add_edge(i - 1, i);
     }
 
     println!("Done in {:.2?}", time.elapsed());
@@ -40,8 +40,8 @@ fn main() {
     let time = Instant::now();
 
     loop {
-        match g.find_edge(|v0,v1,_| check_spider_fusion(&g, v0, v1)) {
-            Some((v0,v1,_)) => spider_fusion_unchecked(&mut g, v0, v1),
+        match g.find_edge(|v0, v1, _| check_spider_fusion(&g, v0, v1)) {
+            Some((v0, v1, _)) => spider_fusion_unchecked(&mut g, v0, v1),
             None => break,
         };
     }

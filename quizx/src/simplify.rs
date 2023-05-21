@@ -14,10 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::graph::*;
 use crate::basic_rules::*;
+use crate::graph::*;
+use num::{One, Rational, Zero};
 use rustc_hash::FxHashMap;
-use num::{Rational, One, Zero};
 
 /// Repeatedly apply the given rule at any vertex
 /// that matches the check function
@@ -29,9 +29,8 @@ pub fn vertex_simp<G: GraphLike>(
     g: &mut G,
     check: fn(&G, V) -> bool,
     rule: fn(&mut G, V) -> (),
-    force_reduce: bool
-    ) -> bool
-{
+    force_reduce: bool,
+) -> bool {
     let mut got_match = false;
     let mut new_matches = true;
     let mut numv;
@@ -45,7 +44,9 @@ pub fn vertex_simp<G: GraphLike>(
                 got_match = true;
             }
         }
-        if force_reduce && numv >= g.num_vertices() { break; }
+        if force_reduce && numv >= g.num_vertices() {
+            break;
+        }
     }
 
     got_match
@@ -55,25 +56,25 @@ pub fn edge_simp<G: GraphLike>(
     g: &mut G,
     check: fn(&G, V, V) -> bool,
     rule: fn(&mut G, V, V) -> (),
-    force_reduce: bool
-    ) -> bool
-{
+    force_reduce: bool,
+) -> bool {
     let mut got_match = false;
     let mut new_matches = true;
     let mut numv;
     while new_matches {
         numv = g.num_vertices();
         new_matches = false;
-        for (s,t,_) in g.edge_vec() {
-            if !g.contains_vertex(s) ||
-               !g.contains_vertex(t) ||
-               !check(g, s, t)
-               { continue; }
+        for (s, t, _) in g.edge_vec() {
+            if !g.contains_vertex(s) || !g.contains_vertex(t) || !check(g, s, t) {
+                continue;
+            }
             rule(g, s, t);
             new_matches = true;
             got_match = true;
         }
-        if force_reduce && numv >= g.num_vertices() { break; }
+        if force_reduce && numv >= g.num_vertices() {
+            break;
+        }
     }
 
     got_match
@@ -114,7 +115,9 @@ pub fn flow_simp(g: &mut impl GraphLike) -> bool {
         m = id_simp(g);
         m = spider_simp(g) || m;
         m = scalar_simp(g) || m;
-        if m { got_match = true; }
+        if m {
+            got_match = true;
+        }
     }
 
     got_match
@@ -131,7 +134,9 @@ pub fn interior_clifford_simp(g: &mut impl GraphLike) -> bool {
         m = pivot_simp(g) || m;
         m = local_comp_simp(g) || m;
         m = scalar_simp(g) || m;
-        if m { got_match = true; }
+        if m {
+            got_match = true;
+        }
     }
 
     got_match
@@ -145,7 +150,9 @@ pub fn clifford_simp(g: &mut impl GraphLike) -> bool {
         // println!("v: {}", numv);
         m = interior_clifford_simp(g);
         m = gen_pivot_simp(g) || m;
-        if m { got_match = true; }
+        if m {
+            got_match = true;
+        }
         // if !(g.num_vertices() < numv) { break; }
     }
 
@@ -153,24 +160,29 @@ pub fn clifford_simp(g: &mut impl GraphLike) -> bool {
 }
 
 pub fn fuse_gadgets(g: &mut impl GraphLike) -> bool {
-    let mut gadgets: FxHashMap<Vec<V>,Vec<(V,V)>> = FxHashMap::default();
+    let mut gadgets: FxHashMap<Vec<V>, Vec<(V, V)>> = FxHashMap::default();
 
     for v in g.vertices() {
         if g.degree(v) == 1 && g.vertex_type(v) == VType::Z {
             let w = g.neighbors(v).next().unwrap();
-            if g.vertex_type(w) != VType::Z || !g.phase(w).is_zero() { continue; }
+            if g.vertex_type(w) != VType::Z || !g.phase(w).is_zero() {
+                continue;
+            }
             let mut nhd = Vec::new();
-            for (n,et) in g.incident_edges(w) {
-                if g.vertex_type(n) != VType::Z ||
-                   et != EType::H { continue; }
-                if n != v { nhd.push(n); }
+            for (n, et) in g.incident_edges(w) {
+                if g.vertex_type(n) != VType::Z || et != EType::H {
+                    continue;
+                }
+                if n != v {
+                    nhd.push(n);
+                }
             }
             nhd.sort();
 
             if let Some(gs) = gadgets.get_mut(&nhd) {
                 gs.push((w, v));
             } else {
-                gadgets.insert(nhd, vec![(w,v)]);
+                gadgets.insert(nhd, vec![(w, v)]);
             }
         }
     }
@@ -191,25 +203,24 @@ pub fn fuse_gadgets(g: &mut impl GraphLike) -> bool {
             }
 
             g.add_to_phase(gs[0].1, ph);
-            g.scalar_mut().mul_sqrt2_pow(-(num - 1)*(degree - 1));
+            g.scalar_mut().mul_sqrt2_pow(-(num - 1) * (degree - 1));
         }
     }
 
     fused
 }
 
-/// Perform a pi-copies to remove all pi phases from the 
+/// Perform a pi-copies to remove all pi phases from the
 /// centers of phase gadgets.
 fn remove_gadget_pi(g: &mut impl GraphLike) -> bool {
-    let gadgets = g.vertices()
+    let gadgets = g
+        .vertices()
         // Look for the outsides of phase gadgets
         .filter(|&v| g.degree(v) == 1 && g.vertex_type(v) == VType::Z)
         .map(|v| (g.neighbors(v).next().unwrap(), v))
         // Check that the middle is a pi-phase
         .filter(|&(n, v)| {
-            g.edge_type(v, n) == EType::H
-                && g.vertex_type(n) == VType::Z
-                && g.phase(n).is_one()
+            g.edge_type(v, n) == EType::H && g.vertex_type(n) == VType::Z && g.phase(n).is_one()
         })
         // Collect them in a hash-map keyed by the central vertex
         // so that multiple phases hanging off a single gadget
@@ -237,7 +248,9 @@ pub fn full_simp(g: &mut impl GraphLike) -> bool {
         m = clifford_simp(g);
         m = fuse_gadgets(g) || m;
         m = remove_gadget_pi(g) || m;
-        if m { got_match = true; }
+        if m {
+            got_match = true;
+        }
     }
 
     got_match
@@ -247,12 +260,13 @@ pub fn full_simp(g: &mut impl GraphLike) -> bool {
 mod tests {
     use super::*;
     use crate::circuit::*;
-    use crate::vec_graph::Graph;
     use crate::tensor::ToTensor;
+    use crate::vec_graph::Graph;
 
     #[test]
     fn simp_cnot() {
-        let c = Circuit::from_qasm(r#"
+        let c = Circuit::from_qasm(
+            r#"
             qreg q[4];
             cx q[0], q[1];
             cx q[0], q[2];
@@ -262,7 +276,9 @@ mod tests {
             cx q[1], q[2];
             cx q[1], q[3];
             cx q[1], q[0];
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
         let mut g: Graph = c.to_graph();
         clifford_simp(&mut g);
 
@@ -272,7 +288,8 @@ mod tests {
 
     #[test]
     fn cliff_simp() {
-        let c = Circuit::from_qasm(r#"
+        let c = Circuit::from_qasm(
+            r#"
             qreg q[3];
             h q[1];
             h q[1];
@@ -285,7 +302,9 @@ mod tests {
             cx q[0], q[2];
             h q[2];
             z q[0];
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
 
         let g: Graph = c.to_graph();
 
