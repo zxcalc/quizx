@@ -44,7 +44,7 @@ pub struct CircuitStats {
 
 impl CircuitStats {
     pub fn make(c: &Circuit) -> Self {
-        let mut s = CircuitStats {
+        let mut s = Self {
             qubits: c.num_qubits(),
             total: c.num_gates(),
             oneq: 0,
@@ -105,8 +105,8 @@ impl fmt::Display for CircuitStats {
 }
 
 impl Circuit {
-    pub fn new(nqubits: usize) -> Circuit {
-        Circuit {
+    pub fn new(nqubits: usize) -> Self {
+        Self {
             gates: VecDeque::new(),
             nqubits,
         }
@@ -121,13 +121,7 @@ impl Circuit {
     }
 
     pub fn num_gates_of_type(&self, t: GType) -> usize {
-        let mut n = 0;
-        for g in &self.gates {
-            if g.t == t {
-                n += 1;
-            }
-        }
-        n
+        self.gates.iter().filter(|g| g.t == t).count()
     }
 
     pub fn push(&mut self, g: Gate) {
@@ -165,7 +159,7 @@ impl Circuit {
         }
     }
 
-    pub fn to_adjoint(&self) -> Circuit {
+    pub fn to_adjoint(&self) -> Self {
         let mut c = self.clone();
         c.adjoint();
         c
@@ -175,7 +169,7 @@ impl Circuit {
         String::from("OPENQASM 2.0;\ninclude \"qelib1.inc\";\n") + &self.to_string()
     }
 
-    fn from_qasm_parser(read: impl FnOnce(&mut openqasm::Parser)) -> Result<Circuit, String> {
+    fn from_qasm_parser(read: impl FnOnce(&mut openqasm::Parser)) -> Result<Self, String> {
         let mut cache = openqasm::SourceCache::new();
         let mut parser = openqasm::Parser::new(&mut cache)
             .with_file_policy(openqasm::parser::FilePolicy::Ignore);
@@ -222,20 +216,20 @@ impl Circuit {
         Ok(writer.circuit)
     }
 
-    pub fn from_qasm(source: &str) -> Result<Circuit, String> {
-        Circuit::from_qasm_parser(|parser| parser.parse_source::<String>(source.to_string(), None))
+    pub fn from_qasm(source: &str) -> Result<Self, String> {
+        Self::from_qasm_parser(|parser| parser.parse_source::<String>(source.to_string(), None))
     }
 
-    pub fn from_file(name: &str) -> Result<Circuit, String> {
-        Circuit::from_qasm_parser(|parser| parser.parse_file(name))
+    pub fn from_file(name: &str) -> Result<Self, String> {
+        Self::from_qasm_parser(|parser| parser.parse_file(name))
     }
 
     /// returns a copy of the circuit, decomposed into 1- and 2-qubit Clifford +
     /// phase gates.
-    pub fn to_basic_gates(&self) -> Circuit {
+    pub fn to_basic_gates(&self) -> Self {
         // calculate the space needed in advance
         let sz = self.gates.iter().map(|g| g.num_basic_gates()).sum();
-        let mut c = Circuit {
+        let mut c = Self {
             gates: VecDeque::with_capacity(sz),
             nqubits: self.nqubits,
         };
@@ -319,11 +313,12 @@ impl fmt::Display for Circuit {
 }
 
 impl std::ops::Add<Circuit> for Circuit {
-    type Output = Circuit;
-    fn add(mut self, mut rhs: Circuit) -> Self::Output {
-        if self.num_qubits() != rhs.num_qubits() {
-            panic!("Cannot append circuits with different numbers of qubits");
-        }
+    type Output = Self;
+    fn add(mut self, mut rhs: Self) -> Self {
+        assert!(
+            self.num_qubits() == rhs.num_qubits(),
+            "Cannot append circuits with different numbers of qubits"
+        );
         self.gates.append(&mut rhs.gates);
         self
     }
@@ -332,9 +327,10 @@ impl std::ops::Add<Circuit> for Circuit {
 impl std::ops::Add<&Circuit> for Circuit {
     type Output = Circuit;
     fn add(mut self, rhs: &Circuit) -> Self::Output {
-        if self.num_qubits() != rhs.num_qubits() {
-            panic!("Cannot append circuits with different numbers of qubits");
-        }
+        assert!(
+            self.num_qubits() == rhs.num_qubits(),
+            "Cannot append circuits with different numbers of qubits"
+        );
         self.gates.extend(rhs.gates.iter().cloned());
         self
     }
