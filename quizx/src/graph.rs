@@ -37,7 +37,7 @@ pub struct VData {
     pub row: i32,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum EType {
     N, // normal edge
     H, // hadamard edge
@@ -71,7 +71,7 @@ pub enum BasisElem {
 
 impl BasisElem {
     pub fn phase(&self) -> Rational {
-        if *self == BasisElem::Z1 || *self == BasisElem::X1 {
+        if matches!(self, Self::Z1 | Self::X1) {
             Rational::one()
         } else {
             Rational::zero()
@@ -79,19 +79,19 @@ impl BasisElem {
     }
 
     pub fn is_z(&self) -> bool {
-        *self == BasisElem::Z0 || *self == BasisElem::Z1
+        matches!(self, Self::Z0 | Self::Z1)
     }
 
     pub fn is_x(&self) -> bool {
-        *self == BasisElem::X0 || *self == BasisElem::X1
+        matches!(self, Self::X0 | Self::X1)
     }
 
-    pub fn flipped(&self) -> BasisElem {
+    pub fn flipped(&self) -> Self {
         match self {
-            BasisElem::Z0 => BasisElem::Z1,
-            BasisElem::Z1 => BasisElem::Z0,
-            BasisElem::X0 => BasisElem::X1,
-            BasisElem::X1 => BasisElem::X0,
+            Self::Z0 => Self::Z1,
+            Self::Z1 => Self::Z0,
+            Self::X0 => Self::X1,
+            Self::X1 => Self::X0,
         }
     }
 }

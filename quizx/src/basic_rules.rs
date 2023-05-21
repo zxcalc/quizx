@@ -219,8 +219,7 @@ checked_rule1!(check_pi_copy, pi_copy_unchecked, pi_copy);
 /// Check [remove_id_unchecked] applies
 pub fn check_remove_id(g: &impl GraphLike, v: V) -> bool {
     let vt = g.vertex_type(v);
-
-    (vt == VType::Z || vt == VType::X) && g.phase(v).is_zero() && g.degree(v) == 2
+    matches!(vt, VType::Z | VType::X) && g.phase(v).is_zero() && g.degree(v) == 2
 }
 
 /// Remove an arity-2 spider with phase 0
@@ -231,11 +230,10 @@ pub fn check_remove_id(g: &impl GraphLike, v: V) -> bool {
 /// {H, H} -> N.
 pub fn remove_id_unchecked(g: &mut impl GraphLike, v: V) {
     let nhd = g.incident_edges(v).to_vec();
-    let new_et = match (nhd[0].1, nhd[1].1) {
-        (EType::N, EType::N) => EType::N,
-        (EType::N, EType::H) => EType::H,
-        (EType::H, EType::N) => EType::H,
-        (EType::H, EType::H) => EType::N,
+    let new_et = if nhd[0].1 == nhd[1].1 {
+        EType::N
+    } else {
+        EType::H
     };
     g.add_edge_smart(nhd[0].0, nhd[1].0, new_et);
     g.remove_vertex(v);
@@ -246,7 +244,7 @@ checked_rule1!(check_remove_id, remove_id_unchecked, remove_id);
 /// Check [color_change_unchecked] applies
 pub fn check_color_change(g: &impl GraphLike, v: V) -> bool {
     let vt = g.vertex_type(v);
-    vt == VType::X || vt == VType::Z
+    matches!(vt, VType::X | VType::Z)
 }
 
 /// Change the color of a Z or X spider
