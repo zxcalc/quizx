@@ -47,17 +47,17 @@ impl RowOps for () {
 }
 
 impl Mat2 {
-    pub fn new(d: Vec<Vec<u8>>) -> Mat2 {
-        Mat2 { d }
+    pub fn new(d: Vec<Vec<u8>>) -> Self {
+        Self { d }
     }
 
     /// Build a matrix with the given number of rows and columns. Place a 1
     /// wherever f(i,j) is true.
-    pub fn build<F>(rows: usize, cols: usize, f: F) -> Mat2
+    pub fn build<F>(rows: usize, cols: usize, f: F) -> Self
     where
         F: Fn(usize, usize) -> bool,
     {
-        Mat2 {
+        Self {
             d: (0..rows)
                 .map(|x| (0..cols).map(|y| if f(x, y) { 1 } else { 0 }).collect())
                 .collect(),
@@ -65,23 +65,23 @@ impl Mat2 {
     }
 
     /// A matrix full of zeros
-    pub fn zeros(rows: usize, cols: usize) -> Mat2 {
-        Mat2::build(rows, cols, |_, _| false)
+    pub fn zeros(rows: usize, cols: usize) -> Self {
+        Self::build(rows, cols, |_, _| false)
     }
 
     /// A matrix full of ones
-    pub fn ones(rows: usize, cols: usize) -> Mat2 {
-        Mat2::build(rows, cols, |_, _| true)
+    pub fn ones(rows: usize, cols: usize) -> Self {
+        Self::build(rows, cols, |_, _| true)
     }
 
     /// The identity matrix of a given size
-    pub fn id(dim: usize) -> Mat2 {
-        Mat2::build(dim, dim, |x, y| x == y)
+    pub fn id(dim: usize) -> Self {
+        Self::build(dim, dim, |x, y| x == y)
     }
 
     /// A column vector with a single 1 at the given index
-    pub fn unit_vector(dim: usize, i: usize) -> Mat2 {
-        Mat2::build(dim, 1, |x, _| x == i)
+    pub fn unit_vector(dim: usize, i: usize) -> Self {
+        Self::build(dim, 1, |x, _| x == i)
     }
 
     pub fn num_rows(&self) -> usize {
@@ -97,8 +97,8 @@ impl Mat2 {
     }
 
     /// Return the transpose as a copy
-    pub fn transpose(&self) -> Mat2 {
-        Mat2::build(self.num_cols(), self.num_rows(), |i, j| self[j][i] == 1)
+    pub fn transpose(&self) -> Self {
+        Self::build(self.num_cols(), self.num_rows(), |i, j| self[j][i] == 1)
     }
 
     /// Main function for computing the echelon form.
@@ -250,7 +250,7 @@ impl Mat2 {
         m.gauss(false)
     }
 
-    pub fn inverse(&self) -> Option<Mat2> {
+    pub fn inverse(&self) -> Option<Self> {
         if self.num_rows() != self.num_cols() {
             return None;
         }

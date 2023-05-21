@@ -55,12 +55,12 @@ pub trait Mod2 {
 }
 
 impl Mod2 for Rational {
-    fn mod2(&self) -> Rational {
+    fn mod2(&self) -> Self {
         let mut num = self.numer().rem_euclid(2 * *self.denom());
         if num > *self.denom() {
             num -= 2 * *self.denom();
         }
-        Rational::new(num, *self.denom())
+        Self::new(num, *self.denom())
     }
 }
 
@@ -118,11 +118,11 @@ fn lcm_with_padding(n1: usize, n2: usize) -> (usize, usize, usize) {
 }
 
 impl<T: Coeffs> Scalar<T> {
-    pub fn complex(re: f64, im: f64) -> Scalar<T> {
+    pub fn complex(re: f64, im: f64) -> Self {
         Float(Complex::new(re, im))
     }
 
-    pub fn real(re: f64) -> Scalar<T> {
+    pub fn real(re: f64) -> Self {
         Float(Complex::new(re, 0.0))
     }
 
@@ -150,15 +150,15 @@ impl<T: Coeffs> Scalar<T> {
         *self *= Scalar::from_phase(phase);
     }
 
-    pub fn to_float(&self) -> Scalar<T> {
+    pub fn to_float(&self) -> Self {
         Float(self.float_value())
     }
 
-    pub fn one_plus_phase(p: Rational) -> Scalar<T> {
+    pub fn one_plus_phase(p: Rational) -> Self {
         Scalar::one() + Scalar::from_phase(p)
     }
 
-    pub fn from_int_coeffs(coeffs: &[isize]) -> Scalar<T> {
+    pub fn from_int_coeffs(coeffs: &[isize]) -> Self {
         match T::new(coeffs.len()) {
             Some((mut coeffs1, pad)) => {
                 for i in 0..coeffs.len() {
@@ -174,7 +174,7 @@ impl<T: Coeffs> Scalar<T> {
     ///
     /// For non-zero scalars, increment the power of 2 as long as the last bit in
     /// every coefficient is 0. For the zero scalar, set the power of 2 to 0.
-    fn reduce(mut self) -> Scalar<T> {
+    fn reduce(mut self) -> Self {
         if let Exact(pow, coeffs) = &mut self {
             let mut all_zero = true;
             for i in 0..coeffs.len() {
@@ -207,7 +207,7 @@ impl<T: Coeffs> Scalar<T> {
     }
 
     /// Compute the complex conjugate of a scalar and return it
-    pub fn conj(&self) -> Scalar<T> {
+    pub fn conj(&self) -> Self {
         match self {
             Exact(pow, coeffs) => {
                 // create a new coeff list. n.b. this should always be a good size for T, so we unwrap()
@@ -251,7 +251,7 @@ impl<T: Coeffs> Scalar<T> {
 }
 
 impl<T: Coeffs> Zero for Scalar<T> {
-    fn zero() -> Scalar<T> {
+    fn zero() -> Self {
         Exact(0, T::zero())
     }
 
@@ -261,7 +261,7 @@ impl<T: Coeffs> Zero for Scalar<T> {
 }
 
 impl<T: Coeffs> One for Scalar<T> {
-    fn one() -> Scalar<T> {
+    fn one() -> Self {
         Exact(0, T::one())
     }
 
@@ -271,7 +271,7 @@ impl<T: Coeffs> One for Scalar<T> {
 }
 
 impl<T: Coeffs> Sqrt2 for Scalar<T> {
-    fn sqrt2_pow(p: i32) -> Scalar<T> {
+    fn sqrt2_pow(p: i32) -> Self {
         match T::new(4) {
             Some((mut coeffs, pad)) => {
                 // we use the fact that when omega = e^(i pi/4), omega - omega^3 = sqrt(2)
@@ -294,7 +294,7 @@ impl<T: Coeffs> Sqrt2 for Scalar<T> {
 }
 
 impl<T: Coeffs> FromPhase for Scalar<T> {
-    fn from_phase(p: Rational) -> Scalar<T> {
+    fn from_phase(p: Rational) -> Self {
         let mut rnumer = *p.numer();
         let mut rdenom = *p.denom();
         match T::new(rdenom as usize) {
@@ -318,8 +318,8 @@ impl<T: Coeffs> FromPhase for Scalar<T> {
         }
     }
 
-    fn minus_one() -> Scalar<T> {
-        Scalar::from_phase(Rational::one())
+    fn minus_one() -> Self {
+        Self::from_phase(Rational::one())
     }
 }
 
@@ -412,8 +412,8 @@ impl<'a, 'b, T: Coeffs> std::ops::Mul<&'b Scalar<T>> for &'a Scalar<T> {
 
 // These 3 variations take ownership of one or both args
 impl<T: Coeffs> std::ops::Mul<Scalar<T>> for Scalar<T> {
-    type Output = Scalar<T>;
-    fn mul(self, rhs: Scalar<T>) -> Self::Output {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self {
         &self * &rhs
     }
 }
@@ -431,15 +431,15 @@ impl<'a, T: Coeffs> std::ops::Mul<&'a Scalar<T>> for Scalar<T> {
 }
 
 /// Implements *=
-impl<'a, T: Coeffs> std::ops::MulAssign<Scalar<T>> for Scalar<T> {
-    fn mul_assign(&mut self, rhs: Scalar<T>) {
+impl<'a, T: Coeffs> std::ops::MulAssign<Self> for Scalar<T> {
+    fn mul_assign(&mut self, rhs: Self) {
         *self = &*self * &rhs;
     }
 }
 
 // Variation takes ownership of rhs
-impl<'a, T: Coeffs> std::ops::MulAssign<&'a Scalar<T>> for Scalar<T> {
-    fn mul_assign(&mut self, rhs: &Scalar<T>) {
+impl<'a, T: Coeffs> std::ops::MulAssign<&'a Self> for Scalar<T> {
+    fn mul_assign(&mut self, rhs: &Self) {
         *self = &*self * rhs;
     }
 }
@@ -488,9 +488,9 @@ impl<'a, 'b, T: Coeffs> std::ops::Add<&'b Scalar<T>> for &'a Scalar<T> {
 }
 
 // These 3 variations take ownership of one or both args
-impl<T: Coeffs> std::ops::Add<Scalar<T>> for Scalar<T> {
-    type Output = Scalar<T>;
-    fn add(self, rhs: Scalar<T>) -> Self::Output {
+impl<T: Coeffs> std::ops::Add<Self> for Scalar<T> {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self {
         &self + &rhs
     }
 }
@@ -516,7 +516,7 @@ impl<T: Coeffs> FromScalar<Scalar<T>> for Complex<f64> {
 }
 
 impl<S: Coeffs, T: Coeffs> FromScalar<Scalar<T>> for Scalar<S> {
-    fn from_scalar(s: &Scalar<T>) -> Scalar<S> {
+    fn from_scalar(s: &Scalar<T>) -> Self {
         match s {
             Exact(pow, coeffs) => match S::new(coeffs.len()) {
                 Some((mut coeffs1, pad)) => {
@@ -532,7 +532,7 @@ impl<S: Coeffs, T: Coeffs> FromScalar<Scalar<T>> for Scalar<S> {
     }
 }
 
-impl<T: Coeffs> AbsDiffEq<Scalar<T>> for Scalar<T> {
+impl<T: Coeffs> AbsDiffEq<Self> for Scalar<T> {
     type Epsilon = <f64 as AbsDiffEq>::Epsilon;
 
     // since this is mainly used for testing, we allow rounding errors much bigger than
