@@ -36,18 +36,15 @@ pub struct Graph {
 impl Graph {
     /// Explicitly index neighbors of a vertex. Used for iteration.
     pub fn neighbor_at(&self, v: V, n: usize) -> V {
-        if let Some(d) = &self.edata[v] {
-            d[n].0
-        } else {
-            0
-        }
+        let Some(d) = &self.edata[v] else { return 0 };
+        d[n].0
     }
 
     fn index<U>(nhd: &Vec<(V, U)>, v: V) -> Option<usize> {
         nhd.iter().position(|&(v0, _)| v == v0)
     }
 
-    fn value<U: Copy>(nhd: &Vec<(V, U)>, v: V) -> Option<U> {
+    fn value<U: Copy>(nhd: &[(V, U)], v: V) -> Option<U> {
         for (v0, u) in nhd.iter() {
             if v == *v0 {
                 return Some(*u);
@@ -86,8 +83,8 @@ impl Graph {
 }
 
 impl GraphLike for Graph {
-    fn new() -> Graph {
-        Graph {
+    fn new() -> Self {
+        Self {
             vdata: Vec::new(),
             edata: Vec::new(),
             holes: Vec::new(),
@@ -250,7 +247,7 @@ impl GraphLike for Graph {
 
     fn edge_type_opt(&self, s: V, t: V) -> Option<EType> {
         if let Some(Some(nhd)) = self.edata.get(s) {
-            Graph::value(&nhd, t)
+            Self::value(&nhd, t)
         } else {
             None
         }

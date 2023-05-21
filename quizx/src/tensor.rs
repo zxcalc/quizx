@@ -275,7 +275,7 @@ impl<A: TensorElem> QubitOps<A> for Tensor<A> {
         });
     }
 
-    fn plug_n_qubits(self, n: usize, other: &Tensor<A>) -> Tensor<A> {
+    fn plug_n_qubits(self, n: usize, other: &Self) -> Self {
         let d1 = self.shape().len();
         let d2 = other.shape().len();
         let shape1: Vec<usize> = (0..(d1 + d2 - n))
