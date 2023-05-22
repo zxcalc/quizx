@@ -436,15 +436,9 @@ impl ToTensor for Circuit {
                     a.hadamard_at(g.qs[1]);
                 }
                 // TODO: these "gates" are not implemented yet
-                ParityPhase => {
-                    panic!("Unsupported gate: ParityPhase")
-                }
-                InitAncilla => {
-                    panic!("Unsupported gate: InitAncilla")
-                }
-                PostSelect => {
-                    panic!("Unsupported gate: PostSelect")
-                }
+                ParityPhase => panic!("Unsupported gate: ParityPhase"),
+                InitAncilla => panic!("Unsupported gate: InitAncilla"),
+                PostSelect => panic!("Unsupported gate: PostSelect"),
                 UnknownGate => {} // unknown gates are quietly ignored
             }
         }
