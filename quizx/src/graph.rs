@@ -29,6 +29,12 @@ pub enum VType {
     H, // H-box
 }
 
+impl VType {
+    pub fn is_xz(&self) -> bool {
+        matches!(self, Self::X | Self::Z)
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct VData {
     pub ty: VType,

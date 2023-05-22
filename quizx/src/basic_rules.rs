@@ -219,7 +219,7 @@ checked_rule1!(check_pi_copy, pi_copy_unchecked, pi_copy);
 /// Check [remove_id_unchecked] applies
 pub fn check_remove_id(g: &impl GraphLike, v: V) -> bool {
     let vt = g.vertex_type(v);
-    matches!(vt, VType::Z | VType::X) && g.phase(v).is_zero() && g.degree(v) == 2
+    vt.is_xz() && g.phase(v).is_zero() && g.degree(v) == 2
 }
 
 /// Remove an arity-2 spider with phase 0
@@ -559,8 +559,8 @@ pub fn check_remove_pair(g: &impl GraphLike, v0: V, v1: V) -> bool {
 
     g.neighbors(v0).len() == 1
         && g.neighbors(v1).len() == 1
-        && (t0 == VType::Z || t0 == VType::X)
-        && (t1 == VType::Z || t1 == VType::X)
+        && t0.is_xz()
+        && t1.is_xz()
         && g.connected(v0, v1)
 }
 

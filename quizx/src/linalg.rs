@@ -56,7 +56,7 @@ impl Mat2 {
     {
         Self(
             (0..rows)
-                .map(|x| (0..cols).map(|y| if f(x, y) { 1 } else { 0 }).collect())
+                .map(|x| (0..cols).map(|y| f(x, y).into()).collect())
                 .collect(),
         )
     }
