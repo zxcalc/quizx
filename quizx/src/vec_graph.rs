@@ -215,7 +215,7 @@ impl GraphLike for Graph {
 
     fn set_edge_type(&mut self, s: V, t: V, ety: EType) {
         let Some(Some(nhd)) = self.edata.get_mut(s) else { panic!("Source vertex not found") };
-        let i = Graph::index(&nhd, t).expect("Edge not found");
+        let i = Self::index(&nhd, t).expect("Edge not found");
         nhd[i] = (t, ety);
 
         let Some(Some(nhd)) = self.edata.get_mut(t) else { panic!("Target vertex not found") };
