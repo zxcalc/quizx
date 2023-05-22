@@ -45,21 +45,15 @@ impl Graph {
     }
 
     fn value<U: Copy>(nhd: &[(V, U)], v: V) -> Option<U> {
-        for (v0, u) in nhd.iter() {
-            if v == *v0 {
-                return Some(*u);
-            }
-        }
-        None
+        nhd.iter().find(|t| v == t.0).map(|t| t.1)
     }
 
     /// Removes vertex 't' from the adjacency map of 's'. This private method
     /// is used by remove_edge and remove_vertex to make the latter slightly
     /// more efficient.
     fn remove_half_edge(&mut self, s: V, t: V) {
-        if let Some(Some(nhd)) = self.edata.get_mut(s) {
-            Graph::index(&nhd, t).map(|i| nhd.swap_remove(i));
-        }
+        let Some(Some(nhd)) = self.edata.get_mut(s) else { return };
+        Self::index(&nhd, t).map(|i| nhd.swap_remove(i));
     }
 
     // Here are some simpler implementations of the vertices and edges functions,
@@ -119,18 +113,23 @@ impl GraphLike for Graph {
     fn inputs(&self) -> &Vec<V> {
         &self.inputs
     }
+
     fn inputs_mut(&mut self) -> &mut Vec<V> {
         &mut self.inputs
     }
+
     fn set_inputs(&mut self, inputs: Vec<V>) {
         self.inputs = inputs;
     }
+
     fn outputs(&self) -> &Vec<V> {
         &self.outputs
     }
+
     fn set_outputs(&mut self, outputs: Vec<V>) {
         self.outputs = outputs;
     }
+
     fn outputs_mut(&mut self) -> &mut Vec<V> {
         &mut self.outputs
     }
@@ -220,7 +219,7 @@ impl GraphLike for Graph {
         nhd[i] = (t, ety);
 
         let Some(Some(nhd)) = self.edata.get_mut(t) else { panic!("Target vertex not found") };
-        let i = Graph::index(&nhd, s).expect("Edge not found");
+        let i = Self::index(&nhd, s).expect("Edge not found");
         nhd[i] = (s, ety);
     }
 
