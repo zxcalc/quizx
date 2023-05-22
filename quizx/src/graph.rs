@@ -17,6 +17,7 @@
 use crate::scalar::*;
 use num::rational::Rational;
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::collections::hash_map::{Iter as HashMapIter, Keys};
 use std::iter::FromIterator;
 
 pub type V = usize;
@@ -108,7 +109,7 @@ pub enum VIter<'a> {
         usize,
         std::iter::Enumerate<std::slice::Iter<'a, Option<VData>>>,
     ),
-    Hash(std::collections::hash_map::Keys<'a, V, VData>),
+    Hash(Keys<'a, V, VData>),
 }
 
 impl<'a> Iterator for VIter<'a> {
@@ -152,8 +153,8 @@ pub enum EIter<'a> {
     ),
     Hash(
         usize,
-        std::collections::hash_map::Iter<'a, V, rustc_hash::FxHashMap<V, EType>>,
-        Option<(V, std::collections::hash_map::Iter<'a, V, EType>)>,
+        HashMapIter<'a, V, rustc_hash::FxHashMap<V, EType>>,
+        Option<(V, HashMapIter<'a, V, EType>)>,
     ),
 }
 
@@ -239,7 +240,7 @@ impl<'a> ExactSizeIterator for EIter<'a> {}
 
 pub enum NeighborIter<'a> {
     Vec(std::slice::Iter<'a, (V, EType)>),
-    Hash(std::collections::hash_map::Keys<'a, V, EType>),
+    Hash(Keys<'a, V, EType>),
 }
 
 impl<'a> Iterator for NeighborIter<'a> {
