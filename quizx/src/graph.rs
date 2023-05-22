@@ -22,11 +22,12 @@ use std::iter::FromIterator;
 pub type V = usize;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(u8)]
 pub enum VType {
-    B, // Boundary
-    Z, // Z-spider
-    X, // X-spider
-    H, // H-box
+    B = 0, // Boundary
+    Z = 1, // Z-spider
+    X = 2, // X-spider
+    H = 3, // H-box
 }
 
 impl VType {
