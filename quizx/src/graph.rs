@@ -431,7 +431,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     fn add_edge_smart(&mut self, s: V, t: V, ety: EType) {
         let st = self.vertex_type(s);
         if s == t {
-            if st == VType::Z || st == VType::X {
+            if st.is_xz() {
                 if ety == EType::H {
                     self.add_to_phase(s, Rational::new(1, 1));
                     self.scalar_mut().mul_sqrt2_pow(-1);
