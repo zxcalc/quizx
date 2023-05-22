@@ -35,6 +35,15 @@ impl VType {
     pub fn is_xz(&self) -> bool {
         matches!(self, Self::X | Self::Z)
     }
+
+    pub fn color(&self) -> &str {
+        match self {
+            Self::B => "black",
+            Self::Z => "green",
+            Self::X => "red",
+            Self::H => "yellow",
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -625,12 +634,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
             dot += &format!(
                 "  {} [color={}, label=\"{}\"",
                 v,
-                match t {
-                    VType::B => "black",
-                    VType::Z => "green",
-                    VType::X => "red",
-                    VType::H => "yellow",
-                },
+                t.color(),
                 if self.inputs().contains(&v) {
                     format!("{}:i", v)
                 } else if self.outputs().contains(&v) {
