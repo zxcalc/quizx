@@ -33,9 +33,8 @@ pub fn vertex_simp<G: GraphLike>(
 ) -> bool {
     let mut got_match = false;
     let mut new_matches = true;
-    let mut numv;
     while new_matches {
-        numv = g.num_vertices();
+        let numv = g.num_vertices();
         new_matches = false;
         for v in g.vertex_vec() {
             if check(g, v) {
@@ -60,9 +59,8 @@ pub fn edge_simp<G: GraphLike>(
 ) -> bool {
     let mut got_match = false;
     let mut new_matches = true;
-    let mut numv;
     while new_matches {
-        numv = g.num_vertices();
+        let numv = g.num_vertices();
         new_matches = false;
         for (s, t, _) in g.edge_vec() {
             if !g.contains_vertex(s) || !g.contains_vertex(t) || !check(g, s, t) {

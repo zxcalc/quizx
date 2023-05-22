@@ -30,3 +30,9 @@ pub mod scalar;
 pub mod simplify;
 pub mod tensor;
 pub mod vec_graph;
+
+pub mod prelude {
+    pub use crate::{
+        annealer::*, circuit::*, extract::*, graph::*, hash_graph::*, scalar::*, simplify::*,
+    };
+}

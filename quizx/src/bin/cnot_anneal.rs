@@ -14,11 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use quizx::annealer::*;
-use quizx::circuit::*;
-use quizx::extract::*;
-use quizx::hash_graph::*;
-use quizx::simplify::*;
+use quizx::prelude::*;
 
 use std::time::Instant;
 use std::{thread, time};

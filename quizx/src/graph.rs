@@ -397,9 +397,11 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     fn edge_vec(&self) -> Vec<(V, V, EType)> {
         self.edges().collect()
     }
+
     fn neighbor_vec(&self, v: V) -> Vec<V> {
         self.neighbors(v).collect()
     }
+
     fn incident_edge_vec(&self, v: V) -> Vec<(V, EType)> {
         self.incident_edges(v).collect()
     }
