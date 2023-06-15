@@ -627,7 +627,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     }
 
     /// Returns vertices in the components of g
-    fn component_vertices(&self) -> Vec<Vec<V>> {
+    fn component_vertices(&self) -> Vec<FxHashSet<V>> {
         // vec of vecs storing components
         let mut comps = vec![];
 
@@ -640,14 +640,14 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         loop {
             if let Some(&v) = vset.iter().next() {
                 // start a new component
-                comps.push(vec![]);
+                comps.push(FxHashSet::default());
                 let i = comps.len() - 1;
 
                 // fill last vec in comps by DFS
                 stack.push(v);
                 while !stack.is_empty() {
                     let v = stack.pop().unwrap();
-                    comps[i].push(v);
+                    comps[i].insert(v);
                     vset.remove(&v);
 
                     for w in self.neighbors(v) {
@@ -733,5 +733,21 @@ mod tests {
         let zs: Vec<_> = g.vertices().filter(|&v| g.vertex_type(v) == VType::Z).collect();
         assert_eq!(zs.len(), 2);
         assert!(g.connected(zs[0], zs[1]));
+    }
+
+    #[test]
+    fn dedupe() {
+        let mut g: Graph = Graph::new();
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::Z);
+        g.add_vertex(VType::B);
+
+        g.add_edge(0, 1);
+        g.add_edge(1, 2);
+        g.add_edge(1, 3);
+        g.add_edge(0, 3);
+
+        assert_eq!(g.component_vertices().first().unwrap().len(), 4)
     }
 }
