@@ -196,7 +196,7 @@ impl<T: Coeffs> Scalar<T> {
                     }
 
                     for i in 0..coeffs.len() {
-                        coeffs[i] = coeffs[i] >> 1;
+                        coeffs[i] >>= 1;
                     }
                     *pow += 1;
                 }
@@ -303,7 +303,7 @@ impl<T: Coeffs> FromPhase for Scalar<T> {
                 rdenom *= pad as isize;
                 rnumer = rnumer.rem_euclid(2 * rdenom);
                 let sgn = if rnumer >= rdenom {
-                    rnumer = rnumer - rdenom;
+                    rnumer -= rdenom;
                     -1
                 } else {
                     1
@@ -396,7 +396,7 @@ impl<'a, 'b, T: Coeffs> std::ops::Mul<&'b Scalar<T>> for &'a Scalar<T> {
                                 if pos < lcm {
                                     coeffs[pos] += coeffs0[i] * coeffs1[j];
                                 } else {
-                                    coeffs[pos - lcm] += -1 * coeffs0[i] * coeffs1[j];
+                                    coeffs[pos - lcm] += -coeffs0[i] * coeffs1[j];
                                 }
                             }
                         }
@@ -431,7 +431,7 @@ impl<'a, T: Coeffs> std::ops::Mul<&'a Scalar<T>> for Scalar<T> {
 }
 
 /// Implements *=
-impl<'a, T: Coeffs> std::ops::MulAssign<Scalar<T>> for Scalar<T> {
+impl<T: Coeffs> std::ops::MulAssign<Scalar<T>> for Scalar<T> {
     fn mul_assign(&mut self, rhs: Scalar<T>) {
         *self = &*self * &rhs;
     }

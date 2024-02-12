@@ -50,15 +50,15 @@ pub struct Decomposer<G: GraphLike> {
 pub fn terms_for_tcount(tcount: usize) -> f64 {
     let mut t = tcount as i32;
     let mut count = 7f64.powi(t / 6i32);
-    t = t % 6;
+    t %= 6;
     count *= 2f64.powi(t / 2i32);
     if t % 2 == 1 {
         count *= 2.0;
     }
-    return count;
+    count
 }
 
-impl<'a, G: GraphLike> Decomposer<G> {
+impl<G: GraphLike> Decomposer<G> {
     pub fn empty() -> Decomposer<G> {
         Decomposer {
             stack: VecDeque::new(),
@@ -100,8 +100,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
     /// Merge N decomposers into 1, adding scalars together
     pub fn merge(mut ds: Vec<Decomposer<G>>) -> Decomposer<G> {
         if let Some(mut d) = ds.pop() {
-            while !ds.is_empty() {
-                let d1 = ds.pop().unwrap();
+            while let Some(d1) = ds.pop() {
                 d.scalar = d.scalar + d1.scalar;
                 d.nterms += d1.nterms;
                 d.stack.extend(d1.stack);
@@ -165,7 +164,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
             let cat_nodes = Decomposer::cat_ts(&g); //gadget_ts(&g);
                                                     //println!("{:?}", gadget_nodes);
                                                     //let nts = cat_nodes.iter().fold(0, |acc, &x| if g.phase(x).denom() == &4 { acc + 1 } else { acc });
-            if cat_nodes.len() > 0 {
+            if !cat_nodes.is_empty() {
                 // println!("using cat!");
                 return self.push_cat_decomp(depth + 1, &g, &cat_nodes);
             }
@@ -185,7 +184,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
 
     /// Decompose until there are no T gates left
     pub fn decomp_all(&mut self) -> &mut Self {
-        while self.stack.len() > 0 {
+        while !self.stack.is_empty() {
             self.decomp_top();
         }
         self
@@ -193,7 +192,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
 
     /// Decompose breadth-first until the given depth
     pub fn decomp_until_depth(&mut self, depth: usize) -> &mut Self {
-        while self.stack.len() > 0 {
+        while !self.stack.is_empty() {
             // pop from the bottom of the stack to work breadth-first
             let (d, g) = self.stack.pop_front().unwrap();
             if d >= depth {
@@ -245,7 +244,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
             self.push_bss_decomp(depth + 1, &g, ts);
         } else if ts.len() >= 2 {
             self.push_sym_decomp(depth + 1, &g, &ts[0..2]);
-        } else if ts.len() > 0 {
+        } else if !ts.is_empty() {
             self.push_single_decomp(depth + 1, &g, ts);
         } else {
             // crate::simplify::full_simp(&mut g);
@@ -283,7 +282,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
         let mut all_t: Vec<_> = g.vertices().filter(|&v| *g.phase(v).denom() == 4).collect();
         let mut t = vec![];
 
-        while t.len() < 6 && all_t.len() > 0 {
+        while t.len() < 6 && !all_t.is_empty() {
             let i = rng.gen_range(0..all_t.len());
             t.push(all_t.swap_remove(i));
         }
@@ -302,8 +301,8 @@ impl<'a, G: GraphLike> Decomposer<G> {
             if g.phase(v).denom() == &1 {
                 let mut neigh = g.neighbor_vec(v);
                 if neigh.len() <= 6 {
-                    match prefered_order.iter().position(|&r| r == neigh.len()) {
-                        Some(this_ind) => match index {
+                    if let Some(this_ind) = prefered_order.iter().position(|&r| r == neigh.len()) {
+                        match index {
                             Some(ind) if this_ind < ind => {
                                 res = vec![v];
                                 res.append(&mut neigh);
@@ -315,8 +314,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
                                 index = Some(this_ind);
                             }
                             _ => (),
-                        },
-                        _ => (),
+                        }
                     }
                     if index == Some(0) {
                         break;
@@ -413,8 +411,8 @@ impl<'a, G: GraphLike> Decomposer<G> {
                 Decomposer::replace_magic5_2,
             ],
             depth,
-            &g,
-            &verts,
+            g,
+            verts,
         )
     }
 
@@ -650,7 +648,7 @@ impl<'a, G: GraphLike> Decomposer<G> {
         // print!("replace_phi2 -> ");
         Decomposer::replace_phi1(
             g,
-            &vec![verts[0], verts[1], verts[3], verts[4], verts[5], verts[2]],
+            &[verts[0], verts[1], verts[3], verts[4], verts[5], verts[2]],
         )
     }
 
@@ -827,7 +825,7 @@ mod tests {
         let mut d = Decomposer::new(&g);
         d.save(true);
         assert_eq!(d.max_terms(), 7.0 * 2.0 * 2.0);
-        while d.stack.len() > 0 {
+        while !d.stack.is_empty() {
             d.decomp_top();
         }
 

@@ -43,11 +43,11 @@ impl Graph {
         }
     }
 
-    fn index<U>(nhd: &Vec<(V, U)>, v: V) -> Option<usize> {
+    fn index<U>(nhd: &[(V, U)], v: V) -> Option<usize> {
         nhd.iter().position(|&(v0, _)| v == v0)
     }
 
-    fn value<U: Copy>(nhd: &Vec<(V, U)>, v: V) -> Option<U> {
+    fn value<U: Copy>(nhd: &[(V, U)], v: V) -> Option<U> {
         for (v0, u) in nhd.iter() {
             if v == *v0 {
                 return Some(*u);
@@ -61,7 +61,7 @@ impl Graph {
     /// more efficient.
     fn remove_half_edge(&mut self, s: V, t: V) {
         if let Some(Some(nhd)) = self.edata.get_mut(s) {
-            Graph::index(&nhd, t).map(|i| nhd.swap_remove(i));
+            Graph::index(nhd, t).map(|i| nhd.swap_remove(i));
         }
     }
 
@@ -234,14 +234,14 @@ impl GraphLike for Graph {
 
     fn set_edge_type(&mut self, s: V, t: V, ety: EType) {
         if let Some(Some(nhd)) = self.edata.get_mut(s) {
-            let i = Graph::index(&nhd, t).expect("Edge not found");
+            let i = Graph::index(nhd, t).expect("Edge not found");
             nhd[i] = (t, ety);
         } else {
             panic!("Source vertex not found");
         }
 
         if let Some(Some(nhd)) = self.edata.get_mut(t) {
-            let i = Graph::index(&nhd, s).expect("Edge not found");
+            let i = Graph::index(nhd, s).expect("Edge not found");
             nhd[i] = (s, ety);
         } else {
             panic!("Target vertex not found");
@@ -250,7 +250,7 @@ impl GraphLike for Graph {
 
     fn edge_type_opt(&self, s: V, t: V) -> Option<EType> {
         if let Some(Some(nhd)) = self.edata.get(s) {
-            Graph::value(&nhd, t)
+            Graph::value(nhd, t)
         } else {
             None
         }

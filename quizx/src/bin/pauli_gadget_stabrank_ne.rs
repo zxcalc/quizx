@@ -204,7 +204,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 check.plug_inputs(&vec![BasisElem::Z0; qs]);
                 check.plug_outputs(&effect);
                 let amp = check.to_tensor4()[[]];
-                let check_prob = &amp * &amp.conj();
+                let check_prob = amp * amp.conj();
                 if Scalar::from_scalar(&check_prob) == prob {
                     println!("OK");
                     true
@@ -237,7 +237,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if success {
         print!("OK {}", data);
         fs::write(
-            &format!(
+            format!(
                 "pauli_gadget_{}_{}_{}_{}_{}_{}",
                 qs, depth, min_weight, max_weight, nsamples, seed
             ),

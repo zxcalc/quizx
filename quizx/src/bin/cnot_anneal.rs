@@ -28,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let time = Instant::now();
     println!("{}", f);
     let c = Circuit::from_file(f)
-        .expect(&format!("circuit failed to parse: {}", f))
+        .unwrap_or_else(|_| panic!("circuit failed to parse: {}", f))
         .to_basic_gates();
     println!("...done reading in {:.2?}", time.elapsed());
 

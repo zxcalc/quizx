@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(f) = e?.path().to_str() {
             let time = Instant::now();
             println!("{}", f);
-            let c = Circuit::from_file(f).expect(&format!("circuit failed to parse: {}", f));
+            let c = Circuit::from_file(f).unwrap_or_else(|_| panic!("circuit failed to parse: {}", f));
             println!("...done reading in {:.2?}", time.elapsed());
             // if c.num_qubits() > 10 { continue; }
 
