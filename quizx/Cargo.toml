@@ -1,18 +1,20 @@
 [package]
 name = "quizx"
-version = "0.1.0"
-authors = ["Aleks Kissinger <aleks0@gmail.com>"]
-edition = "2018"
 default-run = "hidden_shift_stabrank"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+homepage = { workspace = true }
+license-file = { workspace = true }
 
 [dependencies]
-num = "0.3.1"
+num = { workspace = true }
 rustc-hash = "1.1.0"
 rayon = "1.5.0"
-ndarray = { version = "0.14.0", features = [ "rayon" ] }
+ndarray = { version = "0.14.0", features = ["rayon"] }
 approx = "0.4.0"
 regex = "1.4.3"
 rand = "0.8.3"
 itertools = "0.10.1"
 openqasm = "0.1.2"
-

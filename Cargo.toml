@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = ["quizx", "pybindings"]
+default-members = ["quizx"]
+
+[workspace.dependencies]
+quizx = { path = "./quizx" }
+num = "0.3.1"
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Aleks Kissinger <aleks0@gmail.com>"]
+edition = "2018"
+rust-version = "1.75"
+homepage = "https://github.com/Quantomatic/quizx"
+license-file = "LICENSE"

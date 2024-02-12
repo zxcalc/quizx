@@ -1,8 +1,11 @@
 [package]
 name = "quizx_pybindings"
-version = "0.1.0"
-authors = ["Aleks Kissinger <aleks0@gmail.com>"]
-edition = "2018"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+homepage = { workspace = true }
+license-file = { workspace = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -11,8 +14,8 @@ name = "quizx"
 crate-type = ["cdylib"]
 
 [dependencies]
-quizx = { path = "../quizx" }
-num = "0.3.1"
+quizx = { workspace = true }
+num = { workspace = true }
 
 [dependencies.pyo3]
 version = "0.13.2"
