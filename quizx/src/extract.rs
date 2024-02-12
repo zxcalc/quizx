@@ -18,11 +18,11 @@ use crate::circuit::*;
 use crate::gate::*;
 use crate::graph::*;
 // use crate::tensor::*;
+use crate::basic_rules::{boundary_pivot, remove_id};
 use crate::linalg::*;
-use std::fmt;
 use num::{Rational, Zero};
 use rustc_hash::FxHashSet;
-use crate::basic_rules::{boundary_pivot, remove_id};
+use std::fmt;
 
 /// Extraction couldn't finish. Returns a message, a
 /// partially-extracted circuit, and the remainder of
@@ -56,9 +56,9 @@ pub trait ToCircuit: GraphLike {
 
 pub struct Extractor<'a, G: GraphLike> {
     g: &'a mut G,
-    frontier: Vec<(usize,V)>,
+    frontier: Vec<(usize, V)>,
     up_to_perm: bool,
-    gaussf: fn(&mut Extractor<'a,G>, &mut Circuit),
+    gaussf: fn(&mut Extractor<'a, G>, &mut Circuit),
 }
 
 impl<'a, G: GraphLike> Extractor<'a, G> {
@@ -71,7 +71,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
         }
     }
 
-    pub fn with_gaussf(&mut self, f: fn(&mut Extractor<'a,G>, &mut Circuit)) -> &mut Self {
+    pub fn with_gaussf(&mut self, f: fn(&mut Extractor<'a, G>, &mut Circuit)) -> &mut Self {
         self.gaussf = f;
         self
     }
@@ -99,16 +99,18 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
     /// vec of neighbors and the matrix are returned.
     fn frontier_biadj(&self) -> (Vec<V>, Mat2) {
         let mut neighbor_set = FxHashSet::default();
-        for &(_,v) in &self.frontier {
+        for &(_, v) in &self.frontier {
             for n in self.g.neighbors(v) {
-                if self.g.vertex_type(n) == VType::Z { neighbor_set.insert(n); }
+                if self.g.vertex_type(n) == VType::Z {
+                    neighbor_set.insert(n);
+                }
             }
         }
 
         let neighbors: Vec<_> = neighbor_set.iter().copied().collect();
 
         // Build an adjacency matrix between the frontier and its neighbors
-        let m = Mat2::build(self.frontier.len(), neighbors.len(), |i,j| {
+        let m = Mat2::build(self.frontier.len(), neighbors.len(), |i, j| {
             self.g.connected(self.frontier[i].1, neighbors[j])
         });
 
@@ -117,17 +119,20 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
 
     /// Set edges between frontier and given neighbors to match biadj. matrix
     fn update_frontier_biadj(&mut self, neighbors: &Vec<V>, m: Mat2) {
-        for (i, &(_,v)) in self.frontier.iter().enumerate() {
+        for (i, &(_, v)) in self.frontier.iter().enumerate() {
             for (j, &w) in neighbors.iter().enumerate() {
-                if m[(i,j)] == 1 {
-                    if !self.g.connected(v, w) { self.g.add_edge_with_type(v, w, EType::H); }
+                if m[(i, j)] == 1 {
+                    if !self.g.connected(v, w) {
+                        self.g.add_edge_with_type(v, w, EType::H);
+                    }
                 } else {
-                    if self.g.connected(v, w) { self.g.remove_edge(v, w); }
+                    if self.g.connected(v, w) {
+                        self.g.remove_edge(v, w);
+                    }
                 }
             }
         }
     }
-
 
     /// Push the gates in `c1` on to the front of `c`
     ///
@@ -194,8 +199,9 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
             .filter(|&i| row_ops[min_weight_row][i] == 1)
             .collect();
 
-        if sln_set.len() < 2 { return; }
-
+        if sln_set.len() < 2 {
+            return;
+        }
 
         let target = sln_set[0];
 
@@ -223,7 +229,6 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
         //     }
         // }
 
-
         let mut c1 = Circuit::new(c.num_qubits());
         for &i in &sln_set {
             if i != target {
@@ -247,14 +252,16 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
     /// A permutation graph contains only inputs, outputs, and normal edges
     /// connecting inputs to outputs.
     fn perm_to_cnots(&mut self, c: &mut Circuit, blocksize: usize) {
-        let mut m = Mat2::build(self.g.outputs().len(), self.g.inputs().len(), |i,j| {
+        let mut m = Mat2::build(self.g.outputs().len(), self.g.inputs().len(), |i, j| {
             self.g.connected(self.g.outputs()[i], self.g.inputs()[j])
         });
 
         // Extract CNOTs until adj. matrix is in reduced echelon form
         let mut c1 = Circuit::new(c.num_qubits());
         m.gauss_x(true, blocksize, &mut c1);
-        for g in c1.gates { c.push_front(g); }
+        for g in c1.gates {
+            c.push_front(g);
+        }
     }
 
     /// Prepare the frontier for circuit extraction
@@ -267,7 +274,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
 
         for q in 0..self.g.outputs().len() {
             let o = self.g.outputs()[q];
-            if let Some((v,et)) = self.g.incident_edges(o).next() {
+            if let Some((v, et)) = self.g.incident_edges(o).next() {
                 // replace a Hadamard edge from the output with a Hadamard gate
                 if et == EType::H {
                     c.push_front(Gate::new(HAD, vec![q]));
@@ -276,9 +283,11 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
 
                 // output connects to an input, so skip. When the MAIN PHASE of
                 // extraction is done, all vertices will be skipped this way.
-                if self.g.vertex_type(v) == VType::B { continue; }
+                if self.g.vertex_type(v) == VType::B {
+                    continue;
+                }
 
-                self.frontier.push((q,v));
+                self.frontier.push((q, v));
 
                 // replace a non-zero phase on the frontier with a phase gate
                 let p = self.g.phase(v);
@@ -296,8 +305,11 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
                     } else if self.g.vertex_type(n) == VType::B {
                         // for unitary circuits, an additional boundary must be an input
                         if !self.g.inputs().contains(&n) {
-                            return Err(ExtractError(format!("Two outputs connected to a single vertex {}.", v),
-                            c.clone(), self.g.clone()));
+                            return Err(ExtractError(
+                                format!("Two outputs connected to a single vertex {}.", v),
+                                c.clone(),
+                                self.g.clone(),
+                            ));
                         }
 
                         // if a vertex is connected to more than just an input, pad the input
@@ -307,29 +319,39 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
                                 ty: VType::Z,
                                 phase: Rational::zero(),
                                 qubit: self.g.qubit(n),
-                                row: self.g.row(n)+1 };
+                                row: self.g.row(n) + 1,
+                            };
                             let n1 = self.g.add_vertex_with_data(vd);
-                            self.g.add_edge_with_type(n, n1, self.g.edge_type(n, v).opposite());
+                            self.g
+                                .add_edge_with_type(n, n1, self.g.edge_type(n, v).opposite());
                             self.g.add_edge_with_type(n1, v, EType::H);
                             self.g.remove_edge(n, v);
                         }
 
                         // if the frontier vertex is connected to another frontier vertex, replace
                         // the edge with a CZ gate
-                    } else if let Some(&(r,_)) = self.frontier.iter().find(|&&(_,n1)| n == n1) {
+                    } else if let Some(&(r, _)) = self.frontier.iter().find(|&&(_, n1)| n == n1) {
                         // TODO: CZ optimisation (maybe)
                         self.g.remove_edge(v, n);
-                        c.push_front(Gate::new(CZ, vec![q,r]));
+                        c.push_front(Gate::new(CZ, vec![q, r]));
 
                         // we should not encounter any non-Z vertices at this point
                     } else if self.g.vertex_type(n) != VType::Z {
-                        return Err(ExtractError(format!("Bad neighbour: {}", n), c.clone(), self.g.clone()));
+                        return Err(ExtractError(
+                            format!("Bad neighbour: {}", n),
+                            c.clone(),
+                            self.g.clone(),
+                        ));
                     }
                 }
             } else {
                 // this will happen if there is an output vertex not connected to anything, which
                 // is a mal-formed graph
-                return Err(ExtractError(format!("Bad output vertex {}", o), c.clone(), self.g.clone()));
+                return Err(ExtractError(
+                    format!("Bad output vertex {}", o),
+                    c.clone(),
+                    self.g.clone(),
+                ));
             }
         }
 
@@ -337,33 +359,35 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
     }
 
     /// Pivot to remove gadgets adjacent to the frontier
-    fn fix_gadgets(&mut self,
-                   c: &Circuit,
-                   gadgets: &mut FxHashSet<V>)
-        -> Result<bool, ExtractError<G>>
-        {
-
-            for &(_,v) in &self.frontier {
-                for n in self.g.neighbor_vec(v) {
-                    if gadgets.contains(&n) {
-                        // TODO: this can be probably be done with
-                        // gen_pivot_unsafe
-                        // let t = g.to_tensor4();
-                        if boundary_pivot(self.g, v, n) {
-                            // println!("FIXED GADGET: ({}, gad = {})", v, n);
-                            // assert_eq!(t, g.to_tensor4());
-                            // println!("{}", g.to_dot());
-                            gadgets.remove(&n);
-                            return Ok(true);
-                        } else {
-                            return Err(ExtractError(format!("Could not remove gadget by pivoting: ({}, {})", v, n),
-                            c.clone(), self.g.clone()));
-                        }
+    fn fix_gadgets(
+        &mut self,
+        c: &Circuit,
+        gadgets: &mut FxHashSet<V>,
+    ) -> Result<bool, ExtractError<G>> {
+        for &(_, v) in &self.frontier {
+            for n in self.g.neighbor_vec(v) {
+                if gadgets.contains(&n) {
+                    // TODO: this can be probably be done with
+                    // gen_pivot_unsafe
+                    // let t = g.to_tensor4();
+                    if boundary_pivot(self.g, v, n) {
+                        // println!("FIXED GADGET: ({}, gad = {})", v, n);
+                        // assert_eq!(t, g.to_tensor4());
+                        // println!("{}", g.to_dot());
+                        gadgets.remove(&n);
+                        return Ok(true);
+                    } else {
+                        return Err(ExtractError(
+                            format!("Could not remove gadget by pivoting: ({}, {})", v, n),
+                            c.clone(),
+                            self.g.clone(),
+                        ));
                     }
                 }
             }
-            Ok(false)
         }
+        Ok(false)
+    }
 
     /// Extract vertices from the frontier
     ///
@@ -371,7 +395,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
     /// with identity. Returns true if we got any.
     fn extract_from_frontier(&mut self) -> bool {
         let mut found = false;
-        for &(_,v) in &self.frontier {
+        for &(_, v) in &self.frontier {
             if remove_id(self.g, v) {
                 found = true;
                 // println!("EXTRACTED: {}", v);
@@ -388,8 +412,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
         // only ever eliminate phase gadgets, never create new ones.
         let mut gadgets = FxHashSet::default();
         for v in self.g.vertices() {
-            if self.g.degree(v) == 1 && self.g.vertex_type(v) == VType::Z
-            {
+            if self.g.degree(v) == 1 && self.g.vertex_type(v) == VType::Z {
                 let n = self.g.neighbors(v).next().unwrap();
                 if self.g.vertex_type(n) == VType::Z {
                     gadgets.insert(n);
@@ -405,7 +428,9 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
             // a list of frontier vertices. If the frontier is empty after pre-processing,
             // we are done.
             self.prepare_frontier(&mut c)?;
-            if self.frontier.is_empty() { break; }
+            if self.frontier.is_empty() {
+                break;
+            }
 
             // Uncomment to debug {{{
             // println!("frontier: {:?}", frontier);
@@ -417,22 +442,32 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
             //
             // If any gadgets are adjacent to the frontier, do a generalised pivot to remove
             // them. In that case, some edges will change, so we need to re-generate the frontier.
-            if self.fix_gadgets(&c, &mut gadgets)? { continue; }
+            if self.fix_gadgets(&c, &mut gadgets)? {
+                continue;
+            }
 
             // MAIN PHASE
             //
             // Look for extractible vertices. If we found some, loop. If not, try gaussian
             // elimination via CNOTs and look again.
-            if self.extract_from_frontier() { continue; }
+            if self.extract_from_frontier() {
+                continue;
+            }
 
             let gaussf = self.gaussf;
             gaussf(self, &mut c);
 
-            if self.extract_from_frontier() { continue; }
+            if self.extract_from_frontier() {
+                continue;
+            }
 
             // If we didn't make progress, terminate with an error. This prevents infinite loops
             // in the case where a graph is not extractible.
-            return Err(ExtractError("No extractible vertex found.".into(), c, self.g.clone()));
+            return Err(ExtractError(
+                "No extractible vertex found.".into(),
+                c,
+                self.g.clone(),
+            ));
         }
 
         // FINAL PERMUTATION PHASE
@@ -455,9 +490,9 @@ impl<G: GraphLike + Clone> ToCircuit for G {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::vec_graph::Graph;
-    use crate::tensor::*;
     use crate::simplify::*;
+    use crate::tensor::*;
+    use crate::vec_graph::Graph;
 
     #[test]
     fn id_test() {
@@ -509,10 +544,13 @@ mod tests {
 
     #[test]
     fn extract_h() {
-        let c = Circuit::from_qasm(r#"
+        let c = Circuit::from_qasm(
+            r#"
             qreg q[1];
             h q[0];
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
         let mut g: Graph = c.to_graph();
         clifford_simp(&mut g);
         println!("GRAPH BEFORE: {}\n\n", g.to_dot());
@@ -521,7 +559,7 @@ mod tests {
             Ok(c1) => {
                 println!("CIRCUIT: {}\n", c1);
                 assert_eq!(c.to_tensor4(), c1.to_tensor4());
-            },
+            }
             Err(ExtractError(msg, c1, g)) => {
                 println!("CIRCUIT: {}\n\nGRAPH: {}\n", c1, g.to_dot());
                 panic!("Extraction failed: {}", msg);
@@ -531,18 +569,23 @@ mod tests {
 
     #[test]
     fn extract_swap() {
-        let c = Circuit::from_qasm(r#"
+        let c = Circuit::from_qasm(
+            r#"
             qreg q[2];
             cx q[0], q[1];
             cx q[1], q[0];
             cx q[0], q[1];
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
         let mut g: Graph = c.to_graph();
         clifford_simp(&mut g);
         println!("GRAPH BEFORE: {}\n\n", g.to_dot());
 
         match g.to_circuit() {
-            Ok(c1) => { assert_eq!(c.to_tensor4(), c1.to_tensor4()); },
+            Ok(c1) => {
+                assert_eq!(c.to_tensor4(), c1.to_tensor4());
+            }
             Err(ExtractError(msg, c1, g)) => {
                 println!("CIRCUIT: {}\n\nGRAPH: {}\n", c1, g.to_dot());
                 panic!("Extraction failed: {}", msg);
@@ -552,7 +595,8 @@ mod tests {
 
     #[test]
     fn extract1() {
-        let c = Circuit::from_qasm(r#"
+        let c = Circuit::from_qasm(
+            r#"
             qreg q[4];
             cx q[0], q[1];
             cx q[0], q[2];
@@ -562,7 +606,9 @@ mod tests {
             cx q[1], q[2];
             cx q[1], q[3];
             cx q[1], q[0];
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
         let mut g: Graph = c.to_graph();
         clifford_simp(&mut g);
         println!("GRAPH BEFORE: {}\n\n", g.to_dot());
@@ -571,7 +617,7 @@ mod tests {
             Ok(c1) => {
                 println!("CIRCUIT: {}\n", c1);
                 assert_eq!(c.to_tensor4(), c1.to_tensor4());
-            },
+            }
             Err(ExtractError(msg, c1, g)) => {
                 println!("CIRCUIT: {}\n\nGRAPH: {}\n", c1, g.to_dot());
                 panic!("Extraction failed: {}", msg);
@@ -635,7 +681,8 @@ mod tests {
     fn regression_extract_1() {
         // caused bug toward the end of extraction, when frontier was only
         // a subset of qubits
-        let c = Circuit::from_qasm(r#"
+        let c = Circuit::from_qasm(
+            r#"
           qreg q[5];
           cx q[3], q[4];
           tdg q[4];
@@ -647,12 +694,14 @@ mod tests {
           cx q[1], q[4];
           tdg q[4];
           t q[0];
-          "#).unwrap();
+          "#,
+        )
+        .unwrap();
 
-          let mut g: Graph = c.to_graph();
-          clifford_simp(&mut g);
-          assert!(Tensor4::scalar_compare(&g, &c));
-          let c1 = g.to_circuit().unwrap();
-          assert!(Tensor4::scalar_compare(&c, &c1));
+        let mut g: Graph = c.to_graph();
+        clifford_simp(&mut g);
+        assert!(Tensor4::scalar_compare(&g, &c));
+        let c1 = g.to_circuit().unwrap();
+        assert!(Tensor4::scalar_compare(&c, &c1));
     }
 }

@@ -15,9 +15,9 @@
 // limitations under the License.
 
 use quizx::circuit::*;
+use quizx::extract::*;
 use quizx::hash_graph::*;
 use quizx::simplify::*;
-use quizx::extract::*;
 use std::time::Instant;
 use std::{thread, time};
 
@@ -53,7 +53,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Extracting circuit...");
     let time = Instant::now();
-    let result = g.extractor()
+    let result = g
+        .extractor()
         .gflow()
         // .up_to_perm()
         .extract();
@@ -62,13 +63,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(_c1) => {
             println!("Done in {:.2?}", time.elapsed());
             println!("extracted ok");
-        },
+        }
         Err(ExtractError(msg, _c, _g)) => {
             println!("extract failed: {}", msg);
             // println!("\n\n{}", _g.to_dot());
-        },
+        }
     }
-
 
     thread::sleep(time::Duration::from_millis(100));
     Ok(())

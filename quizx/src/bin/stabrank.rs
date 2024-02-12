@@ -21,8 +21,8 @@ use quizx::circuit::*;
 use quizx::graph::*;
 // use quizx::scalar::*;
 // use quizx::tensor::*;
-use quizx::vec_graph::Graph;
 use quizx::decompose::Decomposer;
+use quizx::vec_graph::Graph;
 // use rayon::prelude::*;
 // use rand::SeedableRng;
 // use rand::rngs::StdRng;
@@ -41,7 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     g.plug_output(0, BasisElem::Z1);
     g.plug(&g.to_adjoint());
 
-    println!("g has T-count: {}", g.tcount()/2);
+    println!("g has T-count: {}", g.tcount() / 2);
     quizx::simplify::full_simp(&mut g);
     println!("g has reduced T-count: {}", g.tcount());
 
@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Naive: {} terms", max);
 
     // let mut rng = StdRng::seed_from_u64(1337);
-    
+
     // pre-compute candidates on a single thread to use a fixed seed
     // let n = 1000;
     // println!("Generating {} candidates...", n);
@@ -80,7 +80,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // d.decomp_all();
     println!("Finished in {:.2?}", time.elapsed());
 
-    println!("Got {} terms for T-count {} (naive {} terms)", d.nterms, g.tcount(), max);
+    println!(
+        "Got {} terms for T-count {} (naive {} terms)",
+        d.nterms,
+        g.tcount(),
+        max
+    );
     println!("{:?}", d.scalar);
 
     Ok(())
