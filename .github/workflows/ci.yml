@@ -1,0 +1,199 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master 
+  pull_request:
+    branches:
+      - master
+  merge_group:
+    types: [checks_requested]
+  workflow_dispatch: {}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  RUSTFLAGS: "--cfg=ci_run"
+  MIRIFLAGS: '-Zmiri-permissive-provenance'
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
+
+jobs:
+  # Computes if changes where made to each group of files, so we can run only the necessary checks.
+  #
+  # Always returns true if running on the default branch, to ensure all changes are throughly checked.
+  changes:
+    name: Compute file changes
+    runs-on: ubuntu-latest
+    # Required permissions
+    permissions:
+      pull-requests: read
+    # Set job outputs to values from filter step
+    #
+    # Always returns true if running on the default branch, to ensure all changes are throughly checked.
+    outputs:
+      quizx: ${{ github.ref_name == github.event.repository.default_branch || steps.filter.outputs.quizx }}
+      pybindings: ${{ github.ref_name == github.event.repository.default_branch || steps.filter.outputs.pybindings }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dorny/paths-filter@v3
+      id: filter
+      with:
+        filters: |
+          quizx:
+            - 'quizx/**'
+            - 'circuits/**'
+            - 'Cargo.toml'
+          pybindings:
+            - 'quizx/**'
+            - 'pybindings/**'
+            - 'Cargo.toml'
+
+  check-quizx:
+    name: 🦀 Check quizx package
+    needs: changes
+    if: ${{ needs.changes.outputs.quizx == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: mozilla-actions/sccache-action@v0.0.3
+      - name: Check rust formatting
+        run: cargo fmt -p quizx -- --check
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -p quizx -- -D warnings
+      - name: Build docs
+        run: cargo doc --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: "-Dwarnings"
+
+  check-pybindings:
+    name: 🦀🐍 Check quizx_pybindings
+    needs: changes
+    if: ${{ needs.changes.outputs.pybindings == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: mozilla-actions/sccache-action@v0.0.3
+      - name: Install rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Install poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'poetry'
+      - name: Install the project libraries
+        run: poetry install
+      - name: Check rust formatting
+        run: cargo fmt -p quizx_pybindings -- --check
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -p quizx_pybindings -- -D warnings
+      - name: Type check python with mypy
+        run: poetry run mypy .
+      - name: Check python formatting with ruff
+        run: poetry run ruff format --check
+      - name: Lint python with ruff
+        run: poetry run ruff check
+
+  test-quizx-stable:
+    needs: changes
+    if: ${{ needs.changes.outputs.quizx == 'true' }}
+    runs-on: ubuntu-latest
+    name: 🦀 Test quizx (Rust stable)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mozilla-actions/sccache-action@v0.0.4
+      - id: toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 'stable'
+      - name: Configure default rust toolchain
+        run: rustup override set ${{steps.toolchain.outputs.name}}
+      - name: Build with no features
+        run: cargo test --verbose --workspace --no-default-features --no-run -p quizx
+      - name: Tests with no features
+        run: cargo test --verbose --workspace --no-default-features -p quizx
+
+  test-quizx-other:
+    needs: changes
+    if: ${{ needs.changes.outputs.quizx == 'true' && github.event_name != 'merge_group' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        rust: ['1.75', beta, nightly]
+    name: 🦀 Test quizx (Rust ${{ matrix.rust }})
+    steps:
+      - uses: actions/checkout@v3
+      - id: toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+      - name: Configure default rust toolchain
+        run: rustup override set ${{steps.toolchain.outputs.name}}
+      - uses: mozilla-actions/sccache-action@v0.0.3
+      - name: Build with all features
+        run: cargo test --verbose --all-features --no-run -p quizx
+      - name: Tests with all features
+        run: cargo test --verbose --all-features -p quizx
+
+  test-pybindings:
+    name: 🐍 Build and Test quizx_pybindings
+    needs: changes
+    if: ${{ needs.changes.outputs.pybindings == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: mozilla-actions/sccache-action@v0.0.3
+      - name: Install rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Install poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'poetry'
+      - name: Install the project libraries
+        run: poetry install
+      - name: Build pyo3 bindings
+        run: |
+          poetry run maturin build
+          poetry add target/wheels/*.whl
+      - name: Test pyo3 bindings
+        run: poetry run pytest
+
+  # This is a meta job to mark successful completion of the required checks,
+  # even if they are skipped due to no changes in the relevant files.
+  required-checks:
+    name: Required checks 🐍
+    needs: [changes, check-quizx, check-pybindings, test-quizx-stable, test-pybindings]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if required checks failed
+        # This condition should simply be `if: failure() || cancelled()`,
+        # but there seems to be a bug in the github workflow runner.
+        #
+        # See https://github.com/orgs/community/discussions/80788
+        if: |
+          needs.changes.result == 'failure' || needs.changes.result == 'cancelled' ||
+          needs.check-quizx.result == 'failure' || needs.check-quizx.result == 'cancelled' ||
+          needs.check-pybindings.result == 'failure' || needs.check-pybindings.result == 'cancelled' ||
+          needs.test-quizx-stable.result == 'failure' || needs.test-quizx-stable.result == 'cancelled' ||
+          needs.test-pybindings.result == 'failure' || needs.test-pybindings.result == 'cancelled'
+        run: |
+          echo "Required checks failed"
+          echo "Please check the logs for more information"
+          exit 1
+      - name: Pass if required checks passed
+        run: |
+          echo "All required checks passed"
