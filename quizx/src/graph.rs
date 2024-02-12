@@ -311,6 +311,12 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// Set inputs for the graph
     fn set_inputs(&mut self, inputs: Vec<V>);
 
+    /// Returns `true` if the vertex is an input
+    #[inline]
+    fn is_input(&self, v: V) -> bool {
+        self.inputs().contains(&v)
+    }
+
     /// List of boundary vertices which serve as outputs
     fn outputs(&self) -> &Vec<V>;
 
@@ -319,6 +325,12 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
 
     /// Set outputs for the graph
     fn set_outputs(&mut self, outputs: Vec<V>);
+
+    /// Returns `true` if the vertex is an output
+    #[inline]
+    fn is_output(&self, v: V) -> bool {
+        self.outputs().contains(&v)
+    }
 
     /// Add a vertex with the given type
     fn add_vertex(&mut self, ty: VType) -> V;

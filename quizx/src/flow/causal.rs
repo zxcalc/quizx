@@ -1,0 +1,181 @@
+// QuiZX - Rust library for quantum circuit rewriting and optimisation
+//         using the ZX-calculus
+// Copyright (C) 2021 - Aleks Kissinger
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! Methods for computing the causal flow of a graph.
+//!
+//! Given an open graph `G = (V, E, I, O)` where `I, O \subseteq V` are
+//! respectively the input and output node sets, a causal flow is a function
+//! `f: (V / O) -> (V / I)` and a partial order `≼` such that:
+//!
+//! 1. `f` is injective
+//! 2. `u ~ f(u)`
+//! 3. `u ≼ f(u)`
+//! 4. If `v ~ f(u)`, then `u ≼ v`
+
+use std::collections::HashSet;
+
+use itertools::Itertools;
+
+use crate::graph::V;
+use crate::hash_graph::GraphLike;
+
+/// A causal flow of a graph.
+///
+/// Note that we only keep track of the flow function `f` and not the partial
+/// order `≼`.
+//
+// TODO: Store the order too? Perhaps as an `Option`, and compute it on demand otherwise?
+pub struct CausalFlow {
+    /// The map `f` from non-output nodes to non-input nodes.
+    ///
+    /// Output nodes in this vector are mapped to themselves.
+    flow: Vec<V>,
+}
+
+impl CausalFlow {
+    /// Computes the causal flow of a graph.
+    pub fn from_graph(g: &impl GraphLike) -> Result<Self, CausalFlowError> {
+        // Sweep the graph from the inputs, consuming a candidate node with a single non-candidate neighbour.
+        // single non-candidate neighbour.
+
+        // The candidates.
+        let mut candidates: HashSet<V> = g.inputs().iter().copied().collect();
+
+        assert!(g.num_vertices() < V::MAX, "Graph is too large");
+        let mut flow: Vec<V> = vec![V::MAX; g.num_vertices()];
+        let is_visited = |v: V, flow: &Vec<V>| flow[v] != V::MAX;
+
+        let mut visited = 0;
+
+        while !candidates.is_empty() {
+            // Find a candidate node with a single non-candidate neighbor.
+            let Some((candidate, neigh)) = candidates
+                .iter()
+                .filter_map(|&v| {
+                    let single_neighbour = g
+                        .neighbors(v)
+                        .filter(|&n| !is_visited(n, &flow) && !candidates.contains(&n))
+                        .exactly_one()
+                        .ok()?;
+                    Some((v, single_neighbour))
+                })
+                .next()
+            else {
+                return Err(CausalFlowError::NonCausal);
+            };
+
+            // Remove the candidate from the set, and add the neighbor (unless
+            // it is an output).
+            visited += 1;
+            flow[candidate] = neigh;
+            candidates.remove(&candidate);
+            if !g.is_output(neigh) {
+                candidates.insert(neigh);
+            } else {
+                flow[neigh] = neigh;
+                visited += 1;
+            }
+        }
+
+        if visited != g.num_vertices() {
+            return Err(CausalFlowError::NonCausal);
+        }
+
+        Ok(Self { flow })
+    }
+
+    /// Returns the next node in the causal flow.
+    pub fn next(&self, v: V) -> Option<V> {
+        let &next = self.flow.get(v)?;
+        match next == v {
+            true => None,
+            false => Some(next),
+        }
+    }
+
+    /// Returns the causal flow map.
+    pub fn flow(&self) -> &[V] {
+        &self.flow
+    }
+}
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum CausalFlowError {
+    /// The graph does not have a causal flow.
+    #[error("The graph does not have a causal flow")]
+    NonCausal,
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::graph::VType;
+    use crate::vec_graph::Graph;
+
+    use rstest::{fixture, rstest};
+
+    /// Makes a simple graph with a causal flow.
+    ///
+    /// The graph is:
+    /// ```text
+    /// 0 - 2 - 4 - 6
+    ///     |   |
+    /// 1 - 3 - 5 - 7
+    /// ```
+    ///
+    /// With `0` and `1` as inputs, and `6` and `7` as outputs.
+    #[fixture]
+    fn simple_graph() -> (Graph, Vec<V>) {
+        let mut g = Graph::new();
+        let vs = vec![
+            g.add_vertex(VType::B),
+            g.add_vertex(VType::B),
+            g.add_vertex(VType::Z),
+            g.add_vertex(VType::X),
+            g.add_vertex(VType::X),
+            g.add_vertex(VType::Z),
+            g.add_vertex(VType::B),
+            g.add_vertex(VType::B),
+        ];
+
+        g.set_inputs(vec![vs[0], vs[1]]);
+        g.set_outputs(vec![vs[6], vs[7]]);
+
+        g.add_edge(vs[0], vs[2]);
+        g.add_edge(vs[1], vs[3]);
+        g.add_edge(vs[2], vs[4]);
+        g.add_edge(vs[2], vs[3]);
+        g.add_edge(vs[3], vs[2]);
+        g.add_edge(vs[3], vs[5]);
+        g.add_edge(vs[4], vs[6]);
+        g.add_edge(vs[5], vs[7]);
+        (g, vs)
+    }
+
+    #[rstest]
+    fn test_causal_flow(simple_graph: (Graph, Vec<V>)) {
+        let (g, vs) = simple_graph;
+        let flow = CausalFlow::from_graph(&g).unwrap();
+        assert_eq!(flow.next(vs[0]), Some(vs[2]));
+        assert_eq!(flow.next(vs[2]), Some(vs[4]));
+        assert_eq!(flow.next(vs[4]), Some(vs[6]));
+        assert_eq!(flow.next(vs[6]), None);
+        assert_eq!(flow.next(vs[1]), Some(vs[3]));
+        assert_eq!(flow.next(vs[3]), Some(vs[5]));
+        assert_eq!(flow.next(vs[5]), Some(vs[7]));
+        assert_eq!(flow.next(vs[7]), None);
+    }
+}

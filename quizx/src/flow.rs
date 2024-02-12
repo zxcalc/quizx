@@ -14,20 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod annealer;
-pub mod basic_rules;
-pub mod circuit;
-pub mod decompose;
-pub mod extract;
-pub mod flow;
-pub mod gate;
-pub mod generate;
-pub mod graph;
-pub mod hash_graph;
-pub mod linalg;
-pub mod optimize_circuit;
-pub mod random_graph;
-pub mod scalar;
-pub mod simplify;
-pub mod tensor;
-pub mod vec_graph;
+//! Methods for computing flows of a graph.
+
+pub mod causal;

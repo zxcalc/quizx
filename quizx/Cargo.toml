@@ -18,3 +18,8 @@ regex = "1.4.3"
 rand = "0.8.3"
 itertools = "0.10.1"
 openqasm = "0.1.2"
+thiserror = "1.0.57"
+rstest = "0.18.2"
+
+[dev-dependencies]
+rstest = "0.18.2"
