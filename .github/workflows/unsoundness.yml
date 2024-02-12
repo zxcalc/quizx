@@ -1,0 +1,31 @@
+name: Unsoundness checks
+
+on:
+  push:
+    branches:
+      - main 
+  workflow_dispatch: {}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  RUSTFLAGS: "--cfg=ci_run"
+  MIRIFLAGS: '-Zmiri-permissive-provenance'
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
+
+jobs:
+
+   miri:
+    name: "Miri"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Miri
+        run: |
+          rustup toolchain install nightly --component miri
+          rustup override set nightly
+          cargo miri setup
+      - uses: mozilla-actions/sccache-action@v0.0.3
+      - name: Test with Miri
+        run: cargo miri test

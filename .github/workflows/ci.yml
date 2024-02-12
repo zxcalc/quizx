@@ -1,0 +1,94 @@
+name: Continuous integration
+
+on:
+  push:
+    branches:
+      - main 
+  pull_request:
+    branches:
+      - main
+  merge_group:
+    types: [checks_requested]
+  workflow_dispatch: {}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  RUSTFLAGS: "--cfg=ci_run"
+  MIRIFLAGS: '-Zmiri-permissive-provenance'
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: mozilla-actions/sccache-action@v0.0.3
+      - name: Check rust formatting
+        run: cargo fmt -- --check
+      - name: Check python formatting
+        uses: chartboost/ruff-action@v1
+        with:
+          args: format --check
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features --workspace -- -D warnings
+      - name: Build docs
+        run: cargo doc --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: "-Dwarnings"
+      - name: Python lints
+        uses: chartboost/ruff-action@v1
+        with:
+          args: check
+
+  benches:
+    # Not required, we can ignore it for the merge queue check.
+    if: github.event_name != 'merge_group'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - uses: mozilla-actions/sccache-action@v0.0.3
+      - name: Build benchmarks with no features
+        run: cargo bench --verbose --no-run --no-default-features
+      - name: Build benchmarks with all features
+        run: cargo bench --verbose --no-run --all-features
+
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: ['1.75', stable, beta]
+        # workaround to ignore non-stable tests when running the merge queue checks
+        # see: https://github.community/t/how-to-conditionally-include-exclude-items-in-matrix-eg-based-on-branch/16853/6
+        isMerge:
+            - ${{ github.event_name == 'merge_group' }}
+        exclude:
+          - rust: '1.75'
+            isMerge: true
+          - rust: beta
+            isMerge: true
+    name: tests (Rust ${{ matrix.rust }})
+    steps:
+      - uses: actions/checkout@v3
+      - id: toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+      - name: Configure default rust toolchain
+        run: rustup override set ${{steps.toolchain.outputs.name}}
+      - uses: mozilla-actions/sccache-action@v0.0.3
+      - name: Build with no features
+        run: cargo test --verbose --no-default-features --no-run
+      - name: Tests with no features
+        run: cargo test --verbose --no-default-features
+      - name: Build with all features
+        run: cargo test --verbose --all-features --no-run
+      - name: Tests with all features
+        run: cargo test --verbose --all-features
