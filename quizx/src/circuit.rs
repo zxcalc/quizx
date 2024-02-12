@@ -308,10 +308,10 @@ impl Circuit {
 
 impl fmt::Display for Circuit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "qreg q[{}];\n", self.num_qubits())?;
+        writeln!(f, "qreg q[{}];", self.num_qubits())?;
 
         for g in &self.gates {
-            write!(f, "{};\n", g.to_qasm())?;
+            writeln!(f, "{};", g.to_qasm())?;
         }
 
         Ok(())
@@ -449,7 +449,7 @@ impl openqasm::GateWriter for &mut CircuitWriter {
 
         let mut g = Gate::from_qasm_name(name.as_str());
         g.qs.extend_from_slice(regs);
-        if params.len() > 0 {
+        if !params.is_empty() {
             g.phase = param_to_ratio(params[0]);
         }
 

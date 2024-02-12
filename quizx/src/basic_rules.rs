@@ -578,7 +578,7 @@ pub fn remove_pair_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
         *g.scalar_mut() *= ScalarN::one_plus_phase(p0 + p1);
     // different colors
     } else {
-        let p2 = Rational::one() + &p0 + &p1;
+        let p2 = Rational::one() + p0 + p1;
         *g.scalar_mut() *= ScalarN::one()
             + ScalarN::from_phase(p0)
             + ScalarN::from_phase(p1)

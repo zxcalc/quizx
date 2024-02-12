@@ -118,17 +118,15 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
     }
 
     /// Set edges between frontier and given neighbors to match biadj. matrix
-    fn update_frontier_biadj(&mut self, neighbors: &Vec<V>, m: Mat2) {
+    fn update_frontier_biadj(&mut self, neighbors: &[V], m: Mat2) {
         for (i, &(_, v)) in self.frontier.iter().enumerate() {
             for (j, &w) in neighbors.iter().enumerate() {
                 if m[(i, j)] == 1 {
                     if !self.g.connected(v, w) {
                         self.g.add_edge_with_type(v, w, EType::H);
                     }
-                } else {
-                    if self.g.connected(v, w) {
-                        self.g.remove_edge(v, w);
-                    }
+                } else if self.g.connected(v, w) {
+                    self.g.remove_edge(v, w);
                 }
             }
         }

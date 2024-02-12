@@ -8,6 +8,12 @@ pub struct EquatorialStabilizerStateBuilder {
     pub qubits: usize,
 }
 
+impl Default for EquatorialStabilizerStateBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EquatorialStabilizerStateBuilder {
     pub fn new() -> EquatorialStabilizerStateBuilder {
         EquatorialStabilizerStateBuilder {

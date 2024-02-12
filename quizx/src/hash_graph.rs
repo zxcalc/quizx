@@ -226,8 +226,7 @@ impl GraphLike for Graph {
         self.edata
             .get(&s)
             .expect("Source vertex not found")
-            .get(&t)
-            .map(|x| *x)
+            .get(&t).copied()
     }
 
     fn set_coord(&mut self, v: V, coord: (i32, i32)) {
@@ -295,13 +294,7 @@ impl GraphLike for Graph {
     where
         F: Fn(V) -> bool,
     {
-        for &v in self.vdata.keys() {
-            if f(v) {
-                return Some(v);
-            }
-        }
-
-        None
+        self.vdata.keys().find(|&&v| f(v)).copied()
     }
 
     fn contains_vertex(&self, v: V) -> bool {

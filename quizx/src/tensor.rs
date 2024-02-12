@@ -153,7 +153,7 @@ impl<A: TensorElem> CompareTensors for Tensor<A> {
                 }
                 // if they are different, we cross-multiply to check scalar equivalence
                 else {
-                    t0 * b1.clone() == t1 * b0.clone()
+                    t0 * *b1 == t1 * *b0
                 }
             }
             // all-zero tensors of the same dimension are equal

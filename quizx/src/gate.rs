@@ -173,7 +173,7 @@ impl Gate {
         Gate { t, qs, phase }
     }
 
-    fn push_ccz_decomp(circ: &mut Circuit, qs: &Vec<usize>) {
+    fn push_ccz_decomp(circ: &mut Circuit, qs: &[usize]) {
         circ.push(Gate::new(CNOT, vec![qs[1], qs[2]]));
         circ.push(Gate::new(Tdg, vec![qs[2]]));
         circ.push(Gate::new(CNOT, vec![qs[0], qs[2]]));
@@ -236,7 +236,7 @@ impl Gate {
 
     fn add_spider<G: GraphLike>(
         graph: &mut G,
-        qs: &mut Vec<Option<usize>>,
+        qs: &mut [Option<usize>],
         qubit: usize,
         ty: VType,
         et: EType,
@@ -264,7 +264,7 @@ impl Gate {
     /// only for applications where the circuit doesn't need to be re-extracted (e.g. classical simulation).
     fn add_ccz_postselected<G: GraphLike>(
         graph: &mut G,
-        qs: &mut Vec<Option<usize>>,
+        qs: &mut [Option<usize>],
         qubits: &[usize],
     ) {
         if qs[qubits[0]].is_some() && qs[qubits[1]].is_some() && qs[qubits[2]].is_some() {

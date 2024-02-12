@@ -122,7 +122,7 @@ impl<'a> Iterator for VIter<'a> {
                     None => None,
                 }
             }
-            VIter::Hash(inner) => inner.next().map(|&v| v),
+            VIter::Hash(inner) => inner.next().copied(),
         }
     }
 
@@ -240,7 +240,7 @@ impl<'a> Iterator for NeighborIter<'a> {
     fn next(&mut self) -> Option<V> {
         match self {
             NeighborIter::Vec(inner) => inner.next().map(|&(v, _)| v),
-            NeighborIter::Hash(inner) => inner.next().map(|&v| v),
+            NeighborIter::Hash(inner) => inner.next().copied(),
         }
     }
 
@@ -264,7 +264,7 @@ impl<'a> Iterator for IncidentEdgeIter<'a> {
     type Item = (V, EType);
     fn next(&mut self) -> Option<(V, EType)> {
         match self {
-            IncidentEdgeIter::Vec(inner) => inner.next().map(|&x| x),
+            IncidentEdgeIter::Vec(inner) => inner.next().copied(),
             IncidentEdgeIter::Hash(inner) => inner.next().map(|(&v, &et)| (v, et)),
         }
     }
@@ -569,11 +569,11 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
             let (no, et0) = self
                 .incident_edges(o)
                 .next()
-                .expect(&format!("Bad output: {}", o));
+                .unwrap_or_else(|| panic!("Bad output: {}", o));
             let (ni, et1) = other
                 .incident_edges(i)
                 .next()
-                .expect(&format!("Bad input: {}", i));
+                .unwrap_or_else(|| panic!("Bad input: {}", i));
             let et = EType::merge(et0, et1);
 
             self.add_edge_smart(no, vmap[&ni], et);
@@ -686,27 +686,22 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         // stack used in the DFS
         let mut stack = vec![];
 
-        loop {
-            if let Some(&v) = vset.iter().next() {
-                // start a new component
-                comps.push(FxHashSet::default());
-                let i = comps.len() - 1;
+        while let Some(&v) = vset.iter().next() {
+            // start a new component
+            comps.push(FxHashSet::default());
+            let i = comps.len() - 1;
 
-                // fill last vec in comps by DFS
-                stack.push(v);
-                while !stack.is_empty() {
-                    let v = stack.pop().unwrap();
-                    comps[i].insert(v);
-                    vset.remove(&v);
+            // fill last vec in comps by DFS
+            stack.push(v);
+            while let Some(v) = stack.pop() {
+                comps[i].insert(v);
+                vset.remove(&v);
 
-                    for w in self.neighbors(v) {
-                        if vset.contains(&w) {
-                            stack.push(w);
-                        }
+                for w in self.neighbors(v) {
+                    if vset.contains(&w) {
+                        stack.push(w);
                     }
                 }
-            } else {
-                break;
             }
         }
 
