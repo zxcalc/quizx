@@ -256,18 +256,19 @@ impl GraphLike for Graph {
         }
     }
 
-    fn set_coord(&mut self, v: V, coord: (i32, i32)) {
+    fn set_coord(&mut self, v: V, coord: impl Into<Coord>) {
+        let coord = coord.into();
         if let Some(Some(d)) = self.vdata.get_mut(v) {
-            d.qubit = coord.0;
-            d.row = coord.1;
+            d.qubit = coord.x;
+            d.row = coord.y;
         } else {
             panic!("Vertex not found")
         }
     }
 
-    fn coord(&mut self, v: V) -> (i32, i32) {
+    fn coord(&self, v: V) -> Coord {
         let d = self.vdata[v].expect("Vertex not found");
-        (d.qubit, d.row)
+        Coord::new(d.qubit, d.row)
     }
 
     fn set_qubit(&mut self, v: V, qubit: i32) {

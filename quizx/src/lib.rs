@@ -24,6 +24,7 @@ pub mod gate;
 pub mod generate;
 pub mod graph;
 pub mod hash_graph;
+pub mod json;
 pub mod linalg;
 pub mod optimize_circuit;
 pub mod random_graph;

@@ -226,18 +226,20 @@ impl GraphLike for Graph {
         self.edata
             .get(&s)
             .expect("Source vertex not found")
-            .get(&t).copied()
+            .get(&t)
+            .copied()
     }
 
-    fn set_coord(&mut self, v: V, coord: (i32, i32)) {
+    fn set_coord(&mut self, v: V, coord: impl Into<Coord>) {
+        let coord = coord.into();
         let d = self.vdata.get_mut(&v).expect("Vertex not found");
-        d.qubit = coord.0;
-        d.row = coord.1;
+        d.qubit = coord.x;
+        d.row = coord.y;
     }
 
-    fn coord(&mut self, v: V) -> (i32, i32) {
+    fn coord(&self, v: V) -> Coord {
         let d = self.vdata.get(&v).expect("Vertex not found");
-        (d.qubit, d.row)
+        Coord::new(d.qubit, d.row)
     }
 
     fn set_qubit(&mut self, v: V, qubit: i32) {

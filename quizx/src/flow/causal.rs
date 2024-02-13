@@ -263,7 +263,7 @@ mod test {
         let flow = CausalFlow::from_graph(&g).unwrap();
 
         let region = vec![vs[0], vs[3], vs[6], vs[4]];
-        let expected_other = vec![vs[2]];
+        let expected_other = [vs[2]];
 
         let hull = ConvexHull::from_region(&region, &flow);
 

@@ -235,6 +235,7 @@ pub fn remove_id_unchecked(g: &mut impl GraphLike, v: V) {
         (EType::N, EType::H) => EType::H,
         (EType::H, EType::N) => EType::H,
         (EType::H, EType::H) => EType::N,
+        (EType::Wio, _) | (_, EType::Wio) => unimplemented!("W nodes not supported"),
     };
     g.add_edge_smart(nhd[0].0, nhd[1].0, new_et);
     g.remove_vertex(v);
