@@ -158,7 +158,6 @@ mod test {
         g.add_edge(vs[1], vs[3]);
         g.add_edge(vs[2], vs[4]);
         g.add_edge(vs[2], vs[3]);
-        g.add_edge(vs[3], vs[2]);
         g.add_edge(vs[3], vs[5]);
         g.add_edge(vs[4], vs[6]);
         g.add_edge(vs[5], vs[7]);
