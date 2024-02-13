@@ -17,3 +17,4 @@
 //! Methods for computing flows of a graph.
 
 pub mod causal;
+pub mod causal_structure;

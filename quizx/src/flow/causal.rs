@@ -26,6 +26,7 @@
 //! 4. If `v ~ f(u)`, then `u ≼ v`
 
 use std::collections::HashSet;
+use std::ops::Range;
 
 use itertools::Itertools;
 
@@ -39,10 +40,20 @@ use crate::hash_graph::GraphLike;
 //
 // TODO: Store the order too? Perhaps as an `Option`, and compute it on demand otherwise?
 pub struct CausalFlow {
-    /// The map `f` from non-output nodes to non-input nodes.
+    /// The flow lines in the graph.
     ///
-    /// Output nodes in this vector are mapped to themselves.
-    flow: Vec<V>,
+    /// The flow function `f` maps each line element to the next element in the vector.
+    /// The last element of each line is an output node.
+    lines: Vec<Vec<V>>,
+    /// For each vertex, the line it is part of and its position in the line.
+    positions: Vec<FlowPosition>,
+}
+
+/// The position of a vertex in a set of flow lines.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, derive_more::From)]
+pub struct FlowPosition {
+    pub line: usize,
+    pub pos: usize,
 }
 
 impl CausalFlow {
@@ -54,9 +65,11 @@ impl CausalFlow {
         // The candidates.
         let mut candidates: HashSet<V> = g.inputs().iter().copied().collect();
 
-        assert!(g.num_vertices() < V::MAX, "Graph is too large");
-        let mut flow: Vec<V> = vec![V::MAX; g.num_vertices()];
-        let is_visited = |v: V, flow: &Vec<V>| flow[v] != V::MAX;
+        let mut lines: Vec<Vec<V>> = Vec::with_capacity(g.outputs().len());
+        let mut positions: Vec<FlowPosition> =
+            vec![(usize::MAX, usize::MAX).into(); g.num_vertices()];
+        let is_visited =
+            |v: V, positions: &Vec<FlowPosition>| positions[v] != (usize::MAX, usize::MAX).into();
 
         let mut visited = 0;
 
@@ -67,7 +80,7 @@ impl CausalFlow {
                 .filter_map(|&v| {
                     let single_neighbour = g
                         .neighbors(v)
-                        .filter(|&n| !is_visited(n, &flow) && !candidates.contains(&n))
+                        .filter(|&n| !is_visited(n, &positions) && !candidates.contains(&n))
                         .exactly_one()
                         .ok()?;
                     Some((v, single_neighbour))
@@ -80,13 +93,29 @@ impl CausalFlow {
             // Remove the candidate from the set, and add the neighbor (unless
             // it is an output).
             visited += 1;
-            flow[candidate] = neigh;
+
+            // If the candidate does not have a line yet, create a new line (it is an input).
+            let (line, pos) = match positions[candidate] {
+                FlowPosition {
+                    line: usize::MAX,
+                    pos: usize::MAX,
+                } => {
+                    let line = lines.len();
+                    lines.push(vec![candidate]);
+                    positions[candidate] = (line, 0).into();
+                    (line, 1)
+                }
+                p => (p.line, p.pos + 1),
+            };
+            debug_assert_eq!(lines[line].len(), pos);
+            lines[line].push(neigh);
+            positions[neigh] = (line, pos).into();
+
             candidates.remove(&candidate);
             if !g.is_output(neigh) {
                 candidates.insert(neigh);
             } else {
-                flow[neigh] = neigh;
-                visited += 1;
+                visited += 1
             }
         }
 
@@ -94,21 +123,71 @@ impl CausalFlow {
             return Err(CausalFlowError::NonCausal);
         }
 
-        Ok(Self { flow })
+        Ok(Self { lines, positions })
     }
 
     /// Returns the next node in the causal flow.
     pub fn next(&self, v: V) -> Option<V> {
-        let &next = self.flow.get(v)?;
-        match next == v {
-            true => None,
-            false => Some(next),
+        let p = self.positions[v];
+        self.lines[p.line].get(p.pos + 1).copied()
+    }
+
+    /// Returns the causal flow lines of the graph.
+    pub fn lines(&self) -> &[Vec<V>] {
+        &self.lines
+    }
+}
+
+/// The convex hull of a graph region, with respect to its causal flow.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConvexHull {
+    /// The original vertices of the region.
+    pub region: HashSet<V>,
+    /// The additional vertices that are part of the convex hull.
+    pub hull_vertices: HashSet<V>,
+}
+
+impl ConvexHull {
+    /// Constructs the convex hull of a region given the graph's causal flow.
+    pub fn from_region<'a>(region: impl IntoIterator<Item = &'a V>, flow: &CausalFlow) -> Self {
+        let flow_lines = flow.lines();
+
+        // For each flow line, the first and last vertices that are part of the region.
+        let mut line_min_max: Vec<Option<Range<usize>>> = vec![None; flow_lines.len()];
+
+        let region: HashSet<V> = region.into_iter().copied().collect();
+
+        for &v in &region {
+            let p = flow.positions[v];
+            let min_max = line_min_max[p.line].get_or_insert_with(|| p.pos..p.pos);
+            min_max.start = min_max.start.min(p.pos);
+            min_max.end = min_max.end.max(p.pos);
+        }
+
+        let mut hull_vertices = HashSet::new();
+        for (line, min_max) in line_min_max.iter().enumerate() {
+            if let Some(range) = min_max {
+                let line = &flow_lines[line];
+                for v in line[range.clone()].iter().copied() {
+                    if !region.contains(&v) {
+                        hull_vertices.insert(v);
+                    }
+                }
+            }
+        }
+
+        Self {
+            region,
+            hull_vertices,
         }
     }
 
-    /// Returns the causal flow map.
-    pub fn flow(&self) -> &[V] {
-        &self.flow
+    /// Returns all the vertices that are part of the region.
+    pub fn vertices(&self) -> impl Iterator<Item = V> + '_ {
+        self.region
+            .iter()
+            .copied()
+            .chain(self.hull_vertices.iter().copied())
     }
 }
 
@@ -165,7 +244,7 @@ mod test {
     }
 
     #[rstest]
-    fn test_causal_flow(simple_graph: (Graph, Vec<V>)) {
+    fn causal_flow(simple_graph: (Graph, Vec<V>)) {
         let (g, vs) = simple_graph;
         let flow = CausalFlow::from_graph(&g).unwrap();
         assert_eq!(flow.next(vs[0]), Some(vs[2]));
@@ -176,5 +255,19 @@ mod test {
         assert_eq!(flow.next(vs[3]), Some(vs[5]));
         assert_eq!(flow.next(vs[5]), Some(vs[7]));
         assert_eq!(flow.next(vs[7]), None);
+    }
+
+    #[rstest]
+    fn convex_hull(simple_graph: (Graph, Vec<V>)) {
+        let (g, vs) = simple_graph;
+        let flow = CausalFlow::from_graph(&g).unwrap();
+
+        let region = vec![vs[0], vs[3], vs[6], vs[4]];
+        let expected_other = vec![vs[2]];
+
+        let hull = ConvexHull::from_region(&region, &flow);
+
+        assert_eq!(hull.region, region.iter().copied().collect());
+        assert_eq!(hull.hull_vertices, expected_other.iter().copied().collect());
     }
 }
