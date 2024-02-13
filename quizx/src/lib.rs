@@ -14,20 +14,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod graph;
-pub mod vec_graph;
-pub mod hash_graph;
-pub mod gate;
+pub mod annealer;
+pub mod basic_rules;
 pub mod circuit;
-pub mod optimize_circuit;
+pub mod decompose;
+pub mod extract;
+pub mod gate;
 pub mod generate;
+pub mod graph;
+pub mod hash_graph;
+pub mod linalg;
+pub mod optimize_circuit;
 pub mod random_graph;
 pub mod scalar;
-pub mod tensor;
-pub mod linalg;
-pub mod basic_rules;
 pub mod simplify;
-pub mod extract;
-pub mod decompose;
-pub mod annealer;
-
+pub mod tensor;
+pub mod vec_graph;

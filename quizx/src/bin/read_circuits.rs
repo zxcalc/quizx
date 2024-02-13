@@ -14,9 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::time::Instant;
 use quizx::circuit::*;
 use std::fs;
+use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     for e in fs::read_dir("../../circuits")? {
