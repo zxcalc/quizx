@@ -44,9 +44,9 @@ impl<G: GraphLike> fmt::Debug for ExtractError<G> {
 impl<G: GraphLike> std::error::Error for ExtractError<G> {}
 
 pub trait ToCircuit: GraphLike {
-    fn into_circuit(&mut self) -> Result<Circuit, ExtractError<Self>>;
+    fn to_circuit_mut(&mut self) -> Result<Circuit, ExtractError<Self>>;
     fn to_circuit(&self) -> Result<Circuit, ExtractError<Self>> {
-        self.clone().into_circuit()
+        self.clone().to_circuit_mut()
     }
 
     fn extractor(&mut self) -> Extractor<Self> {
@@ -480,7 +480,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
 }
 
 impl<G: GraphLike + Clone> ToCircuit for G {
-    fn into_circuit(&mut self) -> Result<Circuit, ExtractError<G>> {
+    fn to_circuit_mut(&mut self) -> Result<Circuit, ExtractError<G>> {
         Extractor::new(self).extract()
     }
 }

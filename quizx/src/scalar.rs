@@ -88,10 +88,22 @@ pub trait Sqrt2: Sized {
 /// matrices, because they have to implement Copy (the size must be
 /// known at compile time).
 pub trait Coeffs: Clone + std::ops::IndexMut<usize, Output = isize> {
-    fn len(&self) -> usize;
+    /// Returns a coefficient list representing the number 0.
     fn zero() -> Self;
+
+    /// Returns a coefficient list representing the number 1.
     fn one() -> Self;
+
+    /// Create a new list of coefficients of size sz.
     fn new(sz: usize) -> Option<(Self, usize)>;
+
+    /// Returns the length of the coefficient list.
+    fn len(&self) -> usize;
+
+    /// Returns true if the coefficient list is empty.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 /// Implement Copy whenever our coefficient list allows us to.
