@@ -137,6 +137,7 @@ impl<'a> Iterator for VIter<'a> {
 
 impl<'a> ExactSizeIterator for VIter<'a> {}
 
+#[allow(clippy::type_complexity)]
 pub enum EIter<'a> {
     Vec(
         usize,

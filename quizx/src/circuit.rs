@@ -390,6 +390,7 @@ struct CircuitWriter {
 }
 
 #[derive(Debug)]
+#[allow(clippy::enum_variant_names)]
 enum CircuitWriterError {
     UnitaryNotSupported,
     BarrierNotSupported,

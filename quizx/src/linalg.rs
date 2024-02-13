@@ -354,6 +354,7 @@ impl std::ops::IndexMut<usize> for Mat2 {
 impl<'a, 'b> std::ops::Mul<&'b Mat2> for &'a Mat2 {
     type Output = Mat2;
 
+    #[allow(clippy::suspicious_arithmetic_impl)]
     fn mul(self, rhs: &Mat2) -> Self::Output {
         if self.num_cols() != rhs.num_rows() {
             panic!("Cannot multiply matrices with mismatched dimensions.");

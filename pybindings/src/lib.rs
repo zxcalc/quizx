@@ -40,7 +40,7 @@ fn full_simp(g: &mut VecGraph) {
 #[pyfunction]
 fn extract_circuit(g: &mut VecGraph) -> Circuit {
     Circuit {
-        c: g.g.into_circuit().unwrap(),
+        c: g.g.to_circuit().unwrap(),
         s: None,
     }
 }
