@@ -15,6 +15,7 @@
 // limitations under the License.
 
 pub use crate::graph::*;
+use crate::json::JsonGraph;
 use crate::scalar::*;
 use num::rational::Rational;
 use rustc_hash::FxHashMap;
@@ -301,6 +302,22 @@ impl GraphLike for Graph {
 
     fn contains_vertex(&self, v: V) -> bool {
         self.vdata.contains_key(&v)
+    }
+}
+
+impl serde::Serialize for Graph {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // TODO: Don't ignore the scalar.
+        let jg = JsonGraph::from_graph(self, true);
+        jg.serialize(serializer)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Graph {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let jg = JsonGraph::deserialize(deserializer)?;
+        // TODO: Don't ignore the scalar.
+        Ok(jg.to_graph(true))
     }
 }
 

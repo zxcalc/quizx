@@ -57,24 +57,21 @@ impl JsonGraph {
                     "Boundary vertex is not an input nor output."
                 );
                 let attrs = VertexAttrs {
-                    annotations: VertexAnnotations {
+                    annotation: VertexAnnotations {
                         boundary: true,
                         coord,
                         input,
                         output,
                         ..Default::default()
                     },
-                    data: VertexData {
-                        typ,
-                        ..Default::default()
-                    },
+                    ..Default::default()
                 };
 
                 wire_vertices.insert(v_name, attrs);
             } else {
                 let phase = graph.phase(v);
                 let mut attrs = VertexAttrs {
-                    annotations: VertexAnnotations {
+                    annotation: VertexAnnotations {
                         coord,
                         ..Default::default()
                     },
@@ -87,7 +84,7 @@ impl JsonGraph {
 
                 if typ == VType::ZBox {
                     // Data for ZBox vertices is not currently supported, so write the default.
-                    attrs.annotations.label = Some("1".to_string());
+                    attrs.annotation.label = Some("1".to_string());
                 }
 
                 node_vertices.insert(v_name, attrs);
@@ -111,13 +108,13 @@ impl JsonGraph {
                     node_vertices.insert(
                         h_name.clone(),
                         VertexAttrs {
-                            annotations: VertexAnnotations {
+                            annotation: VertexAnnotations {
                                 coord,
                                 ..Default::default()
                             },
                             data: VertexData {
                                 typ: VType::H,
-                                is_edge: Some(true),
+                                is_edge: true,
                                 ..Default::default()
                             },
                         },
@@ -150,36 +147,36 @@ impl JsonGraph {
             wire_vertices,
             node_vertices,
             undir_edges,
-            variable_types: vec![],
+            variable_types: Default::default(),
             scalar: None,
         }
     }
 
     /// Decode a graph from the json representation.
-    pub fn to_graph<G: GraphLike>(&self) -> G {
+    pub fn to_graph<G: GraphLike>(&self, ignore_scalar: bool) -> G {
         let mut graph = G::new();
 
         if !self.variable_types.is_empty() {
             unimplemented!("Variables are not currently supported.");
         }
 
-        if self.scalar.is_some() {
+        if !ignore_scalar && self.scalar.is_some() {
             unimplemented!("Scalars are not currently supported.");
         }
 
         let mut names: HashMap<VertexName, V> = HashMap::new();
 
         // Map used to track auxiliary Hadamard nodes that should be decoded as Hadamard edges.
-        // Stores the neighbor nodes of the Hadamard node.
-        let mut hadamards: HashMap<&str, Vec<V>> = HashMap::new();
+        // Stores the neighbor nodes of the Hadamard node, and the coordinate of the Hadamard node.
+        let mut hadamards: HashMap<&str, (Vec<V>, Coord)> = HashMap::new();
 
         for (name, attrs) in &self.node_vertices {
-            if attrs.data.typ == VType::H && attrs.data.is_edge.unwrap_or_default() {
+            let coord = Coord::from_f64(attrs.annotation.coord);
+            if attrs.data.typ == VType::H && attrs.data.is_edge {
                 // A virtual hadamard edge.
-                hadamards.insert(name, vec![]);
+                hadamards.insert(name, (vec![], coord));
                 continue;
             }
-            let coord = Coord::from_f64(attrs.annotations.coord);
 
             let v = graph.add_vertex_with_data(VData {
                 ty: attrs.data.typ,
@@ -194,7 +191,7 @@ impl JsonGraph {
         let mut inputs: BTreeMap<usize, &str> = BTreeMap::new();
         let mut outputs: BTreeMap<usize, &str> = BTreeMap::new();
         for (name, attrs) in &self.wire_vertices {
-            let coord = Coord::from_f64(attrs.annotations.coord);
+            let coord = Coord::from_f64(attrs.annotation.coord);
             let v = graph.add_vertex_with_data(VData {
                 ty: VType::B,
                 qubit: coord.qubit(),
@@ -202,33 +199,30 @@ impl JsonGraph {
                 phase: Rational::zero(),
             });
             names.insert(name.to_string(), v);
-            if let Some(input) = attrs.annotations.input {
+            if let Some(input) = attrs.annotation.input {
                 inputs.insert(input, name);
             }
-            if let Some(output) = attrs.annotations.output {
+            if let Some(output) = attrs.annotation.output {
                 outputs.insert(output, name);
             }
         }
         graph.set_inputs(inputs.into_values().map(|name| names[name]).collect());
         graph.set_outputs(outputs.into_values().map(|name| names[name]).collect());
 
-        println!("Inputs: {:?}", graph.inputs());
-        println!("Outputs: {:?}", graph.outputs());
-
         // Insert the edges.
         for attrs in self.undir_edges.values() {
-            let src = names[&attrs.src];
-            let tgt = names[&attrs.tgt];
+            let src = || names[&attrs.src];
+            let tgt = || names[&attrs.tgt];
 
             match (
-                hadamards.contains_key(attrs.src.as_str()),
-                hadamards.contains_key(attrs.tgt.as_str()),
+                hadamards.get(attrs.src.as_str()),
+                hadamards.get(attrs.tgt.as_str()),
             ) {
-                (true, true) => {
+                (Some((_, src_coord)), Some((_, tgt_coord))) => {
                     // Both ends are virtual Hadamard nodes.
                     //
                     // Not sure how this is possible, but pyzx supports it.
-                    let new_coord = Coord::from_f64(avg_coord(graph.coord(src), graph.coord(tgt)));
+                    let new_coord = Coord::from_f64(avg_coord(*src_coord, *tgt_coord));
                     let v = graph.add_vertex_with_data(VData {
                         ty: VType::Z,
                         qubit: new_coord.qubit(),
@@ -237,26 +231,26 @@ impl JsonGraph {
                     });
                     let name = format!("v{}", graph.num_vertices());
                     names.insert(name, v);
-                    hadamards.get_mut(attrs.src.as_str()).unwrap().push(v);
-                    hadamards.get_mut(attrs.tgt.as_str()).unwrap().push(v);
+                    hadamards.get_mut(attrs.src.as_str()).unwrap().0.push(v);
+                    hadamards.get_mut(attrs.tgt.as_str()).unwrap().0.push(v);
                     continue;
                 }
-                (true, false) => {
-                    hadamards.get_mut(attrs.src.as_str()).unwrap().push(tgt);
+                (Some(_), None) => {
+                    hadamards.get_mut(attrs.src.as_str()).unwrap().0.push(tgt());
                     continue;
                 }
-                (false, true) => {
-                    hadamards.get_mut(attrs.tgt.as_str()).unwrap().push(src);
+                (None, Some(_)) => {
+                    hadamards.get_mut(attrs.tgt.as_str()).unwrap().0.push(src());
                     continue;
                 }
                 _ => {}
             }
 
-            graph.add_edge_smart(src, tgt, attrs.typ);
+            graph.add_edge_smart(src(), tgt(), attrs.typ);
         }
 
         // Add the Hadamard edges.
-        for (_, neighbors) in hadamards {
+        for (neighbors, _) in hadamards.values() {
             if neighbors.len() != 2 {
                 panic!("Virtual Hadamard node has wrong number of neighbors.");
             }

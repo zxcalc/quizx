@@ -1,4 +1,4 @@
-// QuiZX - Rust library for quantum circuit rewriting and optimisation
+// QuiZX - Rust library for quantum circuit rewriting and optimization
 //         using the ZX-calculus
 // Copyright (C) 2021 - Aleks Kissinger
 //
@@ -22,36 +22,43 @@ mod phase;
 use crate::graph::VType;
 use crate::hash_graph::{EType, GraphLike};
 
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 
 /// Returns the json-encoded representation of a graph.
-pub fn encode_graph(graph: &impl crate::graph::GraphLike, ignore_scalar: bool) -> String {
+pub fn encode_graph(
+    graph: &impl crate::graph::GraphLike,
+    ignore_scalar: bool,
+) -> serde_json::Result<String> {
     let jg = JsonGraph::from_graph(graph, ignore_scalar);
-    serde_json::to_string(&jg).unwrap()
+    serde_json::to_string(&jg)
 }
 
 /// Writes the json-encoded representation of a graph to a file.
-pub fn write_graph(graph: &impl crate::graph::GraphLike, ignore_scalar: bool, filename: &Path) {
+pub fn write_graph(
+    graph: &impl crate::graph::GraphLike,
+    ignore_scalar: bool,
+    filename: &Path,
+) -> serde_json::Result<()> {
     let jg = JsonGraph::from_graph(graph, ignore_scalar);
     let file = std::fs::File::create(filename).unwrap();
     let writer = std::io::BufWriter::new(file);
-    serde_json::to_writer(writer, &jg).unwrap();
+    serde_json::to_writer(writer, &jg)
 }
 
 /// Reads a graph from its json-encoded representation.
-pub fn decode_graph<G: GraphLike>(s: &str) -> G {
-    let jg: JsonGraph = serde_json::from_str(s).unwrap();
-    jg.to_graph()
+pub fn decode_graph<G: GraphLike>(s: &str) -> serde_json::Result<G> {
+    let jg: JsonGraph = serde_json::from_str(s)?;
+    Ok(jg.to_graph(true))
 }
 
 /// Reads a graph from a json-encoded file.
-pub fn read_graph<G: GraphLike>(filename: &Path) -> G {
+pub fn read_graph<G: GraphLike>(filename: &Path) -> serde_json::Result<G> {
     let file = std::fs::File::open(filename).unwrap();
     let reader = std::io::BufReader::new(file);
-    let jg: JsonGraph = serde_json::from_reader(reader).unwrap();
-    jg.to_graph()
+    let jg: JsonGraph = serde_json::from_reader(reader)?;
+    Ok(jg.to_graph(true))
 }
 
 /// Identifier for an encoded vertex.
@@ -61,7 +68,7 @@ type EdgeName = String;
 
 /// The json-encoded format for pyzx graphs.
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
-struct JsonGraph {
+pub struct JsonGraph {
     /// Wire vertices of the graph.
     #[serde(default)]
     wire_vertices: HashMap<VertexName, VertexAttrs>,
@@ -74,7 +81,7 @@ struct JsonGraph {
     /// Types of the variables in the graph.
     ///
     /// Currently ignored by quizx.
-    variable_types: Vec<String>,
+    variable_types: HashMap<String, String>,
     /// The graph scalar.
     #[serde(skip_serializing_if = "is_default")]
     #[serde(default)]
@@ -84,12 +91,16 @@ struct JsonGraph {
 /// Attributes for a vertex in the json-encoded graph.
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 struct VertexAttrs {
-    annotations: VertexAnnotations,
+    #[serde(skip_serializing_if = "is_default")]
+    #[serde(default)]
+    annotation: VertexAnnotations,
+    #[serde(skip_serializing_if = "is_default")]
+    #[serde(default)]
     data: VertexData,
 }
 
 /// Data for a vertex in the json-encoded graph.
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 struct VertexData {
     /// The vertex type.
     #[serde(rename = "type")]
@@ -104,13 +115,18 @@ struct VertexData {
     ground: bool,
     /// Hadamard wires are encoded as nodes with this flag set,
     /// so that they can be recovered during decoding.
+    ///
+    /// Note that in the pyzx encoding, this is either the string "true" or "false".
+    /// So we need to deserialize it into a bool manually.
     #[serde(skip_serializing_if = "is_default")]
     #[serde(default)]
-    is_edge: Option<bool>,
+    #[serde(deserialize_with = "deserialize_bool")]
+    #[serde(serialize_with = "serialize_bool")]
+    is_edge: bool,
 }
 
 /// The annotations of a vertex in the json-encoded graph.
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq)]
 struct VertexAnnotations {
     /// This is a boundary vertex.
     #[serde(skip_serializing_if = "is_default")]
@@ -173,6 +189,31 @@ pub(crate) fn is_default<T: Default + PartialEq>(t: &T) -> bool {
     *t == Default::default()
 }
 
+/// Serialize a boolean to a string field.
+fn serialize_bool<S>(b: &bool, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    match *b {
+        true => serializer.serialize_str("true"),
+        false => serializer.serialize_str("false"),
+    }
+}
+
+/// Deserialize a boolean from a string field.
+fn deserialize_bool<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+    D: de::Deserializer<'de>,
+{
+    let s: &str = de::Deserialize::deserialize(deserializer)?;
+
+    match s {
+        "true" => Ok(true),
+        "false" => Ok(false),
+        _ => Err(de::Error::unknown_variant(s, &["true", "false"])),
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::graph::GraphLike;
@@ -205,12 +246,14 @@ mod test {
         g.add_edge(vs[0], vs[2]);
         g.add_edge(vs[1], vs[3]);
         g.add_edge(vs[2], vs[4]);
-        g.add_edge(vs[2], vs[3]);
+        g.add_edge_with_type(vs[2], vs[3], EType::H);
         g.add_edge(vs[3], vs[5]);
         g.add_edge(vs[4], vs[6]);
         g.add_edge(vs[5], vs[7]);
         (g, vs)
     }
+
+    const TEST_JSON: &str = include_str!("../../test_files/simple-graph.json");
 
     #[rstest]
     fn json_roundtrip(simple_graph: (Graph, Vec<V>)) {
@@ -218,14 +261,7 @@ mod test {
         let jg = JsonGraph::from_graph(&g, true);
         let s = serde_json::to_string(&jg).unwrap();
 
-        println!("{}", s);
-
-        let g2: Graph = decode_graph(&s);
-
-        println!("{}", g.to_dot());
-        println!();
-        println!("{}", g2.to_dot());
-        println!();
+        let g2: Graph = decode_graph(&s).unwrap();
 
         assert_eq!(g.num_vertices(), g2.num_vertices());
         assert_eq!(g.num_edges(), g2.num_edges());
@@ -243,5 +279,13 @@ mod test {
                 assert_eq!(g.vertex_type(n1), g2.vertex_type(n2));
             }
         }
+    }
+
+    #[test]
+    fn json_decode() {
+        let g: Graph = decode_graph(TEST_JSON).unwrap();
+
+        assert_eq!(g.num_vertices(), 9);
+        assert_eq!(g.num_edges(), 9);
     }
 }
