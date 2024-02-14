@@ -20,8 +20,8 @@ itertools = "0.10.1"
 openqasm = "0.1.2"
 thiserror = "1.0.57"
 rstest = "0.18.2"
-serde = { version = "1.0.196", features = ["derive"] }
-serde_json = "1.0.113"
+serde = { workspace = true }
+serde_json = { workspace = true }
 derive_more = "0.99.17"
 
 [dev-dependencies]
