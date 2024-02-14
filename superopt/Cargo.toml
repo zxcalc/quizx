@@ -1,0 +1,30 @@
+[package]
+name = "quizx-superopt"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+homepage = { workspace = true }
+license-file = { workspace = true }
+
+[dependencies]
+num = { workspace = true }
+quizx = { workspace = true }
+rustc-hash = "1.1.0"
+rayon = "1.5.0"
+ndarray = { version = "0.14.0", features = ["rayon"] }
+approx = "0.4.0"
+regex = "1.4.3"
+rand = "0.8.3"
+itertools = "0.10.1"
+openqasm = "0.1.2"
+thiserror = "1.0.57"
+rstest = "0.18.2"
+serde = { version = "1.0.196", features = ["derive"] }
+serde_json = "1.0.113"
+derive_more = "0.99.17"
+log = "0.4.20"
+priority-queue = "1.4.0"
+
+[dev-dependencies]
+rstest = "0.18.2"

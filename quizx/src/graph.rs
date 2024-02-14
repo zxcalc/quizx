@@ -25,7 +25,9 @@ pub type V = usize;
 /// The type of a vertex in a graph.
 ///
 /// The serialized names may differ.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash,
+)]
 pub enum VType {
     B, // Boundary
     #[default]
@@ -41,7 +43,7 @@ pub enum VType {
     ZBox,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct VData {
     pub ty: VType,
     pub phase: Rational,
@@ -49,7 +51,9 @@ pub struct VData {
     pub row: i32,
 }
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash,
+)]
 pub enum EType {
     /// Normal edge.
     #[default]
@@ -82,7 +86,7 @@ impl EType {
 }
 
 /// An enum specifying an X or Z basis element
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum BasisElem {
     Z0, // |0>
     Z1, // |1>

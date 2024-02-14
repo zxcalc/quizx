@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["quizx", "pybindings"]
+members = ["quizx", "pybindings", "superopt"]
 default-members = ["quizx"]
 
 [workspace.dependencies]
