@@ -71,8 +71,8 @@ impl<G: GraphLike> CausalPattern<G> {
                 source: Some(src),
                 target: Some(dst),
                 edge_prop: etype,
-                source_prop: None,
-                target_prop: None,
+                source_prop: Some(self.graph.vertex_type(src)),
+                target_prop: Some(self.graph.vertex_type(dst)),
             })
             .collect()
     }

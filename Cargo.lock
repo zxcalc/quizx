@@ -962,7 +962,7 @@ dependencies = [
 [[package]]
 name = "portmatching"
 version = "0.3.0"
-source = "git+https://github.com/lmondada/portmatching.git?rev=1df85bb#1df85bb86fd7ba4cd72e18a4e82a0f99f5471c04"
+source = "git+https://github.com/lmondada/portmatching.git?rev=3a5559851#3a55598515cf540f6def9e90dfcb31643f0f5e1c"
 dependencies = [
  "bimap",
  "bitvec",

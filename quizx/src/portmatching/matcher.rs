@@ -57,10 +57,8 @@ impl<G: GraphLike> CausalMatcher<G> {
         flow: &'g CausalFlow,
     ) -> impl Iterator<Item = PatternMatch> + 's {
         self.run_automaton(root, graph, flow)
-            .map(move |pattern_id| {
-                self.get_pattern_match(pattern_id, root, graph, flow)
-                    .expect("no match found")
-            })
+            .unique()
+            .flat_map(move |pattern_id| self.get_pattern_matches(pattern_id, root, graph, flow))
     }
 
     pub(super) fn run_automaton<'s, 'g: 's>(
@@ -92,35 +90,38 @@ impl<G: GraphLike> CausalMatcher<G> {
         self.automaton.dot_string()
     }
 
-    pub(super) fn get_pattern_match(
+    pub(super) fn get_pattern_matches(
         &self,
         pattern_id: PatternID,
         root: V,
         graph: &impl GraphLike,
         flow: &CausalFlow,
-    ) -> Option<PatternMatch> {
+    ) -> Vec<PatternMatch> {
         let pattern = self.get_pattern(pattern_id);
-        dbg!(pattern.edges());
-        let match_map = SinglePatternMatcher::new(pattern, pattern.edges(), pattern.root())
-            .get_match_map(root, vertex_predicate(graph), edge_predicate(graph, flow))
+        let matches = SinglePatternMatcher::new(pattern, pattern.edges(), pattern.root())
+            .get_match_map(root, vertex_predicate(graph), edge_predicate(graph, flow));
+        matches
             .into_iter()
-            .next()?;
-        let boundary = pattern
-            .boundary()
-            .map(|v| *match_map.get_by_left(&v).unwrap())
-            .collect();
-        let internal = pattern
-            .internal()
-            .map(|v| *match_map.get_by_left(&v).unwrap())
-            .collect();
-        Some(PatternMatch {
-            pattern_id,
-            boundary,
-            internal,
-        })
+            .map(|match_map| {
+                let boundary = pattern
+                    .boundary()
+                    .map(|v| *match_map.get_by_left(&v).unwrap())
+                    .collect();
+                let internal = pattern
+                    .internal()
+                    .map(|v| *match_map.get_by_left(&v).unwrap())
+                    .collect();
+                PatternMatch {
+                    pattern_id,
+                    boundary,
+                    internal,
+                }
+            })
+            .collect()
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct PatternMatch {
     /// The ID of the pattern
     pub pattern_id: PatternID,
@@ -135,28 +136,22 @@ fn edge_predicate<'g>(
     flow: &'g CausalFlow,
 ) -> impl for<'a> Fn(V, &'a PEdge) -> Vec<Option<V>> + 'g {
     move |v, &PEdge { src, dst, etype }| {
-        println!("at {v}, checking for an edge {src:?} -> {dst:?}");
         let is_correct_port = |v, neigh, port| match port {
             CausalPort::CausalInput => flow.is_causal_edge_dir(neigh, v),
             CausalPort::CausalOutput => flow.is_causal_edge_dir(v, neigh),
             CausalPort::Other => flow.is_non_causal_edge(v, neigh),
         };
-        let ret = graph
+        graph
             .incident_edges(v)
             .map(|(neigh, t)| {
                 (is_correct_port(v, neigh, src) && is_correct_port(neigh, v, dst) && t == etype)
                     .then_some(neigh)
             })
-            .collect_vec();
-        dbg!(&ret);
-        ret
+            .collect()
     }
 }
 
 // TODO: currently not checking anything for vertices
 fn vertex_predicate(graph: &impl GraphLike) -> impl for<'a> Fn(V, &'a PNode) -> bool + '_ {
-    move |v, vtype| {
-        println!("checking vertex {v}");
-        graph.vertex_type(v) == *vtype
-    }
+    move |v, vtype| graph.vertex_type(v) == *vtype
 }
