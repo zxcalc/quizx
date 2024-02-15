@@ -82,6 +82,7 @@ checksum = "1bc2832c24239b0141d5674bb9174f9d68a8b5b3f2753311927c172ca46f7e9c"
 dependencies = [
  "funty",
  "radium",
+ "serde",
  "tap",
  "wyz",
 ]
@@ -842,6 +843,7 @@ dependencies = [
  "context-iterators",
  "delegate",
  "petgraph",
+ "serde",
  "thiserror",
 ]
 
@@ -857,6 +859,7 @@ dependencies = [
  "petgraph",
  "portgraph",
  "rustc-hash",
+ "serde",
  "smallvec",
 ]
 
@@ -1249,6 +1252,9 @@ name = "smallvec"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6ecd384b10a64542d77071bd64bd7b231f4ed5940fba55e98c3de13824cf3d7"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "string_cache"

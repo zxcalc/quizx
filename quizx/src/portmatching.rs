@@ -23,6 +23,7 @@ pub mod pattern;
 
 pub use matcher::CausalMatcher;
 pub use pattern::CausalPattern;
+pub use portmatching::PatternID;
 
 use crate::hash_graph::{EType, VType};
 use portmatching::EdgeProperty;
@@ -31,6 +32,7 @@ use portmatching::EdgeProperty;
 type PNode = VType;
 
 /// An edge to be matched in a causal graph
+#[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct PEdge {
     src: CausalPort,
@@ -39,6 +41,7 @@ struct PEdge {
 }
 
 /// The types of port in causal ZX graphs.
+#[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum CausalPort {
     /// The causal edge to the vertex predecessor.
@@ -97,7 +100,6 @@ impl PEdge {
 #[cfg(test)]
 mod test {
     use std::collections::HashSet;
-    use std::fs;
 
     use super::*;
     use crate::flow::causal::CausalFlow;

@@ -8,7 +8,7 @@ homepage = { workspace = true }
 license-file = { workspace = true }
 
 [dependencies]
-quizx = { workspace = true }
+quizx = { workspace = true, features = ["portmatching"]}
 num = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
