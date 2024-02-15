@@ -7,6 +7,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use itertools::Itertools;
 use quizx::json::{JsonGraph, VertexName};
 use quizx::vec_graph::{GraphLike, V};
 use serde::{Deserialize, Deserializer, Serialize};
@@ -79,7 +80,7 @@ pub struct RewriteRhs<G: GraphLike> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecodedGraph<G: GraphLike> {
     pub g: G,
-    pub names: HashMap<VertexName, V>,
+    names: HashMap<VertexName, V>,
 }
 
 impl<G: GraphLike> RewriteSet<G> {
@@ -113,11 +114,28 @@ impl RewriteIos {
         &self.1
     }
 
-    pub fn translated(&self, names: &HashMap<VertexName, V>) -> (Vec<V>, Vec<V>) {
+    pub fn translated<G: GraphLike>(&self, g: &DecodedGraph<G>) -> (Vec<V>, Vec<V>) {
         (
-            self.0.iter().map(|name| names[name]).collect(),
-            self.1.iter().map(|name| names[name]).collect(),
+            self.0.iter().map(|name| g.from_name(name)).collect(),
+            self.1.iter().map(|name| g.from_name(name)).collect(),
         )
+    }
+}
+
+impl<G: GraphLike> DecodedGraph<G> {
+    pub fn name(&self, v: V) -> &VertexName {
+        self.names
+            .iter()
+            .find(|(_, &idx)| idx == v)
+            .map(|(name, _)| name)
+            .unwrap_or_else(|| panic!("Vertex index {v} not found"))
+    }
+
+    pub fn from_name(&self, name: &VertexName) -> V {
+        *self
+            .names
+            .get(name)
+            .unwrap_or_else(|| panic!("Vertex name {name} not found"))
     }
 }
 
@@ -135,15 +153,30 @@ pub trait RuleSide<G: GraphLike> {
     }
 
     /// The boundary nodes of the graph.
-    fn boundary(&self) -> Vec<V> {
-        todo!()
+    fn boundary<'a>(&'a self) -> impl Iterator<Item = V> + 'a
+    where
+        G: 'a,
+    {
+        let inputs = self.graph().inputs().as_slice();
+        let outputs = self.graph().outputs().as_slice();
+        let g = self.graph();
+
+        inputs.iter().chain(outputs.iter()).map(|&v| {
+            g.neighbors(v).exactly_one().unwrap_or_else(|_| {
+                panic!(
+                    "Boundary node {} has {} neighbors",
+                    self.decoded_graph().name(v),
+                    g.neighbors(v).len()
+                )
+            })
+        })
     }
 
     /// The input/output assignments of the boundary nodes, translated to the graph indices.
     fn ios(&self) -> impl Iterator<Item = (Vec<V>, Vec<V>)> + '_ {
         self.decoded_ios()
             .iter()
-            .map(move |ios| ios.translated(&self.decoded_graph().names))
+            .map(move |ios| ios.translated(self.decoded_graph()))
     }
 }
 
@@ -202,5 +235,12 @@ mod test {
         let rewrite_sets: Vec<RewriteSet<Graph>> = serde_json::from_str(TEST_SET).unwrap();
 
         assert_eq!(rewrite_sets.len(), 3);
+
+        for set in rewrite_sets {
+            let lhs = set.lhs();
+            for rhs in set.rhss() {
+                assert_eq!(lhs.boundary().count(), rhs.boundary().count());
+            }
+        }
     }
 }

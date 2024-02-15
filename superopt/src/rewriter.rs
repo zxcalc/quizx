@@ -2,6 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+use itertools::Itertools;
 use quizx::{
     flow::causal::CausalFlow,
     graph::GraphLike,
@@ -51,11 +52,15 @@ pub struct CausalRewriter<G: GraphLike> {
     all_rhs: Vec<Vec<RewriteRhs<G>>>,
 }
 
+#[allow(unused)] // TODO
 pub struct Rewrite<G> {
-    /// lhs_boundary.len() == rhs_boundary.len()
+    /// The nodes matching the LHS boundary in the matched graph.
     lhs_boundary: Vec<V>,
+    /// The nodes matching the RHS boundary in `rhs`.
     rhs_boundary: Vec<V>,
+    /// The internal nodes of the LHS in the matched graph.
     lhs_internal: HashSet<V>,
+    /// The replacement graph.
     rhs: G,
 }
 
@@ -70,8 +75,9 @@ impl<G: GraphLike> Rewriter for CausalRewriter<G> {
                 self.get_rhs(m.pattern_id).iter().map(move |rhs| {
                     let lhs_boundary = m.boundary.clone();
                     let lhs_internal = m.internal.clone();
-                    let rhs_boundary = rhs.boundary();
+                    let rhs_boundary = rhs.boundary().collect_vec();
                     let rhs = rhs.graph().clone();
+                    assert_eq!(lhs_boundary.len(), rhs_boundary.len());
                     Rewrite {
                         lhs_boundary,
                         rhs_boundary,
@@ -97,7 +103,7 @@ impl<G: GraphLike + Clone> CausalRewriter<G> {
         for rw_set in rules {
             let rhs_idx = RhsIdx(all_rhs.len());
             all_rhs.push(rw_set.rhss().to_owned());
-            let boundary = rw_set.lhs().boundary();
+            let boundary = rw_set.lhs().boundary().collect_vec();
             for (inputs, outputs) in rw_set.lhs().ios() {
                 let mut p = rw_set.lhs().graph().clone();
                 p.set_inputs(inputs);
