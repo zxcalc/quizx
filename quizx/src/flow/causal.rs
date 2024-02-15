@@ -158,15 +158,22 @@ impl CausalFlow {
     }
 
     /// Whether u -> v is a causal edge.
-    pub fn is_causal_edge(&self, u: V, v: V) -> bool {
+    pub fn is_causal_edge_dir(&self, u: V, v: V) -> bool {
         self.next(u) == Some(v)
+    }
+
+    /// Whether (u, v) is a causal edge.
+    ///
+    /// Either u -> v or v -> u is a causal edge.
+    pub fn is_causal_edge(&self, u: V, v: V) -> bool {
+        self.is_causal_edge_dir(u, v) || self.is_causal_edge_dir(v, u)
     }
 
     /// Whether (u, v) is a non-causal edge.
     ///
     /// This is true when both u -> v and v -> u are not causal.
     pub fn is_non_causal_edge(&self, u: V, v: V) -> bool {
-        !self.is_causal_edge(u, v) && !self.is_causal_edge(v, u)
+        !self.is_causal_edge(u, v)
     }
 }
 

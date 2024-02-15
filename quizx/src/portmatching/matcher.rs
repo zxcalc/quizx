@@ -136,8 +136,8 @@ fn edge_predicate<'g>(
     move |v, &PEdge { src, dst, etype }| {
         println!("at {v}, checking for an edge {src:?} -> {dst:?}");
         let is_correct_port = |v, neigh, port| match port {
-            CausalPort::CausalInput => flow.is_causal_edge(neigh, v),
-            CausalPort::CausalOutput => flow.is_causal_edge(v, neigh),
+            CausalPort::CausalInput => flow.is_causal_edge_dir(neigh, v),
+            CausalPort::CausalOutput => flow.is_causal_edge_dir(v, neigh),
             CausalPort::Other => flow.is_non_causal_edge(v, neigh),
         };
         let ret = graph
