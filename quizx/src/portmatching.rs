@@ -32,8 +32,9 @@ use portmatching::EdgeProperty;
 type PNode = VType;
 
 /// An edge to be matched in a causal graph
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    serde::Serialize, serde::Deserialize, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash,
+)]
 struct PEdge {
     src: CausalPort,
     dst: CausalPort,
@@ -41,8 +42,9 @@ struct PEdge {
 }
 
 /// The types of port in causal ZX graphs.
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    serde::Serialize, serde::Deserialize, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash,
+)]
 enum CausalPort {
     /// The causal edge to the vertex predecessor.
     CausalInput,

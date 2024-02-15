@@ -39,8 +39,7 @@ use crate::hash_graph::GraphLike;
 /// order `≼`.
 //
 // TODO: Store the order too? Perhaps as an `Option`, and compute it on demand otherwise?
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct CausalFlow {
     /// The flow lines in the graph.
     ///
@@ -52,8 +51,9 @@ pub struct CausalFlow {
 }
 
 /// The position of a vertex in a set of flow lines.
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, derive_more::From)]
+#[derive(
+    serde::Serialize, serde::Deserialize, Debug, Copy, Clone, PartialEq, Eq, derive_more::From,
+)]
 pub struct FlowPosition {
     pub line: usize,
     pub pos: usize,
