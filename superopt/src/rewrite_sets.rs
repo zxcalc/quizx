@@ -33,30 +33,72 @@ pub fn write_rewrite_sets<G: GraphLike + Serialize>(
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RewriteSet<G: GraphLike> {
     /// Left hand side of the rewrite rule
-    pub lhs: DecodedGraph<G>,
+    lhs: DecodedGraph<G>,
     /// Possible input/output assignments of the boundary nodes
-    pub lhs_ios: Vec<RewriteIos>,
+    lhs_ios: Vec<RewriteIos>,
     /// List of possible right hand sides of the rewrite rule
-    pub rhss: Vec<RewriteRhs<G>>,
-}
-
-impl<G: GraphLike> RewriteSet<G> {
-    /// Returns the input/output assignments of the boundary nodes of the LHS,
-    /// translated to the graph indices.
-    pub fn lhs_ios_translated(&self) -> impl Iterator<Item = (Vec<V>, Vec<V>)> + '_ {
-        self.lhs_ios
-            .iter()
-            .map(move |ios| ios.translated(&self.lhs.names))
-    }
-
-    pub fn lhs_boundary(&self) -> Vec<V> {
-        todo!()
-    }
+    rhss: Vec<RewriteRhs<G>>,
 }
 
 /// Possible input/output assignments of the boundary nodes
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct RewriteIos(Vec<String>, Vec<String>);
+
+/// Auxiliary data structure for the left hand side of the rewrite rule.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RewriteLhs<'a, G: GraphLike> {
+    /// Decoded graph representation of the left hand side of the rewrite rule
+    g: &'a DecodedGraph<G>,
+    /// Possible input/output assignments of the boundary nodes
+    ios: &'a Vec<RewriteIos>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RewriteRhs<G: GraphLike> {
+    /// Two-qubit gate reduction over the LHS
+    pub reduction: isize,
+    /// Replacement graph
+    g: DecodedGraph<G>,
+    /// Possible input/output assignments of the boundary nodes
+    ios: Vec<RewriteIos>,
+    /// If the rewrite is a local complementation, the list of unfused vertex indices
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub unfused: Option<Vec<usize>>,
+    /// If the rewrite is a pivot, the list of unfused vertex indices for the first pivot vertex
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub unfused1: Option<Vec<usize>>,
+    /// If the rewrite is a pivot, the list of unfused vertex indices for the second pivot vertex
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub unfused2: Option<Vec<usize>>,
+}
+
+/// A decoded graph with a map from serialized vertex names to indices.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecodedGraph<G: GraphLike> {
+    pub g: G,
+    pub names: HashMap<VertexName, V>,
+}
+
+impl<G: GraphLike> RewriteSet<G> {
+    /// Returns the left hand side of the rewrite rule.
+    pub fn lhs(&self) -> RewriteLhs<'_, G> {
+        RewriteLhs::new(&self.lhs, &self.lhs_ios)
+    }
+
+    /// Returns the list of possible right hand sides of the rewrite rule.
+    pub fn rhss(&self) -> &[RewriteRhs<G>] {
+        &self.rhss
+    }
+}
+
+impl<'a, G: GraphLike> RewriteLhs<'a, G> {
+    pub fn new(g: &'a DecodedGraph<G>, ios: &'a Vec<RewriteIos>) -> Self {
+        Self { g, ios }
+    }
+}
 
 impl RewriteIos {
     pub fn new(inputs: Vec<String>, outputs: Vec<String>) -> Self {
@@ -79,45 +121,50 @@ impl RewriteIos {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RewriteRhs<G: GraphLike> {
-    /// Two-qubit gate reduction over the LHS
-    pub reduction: isize,
-    /// Replacement graph
-    pub g: DecodedGraph<G>,
-    /// Possible input/output assignments of the boundary nodes
-    pub ios: Vec<RewriteIos>,
-    /// If the rewrite is a local complementation, the list of unfused vertex indices
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default)]
-    pub unfused: Option<Vec<usize>>,
-    /// If the rewrite is a pivot, the list of unfused vertex indices for the first pivot vertex
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default)]
-    pub unfused1: Option<Vec<usize>>,
-    /// If the rewrite is a pivot, the list of unfused vertex indices for the second pivot vertex
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default)]
-    pub unfused2: Option<Vec<usize>>,
-}
+/// Trait generalizing common operations between the LHS and RHS of a rewrite rule.
+pub trait RuleSide<G: GraphLike> {
+    /// The decoded graph representation of the rule side.
+    fn decoded_graph(&self) -> &DecodedGraph<G>;
 
-impl<G: GraphLike> RewriteRhs<G> {
-    pub fn boundary(&self) -> Vec<V> {
+    /// The encoded input/output assignments of the boundary nodes.
+    fn decoded_ios(&self) -> &[RewriteIos];
+
+    /// The graph representation of the rule side.
+    fn graph(&self) -> &G {
+        &self.decoded_graph().g
+    }
+
+    /// The boundary nodes of the graph.
+    fn boundary(&self) -> Vec<V> {
         todo!()
     }
 
-    pub fn ios_translated(&self) -> impl Iterator<Item = (Vec<V>, Vec<V>)> + '_ {
-        self.ios
+    /// The input/output assignments of the boundary nodes, translated to the graph indices.
+    fn ios(&self) -> impl Iterator<Item = (Vec<V>, Vec<V>)> + '_ {
+        self.decoded_ios()
             .iter()
-            .map(move |ios| ios.translated(&self.g.names))
+            .map(move |ios| ios.translated(&self.decoded_graph().names))
     }
 }
 
-/// A decoded graph with a map from serialized vertex names to indices.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DecodedGraph<G: GraphLike> {
-    pub g: G,
-    pub names: HashMap<VertexName, V>,
+impl<'a, G: GraphLike> RuleSide<G> for RewriteLhs<'a, G> {
+    fn decoded_graph(&self) -> &DecodedGraph<G> {
+        &self.g
+    }
+
+    fn decoded_ios(&self) -> &[RewriteIos] {
+        self.ios
+    }
+}
+
+impl<G: GraphLike> RuleSide<G> for RewriteRhs<G> {
+    fn decoded_graph(&self) -> &DecodedGraph<G> {
+        &self.g
+    }
+
+    fn decoded_ios(&self) -> &[RewriteIos] {
+        &self.ios
+    }
 }
 
 impl<'de, G: GraphLike> Deserialize<'de> for DecodedGraph<G> {
