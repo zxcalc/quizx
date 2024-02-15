@@ -9,6 +9,7 @@ use quizx::{
     vec_graph::V,
 };
 
+use crate::rewrite_sets::RuleSide;
 use crate::{
     cost::{CostDelta, CostMetric},
     rewrite_sets::{RewriteRhs, RewriteSet},
@@ -70,7 +71,7 @@ impl<G: GraphLike> Rewriter for CausalRewriter<G> {
                     let lhs_boundary = m.boundary.clone();
                     let lhs_internal = m.internal.clone();
                     let rhs_boundary = rhs.boundary();
-                    let rhs = rhs.g.clone();
+                    let rhs = rhs.graph().clone();
                     Rewrite {
                         lhs_boundary,
                         rhs_boundary,
@@ -93,15 +94,14 @@ impl<G: GraphLike + Clone> CausalRewriter<G> {
         let mut patterns = Vec::new();
         let mut map_to_rhs = HashMap::new();
         let mut all_rhs = Vec::new();
-        for RewriteSet { lhs, lhs_ios, rhss } in rules {
+        for rw_set in rules {
             let rhs_idx = RhsIdx(all_rhs.len());
-            all_rhs.push(rhss);
-            let boundary = lhs.boundary();
-            let lhs = lhs.g;
-            for lhs_io in lhs_ios {
-                let mut p = lhs.clone();
-                p.set_inputs(lhs_io.inputs().to_owned());
-                p.set_outputs(lhs_io.outputs().to_owned());
+            all_rhs.push(rw_set.rhss().to_owned());
+            let boundary = rw_set.lhs().boundary();
+            for (inputs, outputs) in rw_set.lhs().ios() {
+                let mut p = rw_set.lhs().graph().clone();
+                p.set_inputs(inputs);
+                p.set_outputs(outputs);
                 let flow = CausalFlow::from_graph(&p).expect("invalid causal flow in pattern");
                 patterns.push(CausalPattern::new(p, flow, boundary.clone()));
                 map_to_rhs.insert(PatternID(patterns.len() - 1), rhs_idx);
