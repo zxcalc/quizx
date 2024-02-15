@@ -7,7 +7,7 @@
 use std::path::Path;
 
 use quizx::json::{decode_graph, encode_graph};
-use quizx::vec_graph::GraphLike;
+use quizx::vec_graph::{GraphLike, V};
 use serde::{de, Deserialize, Deserializer, Serialize};
 
 /// Reads a graph from a json-encoded list of rewrite rule sets.
@@ -49,6 +49,12 @@ pub struct RewriteLhs<G: GraphLike> {
     pub g: G,
 }
 
+impl<G: GraphLike> RewriteLhs<G> {
+    pub fn boundary(&self) -> Vec<V> {
+        todo!()
+    }
+}
+
 /// Possible input/output assignments of the boundary nodes
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct RewriteLhsIos(Vec<usize>, Vec<usize>);
@@ -87,6 +93,12 @@ pub struct RewriteRhs<G: GraphLike> {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub unfused2: Option<Vec<usize>>,
+}
+
+impl<G: GraphLike> RewriteRhs<G> {
+    pub fn boundary(&self) -> Vec<V> {
+        todo!()
+    }
 }
 
 /// Deserialize a graph from a string field in the JSON.

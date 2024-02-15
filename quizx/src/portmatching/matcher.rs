@@ -32,6 +32,7 @@ use crate::{
 use super::{CausalPattern, CausalPort, PEdge, PNode};
 
 /// A pre-built pattern matcher for a set of patterns.
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct CausalMatcher<G> {
     automaton: ScopeAutomaton<PNode, PEdge, CausalPort>,
     patterns: Vec<CausalPattern<G>>,
@@ -41,7 +42,7 @@ impl<G: GraphLike> CausalMatcher<G> {
     /// Find all matches of the patterns in a causal graph.
     pub fn find_matches<'s, 'g: 's>(
         &'s self,
-        graph: &'g G,
+        graph: &'g impl GraphLike,
         flow: &'g CausalFlow,
     ) -> impl Iterator<Item = PatternMatch> + 's {
         graph
@@ -52,7 +53,7 @@ impl<G: GraphLike> CausalMatcher<G> {
     pub fn find_rooted_matches<'s, 'g: 's>(
         &'s self,
         root: V,
-        graph: &'g G,
+        graph: &'g impl GraphLike,
         flow: &'g CausalFlow,
     ) -> impl Iterator<Item = PatternMatch> + 's {
         self.run_automaton(root, graph, flow)
@@ -65,7 +66,7 @@ impl<G: GraphLike> CausalMatcher<G> {
     pub(super) fn run_automaton<'s, 'g: 's>(
         &'s self,
         root: V,
-        graph: &'g G,
+        graph: &'g impl GraphLike,
         flow: &'g CausalFlow,
     ) -> impl Iterator<Item = PatternID> + 's {
         self.automaton
@@ -95,7 +96,7 @@ impl<G: GraphLike> CausalMatcher<G> {
         &self,
         pattern_id: PatternID,
         root: V,
-        graph: &G,
+        graph: &impl GraphLike,
         flow: &CausalFlow,
     ) -> Option<PatternMatch> {
         let pattern = self.get_pattern(pattern_id);
@@ -122,11 +123,11 @@ impl<G: GraphLike> CausalMatcher<G> {
 
 pub struct PatternMatch {
     /// The ID of the pattern
-    pub(super) pattern_id: PatternID,
+    pub pattern_id: PatternID,
     /// The list of vertices on the boundary
-    pub(super) boundary: Vec<V>,
+    pub boundary: Vec<V>,
     /// The set of internal vertices
-    pub(super) internal: HashSet<V>,
+    pub internal: HashSet<V>,
 }
 
 fn edge_predicate<'g>(

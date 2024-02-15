@@ -8,7 +8,7 @@ homepage = { workspace = true }
 license-file = { workspace = true }
 
 [dependencies]
-quizx = { workspace = true }
+quizx = { workspace = true, features = ["portmatching"]}
 num = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -25,6 +25,17 @@ rstest = "0.18.2"
 derive_more = "0.99.17"
 log = "0.4.20"
 priority-queue = "1.4.0"
+clap = { version = "4.5.0", features = ["derive"], optional = true }
+rmp-serde = { version = "1.1.2", optional = true }
+
+[features]
+compile = ["dep:clap", "dep:rmp-serde"]
 
 [dev-dependencies]
 rstest = "0.18.2"
+
+[[bin]]
+name = "compile"
+required-features = ["compile"]
+version = { workspace = true }
+description = "Compile a rewrite rules to a rewriter"

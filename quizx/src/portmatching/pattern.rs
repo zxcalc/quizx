@@ -32,6 +32,7 @@ use crate::{
 use super::{PEdge, PNode};
 
 /// A causal pattern in a graph.
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct CausalPattern<G> {
     graph: G,
     flow: CausalFlow,
