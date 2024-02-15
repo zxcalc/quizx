@@ -317,7 +317,7 @@ impl<'de> serde::Deserialize<'de> for Graph {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let jg = JsonGraph::deserialize(deserializer)?;
         // TODO: Don't ignore the scalar.
-        Ok(jg.to_graph(true))
+        Ok(jg.to_graph(true).0)
     }
 }
 

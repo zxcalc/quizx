@@ -50,7 +50,7 @@ pub fn write_graph(
 /// Reads a graph from its json-encoded representation.
 pub fn decode_graph<G: GraphLike>(s: &str) -> serde_json::Result<G> {
     let jg: JsonGraph = serde_json::from_str(s)?;
-    Ok(jg.to_graph(true))
+    Ok(jg.to_graph(true).0)
 }
 
 /// Reads a graph from a json-encoded file.
@@ -58,11 +58,11 @@ pub fn read_graph<G: GraphLike>(filename: &Path) -> serde_json::Result<G> {
     let file = std::fs::File::open(filename).unwrap();
     let reader = std::io::BufReader::new(file);
     let jg: JsonGraph = serde_json::from_reader(reader)?;
-    Ok(jg.to_graph(true))
+    Ok(jg.to_graph(true).0)
 }
 
 /// Identifier for an encoded vertex.
-type VertexName = String;
+pub type VertexName = String;
 /// Identifier for an encoded edge.
 type EdgeName = String;
 

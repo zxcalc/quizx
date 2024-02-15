@@ -153,7 +153,9 @@ impl JsonGraph {
     }
 
     /// Decode a graph from the json representation.
-    pub fn to_graph<G: GraphLike>(&self, ignore_scalar: bool) -> G {
+    ///
+    /// In addition to the graph, returns a map from serialized vertex names to the vertices in the graph.
+    pub fn to_graph<G: GraphLike>(&self, ignore_scalar: bool) -> (G, HashMap<VertexName, V>) {
         let mut graph = G::new();
 
         if !self.variable_types.is_empty() {
@@ -258,7 +260,7 @@ impl JsonGraph {
             graph.add_edge_smart(src, tgt, EType::H);
         }
 
-        graph
+        (graph, names)
     }
 }
 

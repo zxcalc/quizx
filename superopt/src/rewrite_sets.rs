@@ -4,11 +4,12 @@
 //! See https://github.com/CQCL-DEV/zx-causal-flow-rewrites for a generator of
 //! these sets.
 
+use std::collections::HashMap;
 use std::path::Path;
 
-use quizx::json::{decode_graph, encode_graph};
+use quizx::json::{JsonGraph, VertexName};
 use quizx::vec_graph::{GraphLike, V};
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 /// Reads a graph from a json-encoded list of rewrite rule sets.
 pub fn read_rewrite_sets<G: GraphLike + for<'de> Deserialize<'de>>(
@@ -29,58 +30,63 @@ pub fn write_rewrite_sets<G: GraphLike + Serialize>(
     serde_json::to_writer(writer, rule_sets)
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RewriteSet<G: GraphLike> {
     /// Left hand side of the rewrite rule
-    pub lhs: RewriteLhs<G>,
+    pub lhs: DecodedGraph<G>,
     /// Possible input/output assignments of the boundary nodes
-    pub lhs_ios: Vec<RewriteLhsIos>,
+    pub lhs_ios: Vec<RewriteIos>,
     /// List of possible right hand sides of the rewrite rule
     pub rhss: Vec<RewriteRhs<G>>,
 }
 
-/// The left hand side of a rewrite rule
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct RewriteLhs<G: GraphLike> {
-    /// Replacement graph
-    #[serde(deserialize_with = "de_graph_from_str")]
-    #[serde(serialize_with = "ser_graph_to_str")]
-    pub g: G,
-}
+impl<G: GraphLike> RewriteSet<G> {
+    /// Returns the input/output assignments of the boundary nodes of the LHS,
+    /// translated to the graph indices.
+    pub fn lhs_ios_translated(&self) -> impl Iterator<Item = (Vec<V>, Vec<V>)> + '_ {
+        self.lhs_ios
+            .iter()
+            .map(move |ios| ios.translated(&self.lhs.names))
+    }
 
-impl<G: GraphLike> RewriteLhs<G> {
-    pub fn boundary(&self) -> Vec<V> {
+    pub fn lhs_boundary(&self) -> Vec<V> {
         todo!()
     }
 }
 
 /// Possible input/output assignments of the boundary nodes
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct RewriteLhsIos(Vec<usize>, Vec<usize>);
+pub struct RewriteIos(Vec<String>, Vec<String>);
 
-impl RewriteLhsIos {
-    pub fn new(inputs: Vec<usize>, outputs: Vec<usize>) -> Self {
+impl RewriteIos {
+    pub fn new(inputs: Vec<String>, outputs: Vec<String>) -> Self {
         Self(inputs, outputs)
     }
 
-    pub fn inputs(&self) -> &[usize] {
+    pub fn inputs(&self) -> &[String] {
         &self.0
     }
 
-    pub fn outputs(&self) -> &[usize] {
+    pub fn outputs(&self) -> &[String] {
         &self.1
+    }
+
+    pub fn translated(&self, names: &HashMap<VertexName, V>) -> (Vec<V>, Vec<V>) {
+        (
+            self.0.iter().map(|name| names[name]).collect(),
+            self.1.iter().map(|name| names[name]).collect(),
+        )
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RewriteRhs<G: GraphLike> {
     /// Two-qubit gate reduction over the LHS
     pub reduction: isize,
     /// Replacement graph
-    #[serde(deserialize_with = "de_graph_from_str")]
-    #[serde(serialize_with = "ser_graph_to_str")]
-    pub g: G,
+    pub g: DecodedGraph<G>,
+    /// Possible input/output assignments of the boundary nodes
+    pub ios: Vec<RewriteIos>,
     /// If the rewrite is a local complementation, the list of unfused vertex indices
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
@@ -99,26 +105,42 @@ impl<G: GraphLike> RewriteRhs<G> {
     pub fn boundary(&self) -> Vec<V> {
         todo!()
     }
+
+    pub fn ios_translated(&self) -> impl Iterator<Item = (Vec<V>, Vec<V>)> + '_ {
+        self.ios
+            .iter()
+            .map(move |ios| ios.translated(&self.g.names))
+    }
 }
 
-/// Deserialize a graph from a string field in the JSON.
-fn de_graph_from_str<'de, D, G>(deserializer: D) -> Result<G, D::Error>
-where
-    D: Deserializer<'de>,
-    G: GraphLike,
-{
-    let s = String::deserialize(deserializer)?;
-    decode_graph(&s).map_err(de::Error::custom)
+/// A decoded graph with a map from serialized vertex names to indices.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecodedGraph<G: GraphLike> {
+    pub g: G,
+    pub names: HashMap<VertexName, V>,
 }
 
-/// Serialize a graph to a string field in the JSON.
-fn ser_graph_to_str<S, G>(graph: &G, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-    G: GraphLike,
-{
-    let s = encode_graph(graph, true).unwrap();
-    s.serialize(serializer)
+impl<'de, G: GraphLike> Deserialize<'de> for DecodedGraph<G> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        let jg: JsonGraph = serde_json::from_str(&s).unwrap(); // TODO: error handling
+        let (g, names) = jg.to_graph(true);
+        Ok(DecodedGraph { g, names })
+    }
+}
+
+impl<G: GraphLike> Serialize for DecodedGraph<G> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let jg = JsonGraph::from_graph(&self.g, true);
+        let s = serde_json::to_string(&jg).map_err(serde::ser::Error::custom)?;
+        s.serialize(serializer)
+    }
 }
 
 #[cfg(test)]
