@@ -39,6 +39,7 @@ use crate::hash_graph::GraphLike;
 /// order `≼`.
 //
 // TODO: Store the order too? Perhaps as an `Option`, and compute it on demand otherwise?
+#[derive(Debug, Clone)]
 pub struct CausalFlow {
     /// The flow lines in the graph.
     ///
@@ -59,7 +60,7 @@ pub struct FlowPosition {
 impl CausalFlow {
     /// Computes the causal flow of a graph.
     pub fn from_graph(g: &impl GraphLike) -> Result<Self, CausalFlowError> {
-        // Sweep the graph from the inputs, consuming a candidate node with a single non-candidate neighbour.
+        // Sweep the graph from the inputs, consuming a candidate node with a
         // single non-candidate neighbour.
 
         // The candidates.
@@ -132,9 +133,40 @@ impl CausalFlow {
         self.lines[p.line].get(p.pos + 1).copied()
     }
 
+    /// Returns the previous node in the causal flow.
+    pub fn pred(&self, v: V) -> Option<V> {
+        let p = self.positions[v];
+        p.pos.checked_sub(1).map(|pos| self.lines[p.line][pos])
+    }
+
+    pub fn inputs(&self) -> impl Iterator<Item = V> + '_ {
+        self.lines.iter().map(|line| line[0])
+    }
+
+    pub fn outputs(&self) -> impl Iterator<Item = V> + '_ {
+        self.lines.iter().map(|line| *line.last().unwrap())
+    }
+
+    /// The line index of a vertex.
+    pub fn line_idx(&self, v: V) -> usize {
+        self.positions[v].line
+    }
+
     /// Returns the causal flow lines of the graph.
     pub fn lines(&self) -> &[Vec<V>] {
         &self.lines
+    }
+
+    /// Whether u -> v is a causal edge.
+    pub fn is_causal_edge(&self, u: V, v: V) -> bool {
+        self.next(u) == Some(v)
+    }
+
+    /// Whether (u, v) is a non-causal edge.
+    ///
+    /// This is true when both u -> v and v -> u are not causal.
+    pub fn is_non_causal_edge(&self, u: V, v: V) -> bool {
+        !self.is_causal_edge(u, v) && !self.is_causal_edge(v, u)
     }
 }
 

@@ -27,6 +27,8 @@ pub mod hash_graph;
 pub mod json;
 pub mod linalg;
 pub mod optimize_circuit;
+#[cfg(feature = "portmatching")]
+pub mod portmatching;
 pub mod random_graph;
 pub mod scalar;
 pub mod simplify;
