@@ -23,7 +23,7 @@ rstest = "0.18.2"
 serde = { workspace = true }
 serde_json = { workspace = true }
 derive_more = "0.99.17"
-portmatching = { git = "https://github.com/lmondada/portmatching.git", rev = "1df85bb", features = [
+portmatching = { git = "https://github.com/lmondada/portmatching.git", rev = "3a5559851", features = [
     "serde",
 ], optional = true }
 
