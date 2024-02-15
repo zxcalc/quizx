@@ -76,6 +76,18 @@ impl<G: GraphLike> CausalPattern<G> {
             .collect()
     }
 
+    pub fn root(&self) -> V {
+        self.flow.lines()[self.root_line()][0]
+    }
+
+    fn root_line(&self) -> usize {
+        self.flow
+            .lines()
+            .iter()
+            .position(|line| !line.is_empty())
+            .expect("empty pattern")
+    }
+
     /// The vertices are partitioned into boundary and internal vertices.
     ///
     /// Returns an iterator over the boundary vertices.
@@ -100,7 +112,7 @@ impl<G: GraphLike> CausalPattern<G> {
         let mut lp = LinePattern::new();
         // Add all vertices
         for v in self.graph.vertices() {
-            lp.require(v, ());
+            lp.require(v, self.graph.vertex_type(v));
         }
 
         // Add all edges as lines
@@ -117,17 +129,8 @@ impl<G: GraphLike> CausalPattern<G> {
 
         // Keep track of paths to visit / visited
         let mut seen_causal_paths = HashSet::new();
-        let mut causal_paths_queue = VecDeque::from_iter([{
-            // Pick first vertex of first non-empty line as root
-            let root_line = self
-                .flow
-                .lines()
-                .iter()
-                .position(|line| !line.is_empty())
-                .expect("empty pattern");
-            let root = self.flow.lines()[root_line][0];
-            (root_line, root)
-        }]);
+        // Pick first vertex of first non-empty line as root
+        let mut causal_paths_queue = VecDeque::from_iter([(self.root_line(), self.root())]);
 
         // Every causal path in the flow is a line in the pattern.
         // Non-causal edges each form their own line.

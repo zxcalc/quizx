@@ -24,11 +24,11 @@ pub mod pattern;
 pub use matcher::CausalMatcher;
 pub use pattern::CausalPattern;
 
-use crate::hash_graph::EType;
+use crate::hash_graph::{EType, VType};
 use portmatching::EdgeProperty;
 
 // TODO: choose correct types
-type PNode = ();
+type PNode = VType;
 
 /// An edge to be matched in a causal graph
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -60,8 +60,11 @@ impl EdgeProperty for PEdge {
         })
     }
 
-    fn offset_id(&self) -> Self::OffsetID {
-        self.src
+    fn property_id(&self) -> Option<Self::OffsetID> {
+        match self.src {
+            p @ (CausalPort::CausalInput | CausalPort::CausalOutput) => Some(p),
+            CausalPort::Other => None,
+        }
     }
 }
 
@@ -122,8 +125,8 @@ mod test {
             g.add_vertex(VType::B),
             g.add_vertex(VType::B),
             g.add_vertex(VType::Z),
-            g.add_vertex(VType::X),
-            g.add_vertex(VType::X),
+            g.add_vertex(VType::Z),
+            g.add_vertex(VType::Z),
             g.add_vertex(VType::Z),
             g.add_vertex(VType::B),
             g.add_vertex(VType::B),
@@ -155,10 +158,11 @@ mod test {
         let p = CausalPattern::new(g.clone(), flow.clone(), boundary);
 
         let matcher = CausalMatcher::from_patterns(vec![p]);
-        fs::write("trie.gv", matcher.dot_string()).unwrap();
+
         let res = matcher.find_matches(&g, &flow).collect_vec();
-        assert_eq!(res.len(), 1);
+        assert_eq!(res.len(), 2);
         assert_eq!(res[0].boundary, vec![vs[0], vs[1], vs[6], vs[7]]);
+        assert_eq!(res[1].boundary, vec![vs[1], vs[0], vs[7], vs[6]]);
         assert_eq!(
             res[0].internal,
             vec![vs[2], vs[3], vs[4], vs[5]]

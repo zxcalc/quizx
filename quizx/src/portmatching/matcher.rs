@@ -44,14 +44,32 @@ impl<G: GraphLike> CausalMatcher<G> {
         graph: &'g G,
         flow: &'g CausalFlow,
     ) -> impl Iterator<Item = PatternMatch> + 's {
-        graph.vertices().flat_map(move |root| {
-            self.automaton
-                .run(root, vertex_predicate(graph), edge_predicate(graph, flow))
-                .map(move |pattern_id| {
-                    self.get_pattern_match(pattern_id, root, graph, flow)
-                        .expect("no match found")
-                })
-        })
+        graph
+            .vertices()
+            .flat_map(move |root| self.find_rooted_matches(root, graph, flow))
+    }
+
+    pub fn find_rooted_matches<'s, 'g: 's>(
+        &'s self,
+        root: V,
+        graph: &'g G,
+        flow: &'g CausalFlow,
+    ) -> impl Iterator<Item = PatternMatch> + 's {
+        self.run_automaton(root, graph, flow)
+            .map(move |pattern_id| {
+                self.get_pattern_match(pattern_id, root, graph, flow)
+                    .expect("no match found")
+            })
+    }
+
+    pub(super) fn run_automaton<'s, 'g: 's>(
+        &'s self,
+        root: V,
+        graph: &'g G,
+        flow: &'g CausalFlow,
+    ) -> impl Iterator<Item = PatternID> + 's {
+        self.automaton
+            .run(root, vertex_predicate(graph), edge_predicate(graph, flow))
     }
 
     /// Build a matcher from a set of patterns.
@@ -73,7 +91,7 @@ impl<G: GraphLike> CausalMatcher<G> {
         self.automaton.dot_string()
     }
 
-    fn get_pattern_match(
+    pub(super) fn get_pattern_match(
         &self,
         pattern_id: PatternID,
         root: V,
@@ -81,10 +99,8 @@ impl<G: GraphLike> CausalMatcher<G> {
         flow: &CausalFlow,
     ) -> Option<PatternMatch> {
         let pattern = self.get_pattern(pattern_id);
-        dbg!(pattern_id);
-        dbg!(root);
         dbg!(pattern.edges());
-        let match_map = SinglePatternMatcher::new(pattern, pattern.edges(), root)
+        let match_map = SinglePatternMatcher::new(pattern, pattern.edges(), pattern.root())
             .get_match_map(root, vertex_predicate(graph), edge_predicate(graph, flow))
             .into_iter()
             .next()?;
@@ -137,9 +153,9 @@ fn edge_predicate<'g>(
 }
 
 // TODO: currently not checking anything for vertices
-fn vertex_predicate(_: &impl GraphLike) -> impl for<'a> Fn(V, &'a PNode) -> bool + '_ {
-    |v, _| {
+fn vertex_predicate(graph: &impl GraphLike) -> impl for<'a> Fn(V, &'a PNode) -> bool + '_ {
+    move |v, vtype| {
         println!("checking vertex {v}");
-        true
+        graph.vertex_type(v) == *vtype
     }
 }
