@@ -224,11 +224,17 @@ impl<G: GraphLike> Serialize for DecodedGraph<G> {
 }
 
 #[cfg(test)]
-mod test {
+pub(crate) mod test {
     use super::*;
     use quizx::vec_graph::Graph;
+    use rstest::fixture;
 
     const TEST_SET: &str = include_str!("../../test_files/rewrites-2qb-lc.json");
+
+    #[fixture]
+    pub(crate) fn rewrite_set_2qb_lc() -> Vec<RewriteSet<Graph>> {
+        serde_json::from_str(TEST_SET).unwrap()
+    }
 
     #[test]
     fn test_rewrite_set_serde() {

@@ -205,12 +205,12 @@ fn deserialize_bool<'de, D>(deserializer: D) -> Result<bool, D::Error>
 where
     D: de::Deserializer<'de>,
 {
-    let s: &str = de::Deserialize::deserialize(deserializer)?;
+    let s: String = de::Deserialize::deserialize(deserializer)?;
 
-    match s {
+    match s.as_str() {
         "true" => Ok(true),
         "false" => Ok(false),
-        _ => Err(de::Error::unknown_variant(s, &["true", "false"])),
+        _ => Err(de::Error::unknown_variant(&s, &["true", "false"])),
     }
 }
 

@@ -1,3 +1,5 @@
+use std::io::{BufReader, BufWriter};
+use std::path::PathBuf;
 use std::{fs, io::Write, time::Instant};
 
 use clap::Parser;
@@ -8,29 +10,31 @@ use quizx_superopt::{rewrite_sets::RewriteSet, rewriter::CausalRewriter};
 #[command(version, about, long_about = None)]
 struct Args {
     /// The input file
-    #[arg(short, long)]
-    input: String,
+    #[arg(short = 'i', long)]
+    input: PathBuf,
     /// The output file
-    #[arg(short, long)]
-    output: String,
+    #[arg(short = 'o', long)]
+    output: PathBuf,
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let start_time = Instant::now();
 
     // Parse command line arguments
     let Args { input, output } = Args::parse();
-    let inf = fs::File::open(&input).unwrap();
 
     println!("Loading rewrite rules from {:?}...", input);
-    let rewrite_rules: Vec<RewriteSet<Graph>> = serde_json::from_reader(inf).unwrap();
+    let f = fs::File::open(&input)?;
+    let reader = BufReader::new(f);
+    let rewrite_rules: Vec<RewriteSet<Graph>> = serde_json::from_reader(reader)?;
 
     println!("Compiling {} rewrite rule sets...", rewrite_rules.len());
     let rewriter = CausalRewriter::from_rewrite_rules(rewrite_rules);
 
     println!("Writing rewriter to {:?}...", output);
-    let mut outf = fs::File::create(&output).unwrap();
-    outf.write(&rmp_serde::to_vec(&rewriter).unwrap()).unwrap();
+    let f = fs::File::create(&output)?;
+    let mut writer = BufWriter::new(f);
+    writer.write(&rmp_serde::to_vec(&rewriter)?)?;
 
     // Print the file size of output_file in megabytes
     if let Ok(metadata) = fs::metadata(&output) {
@@ -43,4 +47,6 @@ fn main() {
         elapsed.as_secs(),
         elapsed.subsec_millis()
     );
+
+    Ok(())
 }

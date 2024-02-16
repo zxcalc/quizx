@@ -3,6 +3,7 @@
 use std::collections::{HashMap, HashSet};
 
 use itertools::Itertools;
+use quizx::vec_graph::{EType, VType};
 use quizx::{
     flow::causal::CausalFlow,
     graph::GraphLike,
@@ -12,7 +13,7 @@ use quizx::{
 
 use crate::rewrite_sets::RuleSide;
 use crate::{
-    cost::{CostDelta, CostMetric},
+    cost::CostDelta,
     rewrite_sets::{RewriteRhs, RewriteSet},
 };
 
@@ -21,17 +22,9 @@ pub trait Rewriter {
 
     /// Get the rewrites that can be applied to the graph.
     fn get_rewrites(&self, graph: &impl GraphLike) -> Vec<Self::Rewrite>;
-}
-
-pub trait Strategy<R: Rewriter> {
-    type CostMetric: CostMetric;
 
     /// Apply the rewrites to the graph.
-    fn apply_rewrites<G: GraphLike>(
-        &self,
-        rewrites: Vec<R::Rewrite>,
-        graph: &G,
-    ) -> impl Iterator<Item = RewriteResult<G>>;
+    fn apply_rewrite<G: GraphLike>(&self, rewrite: Self::Rewrite, graph: &G) -> RewriteResult<G>;
 }
 
 pub struct RewriteResult<G> {
@@ -52,7 +45,6 @@ pub struct CausalRewriter<G: GraphLike> {
     all_rhs: Vec<Vec<RewriteRhs<G>>>,
 }
 
-#[allow(unused)] // TODO
 pub struct Rewrite<G> {
     /// The nodes matching the LHS boundary in the matched graph.
     lhs_boundary: Vec<V>,
@@ -88,6 +80,54 @@ impl<G: GraphLike> Rewriter for CausalRewriter<G> {
             })
             .collect()
     }
+
+    fn apply_rewrite<H: GraphLike>(&self, rewrite: Self::Rewrite, graph: &H) -> RewriteResult<H> {
+        let mut g = graph.clone();
+        let mut new_r_names: HashMap<V, V> = HashMap::new();
+
+        // Remove the internal nodes of the LHS.
+        for v in rewrite.lhs_internal {
+            g.remove_vertex(v);
+        }
+
+        // Replace the LHS boundary nodes with the RHS's.
+        for (&l, &r) in rewrite.lhs_boundary.iter().zip(rewrite.rhs_boundary.iter()) {
+            new_r_names.insert(r, l);
+            g.set_phase(l, rewrite.rhs.phase(r));
+            g.set_vertex_type(l, rewrite.rhs.vertex_type(r));
+        }
+
+        // Insert the internal nodes of the RHS.
+        for r in rewrite.rhs.vertices() {
+            if new_r_names.contains_key(&r) {
+                // It was already added as a boundary node.
+                continue;
+            }
+
+            let vtype = rewrite.rhs.vertex_type(r);
+            if vtype == VType::B {
+                continue;
+            }
+
+            let l = g.add_vertex_with_phase(vtype, rewrite.rhs.phase(r));
+            new_r_names.insert(r, l);
+        }
+
+        // Reconnect the edges.
+        for (u, v, ty) in rewrite.rhs.edges() {
+            let (Some(&u), Some(&v)) = (new_r_names.get(&u), new_r_names.get(&v)) else {
+                // Ignore the boundary edges.
+                continue;
+            };
+            assert_eq!(ty, EType::H);
+            g.add_edge_smart(u, v, ty);
+        }
+
+        RewriteResult {
+            graph: g,
+            cost_delta: CostDelta::default(),
+        }
+    }
 }
 
 impl<G: GraphLike + Clone> CausalRewriter<G> {
@@ -118,5 +158,102 @@ impl<G: GraphLike + Clone> CausalRewriter<G> {
             lhs_to_rhs: map_to_rhs,
             all_rhs,
         }
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod test {
+    use crate::cost::{CostMetric, TwoQubitGateCount};
+    use crate::rewrite_sets::test::rewrite_set_2qb_lc;
+
+    use super::*;
+    use quizx::json::decode_graph;
+    use quizx::vec_graph::Graph;
+    use rstest::{fixture, rstest};
+
+    /// Makes a simple graph, with 2 inputs and 2 outputs, and causal flow.
+    #[fixture]
+    pub(crate) fn small_graph() -> Graph {
+        let mut g = Graph::new();
+        let vs = vec![
+            g.add_vertex(VType::B),
+            g.add_vertex(VType::B),
+            g.add_vertex(VType::Z),
+            g.add_vertex(VType::Z),
+            g.add_vertex(VType::Z),
+            g.add_vertex(VType::Z),
+            g.add_vertex(VType::Z),
+            g.add_vertex(VType::Z),
+            g.add_vertex(VType::Z),
+            g.add_vertex(VType::Z),
+            g.add_vertex(VType::B),
+            g.add_vertex(VType::B),
+        ];
+
+        g.set_inputs(vec![vs[0], vs[1]]);
+        g.set_outputs(vec![vs[10], vs[11]]);
+
+        g.add_edge_with_type(vs[0], vs[2], EType::N);
+        g.add_edge_with_type(vs[1], vs[3], EType::N);
+
+        g.add_edge_with_type(vs[2], vs[4], EType::H);
+        g.add_edge_with_type(vs[3], vs[5], EType::H);
+        g.add_edge_with_type(vs[2], vs[3], EType::H);
+
+        g.add_edge_with_type(vs[4], vs[6], EType::H);
+        g.add_edge_with_type(vs[5], vs[7], EType::H);
+
+        g.add_edge_with_type(vs[6], vs[8], EType::H);
+        g.add_edge_with_type(vs[7], vs[9], EType::H);
+        g.add_edge_with_type(vs[6], vs[7], EType::H);
+
+        g.add_edge_with_type(vs[8], vs[10], EType::N);
+        g.add_edge_with_type(vs[9], vs[11], EType::N);
+
+        g
+    }
+
+    #[fixture]
+    pub(crate) fn json_simple_graph() -> Graph {
+        const SIMPLE_GRAPH_JSON: &str = include_str!("../../test_files/simple-graph.json");
+        decode_graph(SIMPLE_GRAPH_JSON).unwrap()
+    }
+
+    #[fixture]
+    pub(crate) fn compiled_rewriter() -> CausalRewriter<Graph> {
+        let rw_set = rewrite_set_2qb_lc();
+        CausalRewriter::from_rewrite_rules(rw_set)
+    }
+
+    #[fixture]
+    pub(crate) fn pre_compiled_rewriter() -> CausalRewriter<Graph> {
+        const REWRITE_2QB_LC: &[u8] = include_bytes!("../../test_files/rewrites-2qb-lc.rwr");
+        rmp_serde::from_slice(REWRITE_2QB_LC).unwrap()
+    }
+
+    #[rstest]
+    #[case::small_compiled(small_graph(), compiled_rewriter())]
+    #[case::json_compiled(json_simple_graph(), compiled_rewriter())]
+    #[case::small_precompiled(small_graph(), pre_compiled_rewriter())]
+    #[case::json_precompiled(json_simple_graph(), pre_compiled_rewriter())]
+    fn test_match_apply(
+        #[case] graph: Graph,
+        #[case] rewriter: CausalRewriter<Graph>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let cost_metric = TwoQubitGateCount::new();
+        let graph_cost = cost_metric.cost(&graph);
+
+        let rewrites = rewriter.get_rewrites(&graph);
+
+        println!("Orig cost {graph_cost}");
+        for rw in rewrites {
+            let r = rewriter.apply_rewrite(rw, &graph);
+            let new_cost = cost_metric.cost(&r.graph);
+
+            println!("New cost {new_cost}");
+            assert_eq!(graph_cost.saturating_add_signed(r.cost_delta), new_cost);
+        }
+
+        Ok(())
     }
 }

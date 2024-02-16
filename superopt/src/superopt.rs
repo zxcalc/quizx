@@ -26,7 +26,7 @@
 
 use crate::cost::{CostMetric, TwoQubitGateCount};
 use crate::hash::weisfeiler_lehman_graph_hash;
-use crate::rewriter::{Rewriter, Strategy};
+use crate::rewriter::Rewriter;
 
 use std::hash::{Hash, Hasher};
 use std::time::{Duration, Instant};
@@ -80,23 +80,20 @@ impl Default for SuperOptOptions {
 /// [arxiv]: TODO
 /// [Badger superoptimizer]: https://github.com/CQCL/tket2
 #[derive(Clone, Debug)]
-pub struct SuperOptimizer<R, S, C = TwoQubitGateCount> {
+pub struct SuperOptimizer<R, C = TwoQubitGateCount> {
     rewriter: R,
-    strategy: S,
     cost_metric: C,
 }
 
-impl<R, S, C> SuperOptimizer<R, S, C>
+impl<R, C> SuperOptimizer<R, C>
 where
     C: CostMetric,
     R: Rewriter,
-    S: Strategy<R>,
 {
     /// Create a new superoptimizer with the given rewriter and strategy.
-    pub fn new(rewriter: R, strategy: S) -> Self {
+    pub fn new(rewriter: R) -> Self {
         Self {
             rewriter,
-            strategy,
             cost_metric: C::new(),
         }
     }
@@ -146,7 +143,8 @@ where
             // - Don't have a worse cost than the last candidate in the priority queue.
             // - Do not invalidate the graph by creating a loop.
             // - We haven't seen yet.
-            for r in self.strategy.apply_rewrites(rewrites, &g) {
+            for rw in rewrites {
+                let r = self.rewriter.apply_rewrite(rw, &g);
                 let new_g_cost = cost.saturating_add_signed(r.cost_delta);
 
                 // Skip rewrites that have a worse cost than the last candidate in the priority queue.
@@ -238,3 +236,37 @@ impl<G> PartialEq for Entry<G> {
 }
 
 impl<G> Eq for Entry<G> {}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::rewrite_sets::test::rewrite_set_2qb_lc;
+    use crate::rewrite_sets::RewriteSet;
+    use crate::rewriter::test::{json_simple_graph, small_graph};
+    use crate::rewriter::CausalRewriter;
+
+    use quizx::vec_graph::Graph;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case(small_graph())]
+    #[case(json_simple_graph())]
+    fn run_superopt(
+        rewrite_set_2qb_lc: Vec<RewriteSet<Graph>>,
+        #[case] graph: Graph,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let rewriter = CausalRewriter::from_rewrite_rules(rewrite_set_2qb_lc);
+        let optimizer: SuperOptimizer<CausalRewriter<Graph>> = SuperOptimizer::new(rewriter);
+        let options = SuperOptOptions {
+            timeout: Some(5),
+            progress_timeout: Some(1),
+            ..Default::default()
+        };
+
+        let new_g = optimizer.optimize(&graph, options);
+
+        assert!(new_g.num_edges() <= graph.num_edges());
+
+        Ok(())
+    }
+}
