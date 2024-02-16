@@ -4,8 +4,11 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use clap::Parser;
+use quizx::circuit::Circuit;
 use quizx::json::{read_graph, write_graph};
 use quizx::vec_graph::Graph;
+use quizx::graph::GraphLike;
+use quizx::simplify::spider_simp;
 use quizx_superopt::rewriter::CausalRewriter;
 use quizx_superopt::superopt::{SuperOptOptions, SuperOptimizer};
 
@@ -16,7 +19,7 @@ struct Args {
     #[arg(
         short,
         long,
-        help = "The json-encoded pyzx graph file to use as input."
+        help = "The QASM circuit or json-encoded pyzx graph file to use as input."
     )]
     input: PathBuf,
     /// The output file
@@ -69,12 +72,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     println!("Loading input...");
-    let graph: Graph = read_graph(&args.input).unwrap_or_else(|e| {
-        panic!(
-            "Could not read input graph {}.\n{e}",
-            args.input.to_str().unwrap()
-        )
-    });
+    let mut graph: Graph;
+    if *&args.input.extension().unwrap().to_str().unwrap() == "qasm" {
+        let circ = Circuit::from_file(&args.input.to_str().unwrap()).unwrap_or_else(|e| {
+            panic!(
+                "Could not read qasm file {}.\n{e}",
+                args.input.to_str().unwrap()
+            )
+        });
+        graph = circ.to_basic_gates().to_graph();
+        graph.x_to_z();
+        spider_simp(&mut graph);
+    }
+    else {
+        graph = read_graph(&args.input).unwrap_or_else(|e| {
+            panic!(
+                "Could not read input graph {}.\n{e}",
+                args.input.to_str().unwrap()
+            )
+        });
+    }
 
     println!("Loading rewrite set...");
     let f = File::open(&args.rewriter)?;
