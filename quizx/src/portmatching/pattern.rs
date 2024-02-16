@@ -23,45 +23,60 @@ use std::{
 
 use itertools::Itertools;
 use portmatching::patterns::{Edge, LinePattern};
+use serde::Deserialize;
 
 use crate::{
     flow::causal::CausalFlow,
-    hash_graph::{GraphLike, V},
+    graph::{GraphLike, V},
+    json::{JsonGraph, VertexName},
 };
 
 use super::{PEdge, PNode};
 
 /// A causal pattern in a graph.
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CausalPattern<G> {
     graph: G,
     flow: CausalFlow,
     boundary: Vec<V>,
+    inputs: HashSet<V>,
+    outputs: HashSet<V>,
 }
 
 impl<G: GraphLike> CausalPattern<G> {
     /// Construct a pattern from a causal graph.
     ///
     /// Alongside a graph and a causal flow, a pattern must have a designated
-    /// (ordered) set of boundary vertices.
+    /// (ordered) set of boundary vertices, and IO vertices contained in the boundary.
     ///
     /// The inputs and outputs of a pattern (given by the flow) must be in its
     /// boundary.
-    pub fn new(graph: G, flow: CausalFlow, boundary: Vec<V>) -> Self {
-        // Check that inputs and outputs are in boundary
-        for _v in flow.inputs().chain(flow.outputs()) {
-            // TODO: This fails. The flow `inputs` and `outputs` are the
-            //       `VType::B` (boundary) vertices of the graph, but `boundary`
-            //       contains the `VType::Z` neighbors of those vertices
-            //       instead.
+    pub fn new(mut graph: G, boundary: Vec<V>, inputs: HashSet<V>, outputs: HashSet<V>) -> Self {
+        // Don't use quizx input/outputs. They mean something else, it's confusing
+        graph.set_inputs(vec![]);
+        graph.set_outputs(vec![]);
 
-            //assert!(boundary.contains(&v));
+        // Compute flow
+        let flow = CausalFlow::from_graph_io(&graph, &inputs, &outputs).expect("invalid flow");
+
+        // Check that inputs and outputs are in boundary
+        for v in inputs.iter().chain(&outputs) {
+            assert!(boundary.contains(v));
         }
+
         CausalPattern {
             graph,
             flow,
             boundary,
+            inputs,
+            outputs,
         }
+    }
+
+    pub fn with_graph_io(graph: G, boundary: Vec<V>) -> Self {
+        let inputs = graph.inputs().iter().copied().collect();
+        let outputs = graph.outputs().iter().copied().collect();
+        Self::new(graph, boundary, inputs, outputs)
     }
 
     /// Return all edges in the pattern in a valid order.
@@ -193,5 +208,85 @@ impl<G: GraphLike> CausalPattern<G> {
 impl<G: GraphLike> From<&CausalPattern<G>> for LinePattern<V, PNode, PEdge> {
     fn from(value: &CausalPattern<G>) -> Self {
         value.to_line_pattern()
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct JSONCausalPattern {
+    graph: JsonGraph,
+    boundary: Vec<VertexName>,
+    inputs: HashSet<VertexName>,
+    outputs: HashSet<VertexName>,
+}
+
+impl<'de, G: GraphLike + Deserialize<'de>> serde::Deserialize<'de> for CausalPattern<G> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let JSONCausalPattern {
+            graph,
+            boundary,
+            inputs,
+            outputs,
+        } = JSONCausalPattern::deserialize(deserializer)?;
+        let (graph, map) = graph.to_graph(true);
+        let boundary = boundary.into_iter().map(|v| map[&v]).collect();
+        let inputs = inputs.into_iter().map(|v| map[&v]).collect();
+        let outputs = outputs.into_iter().map(|v| map[&v]).collect();
+        Ok(CausalPattern::new(graph, boundary, inputs, outputs))
+    }
+}
+
+impl<G: GraphLike> serde::Serialize for CausalPattern<G> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let (graph, map) = JsonGraph::from_graph_with_map(&self.graph, true);
+        let boundary = self.boundary.iter().map(|v| map[v].clone()).collect();
+        let inputs = self.inputs.iter().map(|v| map[v].clone()).collect();
+        let outputs = self.outputs.iter().map(|v| map[v].clone()).collect();
+        JSONCausalPattern {
+            graph,
+            boundary,
+            inputs,
+            outputs,
+        }
+        .serialize(serializer)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use crate::{
+        graph::{EType, GraphLike, VType},
+        vec_graph::Graph,
+    };
+
+    use super::CausalPattern;
+
+    #[test]
+    fn serialize_pattern() {
+        let mut g = Graph::new();
+        let i = g.add_vertex(VType::B);
+        let a = g.add_vertex(VType::Z);
+        let b = g.add_vertex(VType::Z);
+        let c = g.add_vertex(VType::Z);
+        g.add_edge_with_type(i, a, EType::N);
+        g.add_edge_with_type(a, b, EType::H);
+        g.add_edge_with_type(b, c, EType::H);
+
+        g.remove_vertex(i);
+
+        let boundary = vec![a, c];
+        let inputs = HashSet::from_iter([a]);
+        let outputs = HashSet::from_iter([c]);
+        let pattern = CausalPattern::new(g, boundary, inputs, outputs);
+        let s = serde_json::to_string(&pattern).unwrap();
+        let pattern2: CausalPattern<Graph> = serde_json::from_str(&s).unwrap();
+        assert_eq!(pattern.graph.num_vertices(), pattern2.graph.num_vertices());
     }
 }

@@ -25,7 +25,7 @@ pub use matcher::CausalMatcher;
 pub use pattern::CausalPattern;
 pub use portmatching::PatternID;
 
-use crate::hash_graph::{EType, VType};
+use crate::graph::{EType, VType};
 use portmatching::EdgeProperty;
 
 // TODO: choose correct types
@@ -102,9 +102,8 @@ mod test {
 
     use super::*;
     use crate::flow::causal::CausalFlow;
-    use crate::hash_graph::V;
+    use crate::graph::{GraphLike, VType, V};
     use crate::vec_graph::Graph;
-    use crate::{graph::VType, hash_graph::GraphLike};
 
     use rstest::{fixture, rstest};
 
@@ -205,8 +204,7 @@ mod test {
         p.add_edge(vs[0], vs[1]);
         p.add_edge(vs[1], vs[2]);
         p.add_edge(vs[2], vs[3]);
-        let flow = CausalFlow::from_graph(&p).unwrap();
-        CausalPattern::new(p, flow, vec![vs[0], vs[1], vs[2], vs[3]])
+        CausalPattern::with_graph_io(p, vec![vs[0], vs[1], vs[2], vs[3]])
     }
 
     /// Makes a simple pattern that is a subgraph of `simple_multi_graph`.
@@ -233,8 +231,7 @@ mod test {
         p.add_edge(vs[0], vs[1]);
         p.add_edge(vs[1], vs[2]);
         p.add_edge(vs[2], vs[3]);
-        let flow = CausalFlow::from_graph(&p).unwrap();
-        CausalPattern::new(p, flow, vec![vs[0], vs[1], vs[2], vs[3]])
+        CausalPattern::with_graph_io(p, vec![vs[0], vs[1], vs[2], vs[3]])
     }
 
     #[rstest]
@@ -247,7 +244,7 @@ mod test {
             .copied()
             .chain(g.outputs().iter().copied())
             .collect();
-        let p = CausalPattern::new(g.clone(), flow.clone(), boundary);
+        let p = CausalPattern::with_graph_io(g.clone(), boundary);
 
         let matcher = CausalMatcher::from_patterns(vec![p]);
 

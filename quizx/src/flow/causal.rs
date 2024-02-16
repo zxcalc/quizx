@@ -30,8 +30,7 @@ use std::ops::Range;
 
 use itertools::Itertools;
 
-use crate::graph::V;
-use crate::hash_graph::GraphLike;
+use crate::graph::{GraphLike, V};
 
 /// A causal flow of a graph.
 ///
@@ -39,7 +38,7 @@ use crate::hash_graph::GraphLike;
 /// order `≼`.
 //
 // TODO: Store the order too? Perhaps as an `Option`, and compute it on demand otherwise?
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct CausalFlow {
     /// The flow lines in the graph.
     ///
@@ -60,17 +59,26 @@ pub struct FlowPosition {
 }
 
 impl CausalFlow {
-    /// Computes the causal flow of a graph.
     pub fn from_graph(g: &impl GraphLike) -> Result<Self, CausalFlowError> {
+        let inputs = g.inputs().iter().copied().collect();
+        let outputs = g.outputs().iter().copied().collect();
+        Self::from_graph_io(g, &inputs, &outputs)
+    }
+    /// Computes the causal flow of a graph.
+    pub fn from_graph_io(
+        g: &impl GraphLike,
+        inputs: &HashSet<V>,
+        outputs: &HashSet<V>,
+    ) -> Result<Self, CausalFlowError> {
         // Sweep the graph from the inputs, consuming a candidate node with a
         // single non-candidate neighbour.
 
         // The candidates.
-        let mut candidates: HashSet<V> = g.inputs().iter().copied().collect();
+        let mut candidates: HashSet<V> = inputs.iter().copied().collect();
 
-        let mut lines: Vec<Vec<V>> = Vec::with_capacity(g.outputs().len());
-        let mut positions: Vec<FlowPosition> =
-            vec![(usize::MAX, usize::MAX).into(); g.num_vertices()];
+        let mut lines: Vec<Vec<V>> = Vec::with_capacity(outputs.len());
+        let max_ind = g.vertices().max().unwrap_or(0);
+        let mut positions: Vec<FlowPosition> = vec![(usize::MAX, usize::MAX).into(); max_ind + 1];
         let is_visited =
             |v: V, positions: &Vec<FlowPosition>| positions[v] != (usize::MAX, usize::MAX).into();
 
@@ -115,7 +123,7 @@ impl CausalFlow {
             positions[neigh] = (line, pos).into();
 
             candidates.remove(&candidate);
-            if !g.is_output(neigh) {
+            if !outputs.contains(&neigh) {
                 candidates.insert(neigh);
             } else {
                 visited += 1

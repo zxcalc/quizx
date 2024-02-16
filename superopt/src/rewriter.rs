@@ -45,6 +45,7 @@ pub struct CausalRewriter<G: GraphLike> {
     all_rhs: Vec<Vec<RewriteRhs<G>>>,
 }
 
+#[derive(Clone, Debug)]
 pub struct Rewrite<G> {
     /// The nodes matching the LHS boundary in the matched graph.
     lhs_boundary: Vec<V>,
@@ -68,7 +69,7 @@ impl<G: GraphLike> Rewriter for CausalRewriter<G> {
                     let lhs_boundary = m.boundary.clone();
                     let lhs_internal = m.internal.clone();
                     let rhs_boundary = rhs.boundary().collect_vec();
-                    let rhs = rhs.graph().clone();
+                    let rhs = rhs.graph();
                     assert_eq!(lhs_boundary.len(), rhs_boundary.len());
                     Rewrite {
                         lhs_boundary,
@@ -145,11 +146,10 @@ impl<G: GraphLike + Clone> CausalRewriter<G> {
             all_rhs.push(rw_set.rhss().to_owned());
             let boundary = rw_set.lhs().boundary().collect_vec();
             for (inputs, outputs) in rw_set.lhs().ios() {
-                let mut p = rw_set.lhs().graph().clone();
-                p.set_inputs(inputs);
-                p.set_outputs(outputs);
-                let flow = CausalFlow::from_graph(&p).expect("invalid causal flow in pattern");
-                patterns.push(CausalPattern::new(p, flow, boundary.clone()));
+                let p = rw_set.lhs().graph();
+                let inputs = HashSet::from_iter(inputs);
+                let outputs = HashSet::from_iter(outputs);
+                patterns.push(CausalPattern::new(p, boundary.clone(), inputs, outputs));
                 map_to_rhs.insert(PatternID(patterns.len() - 1), rhs_idx);
             }
         }
@@ -171,7 +171,16 @@ pub(crate) mod test {
     use quizx::vec_graph::Graph;
     use rstest::{fixture, rstest};
 
-    /// Makes a simple graph, with 2 inputs and 2 outputs, and causal flow.
+    /// Makes a simple graph.
+    ///
+    /// The graph is:
+    /// ```text
+    /// 0 - 8 - 2 - 3 - 6
+    ///        / \
+    /// 1 --- 4 - 5 - 7
+    /// ```
+    ///
+    /// with inputs 0, 1 and outputs 6, 7.
     #[fixture]
     pub(crate) fn small_graph() -> Graph {
         let mut g = Graph::new();
@@ -182,33 +191,25 @@ pub(crate) mod test {
             g.add_vertex(VType::Z),
             g.add_vertex(VType::Z),
             g.add_vertex(VType::Z),
-            g.add_vertex(VType::Z),
-            g.add_vertex(VType::Z),
-            g.add_vertex(VType::Z),
-            g.add_vertex(VType::Z),
             g.add_vertex(VType::B),
             g.add_vertex(VType::B),
+            g.add_vertex(VType::Z),
         ];
 
         g.set_inputs(vec![vs[0], vs[1]]);
-        g.set_outputs(vec![vs[10], vs[11]]);
+        g.set_outputs(vec![vs[6], vs[7]]);
 
-        g.add_edge_with_type(vs[0], vs[2], EType::N);
-        g.add_edge_with_type(vs[1], vs[3], EType::N);
+        g.add_edge_with_type(vs[0], vs[8], EType::N);
+        g.add_edge_with_type(vs[1], vs[4], EType::N);
 
-        g.add_edge_with_type(vs[2], vs[4], EType::H);
-        g.add_edge_with_type(vs[3], vs[5], EType::H);
+        g.add_edge_with_type(vs[8], vs[2], EType::H);
         g.add_edge_with_type(vs[2], vs[3], EType::H);
+        g.add_edge_with_type(vs[2], vs[4], EType::H);
+        g.add_edge_with_type(vs[2], vs[5], EType::H);
+        g.add_edge_with_type(vs[4], vs[5], EType::H);
 
-        g.add_edge_with_type(vs[4], vs[6], EType::H);
-        g.add_edge_with_type(vs[5], vs[7], EType::H);
-
-        g.add_edge_with_type(vs[6], vs[8], EType::H);
-        g.add_edge_with_type(vs[7], vs[9], EType::H);
-        g.add_edge_with_type(vs[6], vs[7], EType::H);
-
-        g.add_edge_with_type(vs[8], vs[10], EType::N);
-        g.add_edge_with_type(vs[9], vs[11], EType::N);
+        g.add_edge_with_type(vs[3], vs[6], EType::N);
+        g.add_edge_with_type(vs[5], vs[7], EType::N);
 
         g
     }

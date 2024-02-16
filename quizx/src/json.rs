@@ -19,8 +19,7 @@
 mod graph;
 mod phase;
 
-use crate::graph::VType;
-use crate::hash_graph::{EType, GraphLike};
+use crate::graph::{EType, GraphLike, VType};
 
 use serde::{de, Deserialize, Serialize};
 use std::collections::HashMap;
@@ -253,11 +252,26 @@ mod test {
         (g, vs)
     }
 
+    #[fixture]
+    fn hadamard_edge() -> (Graph, Vec<V>) {
+        let mut g = Graph::new();
+        let vs = vec![
+            g.add_vertex(VType::B),
+            g.add_vertex(VType::Z),
+            g.add_vertex(VType::Z),
+        ];
+        g.add_edge_with_type(vs[1], vs[2], EType::H);
+        g.remove_vertex(vs[0]);
+        (g, vs)
+    }
+
     const TEST_JSON: &str = include_str!("../../test_files/simple-graph.json");
 
     #[rstest]
-    fn json_roundtrip(simple_graph: (Graph, Vec<V>)) {
-        let (g, _) = simple_graph;
+    #[case::simple_graph(simple_graph())]
+    #[case::hadamard(hadamard_edge())]
+    fn json_roundtrip(#[case] graph: (Graph, Vec<V>)) {
+        let (g, _) = graph;
         let jg = JsonGraph::from_graph(&g, true);
         let s = serde_json::to_string(&jg).unwrap();
 

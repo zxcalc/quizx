@@ -106,18 +106,14 @@ impl RewriteIos {
         Self(inputs, outputs)
     }
 
-    pub fn inputs(&self) -> &[String] {
-        &self.0
-    }
-
-    pub fn outputs(&self) -> &[String] {
-        &self.1
-    }
-
     pub fn translated<G: GraphLike>(&self, g: &DecodedGraph<G>) -> (Vec<V>, Vec<V>) {
+        let map_v = |name| {
+            let v = g.from_name(name);
+            unique_neighbour(&g.g, v)
+        };
         (
-            self.0.iter().map(|name| g.from_name(name)).collect(),
-            self.1.iter().map(|name| g.from_name(name)).collect(),
+            self.0.iter().map(map_v).collect(),
+            self.1.iter().map(map_v).collect(),
         )
     }
 }
@@ -147,29 +143,36 @@ pub trait RuleSide<G: GraphLike> {
     /// The encoded input/output assignments of the boundary nodes.
     fn decoded_ios(&self) -> &[RewriteIos];
 
-    /// The graph representation of the rule side.
-    fn graph(&self) -> &G {
-        &self.decoded_graph().g
+    /// The graph representation of the LHS/RHS
+    ///
+    /// Unlike the decoded graphs, these graphs have no quizx boundary vertices
+    /// and are computed on the fly.
+    fn graph(&self) -> G {
+        let mut g = self.decoded_graph().g.clone();
+        let io = g.inputs().iter().chain(g.outputs()).copied().collect_vec();
+        for v in io {
+            g.remove_vertex(v);
+        }
+        g.set_inputs(Vec::new());
+        g.set_outputs(Vec::new());
+        g
     }
 
-    /// The boundary nodes of the graph.
+    /// The boundary nodes of the graph in the LHS/RHS sense.
+    ///
+    /// These are vertices within `self.graph`, not the quizx boundary vertices.
     fn boundary<'a>(&'a self) -> impl Iterator<Item = V> + 'a
     where
         G: 'a,
     {
-        let inputs = self.graph().inputs().as_slice();
-        let outputs = self.graph().outputs().as_slice();
-        let g = self.graph();
+        let g = &self.decoded_graph().g;
+        let inputs = g.inputs().as_slice();
+        let outputs = g.outputs().as_slice();
 
-        inputs.iter().chain(outputs.iter()).map(|&v| {
-            g.neighbors(v).exactly_one().unwrap_or_else(|_| {
-                panic!(
-                    "Boundary node {} has {} neighbors",
-                    self.decoded_graph().name(v),
-                    g.neighbors(v).len()
-                )
-            })
-        })
+        inputs
+            .iter()
+            .chain(outputs.iter())
+            .map(|&v| unique_neighbour(g, v))
     }
 
     /// The input/output assignments of the boundary nodes, translated to the graph indices.
@@ -221,6 +224,12 @@ impl<G: GraphLike> Serialize for DecodedGraph<G> {
         let s = serde_json::to_string(&jg).map_err(serde::ser::Error::custom)?;
         s.serialize(serializer)
     }
+}
+
+fn unique_neighbour(g: &impl GraphLike, v: V) -> V {
+    g.neighbors(v)
+        .exactly_one()
+        .unwrap_or_else(|_| panic!("Boundary node {} has {} neighbors", v, g.neighbors(v).len()))
 }
 
 #[cfg(test)]

@@ -26,14 +26,14 @@ use portmatching::{
 
 use crate::{
     flow::causal::CausalFlow,
-    hash_graph::{GraphLike, V},
+    graph::{GraphLike, V},
 };
 
 use super::{CausalPattern, CausalPort, PEdge, PNode};
 
 /// A pre-built pattern matcher for a set of patterns.
 #[derive(serde::Serialize, serde::Deserialize)]
-pub struct CausalMatcher<G> {
+pub struct CausalMatcher<G: GraphLike> {
     automaton: ScopeAutomaton<PNode, PEdge, CausalPort>,
     patterns: Vec<CausalPattern<G>>,
 }
