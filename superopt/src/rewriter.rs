@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use itertools::Itertools;
 use quizx::vec_graph::{EType, VType};
 use quizx::{
-    flow::causal::CausalFlow,
+    flow::causal::{CausalFlow, ConvexHull},
     graph::GraphLike,
     portmatching::{CausalMatcher, CausalPattern, PatternID},
     vec_graph::V,
@@ -37,7 +37,7 @@ struct RhsIdx(usize);
 
 /// A rewriter that applies causal flow preserving rewrites.
 ///
-/// The set of possible rewrites are given as a list of `RewriteSet`s.
+/// The set of possible rewrite rule are given as a list of `RewriteSet`s.
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct CausalRewriter<G: GraphLike> {
     matcher: CausalMatcher<G>,
@@ -55,67 +55,62 @@ pub struct Rewrite<G> {
     lhs_internal: HashSet<V>,
     /// The replacement graph.
     rhs: G,
+    /// The cost delta of the rewrite.
+    ///
+    /// Negative delta is an improvement (cost decrease).
+    cost_delta: CostDelta,
 }
 
-impl<G: GraphLike> Rewriter for CausalRewriter<G> {
-    type Rewrite = Rewrite<G>;
-
-    fn get_rewrites(&self, graph: &impl GraphLike) -> Vec<Self::Rewrite> {
-        let flow = CausalFlow::from_graph(graph).expect("no causal flow");
-        self.matcher
-            .find_matches(graph, &flow)
-            .flat_map(|m| {
-                self.get_rhs(m.pattern_id).iter().map(move |rhs| {
-                    let lhs_boundary = m.boundary.clone();
-                    let lhs_internal = m.internal.clone();
-                    let rhs_boundary = rhs.boundary().collect_vec();
-                    let rhs = rhs.graph();
-                    assert_eq!(lhs_boundary.len(), rhs_boundary.len());
-                    Rewrite {
-                        lhs_boundary,
-                        rhs_boundary,
-                        lhs_internal,
-                        rhs,
-                    }
-                })
-            })
-            .collect()
+impl<G: GraphLike> Rewrite<G> {
+    fn lhs_vertices(&self) -> impl Iterator<Item = &V> + '_ {
+        self.lhs_boundary.iter().chain(&self.lhs_internal)
     }
 
-    fn apply_rewrite<H: GraphLike>(&self, rewrite: Self::Rewrite, graph: &H) -> RewriteResult<H> {
-        let mut g = graph.clone();
+    /// Whether the rewrite is flow preserving when applied on `graph`.
+    ///
+    /// TODO: This can be done faster by pre-computing a "causal structure"
+    fn is_flow_preserving(&self, graph: &impl GraphLike, flow: &CausalFlow) -> bool {
+        let hull = ConvexHull::from_region(self.lhs_vertices(), flow);
+        let mut subgraph = graph.induced_subgraph(hull.vertices());
+        subgraph.set_inputs(hull.inputs().to_owned());
+        subgraph.set_outputs(hull.outputs().to_owned());
+        self.apply(&mut subgraph);
+        CausalFlow::from_graph(&subgraph).is_ok()
+    }
+
+    fn apply<H: GraphLike>(&self, g: &mut H) -> CostDelta {
         let mut new_r_names: HashMap<V, V> = HashMap::new();
 
         // Remove the internal nodes of the LHS.
-        for v in rewrite.lhs_internal {
+        for &v in &self.lhs_internal {
             g.remove_vertex(v);
         }
 
         // Replace the LHS boundary nodes with the RHS's.
-        for (&l, &r) in rewrite.lhs_boundary.iter().zip(rewrite.rhs_boundary.iter()) {
+        for (&l, &r) in self.lhs_boundary.iter().zip(self.rhs_boundary.iter()) {
             new_r_names.insert(r, l);
-            g.set_phase(l, rewrite.rhs.phase(r));
-            g.set_vertex_type(l, rewrite.rhs.vertex_type(r));
+            g.set_phase(l, self.rhs.phase(r));
+            g.set_vertex_type(l, self.rhs.vertex_type(r));
         }
 
         // Insert the internal nodes of the RHS.
-        for r in rewrite.rhs.vertices() {
+        for r in self.rhs.vertices() {
             if new_r_names.contains_key(&r) {
                 // It was already added as a boundary node.
                 continue;
             }
 
-            let vtype = rewrite.rhs.vertex_type(r);
+            let vtype = self.rhs.vertex_type(r);
             if vtype == VType::B {
                 continue;
             }
 
-            let l = g.add_vertex_with_phase(vtype, rewrite.rhs.phase(r));
+            let l = g.add_vertex_with_phase(vtype, self.rhs.phase(r));
             new_r_names.insert(r, l);
         }
 
         // Reconnect the edges.
-        for (u, v, ty) in rewrite.rhs.edges() {
+        for (u, v, ty) in self.rhs.edges() {
             let (Some(&u), Some(&v)) = (new_r_names.get(&u), new_r_names.get(&v)) else {
                 // Ignore the boundary edges.
                 continue;
@@ -124,10 +119,45 @@ impl<G: GraphLike> Rewriter for CausalRewriter<G> {
             g.add_edge_smart(u, v, ty);
         }
 
-        RewriteResult {
-            graph: g,
-            cost_delta: CostDelta::default(),
-        }
+        self.cost_delta
+    }
+}
+
+impl<G: GraphLike> Rewriter for CausalRewriter<G> {
+    type Rewrite = Rewrite<G>;
+
+    fn get_rewrites(&self, graph: &impl GraphLike) -> Vec<Self::Rewrite> {
+        let flow = CausalFlow::from_graph(graph).expect("no causal flow");
+        let mut rewrites = self
+            .matcher
+            .find_matches(graph, &flow)
+            .flat_map(|m| {
+                self.get_rhs(m.pattern_id).iter().map(move |rhs| {
+                    let lhs_boundary = m.boundary.clone();
+                    let lhs_internal = m.internal.clone();
+                    let rhs_boundary = rhs.boundary().collect_vec();
+                    let cost_delta = -rhs.reduction;
+                    let rhs = rhs.graph();
+                    assert_eq!(lhs_boundary.len(), rhs_boundary.len());
+                    Rewrite {
+                        lhs_boundary,
+                        rhs_boundary,
+                        lhs_internal,
+                        rhs,
+                        cost_delta,
+                    }
+                })
+            })
+            .filter(|rw| rw.is_flow_preserving(graph, &flow))
+            .collect_vec();
+        rewrites.sort_by_key(|rw| rw.cost_delta);
+        rewrites
+    }
+
+    fn apply_rewrite<H: GraphLike>(&self, rewrite: Self::Rewrite, graph: &H) -> RewriteResult<H> {
+        let mut graph = graph.clone();
+        let cost_delta = rewrite.apply(&mut graph);
+        RewriteResult { graph, cost_delta }
     }
 }
 

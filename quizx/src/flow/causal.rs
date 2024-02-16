@@ -194,6 +194,10 @@ pub struct ConvexHull {
     pub region: HashSet<V>,
     /// The additional vertices that are part of the convex hull.
     pub hull_vertices: HashSet<V>,
+    /// The inputs of the convex hull
+    pub inputs: Vec<V>,
+    /// The outputs of the convex hull
+    pub outputs: Vec<V>,
 }
 
 impl ConvexHull {
@@ -214,9 +218,13 @@ impl ConvexHull {
         }
 
         let mut hull_vertices = HashSet::new();
+        let mut inputs = Vec::new();
+        let mut outputs = Vec::new();
         for (line, min_max) in line_min_max.iter().enumerate() {
             if let Some(range) = min_max {
                 let line = &flow_lines[line];
+                inputs.push(line[range.start]);
+                outputs.push(line[range.end - 1]);
                 for v in line[range.clone()].iter().copied() {
                     if !region.contains(&v) {
                         hull_vertices.insert(v);
@@ -228,6 +236,8 @@ impl ConvexHull {
         Self {
             region,
             hull_vertices,
+            inputs,
+            outputs,
         }
     }
 
@@ -237,6 +247,20 @@ impl ConvexHull {
             .iter()
             .copied()
             .chain(self.hull_vertices.iter().copied())
+    }
+
+    /// The inputs of the convex hull
+    ///
+    /// The inputs are the vertices in the region that have no incoming in the hull.
+    pub fn inputs(&self) -> &[V] {
+        &self.inputs
+    }
+
+    /// The outputs of the convex hull
+    ///
+    /// The outputs are the vertices in the region that have no outgoing in the hull.
+    pub fn outputs(&self) -> &[V] {
+        &self.outputs
     }
 }
 
