@@ -32,7 +32,7 @@ struct Args {
         short,
         long,
         default_value = "../test_files/rewrites-2qb-lc.rwr",
-        help = "The json-encoded pyzx graph file to use as input."
+        help = "The pre-compiled rewriter to use. Use `--bin compile` to compile a new rewriter from a set of rewrite rules."
     )]
     rewriter: PathBuf,
     /// Timeout in seconds (default=no timeout)
