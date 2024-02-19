@@ -343,4 +343,32 @@ mod test {
         assert_eq!(hull.region, region.iter().copied().collect());
         assert_eq!(hull.hull_vertices, expected_other.iter().copied().collect());
     }
+
+    #[rstest]
+    fn convex_hull2(simple_graph: (Graph, Vec<V>)) {
+        let (g, vs) = simple_graph;
+        let flow = CausalFlow::from_graph(&g).unwrap();
+
+        let region = vec![vs[2], vs[3], vs[5]];
+        let expected_other = [vs[4]];
+
+        let hull = ConvexHull::from_region(&region, &flow);
+
+        assert_eq!(hull.region, region.iter().copied().collect());
+        assert_eq!(hull.hull_vertices, expected_other.iter().copied().collect());
+    }
+
+    #[rstest]
+    fn convex_hull3(simple_graph: (Graph, Vec<V>)) {
+        let (g, vs) = simple_graph;
+        let flow = CausalFlow::from_graph(&g).unwrap();
+
+        let region = vec![vs[2], vs[3], vs[5], vs[7]];
+        let expected_other = [vs[4]];
+
+        let hull = ConvexHull::from_region(&region, &flow);
+
+        assert_eq!(hull.region, region.iter().copied().collect());
+        assert_eq!(hull.hull_vertices, expected_other.iter().copied().collect());
+    }
 }
