@@ -6,10 +6,10 @@ edition = "2018"
 default-run = "hidden_shift_stabrank"
 
 [dependencies]
-num = "0.3.1"
+num = "0.4.1"
 rustc-hash = "1.1.0"
 rayon = "1.5.0"
-ndarray = { version = "0.14.0", features = [ "rayon" ] }
+ndarray = { version = "0.15.6", features = [ "rayon" ] }
 approx = "0.4.0"
 regex = "1.4.3"
 rand = "0.8.3"
