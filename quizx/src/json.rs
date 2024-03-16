@@ -91,10 +91,8 @@ pub struct JsonGraph {
 /// Attributes for a vertex in the json-encoded graph.
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 struct VertexAttrs {
-    #[serde(skip_serializing_if = "is_default")]
     #[serde(default)]
     annotation: VertexAnnotations,
-    #[serde(skip_serializing_if = "is_default")]
     #[serde(default)]
     data: VertexData,
 }
