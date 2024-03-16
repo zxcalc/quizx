@@ -59,7 +59,9 @@ impl VertexPhase {
             format!("/{}", phase.numer())
         };
 
-        Self(format!("{simstr}{numer}π{denom}"))
+        // NOTE: We should be able to use π instead of "pi" here, but pyzx
+        // currently panics when it sees π.
+        Self(format!("{simstr}{numer}pi{denom}"))
     }
 
     /// Decode a vertex phase.
