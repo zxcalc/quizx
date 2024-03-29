@@ -1,5 +1,4 @@
-import quizx  # type: ignore
-
+from . import _quizx
 from .graph import VecGraph
 
 
@@ -10,13 +9,13 @@ class Circuit:
     @staticmethod
     def load(circuitfile: str) -> "Circuit":
         c = Circuit()
-        c._c = quizx.Circuit.load(circuitfile)
+        c._c = _quizx.Circuit.load(circuitfile)
         return c
 
     @staticmethod
     def from_qasm(qasm: str) -> "Circuit":
         c = Circuit()
-        c._c = quizx.Circuit.from_qasm(qasm)
+        c._c = _quizx.Circuit.from_qasm(qasm)
         return c
 
     def to_qasm(self):

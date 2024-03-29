@@ -51,5 +51,6 @@ homepage = "https://github.com/Quantomatic/quizx"
 repository = "https://github.com/Quantomatic/quizx"
 
 [tool.maturin]
+module-name = "quizx._quizx"
 manifest-path = "pybindings/Cargo.toml"
 python-source = "pybindings"
