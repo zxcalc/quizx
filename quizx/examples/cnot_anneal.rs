@@ -24,7 +24,7 @@ use std::time::Instant;
 use std::{thread, time};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let f = "../circuits/small/tof_10.qasm";
+    let f = "circuits/small/tof_10.qasm";
     let time = Instant::now();
     println!("{}", f);
     let c = Circuit::from_file(f)

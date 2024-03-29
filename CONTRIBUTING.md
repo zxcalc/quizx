@@ -21,10 +21,10 @@ Run `just` to see all available commands.
 ## 🚀 Building the project
 
 There is a miscellaneous collection of rust programs written using the library,
-found in `src/bin`. To execute these programs, run:
+found in `examples/`. To execute these programs, run:
 
 ```bash
-cargo run --release --bin <program_name>
+cargo run --release --example <program_name>
 ```
 
 To build the python library, run:

@@ -19,11 +19,12 @@ use std::fs;
 use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    for e in fs::read_dir("../../circuits")? {
+    for e in fs::read_dir("circuits/small")? {
         if let Some(f) = e?.path().to_str() {
             let time = Instant::now();
             println!("{}", f);
-            Circuit::from_file(f).unwrap_or_else(|_| panic!("circuit failed to parse: {}", f));
+            Circuit::from_file(f)
+                .unwrap_or_else(|e| panic!("circuit failed to parse: {}. {}", f, e));
             println!("...done in {:.2?}", time.elapsed());
         }
     }
