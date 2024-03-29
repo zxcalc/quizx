@@ -22,6 +22,7 @@
 //! # use quizx::graph::{EType, VType, GraphLike};
 //! # use quizx::vec_graph::Graph;
 //! # use quizx::tensor::ToTensor;
+//! # use quizx::json::JsonOptions;
 //! // Define a graph with 4 vertices and 3 edges.
 //! let mut g = Graph::new();
 //! let vs = vec![
@@ -37,10 +38,10 @@
 //! g.add_edge(vs[2], vs[3]);
 //!
 //! // Encode the graph in qgraph format.
-//! let json = quizx::json::encode_graph(&g, true).unwrap();
+//! let json = quizx::json::encode_graph(&g, JsonOptions::default()).unwrap();
 //!
 //! // Decode the graph from the qgraph string.
-//! let g2 = quizx::json::decode_graph::<Graph>(&json).unwrap();
+//! let g2 = quizx::json::decode_graph::<Graph>(&json, JsonOptions::default()).unwrap();
 //!
 //! assert_eq!(g.to_tensor4(), g2.to_tensor4());
 //! ```
@@ -55,39 +56,49 @@ use serde::{de, Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 
+/// Encoding options
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
+pub struct JsonOptions {
+    /// Whether to encode or decode the global scalar.
+    ///
+    /// Setting this to `true` is not currently supported, and will be ignored.
+    pub include_scalar: bool,
+}
+
 /// Returns the json-encoded representation of a graph.
 pub fn encode_graph(
     graph: &impl crate::graph::GraphLike,
-    ignore_scalar: bool,
+    options: JsonOptions,
 ) -> serde_json::Result<String> {
-    let jg = JsonGraph::from_graph(graph, ignore_scalar);
+    let jg = JsonGraph::from_graph(graph, options);
     serde_json::to_string(&jg)
 }
 
 /// Writes the json-encoded representation of a graph to a file.
 pub fn write_graph(
     graph: &impl crate::graph::GraphLike,
-    ignore_scalar: bool,
+    options: JsonOptions,
     filename: &Path,
 ) -> serde_json::Result<()> {
-    let jg = JsonGraph::from_graph(graph, ignore_scalar);
+    let jg = JsonGraph::from_graph(graph, options);
     let file = std::fs::File::create(filename).unwrap();
     let writer = std::io::BufWriter::new(file);
     serde_json::to_writer(writer, &jg)
 }
 
 /// Reads a graph from its json-encoded representation.
-pub fn decode_graph<G: GraphLike>(s: &str) -> serde_json::Result<G> {
+pub fn decode_graph<G: GraphLike>(s: &str, options: JsonOptions) -> serde_json::Result<G> {
     let jg: JsonGraph = serde_json::from_str(s)?;
-    Ok(jg.to_graph(true))
+    Ok(jg.to_graph(options))
 }
 
 /// Reads a graph from a json-encoded file.
-pub fn read_graph<G: GraphLike>(filename: &Path) -> serde_json::Result<G> {
+pub fn read_graph<G: GraphLike>(filename: &Path, options: JsonOptions) -> serde_json::Result<G> {
     let file = std::fs::File::open(filename).unwrap();
     let reader = std::io::BufReader::new(file);
     let jg: JsonGraph = serde_json::from_reader(reader)?;
-    Ok(jg.to_graph(true))
+    Ok(jg.to_graph(options))
 }
 
 /// Identifier for an encoded vertex.
@@ -312,10 +323,10 @@ mod test {
     #[rstest]
     fn json_roundtrip(simple_graph: (Graph, Vec<V>)) {
         let (g, _) = simple_graph;
-        let jg = JsonGraph::from_graph(&g, true);
+        let jg = JsonGraph::from_graph(&g, JsonOptions::default());
         let s = serde_json::to_string(&jg).unwrap();
 
-        let g2: Graph = decode_graph(&s).unwrap();
+        let g2: Graph = decode_graph(&s, JsonOptions::default()).unwrap();
 
         assert_eq!(g.num_vertices(), g2.num_vertices());
         assert_eq!(g.num_edges(), g2.num_edges());
@@ -339,7 +350,7 @@ mod test {
     #[case::simple(TEST_JSON_SIMPLE, 9, 9)]
     #[case::unitary_4q(TEST_JSON_4Q_UNITARY, 26, 30)]
     fn json_decode(#[case] json: &str, #[case] num_vertices: usize, #[case] num_edges: usize) {
-        let g: Graph = decode_graph(json).unwrap();
+        let g: Graph = decode_graph(json, JsonOptions::default()).unwrap();
 
         assert_eq!(g.num_vertices(), num_vertices);
         assert_eq!(g.num_edges(), num_edges);
