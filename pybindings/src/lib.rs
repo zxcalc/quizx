@@ -119,6 +119,7 @@ impl CircuitStats {
     fn non_cliff(&self) -> usize {
         self.s.non_cliff
     }
+    #[allow(clippy::inherent_to_string)]
     fn to_string(&self) -> String {
         self.s.to_string()
     }
@@ -151,7 +152,7 @@ impl VecGraph {
     fn num_edges(&self) -> usize {
         self.g.num_edges()
     }
-    fn add_vertex(&mut self, ty_num: u8, qubit: i32, row: i32, phase: (isize, isize)) -> usize {
+    fn add_vertex(&mut self, ty_num: u8, qubit: i32, row: i32, phase: (i64, i64)) -> usize {
         let ty = match ty_num {
             1 => VType::Z,
             2 => VType::X,
@@ -232,16 +233,16 @@ impl VecGraph {
             .set_edge_type(e.0, e.1, if et_num == 2 { EType::H } else { EType::N });
     }
 
-    fn phase(&self, v: usize) -> (isize, isize) {
+    fn phase(&self, v: usize) -> (i64, i64) {
         let p = self.g.phase(v);
         (*p.numer(), *p.denom())
     }
 
-    fn set_phase(&mut self, v: usize, phase: (isize, isize)) {
+    fn set_phase(&mut self, v: usize, phase: (i64, i64)) {
         self.g.set_phase(v, Rational64::new(phase.0, phase.1));
     }
 
-    fn add_to_phase(&mut self, v: usize, phase: (isize, isize)) {
+    fn add_to_phase(&mut self, v: usize, phase: (i64, i64)) {
         self.g.add_to_phase(v, Rational64::new(phase.0, phase.1));
     }
 

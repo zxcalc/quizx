@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-from setuptools import setup
+from setuptools import setup  # type: ignore
 
 setup(
     name="quizx",

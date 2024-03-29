@@ -82,4 +82,3 @@ QuiZX is very much a work in progress. It is not intended to have all the featur
   - [ ] circuit extraction (working, but buggy)
 
 Pull requests are welcome!
-

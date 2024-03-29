@@ -1,5 +1,5 @@
-from setuptools import setup
-from setuptools_rust import Binding, RustExtension
+from setuptools import setup  # type: ignore
+from setuptools_rust import Binding, RustExtension  # type: ignore
 
 setup(
     name="libquizx",
