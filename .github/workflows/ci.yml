@@ -58,12 +58,12 @@ jobs:
     if: ${{ needs.changes.outputs.quizx == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - uses: mozilla-actions/sccache-action@v0.0.3
+      - uses: mozilla-actions/sccache-action@v0.0.4
       - name: Check rust formatting
         run: cargo fmt -p quizx -- --check
       - name: Run clippy
@@ -79,8 +79,8 @@ jobs:
     if: ${{ needs.changes.outputs.pybindings == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: mozilla-actions/sccache-action@v0.0.3
+      - uses: actions/checkout@v4
+      - uses: mozilla-actions/sccache-action@v0.0.4
       - name: Install rust stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -133,14 +133,14 @@ jobs:
         rust: ['1.75', beta, nightly]
     name: 🦀 Test quizx (Rust ${{ matrix.rust }})
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - id: toolchain
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
       - name: Configure default rust toolchain
         run: rustup override set ${{steps.toolchain.outputs.name}}
-      - uses: mozilla-actions/sccache-action@v0.0.3
+      - uses: mozilla-actions/sccache-action@v0.0.4
       - name: Build with all features
         run: cargo test --verbose --all-features --no-run -p quizx
       - name: Tests with all features
@@ -152,8 +152,8 @@ jobs:
     if: ${{ needs.changes.outputs.pybindings == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: mozilla-actions/sccache-action@v0.0.3
+      - uses: actions/checkout@v4
+      - uses: mozilla-actions/sccache-action@v0.0.4
       - name: Install rust stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -168,8 +168,7 @@ jobs:
         run: poetry install
       - name: Build pyo3 bindings
         run: |
-          poetry run maturin build
-          poetry add target/wheels/*.whl
+          poetry run maturin develop
       - name: Test pyo3 bindings
         run: poetry run pytest
 
