@@ -110,6 +110,7 @@ pub struct JsonGraph {
     /// Types of the variables in the graph.
     ///
     /// Currently ignored by quizx.
+    #[serde(default)]
     variable_types: HashMap<String, String>,
     /// The graph scalar.
     #[serde(skip_serializing_if = "is_default")]
@@ -163,12 +164,18 @@ struct VertexAnnotations {
     #[serde(default)]
     coord: (f64, f64),
     /// The input number for the vertex.
+    ///
+    /// Note that in the pyzx encoder, this is either a number indicating the order in the input list, or
+    /// (in older versions) a boolean flag indicating whether the vertex is an input.
+    /// So we need to deserialize it manually.
     #[serde(skip_serializing_if = "is_default")]
     #[serde(default)]
+    #[serde(deserialize_with = "deserialize_io_attribute")]
     input: Option<usize>,
     /// The output number for the vertex.
     #[serde(skip_serializing_if = "is_default")]
     #[serde(default)]
+    #[serde(deserialize_with = "deserialize_io_attribute")]
     output: Option<usize>,
     /// A box label.
     #[serde(skip_serializing_if = "is_default")]
@@ -240,6 +247,26 @@ where
     }
 }
 
+/// Deserialize the input/output attribute of a vertex.
+///
+/// This is either a number indicating the order in the input list, or
+/// (in older versions) a boolean flag indicating whether the vertex is an input.
+fn deserialize_io_attribute<'de, D>(deserializer: D) -> Result<Option<usize>, D::Error>
+where
+    D: de::Deserializer<'de>,
+{
+    let val: serde_json::Value = de::Deserialize::deserialize(deserializer)?;
+
+    match val {
+        serde_json::Value::Number(n) => Ok(Some(n.as_u64().unwrap() as usize)),
+        serde_json::Value::Bool(b) => Ok(b.then_some(0)),
+        _ => Err(de::Error::invalid_value(
+            de::Unexpected::Str(&val.to_string()),
+            &"a number or a boolean",
+        )),
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::graph::GraphLike;
@@ -279,7 +306,8 @@ mod test {
         (g, vs)
     }
 
-    const TEST_JSON: &str = include_str!("../../test_files/simple-graph.qgraph");
+    const TEST_JSON_SIMPLE: &str = include_str!("../../test_files/simple-graph.qgraph");
+    const TEST_JSON_4Q_UNITARY: &str = include_str!("../../test_files/4-qubit-unitary.qgraph");
 
     #[rstest]
     fn json_roundtrip(simple_graph: (Graph, Vec<V>)) {
@@ -307,11 +335,13 @@ mod test {
         }
     }
 
-    #[test]
-    fn json_decode() {
-        let g: Graph = decode_graph(TEST_JSON).unwrap();
+    #[rstest]
+    #[case::simple(TEST_JSON_SIMPLE, 9, 9)]
+    #[case::unitary_4q(TEST_JSON_4Q_UNITARY, 26, 30)]
+    fn json_decode(#[case] json: &str, #[case] num_vertices: usize, #[case] num_edges: usize) {
+        let g: Graph = decode_graph(json).unwrap();
 
-        assert_eq!(g.num_vertices(), 9);
-        assert_eq!(g.num_edges(), 9);
+        assert_eq!(g.num_vertices(), num_vertices);
+        assert_eq!(g.num_edges(), num_edges);
     }
 }
