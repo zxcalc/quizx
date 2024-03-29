@@ -7,7 +7,6 @@ This is a port of some of the core functionality of PyZX to the [Rust](https://w
 To build from source, first [get Rust](https://www.rust-lang.org/tools/install), then use the included package and build manager `cargo`.
 
     git clone https://github.com/Quantomatic/quizx.git
-    cd quizx
     cargo build
     cargo test
 

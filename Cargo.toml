@@ -1,0 +1,25 @@
+[workspace]
+resolver = "2"
+members = ["quizx", "pybindings"]
+default-members = ["quizx"]
+
+[workspace.dependencies]
+quizx = { path = "./quizx" }
+num = "0.4.1"
+approx = "0.4.0"
+itertools = "0.10.1"
+ndarray = "0.15.6"
+openqasm = "0.1.2"
+pyo3 = "0.13.2"
+rand = "0.8.3"
+rayon = "1.5.0"
+regex = "1.4.3"
+rustc-hash = "1.1.0"
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Aleks Kissinger <aleks0@gmail.com>"]
+edition = "2018"
+rust-version = "1.75"
+homepage = "https://github.com/Quantomatic/quizx"
+license-file = "LICENSE"
