@@ -25,6 +25,7 @@ use num::{Complex, Rational};
 use rustc_hash::FxHashMap;
 use std::collections::VecDeque;
 use std::iter::FromIterator;
+use std::convert::TryFrom;
 
 /// Generic tensor type used by quizx
 pub type Tensor<A> = Array<A, IxDyn>;
@@ -175,22 +176,22 @@ impl<A: TensorElem> CompareTensors for Tensor<A> {
 
 impl<A: TensorElem> QubitOps<A> for Tensor<A> {
     fn slice_qubit_mut(&mut self, q: usize) -> (ArrayViewMut<A, IxDyn>, ArrayViewMut<A, IxDyn>) {
-        let slice0: SliceInfo<_, IxDyn> =
-            SliceInfo::new(Vec::from_iter((0..self.ndim()).map(|i| {
+        let slice0: SliceInfo<_, IxDyn, IxDyn> =
+            SliceInfo::try_from(Vec::from_iter((0..self.ndim()).map(|i| {
                 if i == q {
-                    SliceOrIndex::from(0)
+                    SliceInfoElem::from(0)
                 } else {
-                    SliceOrIndex::from(..)
+                    SliceInfoElem::from(..)
                 }
             })))
             .unwrap();
 
-        let slice1: SliceInfo<_, IxDyn> =
-            SliceInfo::new(Vec::from_iter((0..self.ndim()).map(|i| {
+        let slice1: SliceInfo<_, IxDyn, IxDyn> =
+            SliceInfo::try_from(Vec::from_iter((0..self.ndim()).map(|i| {
                 if i == q {
-                    SliceOrIndex::from(1)
+                    SliceInfoElem::from(1)
                 } else {
-                    SliceOrIndex::from(..)
+                    SliceInfoElem::from(..)
                 }
             })))
             .unwrap();
