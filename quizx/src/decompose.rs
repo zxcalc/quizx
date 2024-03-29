@@ -16,7 +16,7 @@
 
 use crate::graph::*;
 use crate::scalar::*;
-use num::Rational;
+use num::Rational64;
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
 use std::collections::VecDeque;
@@ -422,15 +422,15 @@ impl<G: GraphLike> Decomposer<G> {
         let mut g = g.clone(); // that is annoying ...
         let mut verts = Vec::from(verts);
         if g.phase(verts[0]).numer() == &1 {
-            g.set_phase(verts[0], Rational::new(0, 1));
+            g.set_phase(verts[0], Rational64::new(0, 1));
             let mut neigh = g.neighbor_vec(verts[1]);
             neigh.retain(|&x| x != verts[0]);
             for &v in &neigh {
-                g.add_to_phase(v, Rational::new(1, 1));
+                g.add_to_phase(v, Rational64::new(1, 1));
             }
             let tmp = g.phase(verts[1]);
             *g.scalar_mut() *= ScalarN::from_phase(tmp);
-            g.set_phase(verts[1], g.phase(verts[1]) * Rational::new(-1, 1));
+            g.set_phase(verts[1], g.phase(verts[1]) * Rational64::new(-1, 1));
         }
         if [3, 5].contains(&verts[1..].len()) {
             let w = g.add_vertex(VType::Z);
@@ -467,10 +467,10 @@ impl<G: GraphLike> Decomposer<G> {
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(-1, vec![1, 0, 0, 0]);
         for &v in &verts[1..] {
-            g.add_to_phase(v, Rational::new(-1, 4));
+            g.add_to_phase(v, Rational64::new(-1, 4));
             g.set_edge_type(v, verts[0], EType::N);
         }
-        g.set_phase(verts[0], Rational::new(-1, 2));
+        g.set_phase(verts[0], Rational64::new(-1, 2));
         g
     }
 
@@ -478,7 +478,7 @@ impl<G: GraphLike> Decomposer<G> {
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(-1, vec![-1, 0, 1, 0]);
         for &v in &verts[1..] {
-            g.add_to_phase(v, Rational::new(-1, 4));
+            g.add_to_phase(v, Rational64::new(-1, 4));
         }
         g
     }
@@ -487,7 +487,7 @@ impl<G: GraphLike> Decomposer<G> {
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(7, vec![0, -1, 0, 0]);
         for i in 1..verts.len() {
-            g.add_to_phase(verts[i], Rational::new(-1, 4));
+            g.add_to_phase(verts[i], Rational64::new(-1, 4));
             for j in i + 1..verts.len() {
                 g.add_edge_smart(verts[i], verts[j], EType::H);
             }
@@ -499,10 +499,10 @@ impl<G: GraphLike> Decomposer<G> {
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(1, vec![1, 0, 0, 0]);
         for &v in verts {
-            g.add_to_phase(v, Rational::new(-1, 4));
+            g.add_to_phase(v, Rational64::new(-1, 4));
             g.add_edge_smart(v, verts[0], EType::N);
         }
-        g.add_to_phase(verts[0], Rational::new(-3, 4));
+        g.add_to_phase(verts[0], Rational64::new(-3, 4));
         g
     }
 
@@ -511,10 +511,10 @@ impl<G: GraphLike> Decomposer<G> {
         *g.scalar_mut() *= ScalarN::Exact(1, vec![-1, 0, 1, 0]);
         let p = g.add_vertex(VType::Z);
         for &v in verts {
-            g.add_to_phase(v, Rational::new(-1, 4));
+            g.add_to_phase(v, Rational64::new(-1, 4));
             g.add_edge_with_type(v, p, EType::H);
         }
-        let w = g.add_vertex_with_phase(VType::Z, Rational::new(-1, 4));
+        let w = g.add_vertex_with_phase(VType::Z, Rational64::new(-1, 4));
         g.add_edge_with_type(w, p, EType::H);
         g
     }
@@ -523,10 +523,10 @@ impl<G: GraphLike> Decomposer<G> {
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(9, vec![0, -1, 0, 0]);
         let p = g.add_vertex(VType::Z);
-        let w = g.add_vertex_with_phase(VType::Z, Rational::new(-1, 4));
+        let w = g.add_vertex_with_phase(VType::Z, Rational64::new(-1, 4));
         g.add_edge_with_type(p, w, EType::H);
         for i in 0..verts.len() {
-            g.add_to_phase(verts[i], Rational::new(-1, 4));
+            g.add_to_phase(verts[i], Rational64::new(-1, 4));
             g.add_edge_with_type(verts[i], p, EType::H);
             g.add_edge_with_type(verts[i], w, EType::H);
             for j in i + 1..verts.len() {
@@ -540,7 +540,7 @@ impl<G: GraphLike> Decomposer<G> {
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(0, vec![0, 0, 1, 0]);
         for &v in &verts[1..] {
-            g.add_to_phase(v, Rational::new(-1, 4));
+            g.add_to_phase(v, Rational64::new(-1, 4));
         }
         g
     }
@@ -550,10 +550,10 @@ impl<G: GraphLike> Decomposer<G> {
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(-1, vec![1, 0, -1, 0]);
         for &v in &verts[1..] {
-            g.add_to_phase(v, Rational::new(-1, 4));
+            g.add_to_phase(v, Rational64::new(-1, 4));
             g.set_edge_type(v, verts[0], EType::N);
         }
-        g.set_phase(verts[0], Rational::new(-1, 2));
+        g.set_phase(verts[0], Rational64::new(-1, 2));
         g
     }
 
@@ -562,7 +562,7 @@ impl<G: GraphLike> Decomposer<G> {
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(-2, vec![-1, 0, 1, 1]);
         for &v in &verts[0..6] {
-            g.add_to_phase(v, Rational::new(-1, 4));
+            g.add_to_phase(v, Rational64::new(-1, 4));
         }
         g
     }
@@ -572,7 +572,7 @@ impl<G: GraphLike> Decomposer<G> {
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(-2, vec![-1, 0, 1, -1]);
         for &v in verts {
-            g.add_to_phase(v, Rational::new(3, 4));
+            g.add_to_phase(v, Rational64::new(3, 4));
         }
         g
     }
@@ -582,9 +582,9 @@ impl<G: GraphLike> Decomposer<G> {
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(1, vec![0, -1, 0, 0]);
 
-        let w = g.add_vertex_with_phase(VType::Z, Rational::one());
+        let w = g.add_vertex_with_phase(VType::Z, Rational64::one());
         for &v in verts {
-            g.add_to_phase(v, Rational::new(1, 4));
+            g.add_to_phase(v, Rational64::new(1, 4));
             g.add_edge_with_type(v, w, EType::H);
         }
 
@@ -598,7 +598,7 @@ impl<G: GraphLike> Decomposer<G> {
 
         let w = g.add_vertex(VType::Z);
         for &v in verts {
-            g.add_to_phase(v, Rational::new(1, 4));
+            g.add_to_phase(v, Rational64::new(1, 4));
             g.add_edge_with_type(v, w, EType::H);
         }
 
@@ -610,9 +610,9 @@ impl<G: GraphLike> Decomposer<G> {
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(1, vec![1, 0, 0, 0]);
 
-        let w = g.add_vertex_with_phase(VType::Z, Rational::new(-1, 2));
+        let w = g.add_vertex_with_phase(VType::Z, Rational64::new(-1, 2));
         for &v in verts {
-            g.add_to_phase(v, Rational::new(-1, 4));
+            g.add_to_phase(v, Rational64::new(-1, 4));
             g.add_edge_with_type(v, w, EType::N);
         }
 
@@ -630,10 +630,10 @@ impl<G: GraphLike> Decomposer<G> {
             ws.push(w);
             g.add_edge_with_type(verts[i], ws[i], EType::H);
             g.add_edge_with_type(ws[i], verts[5], EType::H);
-            g.add_to_phase(verts[i], Rational::new(-1, 4));
+            g.add_to_phase(verts[i], Rational64::new(-1, 4));
         }
 
-        g.add_to_phase(verts[5], Rational::new(3, 4));
+        g.add_to_phase(verts[5], Rational64::new(3, 4));
 
         g.add_edge_with_type(ws[0], ws[2], EType::H);
         g.add_edge_with_type(ws[0], ws[3], EType::H);
@@ -656,8 +656,8 @@ impl<G: GraphLike> Decomposer<G> {
         // println!("replace_bell_s");
         let mut g = g.clone();
         g.add_edge_smart(verts[0], verts[1], EType::N);
-        g.add_to_phase(verts[0], Rational::new(-1, 4));
-        g.add_to_phase(verts[1], Rational::new(1, 4));
+        g.add_to_phase(verts[0], Rational64::new(-1, 4));
+        g.add_to_phase(verts[1], Rational64::new(1, 4));
 
         g
     }
@@ -665,11 +665,11 @@ impl<G: GraphLike> Decomposer<G> {
     fn replace_epr(g: &G, verts: &[V]) -> G {
         // println!("replace_epr");
         let mut g = g.clone();
-        *g.scalar_mut() *= ScalarN::from_phase(Rational::new(1, 4));
-        let w = g.add_vertex_with_phase(VType::Z, Rational::one());
+        *g.scalar_mut() *= ScalarN::from_phase(Rational64::new(1, 4));
+        let w = g.add_vertex_with_phase(VType::Z, Rational64::one());
         for &v in verts {
             g.add_edge_with_type(v, w, EType::H);
-            g.add_to_phase(v, Rational::new(-1, 4));
+            g.add_to_phase(v, Rational64::new(-1, 4));
         }
 
         g
@@ -681,7 +681,7 @@ impl<G: GraphLike> Decomposer<G> {
         *g.scalar_mut() *= ScalarN::Exact(-1, vec![0, 1, 0, -1]);
         let w = g.add_vertex(VType::Z);
         g.add_edge_with_type(verts[0], w, EType::H);
-        g.add_to_phase(verts[0], Rational::new(-1, 4));
+        g.add_to_phase(verts[0], Rational64::new(-1, 4));
         g
     }
 
@@ -689,9 +689,9 @@ impl<G: GraphLike> Decomposer<G> {
         // println!("replace_t1");
         let mut g = g.clone();
         *g.scalar_mut() *= ScalarN::Exact(-1, vec![1, 0, 1, 0]);
-        let w = g.add_vertex_with_phase(VType::Z, Rational::one());
+        let w = g.add_vertex_with_phase(VType::Z, Rational64::one());
         g.add_edge_with_type(verts[0], w, EType::H);
-        g.add_to_phase(verts[0], Rational::new(-1, 4));
+        g.add_to_phase(verts[0], Rational64::new(-1, 4));
         g
     }
 }
@@ -736,7 +736,7 @@ mod tests {
     #[test]
     fn single_scalars() {
         let s0 = ScalarN::sqrt2_pow(-1);
-        let s1 = ScalarN::from_phase(Rational::new(1, 4)) * &s0;
+        let s1 = ScalarN::from_phase(Rational64::new(1, 4)) * &s0;
         println!("s0 = {:?}\ns1 = {:?}", s0, s1);
         assert_eq!(s0, ScalarN::Exact(-1, vec![0, 1, 0, -1]));
         assert_eq!(s1, ScalarN::Exact(-1, vec![1, 0, 1, 0]));
@@ -745,7 +745,7 @@ mod tests {
     #[test]
     fn single() {
         let mut g = Graph::new();
-        let v = g.add_vertex_with_phase(VType::Z, Rational::new(1, 4));
+        let v = g.add_vertex_with_phase(VType::Z, Rational64::new(1, 4));
         let w = g.add_vertex(VType::B);
         g.add_edge(v, w);
         g.set_outputs(vec![w]);
@@ -767,7 +767,7 @@ mod tests {
         let mut g = Graph::new();
         let mut outs = vec![];
         for _ in 0..2 {
-            let v = g.add_vertex_with_phase(VType::Z, Rational::new(1, 4));
+            let v = g.add_vertex_with_phase(VType::Z, Rational64::new(1, 4));
             let w = g.add_vertex(VType::B);
             outs.push(w);
             g.add_edge(v, w);
@@ -791,7 +791,7 @@ mod tests {
         let mut g = Graph::new();
         let mut outs = vec![];
         for _ in 0..6 {
-            let v = g.add_vertex_with_phase(VType::Z, Rational::new(1, 4));
+            let v = g.add_vertex_with_phase(VType::Z, Rational64::new(1, 4));
             let w = g.add_vertex(VType::B);
             outs.push(w);
             g.add_edge(v, w);
@@ -815,7 +815,7 @@ mod tests {
         let mut g = Graph::new();
         let mut outs = vec![];
         for _ in 0..9 {
-            let v = g.add_vertex_with_phase(VType::Z, Rational::new(1, 4));
+            let v = g.add_vertex_with_phase(VType::Z, Rational64::new(1, 4));
             let w = g.add_vertex(VType::B);
             outs.push(w);
             g.add_edge(v, w);
@@ -842,7 +842,7 @@ mod tests {
     fn mixed_sc() {
         let mut g = Graph::new();
         for i in 0..11 {
-            g.add_vertex_with_phase(VType::Z, Rational::new(1, 4));
+            g.add_vertex_with_phase(VType::Z, Rational64::new(1, 4));
 
             for j in 0..i {
                 g.add_edge_with_type(i, j, EType::H);
@@ -866,7 +866,7 @@ mod tests {
         let mut g = Graph::new();
         let mut outs = vec![];
         for _ in 0..9 {
-            let v = g.add_vertex_with_phase(VType::Z, Rational::new(1, 4));
+            let v = g.add_vertex_with_phase(VType::Z, Rational64::new(1, 4));
             let w = g.add_vertex(VType::B);
             outs.push(w);
             g.add_edge(v, w);
@@ -888,7 +888,7 @@ mod tests {
         let mut g = Graph::new();
         let mut outs = vec![];
         for _ in 0..9 {
-            let v = g.add_vertex_with_phase(VType::Z, Rational::new(1, 4));
+            let v = g.add_vertex_with_phase(VType::Z, Rational64::new(1, 4));
             let w = g.add_vertex(VType::B);
             outs.push(w);
             g.add_edge(v, w);

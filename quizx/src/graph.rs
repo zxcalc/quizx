@@ -15,7 +15,7 @@
 // limitations under the License.
 
 use crate::scalar::*;
-use num::rational::Rational;
+use num::rational::Rational64;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::iter::FromIterator;
 
@@ -32,7 +32,7 @@ pub enum VType {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct VData {
     pub ty: VType,
-    pub phase: Rational,
+    pub phase: Rational64,
     pub qubit: i32,
     pub row: i32,
 }
@@ -70,11 +70,11 @@ pub enum BasisElem {
 }
 
 impl BasisElem {
-    pub fn phase(&self) -> Rational {
+    pub fn phase(&self) -> Rational64 {
         if *self == BasisElem::Z1 || *self == BasisElem::X1 {
-            Rational::one()
+            Rational64::one()
         } else {
-            Rational::zero()
+            Rational64::zero()
         }
     }
 
@@ -341,9 +341,9 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// Behaviour is undefined if there is no edge between s and t.
     fn remove_edge(&mut self, s: V, t: V);
 
-    fn set_phase(&mut self, v: V, phase: Rational);
-    fn phase(&self, v: V) -> Rational;
-    fn add_to_phase(&mut self, v: V, phase: Rational);
+    fn set_phase(&mut self, v: V, phase: Rational64);
+    fn phase(&self, v: V) -> Rational64;
+    fn add_to_phase(&mut self, v: V, phase: Rational64);
     fn set_vertex_type(&mut self, v: V, ty: VType);
     fn vertex_type(&self, v: V) -> VType;
     fn vertex_data(&self, v: V) -> VData;
@@ -409,7 +409,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         }
     }
 
-    fn add_vertex_with_phase(&mut self, ty: VType, phase: Rational) -> V {
+    fn add_vertex_with_phase(&mut self, ty: VType, phase: Rational64) -> V {
         let v = self.add_vertex(ty);
         self.set_phase(v, phase);
         v
@@ -424,7 +424,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         if s == t {
             if st == VType::Z || st == VType::X {
                 if ety == EType::H {
-                    self.add_to_phase(s, Rational::new(1, 1));
+                    self.add_to_phase(s, Rational64::new(1, 1));
                     self.scalar_mut().mul_sqrt2_pow(-1);
                 }
             } else {
@@ -442,11 +442,11 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
                         }
                         (EType::H, EType::N) => {
                             self.set_edge_type(s, t, EType::N);
-                            self.add_to_phase(s, Rational::new(1, 1));
+                            self.add_to_phase(s, Rational64::new(1, 1));
                             self.scalar_mut().mul_sqrt2_pow(-1);
                         }
                         (EType::N, EType::H) => {
-                            self.add_to_phase(s, Rational::new(1, 1));
+                            self.add_to_phase(s, Rational64::new(1, 1));
                             self.scalar_mut().mul_sqrt2_pow(-1);
                         }
                     }
@@ -459,11 +459,11 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
                         }
                         (EType::N, EType::H) => {
                             self.set_edge_type(s, t, EType::H);
-                            self.add_to_phase(s, Rational::new(1, 1));
+                            self.add_to_phase(s, Rational64::new(1, 1));
                             self.scalar_mut().mul_sqrt2_pow(-1);
                         }
                         (EType::H, EType::N) => {
-                            self.add_to_phase(s, Rational::new(1, 1));
+                            self.add_to_phase(s, Rational64::new(1, 1));
                             self.scalar_mut().mul_sqrt2_pow(-1);
                         }
                         (EType::H, EType::H) => {} // ignore new edge

@@ -29,7 +29,7 @@
 use crate::graph::*;
 use crate::scalar::*;
 use num::traits::Zero;
-use num::Rational;
+use num::Rational64;
 use rustc_hash::FxHashSet;
 use std::iter::FromIterator;
 
@@ -293,7 +293,7 @@ pub fn local_comp_unchecked(g: &mut impl GraphLike, v: V) {
 
     let x = ns.len() as i32;
     g.scalar_mut().mul_sqrt2_pow(((x - 1) * (x - 2)) / 2);
-    g.scalar_mut().mul_phase(Rational::new(*p.numer(), 4));
+    g.scalar_mut().mul_phase(Rational64::new(*p.numer(), 4));
 }
 
 checked_rule1!(check_local_comp, local_comp_unchecked, local_comp);
@@ -350,7 +350,7 @@ pub fn pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     g.scalar_mut().mul_sqrt2_pow((x - 2) * (y - 2));
 
     if !p0.is_zero() && !p1.is_zero() {
-        g.scalar_mut().mul_phase(Rational::new(1, 1));
+        g.scalar_mut().mul_phase(Rational64::new(1, 1));
     }
 }
 
@@ -366,7 +366,7 @@ fn unfuse_boundary(g: &mut impl GraphLike, v: V, b: V) {
     }
     let vd = VData {
         ty: VType::Z,
-        phase: Rational::zero(),
+        phase: Rational64::zero(),
         row: g.row(v),
         qubit: g.qubit(v),
     };
@@ -385,14 +385,14 @@ fn unfuse_gadget(g: &mut impl GraphLike, v: V) {
     }
     let vd = VData {
         ty: VType::Z,
-        phase: Rational::zero(),
+        phase: Rational64::zero(),
         row: g.row(v),
         qubit: g.qubit(v),
     };
     let v1 = g.add_vertex_with_data(vd);
     let v2 = g.add_vertex_with_data(vd);
     g.set_phase(v2, g.phase(v));
-    g.set_phase(v, Rational::zero());
+    g.set_phase(v, Rational64::zero());
     g.add_edge_with_type(v, v1, EType::H);
     g.add_edge_with_type(v1, v2, EType::H);
 }
@@ -578,7 +578,7 @@ pub fn remove_pair_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
         *g.scalar_mut() *= ScalarN::one_plus_phase(p0 + p1);
     // different colors
     } else {
-        let p2 = Rational::one() + p0 + p1;
+        let p2 = Rational64::one() + p0 + p1;
         *g.scalar_mut() *= ScalarN::one()
             + ScalarN::from_phase(p0)
             + ScalarN::from_phase(p1)
@@ -599,7 +599,7 @@ mod tests {
     use super::*;
     use crate::tensor::*;
     use crate::vec_graph::Graph;
-    use num::Rational;
+    use num::Rational64;
 
     #[test]
     fn spider_fusion_simple() {
@@ -614,8 +614,8 @@ mod tests {
             g.add_vertex(VType::B),
         ];
 
-        g.set_phase(vs[2], Rational::new(1, 2));
-        g.set_phase(vs[3], Rational::new(1, 4));
+        g.set_phase(vs[2], Rational64::new(1, 2));
+        g.set_phase(vs[3], Rational64::new(1, 4));
 
         g.add_edge(vs[0], vs[2]);
         g.add_edge(vs[1], vs[2]);
@@ -639,7 +639,7 @@ mod tests {
 
         assert_eq!(g.to_tensor4(), h.to_tensor4());
 
-        assert_eq!(g.phase(vs[2]), Rational::new(3, 4));
+        assert_eq!(g.phase(vs[2]), Rational64::new(3, 4));
     }
 
     #[test]
@@ -657,8 +657,8 @@ mod tests {
             g.add_vertex(VType::B),
         ];
 
-        g.set_phase(vs[2], Rational::new(1, 2));
-        g.set_phase(vs[3], Rational::new(1, 4));
+        g.set_phase(vs[2], Rational64::new(1, 2));
+        g.set_phase(vs[3], Rational64::new(1, 4));
 
         g.add_edge(vs[0], vs[2]);
         g.add_edge(vs[1], vs[2]);
@@ -693,14 +693,14 @@ mod tests {
         println!("\n\nth =\n{}", th);
         assert_eq!(tg, th);
 
-        assert_eq!(g.phase(vs[2]), Rational::new(3, 4));
+        assert_eq!(g.phase(vs[2]), Rational64::new(3, 4));
     }
 
     #[test]
     fn local_comp_1() {
         let mut g = Graph::new();
         g.add_vertex(VType::Z);
-        g.set_phase(0, Rational::new(1, 2));
+        g.set_phase(0, Rational64::new(1, 2));
         g.add_vertex(VType::Z);
         g.add_vertex(VType::Z);
         g.add_vertex(VType::Z);
@@ -738,12 +738,12 @@ mod tests {
         assert_eq!(tg, th);
 
         for i in 1..5 {
-            assert_eq!(g.phase(i), Rational::new(-1, 2));
+            assert_eq!(g.phase(i), Rational64::new(-1, 2));
         }
 
         assert_eq!(
             *g.scalar(),
-            Scalar::sqrt2_pow((4 - 1) * (4 - 2) / 2) * Scalar::from_phase(Rational::new(1, 4))
+            Scalar::sqrt2_pow((4 - 1) * (4 - 2) / 2) * Scalar::from_phase(Rational64::new(1, 4))
         );
 
         let h = g.clone();
@@ -759,7 +759,7 @@ mod tests {
         for _ in 0..7 {
             g.add_vertex(VType::Z);
         }
-        g.set_phase(3, Rational::new(1, 1));
+        g.set_phase(3, Rational64::new(1, 1));
         for i in 0..3 {
             g.add_edge_with_type(i, 3, EType::H);
         }
@@ -783,8 +783,8 @@ mod tests {
         assert_eq!(h.num_vertices(), 5);
         assert_eq!(h.num_edges(), 6);
 
-        assert_eq!(h.phase(0), Rational::new(0, 1));
-        assert_eq!(h.phase(6), Rational::new(1, 1));
+        assert_eq!(h.phase(0), Rational64::new(0, 1));
+        assert_eq!(h.phase(6), Rational64::new(1, 1));
 
         let mut inputs: Vec<usize> = Vec::new();
         let mut outputs: Vec<usize> = Vec::new();
@@ -816,8 +816,8 @@ mod tests {
         for _ in 0..7 {
             g.add_vertex(VType::Z);
         }
-        g.set_phase(3, Rational::new(1, 1));
-        g.set_phase(4, Rational::new(1, 1));
+        g.set_phase(3, Rational64::new(1, 1));
+        g.set_phase(4, Rational64::new(1, 1));
         for i in 0..3 {
             g.add_edge_with_type(i, 3, EType::H);
         }
@@ -835,8 +835,8 @@ mod tests {
         assert_eq!(g.num_vertices(), 5);
         assert_eq!(g.num_edges(), 6);
 
-        assert_eq!(g.phase(0), Rational::new(1, 1));
-        assert_eq!(g.phase(6), Rational::new(1, 1));
+        assert_eq!(g.phase(0), Rational64::new(1, 1));
+        assert_eq!(g.phase(6), Rational64::new(1, 1));
     }
 
     #[test]
@@ -847,8 +847,8 @@ mod tests {
             g.add_vertex(VType::Z);
         }
         g.set_vertex_type(0, VType::B);
-        // g.set_phase(3, Rational::new(1,1));
-        // g.set_phase(4, Rational::new(1,1));
+        // g.set_phase(3, Rational64::new(1,1));
+        // g.set_phase(4, Rational64::new(1,1));
         for i in 0..3 {
             g.add_edge_with_type(i, 3, EType::H);
         }
@@ -881,8 +881,8 @@ mod tests {
         for _ in 0..7 {
             g.add_vertex(VType::Z);
         }
-        g.set_phase(3, Rational::new(1, 1));
-        g.set_phase(4, Rational::new(1, 4));
+        g.set_phase(3, Rational64::new(1, 1));
+        g.set_phase(4, Rational64::new(1, 4));
         for i in 0..3 {
             g.add_edge_with_type(i, 3, EType::H);
         }
@@ -928,20 +928,20 @@ mod tests {
                 }
             }
 
-            g.set_phase(ps[0], Rational::new(1, 4));
-            g.set_phase(ps[1], Rational::new(1, 2));
+            g.set_phase(ps[0], Rational64::new(1, 4));
+            g.set_phase(ps[1], Rational64::new(1, 2));
 
             let h = g.clone();
 
             assert!(gadget_fusion(&mut g, gs[0], gs[1]));
             assert!(g
-                .find_vertex(|v| g.phase(v) == Rational::new(3, 4))
+                .find_vertex(|v| g.phase(v) == Rational64::new(3, 4))
                 .is_some());
             assert!(g
-                .find_vertex(|v| g.phase(v) == Rational::new(1, 4))
+                .find_vertex(|v| g.phase(v) == Rational64::new(1, 4))
                 .is_none());
             assert!(g
-                .find_vertex(|v| g.phase(v) == Rational::new(1, 2))
+                .find_vertex(|v| g.phase(v) == Rational64::new(1, 2))
                 .is_none());
             // println!("{}", g.to_tensor4());
             // println!("{}", h.to_tensor4());
@@ -955,7 +955,7 @@ mod tests {
     fn scalar_rules() {
         for &t in &[VType::Z, VType::X] {
             let mut g = Graph::new();
-            g.add_vertex_with_phase(t, Rational::new(1, 4));
+            g.add_vertex_with_phase(t, Rational64::new(1, 4));
             let mut h = g.clone();
             assert!(remove_single(&mut h, 0));
             assert_eq!(h.num_vertices(), 0, "h still has vertices");
@@ -966,8 +966,8 @@ mod tests {
             for &t1 in &[VType::Z, VType::X] {
                 for &et in &[EType::N, EType::H] {
                     let mut g = Graph::new();
-                    g.add_vertex_with_phase(t0, Rational::new(1, 4));
-                    g.add_vertex_with_phase(t1, Rational::new(-1, 2));
+                    g.add_vertex_with_phase(t0, Rational64::new(1, 4));
+                    g.add_vertex_with_phase(t1, Rational64::new(-1, 2));
                     g.add_edge_with_type(0, 1, et);
                     let mut h = g.clone();
                     assert!(remove_pair(&mut h, 0, 1));

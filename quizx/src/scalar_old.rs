@@ -14,12 +14,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use num::{integer,Integer};
-use num::complex::Complex;
-use num::rational::Rational;
-pub use num::traits::identities::{Zero,One};
-use std::fmt;
 use approx::AbsDiffEq;
+use num::complex::Complex;
+use num::rational::Rational64;
+pub use num::traits::identities::{One, Zero};
+use num::{integer, Integer};
+use std::fmt;
 
 /// A type for exact and approximate representation of complex
 /// numbers.
@@ -40,7 +40,7 @@ use approx::AbsDiffEq;
 ///
 /// TODO: Use a custom implementation of PartialEq to handle
 /// scalars of different, compatible orders.
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub enum Scalar<T: Coeffs> {
     Exact(i32, T),
     Float(Complex<f64>),
@@ -51,22 +51,26 @@ pub trait Mod2 {
     fn mod2(&self) -> Self;
 }
 
-impl Mod2 for Rational {
-    fn mod2(&self) -> Rational {
-       Rational::new(*self.numer() % (2 * *self.denom()), *self.denom())
+impl Mod2 for Rational64 {
+    fn mod2(&self) -> Rational64 {
+        Rational64::new(*self.numer() % (2 * *self.denom()), *self.denom())
     }
 }
 
 /// Produce a number from rational root of -1.
 pub trait FromPhase {
-    fn from_phase(p: Rational) -> Self;
+    fn from_phase(p: Rational64) -> Self;
 }
 
 /// Contains the numbers sqrt(2) and 1/sqrt(2), often used for renormalisation of
 /// qubit tensors and matrices.
 pub trait Sqrt2: Sized {
-    fn sqrt2() -> Self { Self::sqrt2_pow(1) }
-    fn one_over_sqrt2() -> Self { Self::sqrt2_pow(-1) }
+    fn sqrt2() -> Self {
+        Self::sqrt2_pow(1)
+    }
+    fn one_over_sqrt2() -> Self {
+        Self::sqrt2_pow(-1)
+    }
     fn sqrt2_pow(p: i32) -> Self;
 }
 
@@ -74,17 +78,17 @@ pub trait Sqrt2: Sized {
 /// fixed-size lists (e.g. [i32;4]) or dynamic ones (e.g. [Vec]\<i32\>). Only
 /// the former can be used in tensors and matrices, because they have to
 /// implement Copy (i.e. size must be known at compile time).
-pub trait Coeffs: Clone + std::ops::IndexMut<usize,Output=i32> {
+pub trait Coeffs: Clone + std::ops::IndexMut<usize, Output = i32> {
     fn len(&self) -> usize;
     fn zero() -> Self;
     fn one() -> Self;
-    fn new(sz: usize) -> Option<(Self,usize)>;
+    fn new(sz: usize) -> Option<(Self, usize)>;
 }
 
 /// Implement Copy whenever our coefficient list allows us to.
 impl<T: Coeffs + Copy> Copy for Scalar<T> {}
 
-use Scalar::{Exact,Float};
+use Scalar::{Exact, Float};
 
 /// Allows transformation from a scalar.
 ///
@@ -95,7 +99,7 @@ pub trait FromScalar<T> {
     fn from_scalar(s: &T) -> Self;
 }
 
-fn lcm_with_padding(n1: usize, n2: usize) -> (usize,usize,usize) {
+fn lcm_with_padding(n1: usize, n2: usize) -> (usize, usize, usize) {
     if n1 == n2 {
         (n1, 1, 1)
     } else {
@@ -117,31 +121,35 @@ impl<T: Coeffs> Scalar<T> {
         match self {
             Exact(pow, coeffs) => {
                 let omega = Complex::new(-1f64, 0f64).powf(1f64 / (coeffs.len() as f64));
-                let rt2_pow = Complex::new(2f64,0f64).powf((*pow as f64) / 2f64);
+                let rt2_pow = Complex::new(2f64, 0f64).powf((*pow as f64) / 2f64);
 
                 let mut num = Complex::new(0f64, 0f64);
                 for i in 0..coeffs.len() {
                     num += (coeffs[i] as f64) * omega.powu(i as u32) * rt2_pow;
                 }
                 num
-            },
-            Float(c) => *c
+            }
+            Float(c) => *c,
         }
     }
 
     /// If zero, make sqrt(2) power 0, otherwise make it as big as possible
     pub fn reduced(&self) -> Scalar<T> {
-        if let Exact(mut pow,mut coeffs) = self.clone() {
+        if let Exact(mut pow, mut coeffs) = self.clone() {
             let mut all_zero = true;
             for i in 0..coeffs.len() {
                 all_zero = all_zero && coeffs[i] == 0;
             }
 
-            if all_zero { return Exact(0, coeffs); }
+            if all_zero {
+                return Exact(0, coeffs);
+            }
 
             let mut red = true;
             while red {
-                for i in 0..coeffs.len() { red = red && coeffs[i].is_multiple_of(&2); }
+                for i in 0..coeffs.len() {
+                    red = red && coeffs[i].is_multiple_of(&2);
+                }
 
                 if red {
                     for i in 0..coeffs.len() {
@@ -167,7 +175,7 @@ impl<T: Coeffs> Scalar<T> {
         }
     }
 
-    pub fn mul_phase(&mut self, phase: Rational) {
+    pub fn mul_phase(&mut self, phase: Rational64) {
         (*self) *= Scalar::from_phase(phase);
     }
 
@@ -175,7 +183,7 @@ impl<T: Coeffs> Scalar<T> {
         Float(self.float_value())
     }
 
-    pub fn one_plus_phase(p: Rational) -> Scalar<T> {
+    pub fn one_plus_phase(p: Rational64) -> Scalar<T> {
         Scalar::one() + Scalar::from_phase(p)
     }
 }
@@ -207,7 +215,7 @@ impl<T: Coeffs> Sqrt2 for Scalar<T> {
 }
 
 impl<T: Coeffs> FromPhase for Scalar<T> {
-    fn from_phase(p: Rational) -> Scalar<T> {
+    fn from_phase(p: Rational64) -> Scalar<T> {
         let mut rnumer = *p.numer();
         let mut rdenom = *p.denom();
 
@@ -217,7 +225,7 @@ impl<T: Coeffs> FromPhase for Scalar<T> {
         }
 
         match T::new(rdenom as usize) {
-            Some((mut coeffs,pad)) => {
+            Some((mut coeffs, pad)) => {
                 rnumer *= pad as isize;
                 rdenom *= pad as isize;
                 rnumer = rnumer.rem_euclid(2 * rdenom);
@@ -229,20 +237,19 @@ impl<T: Coeffs> FromPhase for Scalar<T> {
                 };
                 coeffs[rnumer as usize] = sgn;
                 Scalar::Exact(0, coeffs)
-            },
+            }
             None => {
                 let f = (*p.numer() as f64) / (*p.denom() as f64);
-                Scalar::Float(Complex::new(-1.0,0.0).powf(f))
+                Scalar::Float(Complex::new(-1.0, 0.0).powf(f))
             }
         }
     }
 }
 
-
 impl<T: Coeffs> fmt::Display for Scalar<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Exact(pow,coeffs) => {
+            Exact(pow, coeffs) => {
                 write!(f, "rt(2)^{} (", pow)?;
 
                 for i in 0..coeffs.len() {
@@ -254,7 +261,7 @@ impl<T: Coeffs> fmt::Display for Scalar<T> {
                 }
 
                 write!(f, ")")
-            },
+            }
             Float(c) => write!(f, "{}", c),
         }
     }
@@ -266,16 +273,16 @@ impl<'a, 'b, T: Coeffs> std::ops::Mul<&'b Scalar<T>> for &'a Scalar<T> {
     type Output = Scalar<T>;
 
     fn mul(self, rhs: &Scalar<T>) -> Self::Output {
-        match (self,rhs) {
+        match (self, rhs) {
             (Float(c), x) => Float(c * x.float_value()),
             (x, Float(c)) => Float(x.float_value() * c),
             (Exact(pow0, coeffs0), Exact(pow1, coeffs1)) => {
                 let (lcm, pad0, pad1) = lcm_with_padding(coeffs0.len(), coeffs1.len());
                 match T::new(lcm) {
-                    Some((mut coeffs,pad)) => {
+                    Some((mut coeffs, pad)) => {
                         for i in 0..coeffs0.len() {
                             for j in 0..coeffs1.len() {
-                                let pos = (i*pad*pad0 + j*pad*pad1).rem_euclid(2*lcm);
+                                let pos = (i * pad * pad0 + j * pad * pad1).rem_euclid(2 * lcm);
                                 if pos < lcm {
                                     coeffs[pos] += coeffs0[i] * coeffs1[j];
                                 } else {
@@ -286,12 +293,10 @@ impl<'a, 'b, T: Coeffs> std::ops::Mul<&'b Scalar<T>> for &'a Scalar<T> {
 
                         // TODO: we may not want to reduce at every multiplication
                         Exact(pow0 + pow1, coeffs).reduced()
-                    },
-                    None => {
-                        Float(self.float_value() * rhs.float_value())
                     }
+                    None => Float(self.float_value() * rhs.float_value()),
                 }
-            },
+            }
         }
     }
 }
@@ -299,17 +304,23 @@ impl<'a, 'b, T: Coeffs> std::ops::Mul<&'b Scalar<T>> for &'a Scalar<T> {
 // These 3 variations take ownership of one or both args
 impl<T: Coeffs> std::ops::Mul<Scalar<T>> for Scalar<T> {
     type Output = Scalar<T>;
-    fn mul(self, rhs: Scalar<T>) -> Self::Output { &self * &rhs }
+    fn mul(self, rhs: Scalar<T>) -> Self::Output {
+        &self * &rhs
+    }
 }
 
 impl<'a, T: Coeffs> std::ops::Mul<Scalar<T>> for &'a Scalar<T> {
     type Output = Scalar<T>;
-    fn mul(self, rhs: Scalar<T>) -> Self::Output { self * &rhs }
+    fn mul(self, rhs: Scalar<T>) -> Self::Output {
+        self * &rhs
+    }
 }
 
 impl<'a, T: Coeffs> std::ops::Mul<&'a Scalar<T>> for Scalar<T> {
     type Output = Scalar<T>;
-    fn mul(self, rhs: &Scalar<T>) -> Self::Output { &self * rhs }
+    fn mul(self, rhs: &Scalar<T>) -> Self::Output {
+        &self * rhs
+    }
 }
 
 impl<'a, T: Coeffs> std::ops::MulAssign<Scalar<T>> for Scalar<T> {
@@ -330,7 +341,7 @@ impl<'a, 'b, T: Coeffs> std::ops::Add<&'b Scalar<T>> for &'a Scalar<T> {
     type Output = Scalar<T>;
 
     fn add(self, rhs: &Scalar<T>) -> Self::Output {
-        match (self,rhs) {
+        match (self, rhs) {
             (Float(c), x) => Float(c + x.float_value()),
             (x, Float(c)) => Float(x.float_value() + c),
             (Exact(pow0, coeffs0), Exact(pow1, coeffs1)) => {
@@ -342,28 +353,31 @@ impl<'a, 'b, T: Coeffs> std::ops::Add<&'b Scalar<T>> for &'a Scalar<T> {
 
                     // if the powers of sqrt(2) are different by an even number, we need to rescale
                     // the coefficients of the scalar with the larger power
-                    let (new_pow, scale0, scale1) =
-                        if *pow0 > *pow1 { (*pow1, (1 as i32) << (((pow0 - pow1)/2) as u32), 1) }
-                        else if *pow0 < *pow1 { (*pow0, 1, (1 as i32) << (((pow1 - pow0)/2) as u32)) }
-                        else { (*pow0, 1, 1) };
+                    let (new_pow, scale0, scale1) = if *pow0 > *pow1 {
+                        (*pow1, (1 as i32) << (((pow0 - pow1) / 2) as u32), 1)
+                    } else if *pow0 < *pow1 {
+                        (*pow0, 1, (1 as i32) << (((pow1 - pow0) / 2) as u32))
+                    } else {
+                        (*pow0, 1, 1)
+                    };
 
                     match T::new(lcm) {
                         Some((mut coeffs, pad)) => {
                             for i in 0..coeffs0.len() {
-                                coeffs[i*pad*pad0] += scale0*coeffs0[i];
+                                coeffs[i * pad * pad0] += scale0 * coeffs0[i];
                             }
 
                             for i in 0..coeffs1.len() {
-                                coeffs[i*pad*pad1] += scale1*coeffs1[i];
+                                coeffs[i * pad * pad1] += scale1 * coeffs1[i];
                             }
 
                             // TODO: we may not want to reduce at every addition
                             Exact(new_pow, coeffs).reduced()
-                        },
-                        None => Float(self.float_value() + self.float_value())
+                        }
+                        None => Float(self.float_value() + self.float_value()),
                     }
                 }
-            },
+            }
         }
     }
 }
@@ -371,17 +385,23 @@ impl<'a, 'b, T: Coeffs> std::ops::Add<&'b Scalar<T>> for &'a Scalar<T> {
 // These 3 variations take ownership of one or both args
 impl<T: Coeffs> std::ops::Add<Scalar<T>> for Scalar<T> {
     type Output = Scalar<T>;
-    fn add(self, rhs: Scalar<T>) -> Self::Output { &self + &rhs }
+    fn add(self, rhs: Scalar<T>) -> Self::Output {
+        &self + &rhs
+    }
 }
 
 impl<'a, T: Coeffs> std::ops::Add<Scalar<T>> for &'a Scalar<T> {
     type Output = Scalar<T>;
-    fn add(self, rhs: Scalar<T>) -> Self::Output { self + &rhs }
+    fn add(self, rhs: Scalar<T>) -> Self::Output {
+        self + &rhs
+    }
 }
 
 impl<'a, T: Coeffs> std::ops::Add<&'a Scalar<T>> for Scalar<T> {
     type Output = Scalar<T>;
-    fn add(self, rhs: &Scalar<T>) -> Self::Output { &self + rhs }
+    fn add(self, rhs: &Scalar<T>) -> Self::Output {
+        &self + rhs
+    }
 }
 
 impl<T: Coeffs> FromScalar<Scalar<T>> for Complex<f64> {
@@ -393,22 +413,19 @@ impl<T: Coeffs> FromScalar<Scalar<T>> for Complex<f64> {
 impl<S: Coeffs, T: Coeffs> FromScalar<Scalar<T>> for Scalar<S> {
     fn from_scalar(s: &Scalar<T>) -> Scalar<S> {
         match s {
-            Exact(pow, coeffs) => {
-                match S::new(coeffs.len()) {
-                    Some((mut coeffs1, pad)) => {
-                        for i in 0..coeffs.len() {
-                            coeffs1[i*pad] = coeffs[i];
-                        }
-                        Exact(*pow, coeffs1)
-                    },
-                    None => Float(s.float_value()),
+            Exact(pow, coeffs) => match S::new(coeffs.len()) {
+                Some((mut coeffs1, pad)) => {
+                    for i in 0..coeffs.len() {
+                        coeffs1[i * pad] = coeffs[i];
+                    }
+                    Exact(*pow, coeffs1)
                 }
+                None => Float(s.float_value()),
             },
-            Float(c) => Float(*c)
+            Float(c) => Float(*c),
         }
     }
 }
-
 
 impl<T: Coeffs> AbsDiffEq<Scalar<T>> for Scalar<T> {
     type Epsilon = <f64 as AbsDiffEq>::Epsilon;
@@ -422,8 +439,7 @@ impl<T: Coeffs> AbsDiffEq<Scalar<T>> for Scalar<T> {
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
         let c1 = self.float_value();
         let c2 = other.float_value();
-        f64::abs_diff_eq(&c1.re, &c2.re, epsilon) &&
-        f64::abs_diff_eq(&c1.im, &c2.im, epsilon)
+        f64::abs_diff_eq(&c1.re, &c2.re, epsilon) && f64::abs_diff_eq(&c1.im, &c2.im, epsilon)
     }
 }
 
@@ -432,18 +448,20 @@ impl<T: Coeffs> PartialEq for Scalar<T> {
         match (self.reduced(), other.reduced()) {
             (Float(c0), Float(c1)) => c0 == c1,
             (Exact(pow0, coeffs0), Exact(pow1, coeffs1)) => {
-                if pow0 != pow1 { return false; }
+                if pow0 != pow1 {
+                    return false;
+                }
                 let (lcm, pad0, pad1) = lcm_with_padding(coeffs0.len(), coeffs1.len());
                 let mut all_eq = true;
                 for i in 0..lcm {
-                    let c0 = if i % pad0 == 0 { coeffs0[i/pad0] } else { 0 };
-                    let c1 = if i % pad1 == 0 { coeffs1[i/pad1] } else { 0 };
+                    let c0 = if i % pad0 == 0 { coeffs0[i / pad0] } else { 0 };
+                    let c1 = if i % pad1 == 0 { coeffs1[i / pad1] } else { 0 };
                     all_eq = all_eq && c0 == c1;
                 }
 
                 all_eq
-            },
-            _ => false
+            }
+            _ => false,
         }
     }
 }
@@ -452,22 +470,30 @@ impl<T: Coeffs> PartialEq for Scalar<T> {
 /// the associated scalar type.
 macro_rules! fixed_size_scalar {
     ( $name:ident, $n:expr ) => {
-        impl Coeffs for [i32;$n] {
-            fn len(&self) -> usize { $n }
-            fn zero() -> [i32;$n] { [0;$n] }
-            fn one() -> [i32;$n] { let mut a = [0;$n]; a[0] = 1; a }
-            fn new(sz: usize) -> Option<([i32;$n],usize)> {
+        impl Coeffs for [i32; $n] {
+            fn len(&self) -> usize {
+                $n
+            }
+            fn zero() -> [i32; $n] {
+                [0; $n]
+            }
+            fn one() -> [i32; $n] {
+                let mut a = [0; $n];
+                a[0] = 1;
+                a
+            }
+            fn new(sz: usize) -> Option<([i32; $n], usize)> {
                 if $n.is_multiple_of(&sz) {
-                    Some(([0;$n], $n/sz))
+                    Some(([0; $n], $n / sz))
                 } else {
                     None
                 }
             }
         }
 
-        pub type $name = Scalar<[i32;$n]>;
-        impl ndarray::ScalarOperand for $name { }
-    }
+        pub type $name = Scalar<[i32; $n]>;
+        impl ndarray::ScalarOperand for $name {}
+    };
 }
 
 fixed_size_scalar!(Scalar1, 1);
@@ -493,11 +519,17 @@ fixed_size_scalar!(Scalar8, 8);
 // }
 
 impl Coeffs for Vec<i32> {
-    fn len(&self) -> usize { self.len() }
-    fn zero() -> Vec<i32> { vec![0] }
-    fn one() -> Vec<i32> { vec![1] }
-    fn new(sz: usize) -> Option<(Vec<i32>,usize)> {
-        Some((vec![0; sz],1))
+    fn len(&self) -> usize {
+        self.len()
+    }
+    fn zero() -> Vec<i32> {
+        vec![0]
+    }
+    fn one() -> Vec<i32> {
+        vec![1]
+    }
+    fn new(sz: usize) -> Option<(Vec<i32>, usize)> {
+        Some((vec![0; sz], 1))
     }
 }
 
@@ -510,8 +542,8 @@ mod tests {
 
     #[test]
     fn approx_mul() {
-        let s: Scalar<[i32;4]> = Scalar::real(f64::sqrt(0.3) * f64::sqrt(0.3) - 0.3);
-        let t: Scalar<[i32;4]> = Scalar::zero();
+        let s: Scalar<[i32; 4]> = Scalar::real(f64::sqrt(0.3) * f64::sqrt(0.3) - 0.3);
+        let t: Scalar<[i32; 4]> = Scalar::zero();
         assert_ne!(s, t);
         assert_abs_diff_eq!(s, t);
     }
@@ -519,7 +551,10 @@ mod tests {
     #[test]
     fn sqrt_i() {
         let s = Scalar::Exact(0, [0, 1, 0, 0]);
-        assert_abs_diff_eq!(s.to_float(), Scalar::complex(1.0 / f64::sqrt(2.0), 1.0 / f64::sqrt(2.0)));
+        assert_abs_diff_eq!(
+            s.to_float(),
+            Scalar::complex(1.0 / f64::sqrt(2.0), 1.0 / f64::sqrt(2.0))
+        );
     }
 
     #[test]
@@ -527,54 +562,76 @@ mod tests {
         let s = Scalar::Exact(0, [1, 2, 3, 4]);
         let t = Scalar::Exact(0, [4, 5, 6, 7]);
         let st = &s * &t;
-        assert!(match st { Exact(_,_) => true, _ => false });
+        assert!(match st {
+            Exact(_, _) => true,
+            _ => false,
+        });
         assert_abs_diff_eq!(st.to_float(), s.to_float() * t.to_float());
     }
 
     #[test]
     fn phases() {
-        let s: ScalarN = ScalarN::from_phase(Rational::new(4,3)) * ScalarN::from_phase(Rational::new(2,5));
-        let t: ScalarN = ScalarN::from_phase(Rational::new(4,3) + Rational::new(2,5));
-        assert_abs_diff_eq!(s,t);
+        let s: ScalarN =
+            ScalarN::from_phase(Rational64::new(4, 3)) * ScalarN::from_phase(Rational64::new(2, 5));
+        let t: ScalarN = ScalarN::from_phase(Rational64::new(4, 3) + Rational64::new(2, 5));
+        assert_abs_diff_eq!(s, t);
 
-        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(0,1)),  Scalar4::one());
-        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(1,1)),  Scalar4::real(-1.0));
-        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(1,2)),  Scalar4::complex(0.0, 1.0));
-        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(-1,2)), Scalar4::complex(0.0, -1.0));
-        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(1,4)),  Scalar4::Exact(0, [0,1,0,0]));
-        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(3,4)),  Scalar4::Exact(0, [0,0,0,1]));
-        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(7,4)),  Scalar4::Exact(0, [0,0,0,-1]));
+        assert_abs_diff_eq!(Scalar4::from_phase(Rational64::new(0, 1)), Scalar4::one());
+        assert_abs_diff_eq!(
+            Scalar4::from_phase(Rational64::new(1, 1)),
+            Scalar4::real(-1.0)
+        );
+        assert_abs_diff_eq!(
+            Scalar4::from_phase(Rational64::new(1, 2)),
+            Scalar4::complex(0.0, 1.0)
+        );
+        assert_abs_diff_eq!(
+            Scalar4::from_phase(Rational64::new(-1, 2)),
+            Scalar4::complex(0.0, -1.0)
+        );
+        assert_abs_diff_eq!(
+            Scalar4::from_phase(Rational64::new(1, 4)),
+            Scalar4::Exact(0, [0, 1, 0, 0])
+        );
+        assert_abs_diff_eq!(
+            Scalar4::from_phase(Rational64::new(3, 4)),
+            Scalar4::Exact(0, [0, 0, 0, 1])
+        );
+        assert_abs_diff_eq!(
+            Scalar4::from_phase(Rational64::new(7, 4)),
+            Scalar4::Exact(0, [0, 0, 0, -1])
+        );
     }
 
     #[test]
     fn additions() {
-        let s: ScalarN = Exact(0, vec![1,2,3,4]);
-        let t: ScalarN = Exact(0, vec![2,3,4,5]);
-        let st: ScalarN = Exact(0, vec![3,5,7,9]);
+        let s: ScalarN = Exact(0, vec![1, 2, 3, 4]);
+        let t: ScalarN = Exact(0, vec![2, 3, 4, 5]);
+        let st: ScalarN = Exact(0, vec![3, 5, 7, 9]);
         assert_eq!(s + t, st);
     }
 
     #[test]
     fn additions_diff_base() {
-        let s: ScalarN = Exact(2, vec![1,2,3,4]);
-        let t: ScalarN = Exact(0, vec![2,3,4,5]);
-        let st: ScalarN = Exact(0, vec![4,7,10,13]);
+        let s: ScalarN = Exact(2, vec![1, 2, 3, 4]);
+        let t: ScalarN = Exact(0, vec![2, 3, 4, 5]);
+        let st: ScalarN = Exact(0, vec![4, 7, 10, 13]);
         assert_eq!(s + t, st);
     }
 
     #[test]
     fn reductions() {
         let s: ScalarN = Exact(-2, vec![2]);
-        assert_eq!(s,s);
+        assert_eq!(s, s);
         assert_eq!(s, ScalarN::one());
     }
 
     // #[test]
     // fn one_plus_phases() {
-    //     assert_abs_diff_eq!(Scalar::one_plus_phase(Rational::new(1,1)), Scalar::zero());
+    //     assert_abs_diff_eq!(Scalar::one_plus_phase(Rational64::new(1,1)), Scalar::zero());
 
-    //     let plus = Scalar::one_plus_phase(Rational::new(1,2));
-    //     let minus = Scalar::one_plus_phase(Rational::new(-1,2));
+    //     let plus = Scalar::one_plus_phase(Rational64::new(1,2));
+    //     let minus = Scalar::one_plus_phase(Rational64::new(-1,2));
     //     assert_abs_diff_eq!(plus * minus, Scalar::real(2.0));
     // }
 }

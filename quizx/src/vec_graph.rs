@@ -16,7 +16,7 @@
 
 pub use crate::graph::*;
 use crate::scalar::*;
-use num::rational::Rational;
+use num::rational::Rational64;
 use std::mem;
 
 pub type VTab<T> = Vec<Option<T>>;
@@ -141,7 +141,7 @@ impl GraphLike for Graph {
     fn add_vertex(&mut self, ty: VType) -> V {
         self.add_vertex_with_data(VData {
             ty,
-            phase: Rational::new(0, 1),
+            phase: Rational64::new(0, 1),
             qubit: 0,
             row: 0,
         })
@@ -196,7 +196,7 @@ impl GraphLike for Graph {
         self.remove_half_edge(t, s);
     }
 
-    fn set_phase(&mut self, v: V, phase: Rational) {
+    fn set_phase(&mut self, v: V, phase: Rational64) {
         if let Some(Some(d)) = self.vdata.get_mut(v) {
             d.phase = phase.mod2();
         } else {
@@ -204,11 +204,11 @@ impl GraphLike for Graph {
         }
     }
 
-    fn phase(&self, v: V) -> Rational {
+    fn phase(&self, v: V) -> Rational64 {
         self.vdata[v].expect("Vertex not found").phase
     }
 
-    fn add_to_phase(&mut self, v: V, phase: Rational) {
+    fn add_to_phase(&mut self, v: V, phase: Rational64) {
         if let Some(Some(d)) = self.vdata.get_mut(v) {
             d.phase = (d.phase + phase).mod2();
         } else {

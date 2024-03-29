@@ -20,7 +20,7 @@ use crate::graph::*;
 // use crate::tensor::*;
 use crate::basic_rules::{boundary_pivot, remove_id};
 use crate::linalg::*;
-use num::{Rational, Zero};
+use num::{Rational64, Zero};
 use rustc_hash::FxHashSet;
 use std::fmt;
 
@@ -291,7 +291,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
                 let p = self.g.phase(v);
                 if !p.is_zero() {
                     c.push_front(Gate::new_with_phase(ZPhase, vec![q], p));
-                    self.g.set_phase(v, Rational::zero());
+                    self.g.set_phase(v, Rational64::zero());
                 }
 
                 // inspect neighbors of the frontier vertex
@@ -315,7 +315,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
                         if self.g.degree(v) > 2 {
                             let vd = VData {
                                 ty: VType::Z,
-                                phase: Rational::zero(),
+                                phase: Rational64::zero(),
                                 qubit: self.g.qubit(n),
                                 row: self.g.row(n) + 1,
                             };

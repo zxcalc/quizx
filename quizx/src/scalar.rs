@@ -16,7 +16,7 @@
 
 use approx::AbsDiffEq;
 use num::complex::Complex;
-use num::rational::Rational;
+use num::rational::Rational64;
 pub use num::traits::identities::{One, Zero};
 use num::{integer, Integer};
 use std::cmp::min;
@@ -54,19 +54,19 @@ pub trait Mod2 {
     fn mod2(&self) -> Self;
 }
 
-impl Mod2 for Rational {
-    fn mod2(&self) -> Rational {
+impl Mod2 for Rational64 {
+    fn mod2(&self) -> Rational64 {
         let mut num = self.numer().rem_euclid(2 * *self.denom());
         if num > *self.denom() {
             num -= 2 * *self.denom();
         }
-        Rational::new(num, *self.denom())
+        Rational64::new(num, *self.denom())
     }
 }
 
 /// Produce a number from rational root of -1.
 pub trait FromPhase {
-    fn from_phase(p: Rational) -> Self;
+    fn from_phase(p: Rational64) -> Self;
     fn minus_one() -> Self;
 }
 
@@ -158,7 +158,7 @@ impl<T: Coeffs> Scalar<T> {
         *self *= Scalar::sqrt2_pow(p);
     }
 
-    pub fn mul_phase(&mut self, phase: Rational) {
+    pub fn mul_phase(&mut self, phase: Rational64) {
         *self *= Scalar::from_phase(phase);
     }
 
@@ -166,7 +166,7 @@ impl<T: Coeffs> Scalar<T> {
         Float(self.float_value())
     }
 
-    pub fn one_plus_phase(p: Rational) -> Scalar<T> {
+    pub fn one_plus_phase(p: Rational64) -> Scalar<T> {
         Scalar::one() + Scalar::from_phase(p)
     }
 
@@ -306,13 +306,13 @@ impl<T: Coeffs> Sqrt2 for Scalar<T> {
 }
 
 impl<T: Coeffs> FromPhase for Scalar<T> {
-    fn from_phase(p: Rational) -> Scalar<T> {
+    fn from_phase(p: Rational64) -> Scalar<T> {
         let mut rnumer = *p.numer();
         let mut rdenom = *p.denom();
         match T::new(rdenom as usize) {
             Some((mut coeffs, pad)) => {
-                rnumer *= pad as isize;
-                rdenom *= pad as isize;
+                rnumer *= pad as i64;
+                rdenom *= pad as i64;
                 rnumer = rnumer.rem_euclid(2 * rdenom);
                 let sgn = if rnumer >= rdenom {
                     rnumer -= rdenom;
@@ -331,7 +331,7 @@ impl<T: Coeffs> FromPhase for Scalar<T> {
     }
 
     fn minus_one() -> Scalar<T> {
-        Scalar::from_phase(Rational::one())
+        Scalar::from_phase(Rational64::one())
     }
 }
 
@@ -680,33 +680,33 @@ mod tests {
     #[test]
     fn phases() {
         let s: ScalarN =
-            ScalarN::from_phase(Rational::new(4, 3)) * ScalarN::from_phase(Rational::new(2, 5));
-        let t: ScalarN = ScalarN::from_phase(Rational::new(4, 3) + Rational::new(2, 5));
+            ScalarN::from_phase(Rational64::new(4, 3)) * ScalarN::from_phase(Rational64::new(2, 5));
+        let t: ScalarN = ScalarN::from_phase(Rational64::new(4, 3) + Rational64::new(2, 5));
         assert_abs_diff_eq!(s, t);
 
-        assert_abs_diff_eq!(Scalar4::from_phase(Rational::new(0, 1)), Scalar4::one());
+        assert_abs_diff_eq!(Scalar4::from_phase(Rational64::new(0, 1)), Scalar4::one());
         assert_abs_diff_eq!(
-            Scalar4::from_phase(Rational::new(1, 1)),
+            Scalar4::from_phase(Rational64::new(1, 1)),
             Scalar4::real(-1.0)
         );
         assert_abs_diff_eq!(
-            Scalar4::from_phase(Rational::new(1, 2)),
+            Scalar4::from_phase(Rational64::new(1, 2)),
             Scalar4::complex(0.0, 1.0)
         );
         assert_abs_diff_eq!(
-            Scalar4::from_phase(Rational::new(-1, 2)),
+            Scalar4::from_phase(Rational64::new(-1, 2)),
             Scalar4::complex(0.0, -1.0)
         );
         assert_abs_diff_eq!(
-            Scalar4::from_phase(Rational::new(1, 4)),
+            Scalar4::from_phase(Rational64::new(1, 4)),
             Scalar4::from_int_coeffs(&[0, 1, 0, 0])
         );
         assert_abs_diff_eq!(
-            Scalar4::from_phase(Rational::new(3, 4)),
+            Scalar4::from_phase(Rational64::new(3, 4)),
             Scalar4::from_int_coeffs(&[0, 0, 0, 1])
         );
         assert_abs_diff_eq!(
-            Scalar4::from_phase(Rational::new(7, 4)),
+            Scalar4::from_phase(Rational64::new(7, 4)),
             Scalar4::from_int_coeffs(&[0, 0, 0, -1])
         );
     }
@@ -739,12 +739,12 @@ mod tests {
     #[test]
     fn one_plus_phases() {
         assert_abs_diff_eq!(
-            ScalarN::one_plus_phase(Rational::new(1, 1)),
+            ScalarN::one_plus_phase(Rational64::new(1, 1)),
             ScalarN::zero()
         );
 
-        let plus = ScalarN::one_plus_phase(Rational::new(1, 2));
-        let minus = ScalarN::one_plus_phase(Rational::new(-1, 2));
+        let plus = ScalarN::one_plus_phase(Rational64::new(1, 2));
+        let minus = ScalarN::one_plus_phase(Rational64::new(-1, 2));
         assert_abs_diff_eq!(plus * minus, Scalar::real(2.0));
     }
 
