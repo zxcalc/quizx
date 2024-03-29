@@ -15,6 +15,37 @@
 // limitations under the License.
 
 //! Json encoding for interoperability with pyzx.
+//!
+//! This module provides methods for encoding and decoding graphs in the json format used by pyzx.
+//!
+//! # Examples
+//!
+//! ```rust
+//! # use quizx::graph::{EType, VType, GraphLike};
+//! # use quizx::vec_graph::Graph;
+//! # use quizx::tensor::ToTensor;
+//! // Define a graph with 4 vertices and 3 edges.
+//! let mut g = Graph::new();
+//! let vs = vec![
+//!     g.add_vertex(VType::B),
+//!     g.add_vertex(VType::Z),
+//!     g.add_vertex(VType::X),
+//!     g.add_vertex(VType::B),
+//! ];
+//! g.set_inputs(vec![vs[0]]);
+//! g.set_outputs(vec![vs[3]]);
+//! g.add_edge(vs[0], vs[1]);
+//! g.add_edge_with_type(vs[1], vs[2], EType::H);
+//! g.add_edge(vs[2], vs[3]);
+//!
+//! // Encode the graph in pyzx json format.
+//! let json = quizx::json::encode_graph(&g, true).unwrap();
+//!
+//! // Decode the graph from the json string.
+//! let g2 = quizx::json::decode_graph::<Graph>(&json).unwrap();
+//!
+//! assert_eq!(g.to_tensor4(), g2.to_tensor4());
+//! ```
 
 mod graph;
 mod phase;
