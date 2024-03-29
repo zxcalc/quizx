@@ -669,11 +669,8 @@ mod tests {
     fn mul_same_base() {
         let s = Scalar4::from_int_coeffs(&[1, 2, 3, 4]);
         let t = Scalar4::from_int_coeffs(&[4, 5, 6, 7]);
-        let st = &s * &t;
-        assert!(match st {
-            Exact(_, _) => true,
-            _ => false,
-        });
+        let st = s * t;
+        assert!(matches!(st, Exact(_, _)));
         assert_abs_diff_eq!(st.to_float(), s.to_float() * t.to_float());
     }
 
@@ -753,7 +750,7 @@ mod tests {
         let p1 = Scalar4::sqrt2_pow(200);
         let p2 = Scalar4::sqrt2_pow(-200);
         // multiplying small, large, and/or very different powers of 2 is ok
-        let p3 = &p1 * &p2;
+        let p3 = p1 * p2;
         assert_eq!(p3, Scalar4::one());
     }
 
@@ -763,11 +760,11 @@ mod tests {
         let p2 = Scalar4::sqrt2_pow(210);
         // adding large or small powers of 2 is ok, as long as they are fairly
         // close
-        let p3 = &p1 + &p2;
+        let p3 = p1 + p2;
 
         let q1 = Scalar4::one();
         let q2 = Scalar4::sqrt2_pow(10);
-        let q3 = Scalar4::sqrt2_pow(200) * (&q1 + &q2);
+        let q3 = Scalar4::sqrt2_pow(200) * (q1 + q2);
 
         assert_eq!(p3, q3);
     }
@@ -778,7 +775,7 @@ mod tests {
         let p1 = Scalar4::sqrt2_pow(200);
         let p2 = Scalar4::sqrt2_pow(-200);
         // adding very different powers of 2 will panic
-        let p3 = &p1 + &p2;
+        let p3 = p1 + p2;
         assert_eq!(p3, Scalar4::one());
     }
 
@@ -799,7 +796,7 @@ mod tests {
             assert_abs_diff_eq!(lhs.re, rhs.re, epsilon = 0.00001);
             assert_abs_diff_eq!(lhs.im, rhs.im, epsilon = 0.00001);
 
-            let abs = &p * &p_conj;
+            let abs = p * p_conj;
             let absf = abs.float_value();
             println!("p = {:?}", p);
             println!("p_conj = {:?}", p_conj);

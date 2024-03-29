@@ -911,43 +911,43 @@ mod tests {
     fn gadget_fusion_1() {
         // fuse gadgets of various sizes
         for n in 1..5 {
-            let mut g = Graph::new();
-            let bs: Vec<_> = (0..n).map(|_| g.add_vertex(VType::B)).collect();
-            let vs: Vec<_> = (0..n).map(|_| g.add_vertex(VType::Z)).collect();
-            let gs: Vec<_> = (0..2).map(|_| g.add_vertex(VType::Z)).collect();
-            let ps: Vec<_> = (0..2).map(|_| g.add_vertex(VType::Z)).collect();
-            g.set_inputs(bs.clone());
+            let mut graph = Graph::new();
+            let bs: Vec<_> = (0..n).map(|_| graph.add_vertex(VType::B)).collect();
+            let vs: Vec<_> = (0..n).map(|_| graph.add_vertex(VType::Z)).collect();
+            let gs: Vec<_> = (0..2).map(|_| graph.add_vertex(VType::Z)).collect();
+            let ps: Vec<_> = (0..2).map(|_| graph.add_vertex(VType::Z)).collect();
+            graph.set_inputs(bs.clone());
 
             for i in 0..n {
-                g.add_edge(bs[i], vs[i]);
+                graph.add_edge(bs[i], vs[i]);
             }
-            for j in 0..2 {
-                g.add_edge_with_type(gs[j], ps[j], EType::H);
-                for i in 0..n {
-                    g.add_edge_with_type(vs[i], gs[j], EType::H);
+            for (&g, &p) in gs.iter().zip(ps.iter()) {
+                graph.add_edge_with_type(g, p, EType::H);
+                for &v in &vs {
+                    graph.add_edge_with_type(v, g, EType::H);
                 }
             }
 
-            g.set_phase(ps[0], Rational64::new(1, 4));
-            g.set_phase(ps[1], Rational64::new(1, 2));
+            graph.set_phase(ps[0], Rational64::new(1, 4));
+            graph.set_phase(ps[1], Rational64::new(1, 2));
 
-            let h = g.clone();
+            let h = graph.clone();
 
-            assert!(gadget_fusion(&mut g, gs[0], gs[1]));
-            assert!(g
-                .find_vertex(|v| g.phase(v) == Rational64::new(3, 4))
+            assert!(gadget_fusion(&mut graph, gs[0], gs[1]));
+            assert!(graph
+                .find_vertex(|v| graph.phase(v) == Rational64::new(3, 4))
                 .is_some());
-            assert!(g
-                .find_vertex(|v| g.phase(v) == Rational64::new(1, 4))
+            assert!(graph
+                .find_vertex(|v| graph.phase(v) == Rational64::new(1, 4))
                 .is_none());
-            assert!(g
-                .find_vertex(|v| g.phase(v) == Rational64::new(1, 2))
+            assert!(graph
+                .find_vertex(|v| graph.phase(v) == Rational64::new(1, 2))
                 .is_none());
             // println!("{}", g.to_tensor4());
             // println!("{}", h.to_tensor4());
             // println!("g = {} * \n {} \n\n", g.scalar(), g.to_dot());
             // println!("h = {} * \n {} \n\n", h.scalar(), h.to_dot());
-            assert_eq!(g.to_tensor4(), h.to_tensor4());
+            assert_eq!(graph.to_tensor4(), h.to_tensor4());
         }
     }
 
