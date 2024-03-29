@@ -18,34 +18,45 @@
 use quizx::circuit::*;
 use quizx::extract::*;
 use quizx::simplify::*;
+use quizx::tensor::*;
 use quizx::vec_graph::*;
-use std::time::Instant;
-// use quizx::tensor::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let c = Circuit::from_file("../circuits/large/hwb10.qasm")?.to_basic_gates();
-    println!("stats before: {}", c.stats());
+    let c = Circuit::from_file("circuits/small/mod5_4.qasm")?;
+    let c0 = c.to_basic_gates();
+    println!("Before:\n{}", c0.stats());
+    // let c = c.to_basic_gates();
+    // let c1 = c.to_basic_gates();
+    // if !Tensor4::scalar_compare(&c, &c1) {
+    //     panic!("Tensors don't match: c, c1");
+    // }
+
+    // let c = Circuit::random()
+    //     .seed(1337)
+    //     .qubits(5)
+    //     .depth(30)
+    //     .p_t(0.2)
+    //     .with_cliffords()
+    //     .build();
     let mut g: Graph = c.to_graph();
+    full_simp(&mut g);
+    // println!("{}", g.to_dot());
+    // println!("{:?}", g);
+    // assert_eq!(c.to_tensor4(), g.to_tensor4());
 
-    println!("simplifying...");
-    let time = Instant::now();
-    clifford_simp(&mut g);
-    println!("Done in {:.2?}", time.elapsed());
-
-    let time = Instant::now();
-    println!("extracting...");
-
-    let result = g.extractor().gflow().up_to_perm().extract();
-
-    match result {
+    match g.to_circuit() {
         Ok(c1) => {
-            println!("Done in {:.2?}", time.elapsed());
             println!("extracted ok");
-            println!("stats after: {}", c1.stats());
+            if Tensor4::scalar_compare(&c, &c1) {
+                println!("Tensors match!");
+                println!("After:\n{}", c1.stats());
+            } else {
+                println!("Tensors don't match. \n{}\n\n{}", c, c1);
+            }
         }
         Err(ExtractError(msg, _c, _g)) => {
             println!("extract failed: {}", msg);
-            // println!("{}\n\n{}\n\n{}", msg, _c, _g.to_dot());
+            println!("{}\n\n{}\n\n{}", msg, _c, _g.to_dot());
         }
     }
     Ok(())
