@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "pybindings"
+name = "quizx"
 version = "0.0.0-alpha.1"
 description = "Quantum Circuit Optimisation and Compilation using the ZX-calculus"
 classifiers = [] # TODO
@@ -43,7 +43,7 @@ maintainers = [
     { name = "Agustin Borgna", email = "agustinborgna@gmail.com" },
 ]
 requires-python = ">=3.10"
-license = { file = "LICENCE" }
+license = { file = "LICENSE" }
 
 [project.urls]
 homepage = "https://github.com/Quantomatic/quizx"

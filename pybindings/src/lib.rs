@@ -5,6 +5,7 @@ use quizx::extract::ToCircuit;
 use quizx::graph::*;
 
 #[pymodule]
+#[pyo3(name = "quizx")]
 fn libquizx(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(dummy, m)?)?;
     m.add_function(wrap_pyfunction!(interior_clifford_simp, m)?)?;

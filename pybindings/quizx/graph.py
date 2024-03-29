@@ -19,26 +19,26 @@ from typing import Tuple, Dict, Any, Optional
 from pyzx.graph.base import BaseGraph  # type: ignore
 from pyzx.utils import VertexType, EdgeType  # type: ignore
 
-import libquizx  # type: ignore
+import quizx  # type: ignore
 
 
 class VecGraph(BaseGraph[int, Tuple[int, int]]):
     """Rust implementation of :class:`~graph.base.BaseGraph`, based on quizx::vec_graph::Graph."""
 
-    _g: libquizx.VecGraph
+    _g: quizx.VecGraph
     backend = "quizx-vec"
 
     # The documentation of what these methods do
     # can be found in base.BaseGraph
-    def __init__(self, rust_graph: Optional[libquizx.VecGraph] = None):
+    def __init__(self, rust_graph: Optional[quizx.VecGraph] = None):
         BaseGraph.__init__(self)
         if rust_graph:
             self._g = rust_graph
         else:
-            self._g = libquizx.VecGraph()
+            self._g = quizx.VecGraph()
         self._vdata: Dict[int, Any] = dict()
 
-    def get_raw_graph(self) -> libquizx.VecGraph:
+    def get_raw_graph(self) -> quizx.VecGraph:
         """Return the underlying Rust graph instance."""
         return self._g
 
