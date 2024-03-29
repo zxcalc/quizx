@@ -12,6 +12,12 @@ setup:
 check:
     poetry run pre-commit run --all-files
 
+# Build the project.
+build language="[rust|python]": (_run_lang language \
+        "cargo build" \
+        "poetry run maturin develop"
+    )
+
 # Run all the tests.
 test language="[rust|python]": (_run_lang language \
         "cargo test --all-features" \

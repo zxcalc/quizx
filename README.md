@@ -4,20 +4,7 @@
 
 This is a port of some of the core functionality of PyZX to the [Rust](https://www.rust-lang.org/) programming language. This is a modern systems programming language, which enables writing software that is very fast and memory efficient.
 
-To build from source, first [get Rust](https://www.rust-lang.org/tools/install), then use the included package and build manager `cargo`.
-
-    git clone https://github.com/Quantomatic/quizx.git
-    cargo build
-    cargo test
-
-This will download the dependendies, build in debug mode and run the tests. There is a miscellaneous collection of programs written using the library, found in `src/bin`. To build in release (i.e. fast) mode, run:
-
-    cargo build --release
-
-Then, run one of the binaries via the `cargo run` command, or directly via e.g.
-
-    cd target/release
-    ./spider_chain
+See the [CONTRIBUTING.md](CONTRIBUTING.md) file for detailed instructions for building the libraries from source and contributing to the project.
 
 ## A bit about performance
 
