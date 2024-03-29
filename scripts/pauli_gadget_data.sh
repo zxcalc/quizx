@@ -26,7 +26,7 @@ for qubit in $QUBIT_COUNTS; do
             if [ -f $file ]; then
                 echo "EXISTS $file"
             else
-                timeout $TIMEOUT ../../quizx/target/release/pauli_gadget_stabrank $qubit $depth $MIN_WEIGHT $MAX_WEIGHT $NSAMPLES $seed
+                timeout $TIMEOUT ../../target/release/pauli_gadget_stabrank $qubit $depth $MIN_WEIGHT $MAX_WEIGHT $NSAMPLES $seed
                 if [ $? == 124 ]; then echo "TIMEOUT $file"; fi
             fi
         done

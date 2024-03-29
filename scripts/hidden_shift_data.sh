@@ -29,7 +29,7 @@ for qubit in $QUBIT_COUNTS; do
             if [ -f "hidden_shift_${qubit}_${ccz}_${seed}" ]; then
                 echo "EXISTS $qubit $ccz $seed"
             else
-                timeout $TIMEOUT ../../quizx/target/release/hidden_shift_stabrank $qubit $ccz $seed
+                timeout $TIMEOUT ../../target/release/hidden_shift_stabrank $qubit $ccz $seed
                 if [ $? == 124 ]; then echo "TIMEOUT $qubit $ccz $seed"; fi
             fi
         done
