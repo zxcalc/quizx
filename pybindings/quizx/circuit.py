@@ -8,13 +8,13 @@ class Circuit:
         self._c = None
 
     @staticmethod
-    def load(circuitfile: str) -> 'Circuit':
+    def load(circuitfile: str) -> "Circuit":
         c = Circuit()
         c._c = libquizx.Circuit.load(circuitfile)
         return c
 
     @staticmethod
-    def from_qasm(qasm: str) -> 'Circuit':
+    def from_qasm(qasm: str) -> "Circuit":
         c = Circuit()
         c._c = libquizx.Circuit.from_qasm(qasm)
         return c

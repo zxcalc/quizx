@@ -14,8 +14,17 @@ class Decomposer(object):
     def graphs(self) -> List[VecGraph]:
         return [VecGraph(g) for g in self._d.graphs()]
 
-    def apply_optimizations(self, b: bool): self._d.apply_optimizations(b)
-    def max_terms(self): return self._d.max_terms()
-    def decomp_top(self): self._d.decomp_top()
-    def decomp_all(self): self._d.decomp_all()
-    def decomp_until_depth(self, depth: int): self._d.decomp_until_depth(depth)
+    def apply_optimizations(self, b: bool):
+        self._d.apply_optimizations(b)
+
+    def max_terms(self):
+        return self._d.max_terms()
+
+    def decomp_top(self):
+        self._d.decomp_top()
+
+    def decomp_all(self):
+        self._d.decomp_all()
+
+    def decomp_until_depth(self, depth: int):
+        self._d.decomp_until_depth(depth)

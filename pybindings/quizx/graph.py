@@ -19,22 +19,25 @@
 from fractions import Fraction
 from typing import Tuple, Dict, Any, Optional
 from pyzx.graph.base import BaseGraph
-from pyzx.utils import VertexType, EdgeType  #, FractionLike
+from pyzx.utils import VertexType, EdgeType  # , FractionLike
 
-import libquizx  #type: ignore
+import libquizx  # type: ignore
 
 
-class VecGraph(BaseGraph[int,Tuple[int,int]]):
+class VecGraph(BaseGraph[int, Tuple[int, int]]):
     """Rust implementation of :class:`~graph.base.BaseGraph`, based on quizx::vec_graph::Graph."""
-    backend = 'quizx-vec'
+
+    backend = "quizx-vec"
 
     # The documentation of what these methods do
     # can be found in base.BaseGraph
     def __init__(self, rust_graph: Optional[libquizx.VecGraph] = None):
         BaseGraph.__init__(self)
-        if rust_graph: self._g: libquizx.VecGraph = rust_graph
-        else: self._g: libquizx.VecGraph = libquizx.VecGraph()
-        self._vdata: Dict[int,Any] = dict()
+        if rust_graph:
+            self._g: libquizx.VecGraph = rust_graph
+        else:
+            self._g: libquizx.VecGraph = libquizx.VecGraph()
+        self._vdata: Dict[int, Any] = dict()
 
     def get_raw_graph(self) -> libquizx.VecGraph:
         """Return the underlying Rust graph instance."""
@@ -53,7 +56,8 @@ class VecGraph(BaseGraph[int,Tuple[int,int]]):
             self.v = 0
             self.g = g._g
 
-        def __iter__(self): return self
+        def __iter__(self):
+            return self
 
         def __next__(self):
             v = self.v
@@ -61,8 +65,10 @@ class VecGraph(BaseGraph[int,Tuple[int,int]]):
             if v >= self.g.vindex():
                 raise StopIteration
             else:
-                if self.g.contains_vertex(v): return v
-                else: return next(self)
+                if self.g.contains_vertex(v):
+                    return v
+                else:
+                    return next(self)
 
         def __len__(self):
             return self.g.num_vertices()
@@ -74,10 +80,12 @@ class VecGraph(BaseGraph[int,Tuple[int,int]]):
             self.g = g._g
             self.nhd = nhd
 
-        def __iter__(self): return self
+        def __iter__(self):
+            return self
 
         def __next__(self):
-            if self.v >= self.g.vindex(): raise StopIteration
+            if self.v >= self.g.vindex():
+                raise StopIteration
             if self.g.contains_vertex(self.v):
                 if self.n < self.g.degree(self.v):
                     n = self.n
@@ -86,10 +94,13 @@ class VecGraph(BaseGraph[int,Tuple[int,int]]):
                     if self.nhd:
                         return v1
                     else:
-                        if self.v < v1: return (self.v, v1)
-                        else: return next(self)
+                        if self.v < v1:
+                            return (self.v, v1)
+                        else:
+                            return next(self)
 
-            if self.nhd: raise StopIteration
+            if self.nhd:
+                raise StopIteration
             self.n = 0
             self.v += 1
             return next(self)
@@ -100,13 +111,14 @@ class VecGraph(BaseGraph[int,Tuple[int,int]]):
             else:
                 return self.g.num_edges()
 
-    def vindex(self): return self._g.vindex()
+    def vindex(self):
+        return self._g.vindex()
 
     def depth(self):
         return max((self._g.row(v) for v in self.vertices()), default=-1)
 
     def qubit_count(self):
-        return max((self._g.qubit(v)+1 for v in self.vertices()), default=-1)
+        return max((self._g.qubit(v) + 1 for v in self.vertices()), default=-1)
 
     def add_vertices(self, amount):
         newv = []
@@ -157,14 +169,15 @@ class VecGraph(BaseGraph[int,Tuple[int,int]]):
         """Returns all vertices with index between start and end
         that only have neighbours whose indices are between start and end"""
         for v in self.vertices():
-            if not start<v<end: continue
-            if all(start<v2<end for v2 in self.graph[v]):
+            if not start < v < end:
+                continue
+            if all(start < v2 < end for v2 in self.graph[v]):
                 yield v
 
     def edges(self):
         return VecGraph.EIter(self)
 
-    #def edges_in_range(self, start, end, safe=False):
+    # def edges_in_range(self, start, end, safe=False):
     #    """like self.edges, but only returns edges that belong to vertices
     #    that are only directly connected to other vertices with
     #    index between start and end.
@@ -187,7 +200,7 @@ class VecGraph(BaseGraph[int,Tuple[int,int]]):
     #                        yield (v0,v1)
 
     def edge(self, s, t):
-        return (s,t) if s < t else (t,s)
+        return (s, t) if s < t else (t, s)
 
     def edge_set(self):
         return set(self.edges())
@@ -205,11 +218,10 @@ class VecGraph(BaseGraph[int,Tuple[int,int]]):
 
     def incident_edges(self, vertex):
         return map(
-            lambda n: (vertex, n) if vertex < n else (n, vertex),
-            self.neighbors(vertex)
+            lambda n: (vertex, n) if vertex < n else (n, vertex), self.neighbors(vertex)
         )
 
-    def connected(self,v1,v2):
+    def connected(self, v1, v2):
         return self._g.connected(v1, v2)
 
     def edge_type(self, e):
@@ -277,7 +289,7 @@ class VecGraph(BaseGraph[int,Tuple[int,int]]):
 
     def vdata(self, vertex, key, default=0):
         if vertex in self._vdata:
-            return self._vdata[vertex].get(key,default)
+            return self._vdata[vertex].get(key, default)
         else:
             return default
 
@@ -285,12 +297,22 @@ class VecGraph(BaseGraph[int,Tuple[int,int]]):
         if vertex in self._vdata:
             self._vdata[vertex][key] = val
         else:
-            self._vdata[vertex] = {key:val}
+            self._vdata[vertex] = {key: val}
 
-    def inputs(self): return tuple(self._g.inputs())
-    def num_inputs(self): return self._g.num_inputs()
-    def set_inputs(self, inputs): self._g.set_inputs(list(inputs))
-    def outputs(self): return tuple(self._g.outputs())
-    def num_outputs(self): return self._g.num_outputs()
-    def set_outputs(self, outputs): self._g.set_outputs(list(outputs))
+    def inputs(self):
+        return tuple(self._g.inputs())
 
+    def num_inputs(self):
+        return self._g.num_inputs()
+
+    def set_inputs(self, inputs):
+        self._g.set_inputs(list(inputs))
+
+    def outputs(self):
+        return tuple(self._g.outputs())
+
+    def num_outputs(self):
+        return self._g.num_outputs()
+
+    def set_outputs(self, outputs):
+        self._g.set_outputs(list(outputs))

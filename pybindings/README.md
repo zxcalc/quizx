@@ -1,7 +1,7 @@
 This folder contains Python bindings for quizx so that it can be used with PyZX.
 To install, run the install_package.bat file (on Windows).
 Or you can install manually by calling::
-    
+
     python setup.py install
     python setup2.py install
 

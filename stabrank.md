@@ -21,6 +21,5 @@ The data itself is generated using two binaries, `pauli_gadget_stabrank` and `hi
     cd scripts
     ./pauli_gadget_data.sh
     ./hidden_shift_data.sh
-    
-These take a long time to run, and benefit from having many cores available.
 
+These take a long time to run, and benefit from having many cores available.
