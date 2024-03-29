@@ -83,7 +83,7 @@ pub trait Sqrt2: Sized {
 }
 
 /// A list of coefficients. We give this as a parameter to allow
-/// either fixed-size lists (e.g. [i32;4]) or dynamic ones (e.g.
+/// either fixed-size lists (e.g. `[i32;4]`) or dynamic ones (e.g.
 /// [Vec]\<i32\>). Only the former can be used in tensors and
 /// matrices, because they have to implement Copy (the size must be
 /// known at compile time).
