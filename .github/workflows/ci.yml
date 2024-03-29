@@ -170,7 +170,9 @@ jobs:
         run: |
           poetry run maturin develop
       - name: Test pyo3 bindings
-        run: poetry run pytest
+        run: true
+        # No tests yet, so running `pytest` fails
+        #run: poetry run pytest
 
   # This is a meta job to mark successful completion of the required checks,
   # even if they are skipped due to no changes in the relevant files.
