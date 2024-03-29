@@ -1,4 +1,4 @@
-import libquizx
+import libquizx  # type: ignore
 
 
 def interior_clifford_simp(g):

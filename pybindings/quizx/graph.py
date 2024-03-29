@@ -14,12 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# type: ignore
-
 from fractions import Fraction
 from typing import Tuple, Dict, Any, Optional
-from pyzx.graph.base import BaseGraph
-from pyzx.utils import VertexType, EdgeType  # , FractionLike
+from pyzx.graph.base import BaseGraph  # type: ignore
+from pyzx.utils import VertexType, EdgeType  # type: ignore
 
 import libquizx  # type: ignore
 
@@ -27,6 +25,7 @@ import libquizx  # type: ignore
 class VecGraph(BaseGraph[int, Tuple[int, int]]):
     """Rust implementation of :class:`~graph.base.BaseGraph`, based on quizx::vec_graph::Graph."""
 
+    _g: libquizx.VecGraph
     backend = "quizx-vec"
 
     # The documentation of what these methods do
@@ -34,9 +33,9 @@ class VecGraph(BaseGraph[int, Tuple[int, int]]):
     def __init__(self, rust_graph: Optional[libquizx.VecGraph] = None):
         BaseGraph.__init__(self)
         if rust_graph:
-            self._g: libquizx.VecGraph = rust_graph
+            self._g = rust_graph
         else:
-            self._g: libquizx.VecGraph = libquizx.VecGraph()
+            self._g = libquizx.VecGraph()
         self._vdata: Dict[int, Any] = dict()
 
     def get_raw_graph(self) -> libquizx.VecGraph:

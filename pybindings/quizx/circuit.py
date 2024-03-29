@@ -1,4 +1,4 @@
-import libquizx
+import libquizx  # type: ignore
 
 from .graph import VecGraph
 
