@@ -1,4 +1,4 @@
-import libquizx  # type: ignore
+import quizx  # type: ignore
 from .graph import VecGraph
 from .circuit import Circuit
 from . import simplify
@@ -9,5 +9,5 @@ __all__ = ["VecGraph", "Circuit", "simplify", "Decomposer"]
 
 def extract_circuit(g):
     c = Circuit()
-    c._c = libquizx.extract_circuit(g._g)
+    c._c = quizx.extract_circuit(g._g)
     return c

@@ -1,18 +1,18 @@
 from typing import List, Optional
 
-import libquizx  # type: ignore
+import quizx  # type: ignore
 
 from .graph import VecGraph
 
 
 class Decomposer(object):
-    _d: libquizx.Decomposer
+    _d: quizx.Decomposer
 
     def __init__(self, graph: Optional[VecGraph] = None):
         if graph is None:
-            self._d = libquizx.Decomposer.empty()
+            self._d = quizx.Decomposer.empty()
         else:
-            self._d = libquizx.Decomposer(graph.get_raw_graph())
+            self._d = quizx.Decomposer(graph.get_raw_graph())
 
     def graphs(self) -> List[VecGraph]:
         return [VecGraph(g) for g in self._d.graphs()]
