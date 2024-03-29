@@ -19,11 +19,11 @@
 use super::VertexPhase;
 use crate::graph::VType;
 
-use num::{FromPrimitive, One, Rational, Zero};
+use num::{FromPrimitive, One, Rational64, Zero};
 
 impl VertexPhase {
     /// Encode a vertex phase.
-    pub fn from_rational(phase: Rational, v_type: VType) -> Self {
+    pub fn from_rational(phase: Rational64, v_type: VType) -> Self {
         // This is directly ported from pyzx,
         // trying to match its behaviour as closely as possible.
         if phase.is_zero() && v_type != VType::H {
@@ -39,7 +39,7 @@ impl VertexPhase {
 
         #[allow(clippy::if_same_then_else)]
         let simstr = if *phase.denom() > 256 {
-            // TODO: This should approximate the phase to a rational number with a small denominator.
+            // TODO: This should approximate the phase to a Rational64 number with a small denominator.
             //       This is not currently implemented.
             //       See https://docs.python.org/3/library/fractions.html#fractions.Fraction.limit_denominator.
             ""
@@ -65,7 +65,7 @@ impl VertexPhase {
     /// Decode a vertex phase.
     ///
     /// Variables are not currently supported.
-    pub fn to_rational(&self) -> Option<Rational> {
+    pub fn to_rational(&self) -> Option<Rational64> {
         // This is directly ported from pyzx,
         // trying to match its behaviour as closely as possible.
         let s: String = self
@@ -79,27 +79,27 @@ impl VertexPhase {
         let s = s.as_str();
 
         if s.is_empty() {
-            return Some(Rational::one());
+            return Some(Rational64::one());
         }
         if s == "-" {
-            return Some(-Rational::one());
+            return Some(-Rational64::one());
         }
         if s.contains('.') || s.contains('e') {
             let f: f64 = s.parse().ok()?;
-            return Rational::from_f64(f);
+            return Rational64::from_f64(f);
         }
         if s.contains('/') {
             let mut parts = s.split('/');
             let num: &str = parts.next()?;
-            let den: isize = parts.next()?.parse().ok()?;
+            let den: i64 = parts.next()?.parse().ok()?;
             return match num {
-                "" => Some(Rational::new(1, den)),
-                "-" => Some(Rational::new(-1, den)),
-                _ => Some(Rational::new(num.parse().ok()?, den)),
+                "" => Some(Rational64::new(1, den)),
+                "-" => Some(Rational64::new(-1, den)),
+                _ => Some(Rational64::new(num.parse().ok()?, den)),
             };
         }
 
         let n: i64 = s.parse().ok()?;
-        Rational::from_i64(n)
+        Rational64::from_i64(n)
     }
 }

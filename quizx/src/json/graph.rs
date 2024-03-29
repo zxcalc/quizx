@@ -16,7 +16,7 @@
 
 //! Methods for converting between a `GraphLike` object and the json representation.
 
-use num::{Rational, Zero};
+use num::{Rational64, Zero};
 
 use super::{
     EdgeAttrs, JsonGraph, VertexAnnotations, VertexAttrs, VertexData, VertexName, VertexPhase,
@@ -182,7 +182,7 @@ impl JsonGraph {
                 ty: attrs.data.typ,
                 qubit: coord.qubit(),
                 row: coord.row(),
-                phase: attrs.data.value.to_rational().unwrap_or(Rational::zero()),
+                phase: attrs.data.value.to_rational().unwrap_or(Rational64::zero()),
             });
             names.insert(name.to_string(), v);
         }
@@ -196,7 +196,7 @@ impl JsonGraph {
                 ty: VType::B,
                 qubit: coord.qubit(),
                 row: coord.row(),
-                phase: Rational::zero(),
+                phase: Rational64::zero(),
             });
             names.insert(name.to_string(), v);
             if let Some(input) = attrs.annotation.input {
@@ -227,7 +227,7 @@ impl JsonGraph {
                         ty: VType::Z,
                         qubit: new_coord.qubit(),
                         row: new_coord.row(),
-                        phase: Rational::zero(),
+                        phase: Rational64::zero(),
                     });
                     let name = format!("v{}", graph.num_vertices());
                     names.insert(name, v);
