@@ -8,7 +8,7 @@ homepage = { workspace = true }
 license-file = { workspace = true }
 
 [lib]
-name = "quizx"
+name = "quizx_bindings"
 crate-type = ["cdylib"]
 
 [dependencies]
