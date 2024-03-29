@@ -42,10 +42,12 @@ jobs:
       with:
         filters: |
           quizx:
+            - .github/workflows/ci.yml
             - 'quizx/**'
             - 'circuits/**'
             - 'Cargo.toml'
           pybindings:
+            - .github/workflows/ci.yml
             - 'quizx/**'
             - 'pybindings/**'
             - 'Cargo.toml'
