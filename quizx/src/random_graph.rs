@@ -1,11 +1,17 @@
 use crate::graph::*;
-use num::Rational;
+use num::Rational64;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
 pub struct EquatorialStabilizerStateBuilder {
     pub rng: StdRng,
     pub qubits: usize,
+}
+
+impl Default for EquatorialStabilizerStateBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl EquatorialStabilizerStateBuilder {
@@ -32,7 +38,7 @@ impl EquatorialStabilizerStateBuilder {
         let mut num_cz = 0;
         for i in 0..self.qubits {
             g.add_edge(spiders[i], outputs[i]);
-            g.set_phase(spiders[i], Rational::new(self.rng.gen_range(0..3), 2));
+            g.set_phase(spiders[i], Rational64::new(self.rng.gen_range(0..3), 2));
 
             for j in 0..i {
                 if self.rng.gen_bool(0.5) {

@@ -130,7 +130,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     if shift == shift_m {
         print!("OK {}", data);
-        fs::write(&format!("hidden_shift_{}_{}_{}", qs, n_ccz, seed), data)
+        fs::write(format!("hidden_shift_{}_{}_{}", qs, n_ccz, seed), data)
             .expect("Unable to write file");
     } else {
         print!("FAILED {}", data);

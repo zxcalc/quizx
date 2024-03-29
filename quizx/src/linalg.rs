@@ -89,7 +89,7 @@ impl Mat2 {
     }
 
     pub fn num_cols(&self) -> usize {
-        if self.d.len() > 0 {
+        if !self.d.is_empty() {
             self.d[0].len()
         } else {
             0
@@ -213,24 +213,18 @@ impl Mat2 {
                     }
                 }
 
-                loop {
-                    if let Some(&pcol) = pivot_cols1.last() {
-                        if i0 > pcol || pcol >= i1 {
-                            break;
-                        }
-                        pivot_cols1.pop();
-                        for r in 0..pivot_row {
-                            if self.d[r][pcol] != 0 {
-                                self.row_add(pivot_row, r);
-                                x.row_add(pivot_row, r);
-                            }
-                        }
-                        if pivot_row > 0 {
-                            pivot_row -= 1;
-                        }
-                    } else {
+                while let Some(&pcol) = pivot_cols1.last() {
+                    if i0 > pcol || pcol >= i1 {
                         break;
                     }
+                    pivot_cols1.pop();
+                    for r in 0..pivot_row {
+                        if self.d[r][pcol] != 0 {
+                            self.row_add(pivot_row, r);
+                            x.row_add(pivot_row, r);
+                        }
+                    }
+                    pivot_row = pivot_row.saturating_sub(1);
                 }
             }
         }
@@ -295,7 +289,7 @@ impl Mat2 {
 impl RowOps for Mat2 {
     fn row_add(&mut self, r0: usize, r1: usize) {
         for i in 0..self.num_cols() {
-            self.d[r1][i] = self.d[r0][i] ^ self.d[r1][i];
+            self.d[r1][i] ^= self.d[r0][i];
         }
     }
 
@@ -307,7 +301,7 @@ impl RowOps for Mat2 {
 impl ColOps for Mat2 {
     fn col_add(&mut self, c0: usize, c1: usize) {
         for i in 0..self.num_rows() {
-            self.d[i][c1] = self.d[i][c0] ^ self.d[i][c1];
+            self.d[i][c1] ^= self.d[i][c0];
         }
     }
 
@@ -325,7 +319,7 @@ impl fmt::Display for Mat2 {
             for x in row {
                 write!(f, "{} ", x)?;
             }
-            write!(f, "]\n")?;
+            writeln!(f, "]")?;
         }
         Ok(())
     }
@@ -360,6 +354,7 @@ impl std::ops::IndexMut<usize> for Mat2 {
 impl<'a, 'b> std::ops::Mul<&'b Mat2> for &'a Mat2 {
     type Output = Mat2;
 
+    #[allow(clippy::suspicious_arithmetic_impl)]
     fn mul(self, rhs: &Mat2) -> Self::Output {
         if self.num_cols() != rhs.num_rows() {
             panic!("Cannot multiply matrices with mismatched dimensions.");
@@ -369,7 +364,7 @@ impl<'a, 'b> std::ops::Mul<&'b Mat2> for &'a Mat2 {
         Mat2::build(self.num_rows(), rhs.num_cols(), |x, y| {
             let mut b = 0;
             for i in 0..k {
-                b = b ^ (self.d[x][i] & rhs.d[i][y]);
+                b ^= self.d[x][i] & rhs.d[i][y];
             }
             b == 1
         })

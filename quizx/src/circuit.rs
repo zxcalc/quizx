@@ -18,7 +18,7 @@ use crate::gate::*;
 use crate::graph::*;
 use crate::linalg::RowOps;
 use crate::scalar::Mod2;
-use num::{Rational, Zero};
+use num::{Rational64, Zero};
 use openqasm::{ast::Symbol, translate::Value, GenericError, ProgramVisitor};
 use std::collections::VecDeque;
 use std::fmt;
@@ -142,7 +142,7 @@ impl Circuit {
         self.gates.push_front(g);
     }
 
-    pub fn add_gate_with_phase(&mut self, name: &str, qs: Vec<usize>, phase: Rational) {
+    pub fn add_gate_with_phase(&mut self, name: &str, qs: Vec<usize>, phase: Rational64) {
         self.push(Gate {
             t: GType::from_qasm_name(name),
             qs,
@@ -151,7 +151,7 @@ impl Circuit {
     }
 
     pub fn add_gate(&mut self, name: &str, qs: Vec<usize>) {
-        self.add_gate_with_phase(name, qs, Rational::zero());
+        self.add_gate_with_phase(name, qs, Rational64::zero());
     }
 
     pub fn reverse(&mut self) {
@@ -256,7 +256,7 @@ impl Circuit {
         for i in 0..self.nqubits {
             let v = graph.add_vertex_with_data(VData {
                 ty: VType::B,
-                phase: Rational::zero(),
+                phase: Rational64::zero(),
                 qubit: i as i32,
                 row: 1,
             });
@@ -284,7 +284,7 @@ impl Circuit {
             if let Some(v0) = q {
                 let v = graph.add_vertex_with_data(VData {
                     ty: VType::B,
-                    phase: Rational::zero(),
+                    phase: Rational64::zero(),
                     qubit: i as i32,
                     row: last_row + 1,
                 });
@@ -308,10 +308,10 @@ impl Circuit {
 
 impl fmt::Display for Circuit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "qreg q[{}];\n", self.num_qubits())?;
+        writeln!(f, "qreg q[{}];", self.num_qubits())?;
 
         for g in &self.gates {
-            write!(f, "{};\n", g.to_qasm())?;
+            writeln!(f, "{};", g.to_qasm())?;
         }
 
         Ok(())
@@ -390,6 +390,7 @@ struct CircuitWriter {
 }
 
 #[derive(Debug)]
+#[allow(clippy::enum_variant_names)]
 enum CircuitWriterError {
     UnitaryNotSupported,
     BarrierNotSupported,
@@ -435,21 +436,21 @@ impl openqasm::GateWriter for &mut CircuitWriter {
         params: &[Value],
         regs: &[usize],
     ) -> Result<(), Self::Error> {
-        fn param_to_ratio(value: Value) -> num::Rational {
+        fn param_to_ratio(value: Value) -> num::Rational64 {
             if value.a.is_zero() {
-                num::Rational::new(*value.b.numer() as isize, *value.b.denom() as isize).mod2()
+                num::Rational64::new(*value.b.numer(), *value.b.denom()).mod2()
             } else {
                 let a = *value.a.numer() as f32 / *value.a.denom() as f32;
-                let mut p =
-                    num::Rational::approximate_float(a / std::f32::consts::PI).unwrap_or(0.into());
-                p += num::Rational::new(*value.b.numer() as isize, *value.b.denom() as isize);
+                let mut p = num::Rational64::approximate_float(a / std::f32::consts::PI)
+                    .unwrap_or(0.into());
+                p += num::Rational64::new(*value.b.numer(), *value.b.denom());
                 p.mod2()
             }
         }
 
         let mut g = Gate::from_qasm_name(name.as_str());
         g.qs.extend_from_slice(regs);
-        if params.len() > 0 {
+        if !params.is_empty() {
             g.phase = param_to_ratio(params[0]);
         }
 
@@ -516,17 +517,17 @@ mod tests {
     #[test]
     fn mk_circuit_with_phase() {
         let mut c = Circuit::new(1);
-        c.add_gate_with_phase("rz", vec![0], Rational::new(1, 1));
-        c.add_gate_with_phase("rz", vec![0], Rational::new(1, 1));
-        c.add_gate_with_phase("rz", vec![0], Rational::new(1, 3));
-        c.add_gate_with_phase("rz", vec![0], Rational::new(1, 3));
-        c.add_gate_with_phase("rz", vec![0], Rational::new(2, 3));
-        c.add_gate_with_phase("rz", vec![0], Rational::new(2, 3));
-        c.add_gate_with_phase("rz", vec![0], Rational::new(-1, 3));
-        c.add_gate_with_phase("rz", vec![0], Rational::new(-1, 3));
-        c.add_gate_with_phase("rz", vec![0], Rational::new(-1, 3));
-        c.add_gate_with_phase("rz", vec![0], Rational::new(1, 1));
-        c.add_gate_with_phase("rz", vec![0], Rational::new(-1, 2));
+        c.add_gate_with_phase("rz", vec![0], Rational64::new(1, 1));
+        c.add_gate_with_phase("rz", vec![0], Rational64::new(1, 1));
+        c.add_gate_with_phase("rz", vec![0], Rational64::new(1, 3));
+        c.add_gate_with_phase("rz", vec![0], Rational64::new(1, 3));
+        c.add_gate_with_phase("rz", vec![0], Rational64::new(2, 3));
+        c.add_gate_with_phase("rz", vec![0], Rational64::new(2, 3));
+        c.add_gate_with_phase("rz", vec![0], Rational64::new(-1, 3));
+        c.add_gate_with_phase("rz", vec![0], Rational64::new(-1, 3));
+        c.add_gate_with_phase("rz", vec![0], Rational64::new(-1, 3));
+        c.add_gate_with_phase("rz", vec![0], Rational64::new(1, 1));
+        c.add_gate_with_phase("rz", vec![0], Rational64::new(-1, 2));
 
         let qasm = r#"
             OPENQASM 2.0;
@@ -601,8 +602,8 @@ mod tests {
 
         println!("g = {}\n\nh = {}\n\n", g.to_dot(), h.to_dot());
 
-        assert_eq!(c.to_tensor4(), Tensor::cphase(Rational::new(1, 1), 2));
-        assert_eq!(g.to_tensor4(), Tensor::cphase(Rational::new(1, 1), 2));
+        assert_eq!(c.to_tensor4(), Tensor::cphase(Rational64::new(1, 1), 2));
+        assert_eq!(g.to_tensor4(), Tensor::cphase(Rational64::new(1, 1), 2));
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use num::Rational;
+use num::Rational64;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use quizx::extract::ToCircuit;
@@ -40,7 +40,7 @@ fn full_simp(g: &mut VecGraph) {
 #[pyfunction]
 fn extract_circuit(g: &mut VecGraph) -> Circuit {
     Circuit {
-        c: g.g.into_circuit().unwrap(),
+        c: g.g.to_circuit().unwrap(),
         s: None,
     }
 }
@@ -158,7 +158,7 @@ impl VecGraph {
             3 => VType::H,
             _ => VType::B,
         };
-        let phase = Rational::new(phase.0, phase.1);
+        let phase = Rational64::new(phase.0, phase.1);
         self.g.add_vertex_with_data(VData {
             ty,
             phase,
@@ -238,11 +238,11 @@ impl VecGraph {
     }
 
     fn set_phase(&mut self, v: usize, phase: (isize, isize)) {
-        self.g.set_phase(v, Rational::new(phase.0, phase.1));
+        self.g.set_phase(v, Rational64::new(phase.0, phase.1));
     }
 
     fn add_to_phase(&mut self, v: usize, phase: (isize, isize)) {
-        self.g.add_to_phase(v, Rational::new(phase.0, phase.1));
+        self.g.add_to_phase(v, Rational64::new(phase.0, phase.1));
     }
 
     fn qubit(&mut self, v: usize) -> i32 {

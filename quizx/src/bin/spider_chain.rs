@@ -39,11 +39,8 @@ fn main() {
     println!("Fusing all spiders...");
     let time = Instant::now();
 
-    loop {
-        match g.find_edge(|v0, v1, _| check_spider_fusion(&g, v0, v1)) {
-            Some((v0, v1, _)) => spider_fusion_unchecked(&mut g, v0, v1),
-            None => break,
-        };
+    while let Some((v0, v1, _)) = g.find_edge(|v0, v1, _| check_spider_fusion(&g, v0, v1)) {
+        spider_fusion_unchecked(&mut g, v0, v1)
     }
 
     println!("Done in {:.2?}", time.elapsed());

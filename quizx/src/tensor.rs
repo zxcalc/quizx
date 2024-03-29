@@ -21,11 +21,11 @@ use crate::scalar::*;
 use ndarray::parallel::prelude::*;
 use ndarray::prelude::*;
 use ndarray::*;
-use num::{Complex, Rational};
+use num::{Complex, Rational64};
 use rustc_hash::FxHashMap;
 use std::collections::VecDeque;
-use std::iter::FromIterator;
 use std::convert::TryFrom;
+use std::iter::FromIterator;
 
 /// Generic tensor type used by quizx
 pub type Tensor<A> = Array<A, IxDyn>;
@@ -48,13 +48,13 @@ impl Sqrt2 for Complex<f64> {
 }
 
 impl FromPhase for Complex<f64> {
-    fn from_phase(p: Rational) -> Complex<f64> {
+    fn from_phase(p: Rational64) -> Complex<f64> {
         let exp = (*p.numer() as f64) / (*p.denom() as f64);
         Complex::new(-1.0, 0.0).powf(exp)
     }
 
     fn minus_one() -> Complex<f64> {
-        Self::from_phase(Rational::one())
+        Self::from_phase(Rational64::one())
     }
 }
 
@@ -113,10 +113,10 @@ pub trait ToTensor {
 pub trait QubitOps<A: TensorElem> {
     fn ident(q: usize) -> Self;
     fn delta(q: usize) -> Self;
-    fn cphase(p: Rational, q: usize) -> Self;
+    fn cphase(p: Rational64, q: usize) -> Self;
     fn hadamard() -> Self;
     fn delta_at(&mut self, qs: &[usize]);
-    fn cphase_at(&mut self, p: Rational, qs: &[usize]);
+    fn cphase_at(&mut self, p: Rational64, qs: &[usize]);
     fn hadamard_at(&mut self, i: usize);
 
     /// split into two non-overlapping pieces, where index q=0 and q=1
@@ -153,7 +153,7 @@ impl<A: TensorElem> CompareTensors for Tensor<A> {
                 }
                 // if they are different, we cross-multiply to check scalar equivalence
                 else {
-                    t0 * b1.clone() == t1 * b0.clone()
+                    t0 * *b1 == t1 * *b0
                 }
             }
             // all-zero tensors of the same dimension are equal
@@ -219,7 +219,7 @@ impl<A: TensorElem> QubitOps<A> for Tensor<A> {
         })
     }
 
-    fn cphase(p: Rational, q: usize) -> Tensor<A> {
+    fn cphase(p: Rational64, q: usize) -> Tensor<A> {
         let mut t = Tensor::ident(q);
         let qs: Vec<_> = (0..q).collect();
         t.cphase_at(p, &qs);
@@ -228,7 +228,7 @@ impl<A: TensorElem> QubitOps<A> for Tensor<A> {
 
     fn hadamard() -> Tensor<A> {
         let n = A::one_over_sqrt2();
-        let minus = A::from_phase(Rational::one());
+        let minus = A::from_phase(Rational64::one());
         array![[n, n], [n, minus * n]].into_dyn()
     }
 
@@ -243,7 +243,7 @@ impl<A: TensorElem> QubitOps<A> for Tensor<A> {
         *self *= &del;
     }
 
-    fn cphase_at(&mut self, p: Rational, qs: &[usize]) {
+    fn cphase_at(&mut self, p: Rational64, qs: &[usize]) {
         let mut shape: Vec<usize> = vec![1; self.ndim()];
         for &q in qs {
             shape[q] = 2;
@@ -262,7 +262,7 @@ impl<A: TensorElem> QubitOps<A> for Tensor<A> {
 
     fn hadamard_at(&mut self, q: usize) {
         let n = A::one_over_sqrt2();
-        let minus = A::from_phase(Rational::one()); // -1 = e^(i pi)
+        let minus = A::from_phase(Rational64::one()); // -1 = e^(i pi)
 
         // split into two non-overlapping pieces, where index q=0 and q=1
         let (mut ma, mut mb) = self.slice_qubit_mut(q);
@@ -361,7 +361,7 @@ impl<G: GraphLike + Clone> ToTensor for G {
                     if et == EType::N {
                         a.delta_at(&[0, wi]);
                     } else {
-                        a.cphase_at(Rational::one(), &[0, wi]);
+                        a.cphase_at(Rational64::one(), &[0, wi]);
                         // TODO incorporate with cphase_at
                         a *= A::one_over_sqrt2();
                         // num_had += 1;
@@ -401,15 +401,15 @@ impl ToTensor for Circuit {
         for g in self.gates.iter().rev() {
             match g.t {
                 ZPhase => a.cphase_at(g.phase, &g.qs),
-                Z | CZ | CCZ => a.cphase_at(Rational::one(), &g.qs),
-                S => a.cphase_at(Rational::new(1, 2), &g.qs),
-                T => a.cphase_at(Rational::new(1, 4), &g.qs),
-                Sdg => a.cphase_at(Rational::new(-1, 2), &g.qs),
-                Tdg => a.cphase_at(Rational::new(-1, 4), &g.qs),
+                Z | CZ | CCZ => a.cphase_at(Rational64::one(), &g.qs),
+                S => a.cphase_at(Rational64::new(1, 2), &g.qs),
+                T => a.cphase_at(Rational64::new(1, 4), &g.qs),
+                Sdg => a.cphase_at(Rational64::new(-1, 2), &g.qs),
+                Tdg => a.cphase_at(Rational64::new(-1, 4), &g.qs),
                 HAD => a.hadamard_at(g.qs[0]),
                 NOT => {
                     a.hadamard_at(g.qs[0]);
-                    a.cphase_at(Rational::one(), &g.qs);
+                    a.cphase_at(Rational64::one(), &g.qs);
                     a.hadamard_at(g.qs[0]);
                 }
                 XPhase => {
@@ -419,12 +419,12 @@ impl ToTensor for Circuit {
                 }
                 CNOT => {
                     a.hadamard_at(g.qs[1]);
-                    a.cphase_at(Rational::one(), &g.qs);
+                    a.cphase_at(Rational64::one(), &g.qs);
                     a.hadamard_at(g.qs[1]);
                 }
                 TOFF => {
                     a.hadamard_at(g.qs[2]);
-                    a.cphase_at(Rational::one(), &g.qs);
+                    a.cphase_at(Rational64::one(), &g.qs);
                     a.hadamard_at(g.qs[2]);
                 }
                 SWAP => a.swap_axes(g.qs[0], g.qs[1]),
@@ -532,7 +532,7 @@ mod tests {
         g.scalar_mut().mul_sqrt2_pow(1);
         let t = g.to_tensor4();
         println!("{}", t);
-        assert_eq!(t, Tensor::cphase(Rational::one(), 2));
+        assert_eq!(t, Tensor::cphase(Rational64::one(), 2));
     }
 
     #[test]

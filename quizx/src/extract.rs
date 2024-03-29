@@ -20,7 +20,7 @@ use crate::graph::*;
 // use crate::tensor::*;
 use crate::basic_rules::{boundary_pivot, remove_id};
 use crate::linalg::*;
-use num::{Rational, Zero};
+use num::{Rational64, Zero};
 use rustc_hash::FxHashSet;
 use std::fmt;
 
@@ -44,9 +44,9 @@ impl<G: GraphLike> fmt::Debug for ExtractError<G> {
 impl<G: GraphLike> std::error::Error for ExtractError<G> {}
 
 pub trait ToCircuit: GraphLike {
-    fn into_circuit(&mut self) -> Result<Circuit, ExtractError<Self>>;
+    fn to_circuit_mut(&mut self) -> Result<Circuit, ExtractError<Self>>;
     fn to_circuit(&self) -> Result<Circuit, ExtractError<Self>> {
-        self.clone().into_circuit()
+        self.clone().to_circuit_mut()
     }
 
     fn extractor(&mut self) -> Extractor<Self> {
@@ -118,17 +118,15 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
     }
 
     /// Set edges between frontier and given neighbors to match biadj. matrix
-    fn update_frontier_biadj(&mut self, neighbors: &Vec<V>, m: Mat2) {
+    fn update_frontier_biadj(&mut self, neighbors: &[V], m: Mat2) {
         for (i, &(_, v)) in self.frontier.iter().enumerate() {
             for (j, &w) in neighbors.iter().enumerate() {
                 if m[(i, j)] == 1 {
                     if !self.g.connected(v, w) {
                         self.g.add_edge_with_type(v, w, EType::H);
                     }
-                } else {
-                    if self.g.connected(v, w) {
-                        self.g.remove_edge(v, w);
-                    }
+                } else if self.g.connected(v, w) {
+                    self.g.remove_edge(v, w);
                 }
             }
         }
@@ -293,7 +291,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
                 let p = self.g.phase(v);
                 if !p.is_zero() {
                     c.push_front(Gate::new_with_phase(ZPhase, vec![q], p));
-                    self.g.set_phase(v, Rational::zero());
+                    self.g.set_phase(v, Rational64::zero());
                 }
 
                 // inspect neighbors of the frontier vertex
@@ -317,7 +315,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
                         if self.g.degree(v) > 2 {
                             let vd = VData {
                                 ty: VType::Z,
-                                phase: Rational::zero(),
+                                phase: Rational64::zero(),
                                 qubit: self.g.qubit(n),
                                 row: self.g.row(n) + 1,
                             };
@@ -482,7 +480,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
 }
 
 impl<G: GraphLike + Clone> ToCircuit for G {
-    fn into_circuit(&mut self) -> Result<Circuit, ExtractError<G>> {
+    fn to_circuit_mut(&mut self) -> Result<Circuit, ExtractError<G>> {
         Extractor::new(self).extract()
     }
 }

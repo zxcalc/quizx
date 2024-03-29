@@ -15,7 +15,7 @@
 // limitations under the License.
 
 use crate::scalar::*;
-use num::rational::Rational;
+use num::rational::Rational64;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::iter::FromIterator;
 
@@ -32,7 +32,7 @@ pub enum VType {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct VData {
     pub ty: VType,
-    pub phase: Rational,
+    pub phase: Rational64,
     pub qubit: i32,
     pub row: i32,
 }
@@ -70,11 +70,11 @@ pub enum BasisElem {
 }
 
 impl BasisElem {
-    pub fn phase(&self) -> Rational {
+    pub fn phase(&self) -> Rational64 {
         if *self == BasisElem::Z1 || *self == BasisElem::X1 {
-            Rational::one()
+            Rational64::one()
         } else {
-            Rational::zero()
+            Rational64::zero()
         }
     }
 
@@ -122,7 +122,7 @@ impl<'a> Iterator for VIter<'a> {
                     None => None,
                 }
             }
-            VIter::Hash(inner) => inner.next().map(|&v| v),
+            VIter::Hash(inner) => inner.next().copied(),
         }
     }
 
@@ -137,6 +137,7 @@ impl<'a> Iterator for VIter<'a> {
 
 impl<'a> ExactSizeIterator for VIter<'a> {}
 
+#[allow(clippy::type_complexity)]
 pub enum EIter<'a> {
     Vec(
         usize,
@@ -240,7 +241,7 @@ impl<'a> Iterator for NeighborIter<'a> {
     fn next(&mut self) -> Option<V> {
         match self {
             NeighborIter::Vec(inner) => inner.next().map(|&(v, _)| v),
-            NeighborIter::Hash(inner) => inner.next().map(|&v| v),
+            NeighborIter::Hash(inner) => inner.next().copied(),
         }
     }
 
@@ -264,7 +265,7 @@ impl<'a> Iterator for IncidentEdgeIter<'a> {
     type Item = (V, EType);
     fn next(&mut self) -> Option<(V, EType)> {
         match self {
-            IncidentEdgeIter::Vec(inner) => inner.next().map(|&x| x),
+            IncidentEdgeIter::Vec(inner) => inner.next().copied(),
             IncidentEdgeIter::Hash(inner) => inner.next().map(|(&v, &et)| (v, et)),
         }
     }
@@ -340,9 +341,9 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// Behaviour is undefined if there is no edge between s and t.
     fn remove_edge(&mut self, s: V, t: V);
 
-    fn set_phase(&mut self, v: V, phase: Rational);
-    fn phase(&self, v: V) -> Rational;
-    fn add_to_phase(&mut self, v: V, phase: Rational);
+    fn set_phase(&mut self, v: V, phase: Rational64);
+    fn phase(&self, v: V) -> Rational64;
+    fn add_to_phase(&mut self, v: V, phase: Rational64);
     fn set_vertex_type(&mut self, v: V, ty: VType);
     fn vertex_type(&self, v: V) -> VType;
     fn vertex_data(&self, v: V) -> VData;
@@ -408,7 +409,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         }
     }
 
-    fn add_vertex_with_phase(&mut self, ty: VType, phase: Rational) -> V {
+    fn add_vertex_with_phase(&mut self, ty: VType, phase: Rational64) -> V {
         let v = self.add_vertex(ty);
         self.set_phase(v, phase);
         v
@@ -423,7 +424,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         if s == t {
             if st == VType::Z || st == VType::X {
                 if ety == EType::H {
-                    self.add_to_phase(s, Rational::new(1, 1));
+                    self.add_to_phase(s, Rational64::new(1, 1));
                     self.scalar_mut().mul_sqrt2_pow(-1);
                 }
             } else {
@@ -441,11 +442,11 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
                         }
                         (EType::H, EType::N) => {
                             self.set_edge_type(s, t, EType::N);
-                            self.add_to_phase(s, Rational::new(1, 1));
+                            self.add_to_phase(s, Rational64::new(1, 1));
                             self.scalar_mut().mul_sqrt2_pow(-1);
                         }
                         (EType::N, EType::H) => {
-                            self.add_to_phase(s, Rational::new(1, 1));
+                            self.add_to_phase(s, Rational64::new(1, 1));
                             self.scalar_mut().mul_sqrt2_pow(-1);
                         }
                     }
@@ -458,11 +459,11 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
                         }
                         (EType::N, EType::H) => {
                             self.set_edge_type(s, t, EType::H);
-                            self.add_to_phase(s, Rational::new(1, 1));
+                            self.add_to_phase(s, Rational64::new(1, 1));
                             self.scalar_mut().mul_sqrt2_pow(-1);
                         }
                         (EType::H, EType::N) => {
-                            self.add_to_phase(s, Rational::new(1, 1));
+                            self.add_to_phase(s, Rational64::new(1, 1));
                             self.scalar_mut().mul_sqrt2_pow(-1);
                         }
                         (EType::H, EType::H) => {} // ignore new edge
@@ -569,11 +570,11 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
             let (no, et0) = self
                 .incident_edges(o)
                 .next()
-                .expect(&format!("Bad output: {}", o));
+                .unwrap_or_else(|| panic!("Bad output: {}", o));
             let (ni, et1) = other
                 .incident_edges(i)
                 .next()
-                .expect(&format!("Bad input: {}", i));
+                .unwrap_or_else(|| panic!("Bad input: {}", i));
             let et = EType::merge(et0, et1);
 
             self.add_edge_smart(no, vmap[&ni], et);
@@ -686,27 +687,22 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         // stack used in the DFS
         let mut stack = vec![];
 
-        loop {
-            if let Some(&v) = vset.iter().next() {
-                // start a new component
-                comps.push(FxHashSet::default());
-                let i = comps.len() - 1;
+        while let Some(&v) = vset.iter().next() {
+            // start a new component
+            comps.push(FxHashSet::default());
+            let i = comps.len() - 1;
 
-                // fill last vec in comps by DFS
-                stack.push(v);
-                while !stack.is_empty() {
-                    let v = stack.pop().unwrap();
-                    comps[i].insert(v);
-                    vset.remove(&v);
+            // fill last vec in comps by DFS
+            stack.push(v);
+            while let Some(v) = stack.pop() {
+                comps[i].insert(v);
+                vset.remove(&v);
 
-                    for w in self.neighbors(v) {
-                        if vset.contains(&w) {
-                            stack.push(w);
-                        }
+                for w in self.neighbors(v) {
+                    if vset.contains(&w) {
+                        stack.push(w);
                     }
                 }
-            } else {
-                break;
             }
         }
 

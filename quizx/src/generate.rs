@@ -18,7 +18,7 @@ use std::mem;
 
 use crate::circuit::*;
 use crate::gate::*;
-use num::Rational;
+use num::Rational64;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
@@ -353,7 +353,7 @@ impl RandomPauliGadgetCircuitBuilder {
                     1 => lc.push(Gate::new(HAD, vec![q])),
                     2 => {
                         let mut g = Gate::new(XPhase, vec![q]);
-                        g.phase = Rational::new(1, 2);
+                        g.phase = Rational64::new(1, 2);
                         lc.push(g);
                     }
                     _ => {}
@@ -381,7 +381,7 @@ impl RandomPauliGadgetCircuitBuilder {
             };
 
             let mut g = Gate::new(ParityPhase, qs);
-            g.phase = Rational::new(phase_num as isize, self.phase_denom as isize);
+            g.phase = Rational64::new(phase_num as i64, self.phase_denom as i64);
 
             // add pauli gadget to the circuit
             c += &lc;

@@ -16,7 +16,7 @@
 
 pub use crate::graph::*;
 use crate::scalar::*;
-use num::rational::Rational;
+use num::rational::Rational64;
 use rustc_hash::FxHashMap;
 use std::iter::FromIterator;
 
@@ -133,7 +133,7 @@ impl GraphLike for Graph {
     fn add_vertex(&mut self, ty: VType) -> V {
         self.add_vertex_with_data(VData {
             ty,
-            phase: Rational::new(0, 1),
+            phase: Rational64::new(0, 1),
             qubit: 0,
             row: 0,
         })
@@ -179,15 +179,15 @@ impl GraphLike for Graph {
         self.remove_half_edge(t, s);
     }
 
-    fn set_phase(&mut self, v: V, phase: Rational) {
+    fn set_phase(&mut self, v: V, phase: Rational64) {
         self.vdata.get_mut(&v).expect("Vertex not found").phase = phase.mod2();
     }
 
-    fn phase(&self, v: V) -> Rational {
+    fn phase(&self, v: V) -> Rational64 {
         self.vdata.get(&v).expect("Vertex not found").phase
     }
 
-    fn add_to_phase(&mut self, v: V, phase: Rational) {
+    fn add_to_phase(&mut self, v: V, phase: Rational64) {
         if let Some(d) = self.vdata.get_mut(&v) {
             d.phase = (d.phase + phase).mod2();
         } else {
@@ -227,7 +227,7 @@ impl GraphLike for Graph {
             .get(&s)
             .expect("Source vertex not found")
             .get(&t)
-            .map(|x| *x)
+            .copied()
     }
 
     fn set_coord(&mut self, v: V, coord: (i32, i32)) {
@@ -295,13 +295,7 @@ impl GraphLike for Graph {
     where
         F: Fn(V) -> bool,
     {
-        for &v in self.vdata.keys() {
-            if f(v) {
-                return Some(v);
-            }
-        }
-
-        None
+        self.vdata.keys().find(|&&v| f(v)).copied()
     }
 
     fn contains_vertex(&self, v: V) -> bool {

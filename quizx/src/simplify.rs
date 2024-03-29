@@ -16,7 +16,7 @@
 
 use crate::basic_rules::*;
 use crate::graph::*;
-use num::{One, Rational, Zero};
+use num::{One, Rational64, Zero};
 use rustc_hash::FxHashMap;
 
 /// Repeatedly apply the given rule at any vertex
@@ -195,11 +195,11 @@ pub fn fuse_gadgets(g: &mut impl GraphLike) -> bool {
             let num = gs.len() as i32;
             let degree = vs.len() as i32;
             fused = true;
-            let mut ph = Rational::zero();
-            for i in 1..gs.len() {
-                ph += g.phase(gs[i].1);
-                g.remove_vertex(gs[i].0);
-                g.remove_vertex(gs[i].1);
+            let mut ph = Rational64::zero();
+            for (u, v) in gs.iter().copied() {
+                ph += g.phase(v);
+                g.remove_vertex(u);
+                g.remove_vertex(v);
             }
 
             g.add_to_phase(gs[0].1, ph);
