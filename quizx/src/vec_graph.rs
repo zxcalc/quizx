@@ -21,10 +21,10 @@ use std::mem;
 
 pub type VTab<T> = Vec<Option<T>>;
 
-#[derive(Debug,Clone,PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Graph {
     vdata: VTab<VData>,
-    edata: VTab<Vec<(V,EType)>>,
+    edata: VTab<Vec<(V, EType)>>,
     holes: Vec<V>, // places where a vertex has been deleted
     inputs: Vec<V>,
     outputs: Vec<V>,
@@ -36,17 +36,22 @@ pub struct Graph {
 impl Graph {
     /// Explicitly index neighbors of a vertex. Used for iteration.
     pub fn neighbor_at(&self, v: V, n: usize) -> V {
-        if let Some(d) = &self.edata[v] { d[n].0 }
-        else { 0 }
+        if let Some(d) = &self.edata[v] {
+            d[n].0
+        } else {
+            0
+        }
     }
 
-    fn index<U>(nhd: &Vec<(V,U)>, v: V) -> Option<usize> {
-        nhd.iter().position(|&(v0,_)| v == v0)
+    fn index<U>(nhd: &Vec<(V, U)>, v: V) -> Option<usize> {
+        nhd.iter().position(|&(v0, _)| v == v0)
     }
 
-    fn value<U: Copy>(nhd: &Vec<(V,U)>, v: V) -> Option<U> {
-        for (v0,u) in nhd.iter() {
-            if v == *v0 { return Some(*u); }
+    fn value<U: Copy>(nhd: &Vec<(V, U)>, v: V) -> Option<U> {
+        for (v0, u) in nhd.iter() {
+            if v == *v0 {
+                return Some(*u);
+            }
         }
         None
     }
@@ -56,7 +61,7 @@ impl Graph {
     /// more efficient.
     fn remove_half_edge(&mut self, s: V, t: V) {
         if let Some(Some(nhd)) = self.edata.get_mut(s) {
-            Graph::index(&nhd,t).map(|i| nhd.swap_remove(i));
+            Graph::index(&nhd, t).map(|i| nhd.swap_remove(i));
         }
     }
 
@@ -114,15 +119,32 @@ impl GraphLike for Graph {
         EIter::Vec(self.nume, self.edata.iter().enumerate(), None)
     }
 
-    fn inputs(&self) -> &Vec<V> { &self.inputs }
-    fn inputs_mut(&mut self) -> &mut Vec<V> { &mut self.inputs }
-    fn set_inputs(&mut self, inputs: Vec<V>) { self.inputs = inputs; }
-    fn outputs(&self) -> &Vec<V> { &self.outputs }
-    fn set_outputs(&mut self, outputs: Vec<V>) { self.outputs = outputs; }
-    fn outputs_mut(&mut self) -> &mut Vec<V> { &mut self.outputs }
+    fn inputs(&self) -> &Vec<V> {
+        &self.inputs
+    }
+    fn inputs_mut(&mut self) -> &mut Vec<V> {
+        &mut self.inputs
+    }
+    fn set_inputs(&mut self, inputs: Vec<V>) {
+        self.inputs = inputs;
+    }
+    fn outputs(&self) -> &Vec<V> {
+        &self.outputs
+    }
+    fn set_outputs(&mut self, outputs: Vec<V>) {
+        self.outputs = outputs;
+    }
+    fn outputs_mut(&mut self) -> &mut Vec<V> {
+        &mut self.outputs
+    }
 
     fn add_vertex(&mut self, ty: VType) -> V {
-        self.add_vertex_with_data(VData { ty, phase: Rational::new(0,1), qubit: 0, row: 0 })
+        self.add_vertex_with_data(VData {
+            ty,
+            phase: Rational::new(0, 1),
+            qubit: 0,
+            row: 0,
+        })
     }
 
     fn add_vertex_with_data(&mut self, d: VData) -> V {
@@ -145,9 +167,9 @@ impl GraphLike for Graph {
         self.vdata[v] = None;
         let adj = mem::take(&mut self.edata[v]).expect("No such vertex.");
 
-        for (v1,_) in adj {
+        for (v1, _) in adj {
             self.nume -= 1;
-            self.remove_half_edge(v1,v);
+            self.remove_half_edge(v1, v);
         }
     }
 
@@ -156,23 +178,22 @@ impl GraphLike for Graph {
         // if self.connected(s,t) { panic!("introducing parallel edge!"); }
 
         if let Some(Some(nhd)) = self.edata.get_mut(s) {
-            nhd.push((t,ety));
+            nhd.push((t, ety));
         } else {
             panic!("Source vertex not found");
         }
 
         if let Some(Some(nhd)) = self.edata.get_mut(t) {
-            nhd.push((s,ety));
+            nhd.push((s, ety));
         } else {
             panic!("Target vertex not found");
         }
     }
 
-
     fn remove_edge(&mut self, s: V, t: V) {
         self.nume -= 1;
-        self.remove_half_edge(s,t);
-        self.remove_half_edge(t,s);
+        self.remove_half_edge(s, t);
+        self.remove_half_edge(t, s);
     }
 
     fn set_phase(&mut self, v: V, phase: Rational) {
@@ -184,9 +205,7 @@ impl GraphLike for Graph {
     }
 
     fn phase(&self, v: V) -> Rational {
-        self.vdata[v]
-            .expect("Vertex not found")
-            .phase
+        self.vdata[v].expect("Vertex not found").phase
     }
 
     fn add_to_phase(&mut self, v: V, phase: Rational) {
@@ -237,8 +256,7 @@ impl GraphLike for Graph {
         }
     }
 
-
-    fn set_coord(&mut self, v: V, coord: (i32,i32)) {
+    fn set_coord(&mut self, v: V, coord: (i32, i32)) {
         if let Some(Some(d)) = self.vdata.get_mut(v) {
             d.qubit = coord.0;
             d.row = coord.1;
@@ -247,7 +265,7 @@ impl GraphLike for Graph {
         }
     }
 
-    fn coord(&mut self, v: V) -> (i32,i32) {
+    fn coord(&mut self, v: V) -> (i32, i32) {
         let d = self.vdata[v].expect("Vertex not found");
         (d.qubit, d.row)
     }
@@ -261,8 +279,7 @@ impl GraphLike for Graph {
     }
 
     fn qubit(&self, v: V) -> i32 {
-        self.vdata[v]
-            .expect("Vertex not found").qubit
+        self.vdata[v].expect("Vertex not found").qubit
     }
 
     fn set_row(&mut self, v: V, row: i32) {
@@ -274,8 +291,7 @@ impl GraphLike for Graph {
     }
 
     fn row(&self, v: V) -> i32 {
-        self.vdata[v]
-            .expect("Vertex not found").row
+        self.vdata[v].expect("Vertex not found").row
     }
 
     fn neighbors(&self, v: V) -> NeighborIter {
@@ -302,16 +318,23 @@ impl GraphLike for Graph {
         }
     }
 
-    fn scalar(&self) -> &ScalarN { &self.scalar }
-    fn scalar_mut(&mut self) -> &mut ScalarN { &mut self.scalar }
+    fn scalar(&self) -> &ScalarN {
+        &self.scalar
+    }
+    fn scalar_mut(&mut self) -> &mut ScalarN {
+        &mut self.scalar
+    }
 
-    fn find_edge<F>(&self, f: F) -> Option<(V,V,EType)>
-        where F : Fn(V,V,EType) -> bool
+    fn find_edge<F>(&self, f: F) -> Option<(V, V, EType)>
+    where
+        F: Fn(V, V, EType) -> bool,
     {
         for (v0, nhd0) in self.edata.iter().enumerate() {
             if let Some(nhd) = nhd0 {
                 for &(v1, et) in nhd.iter() {
-                    if v0 <= v1 && f(v0,v1,et) { return Some((v0,v1,et)); }
+                    if v0 <= v1 && f(v0, v1, et) {
+                        return Some((v0, v1, et));
+                    }
                 }
             };
         }
@@ -320,10 +343,13 @@ impl GraphLike for Graph {
     }
 
     fn find_vertex<F>(&self, f: F) -> Option<V>
-        where F : Fn(V) -> bool
+    where
+        F: Fn(V) -> bool,
     {
         for (v, d) in self.vdata.iter().enumerate() {
-            if d.is_some() && f(v) { return Some(v); }
+            if d.is_some() && f(v) {
+                return Some(v);
+            }
         }
 
         None
@@ -345,7 +371,7 @@ mod tests {
         assert_eq!(g.num_edges(), 0);
     }
 
-    fn simple_graph() -> (Graph,Vec<V>) {
+    fn simple_graph() -> (Graph, Vec<V>) {
         let mut g = Graph::new();
         let vs = vec![
             g.add_vertex(VType::B),
@@ -355,7 +381,8 @@ mod tests {
             g.add_vertex(VType::X),
             g.add_vertex(VType::X),
             g.add_vertex(VType::B),
-            g.add_vertex(VType::B)];
+            g.add_vertex(VType::B),
+        ];
         g.add_edge(vs[0], vs[2]);
         g.add_edge(vs[1], vs[3]);
         g.add_edge(vs[2], vs[4]);
@@ -364,23 +391,23 @@ mod tests {
         g.add_edge(vs[3], vs[5]);
         g.add_edge(vs[4], vs[6]);
         g.add_edge(vs[5], vs[7]);
-        (g,vs)
+        (g, vs)
     }
 
     #[test]
     fn create_simple_graph() {
-        let (g,_) = simple_graph();
+        let (g, _) = simple_graph();
         assert_eq!(g.num_vertices(), 8);
         assert_eq!(g.num_edges(), 8);
     }
 
     #[test]
     fn clone_graph() {
-       let (g,_) = simple_graph();
-       let h = g.clone();
-       assert!(g.num_vertices() == h.num_vertices());
-       assert!(g.num_edges() == h.num_edges());
-       // assert!(g == h);
+        let (g, _) = simple_graph();
+        let h = g.clone();
+        assert!(g.num_vertices() == h.num_vertices());
+        assert!(g.num_edges() == h.num_edges());
+        // assert!(g == h);
     }
 
     #[test]
@@ -421,7 +448,8 @@ mod tests {
             g.add_vertex(VType::B),
             g.add_vertex(VType::Z),
             g.add_vertex(VType::X),
-            g.add_vertex(VType::B)];
+            g.add_vertex(VType::B),
+        ];
         g.add_edge(vs[0], vs[1]);
         g.add_edge(vs[2], vs[3]);
 
@@ -443,4 +471,3 @@ mod tests {
         assert_eq!(h.edge_type(vs[1], vs[2]), EType::H);
     }
 }
-

@@ -16,10 +16,10 @@
 
 // use std::time::Instant;
 use quizx::circuit::*;
-use quizx::vec_graph::*;
-use quizx::simplify::*;
 use quizx::extract::*;
+use quizx::simplify::*;
 use quizx::tensor::*;
+use quizx::vec_graph::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let c = Circuit::from_file("../../../circuits/mod5_4.qasm")?;
@@ -53,11 +53,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 println!("Tensors don't match. \n{}\n\n{}", c, c1);
             }
-        },
+        }
         Err(ExtractError(msg, _c, _g)) => {
             println!("extract failed: {}", msg);
             println!("{}\n\n{}\n\n{}", msg, _c, _g.to_dot());
-        },
+        }
     }
     Ok(())
 }

@@ -14,36 +14,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::time::{Instant,Duration};
 use std::env;
+use std::time::{Duration, Instant};
 // use std::fs;
-use std::io::{self,Write};
+use std::io::{self, Write};
 // use itertools::Itertools;
 use quizx::circuit::*;
 use quizx::graph::*;
 // use quizx::scalar::*;
+use quizx::decompose::{terms_for_tcount, Decomposer};
 use quizx::vec_graph::Graph;
-use quizx::decompose::{terms_for_tcount,Decomposer};
 // use rand::rngs::StdRng;
 // use rand::{SeedableRng, Rng};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let debug = true;
     let args: Vec<_> = env::args().collect();
-    let (qs, depth, min_weight, max_weight, nsamples, seed) =
-        if args.len() >= 6 {
-            (args[1].parse().unwrap(),
+    let (qs, depth, min_weight, max_weight, nsamples, seed) = if args.len() >= 6 {
+        (
+            args[1].parse().unwrap(),
             args[2].parse().unwrap(),
             args[3].parse().unwrap(),
             args[4].parse().unwrap(),
             args[5].parse().unwrap(),
-            args[6].parse().unwrap())
-        } else {
-            (50, 50, 2, 4, 1, 1339)
-            // (13, 15, 2, 4, 3, 1337)
-        };
-    if debug { println!("qubits: {}, depth: {}, min_weight: {}, max_weight: {}, seed: {}",
-                        qs, depth, min_weight, max_weight, seed); }
+            args[6].parse().unwrap(),
+        )
+    } else {
+        (50, 50, 2, 4, 1, 1339)
+        // (13, 15, 2, 4, 3, 1337)
+    };
+    if debug {
+        println!(
+            "qubits: {}, depth: {}, min_weight: {}, max_weight: {}, seed: {}",
+            qs, depth, min_weight, max_weight, seed
+        );
+    }
     let c = Circuit::random_pauli_gadget()
         .qubits(qs)
         .depth(depth)
@@ -56,13 +61,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut g: Graph = c.to_graph();
     let tcount = g.tcount();
-    if debug { println!("g has T-count: {}", g.tcount()); }
-
+    if debug {
+        println!("g has T-count: {}", g.tcount());
+    }
 
     let time_all = Instant::now();
     quizx::simplify::full_simp(&mut g);
-    if debug { println!("g has reduced T-count: {}", g.tcount()); }
-
+    if debug {
+        println!("g has reduced T-count: {}", g.tcount());
+    }
 
     let mut tcounts = vec![];
     let mut terms = 0;
@@ -100,22 +107,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // compute <h|h> by stabiliser decomposition
             prob = d.scalar;
 
-            if debug { println!("P: {} (re(P) ~ {}, terms: {}, time: {:.2?})", prob, prob.float_value().re, d.nterms, time_single.elapsed()); }
+            if debug {
+                println!(
+                    "P: {} (re(P) ~ {}, terms: {}, time: {:.2?})",
+                    prob,
+                    prob.float_value().re,
+                    d.nterms,
+                    time_single.elapsed()
+                );
+            }
             terms += d.nterms;
         }
 
         // println!("Got: {} (P: {}, re(P) ~ {})", meas.iter().format(""), prob, prob.float_value().re);
         time += time_all.elapsed();
 
-
         if debug {
-            println!("Circuit with {} qubits and T-count {} simulated in {:.2?}", qs, tcount, time);
+            println!(
+                "Circuit with {} qubits and T-count {} simulated in {:.2?}",
+                qs, tcount, time
+            );
         }
     }
 
     let naive: f64 = (nsamples as f64) * (qs as f64) * terms_for_tcount(2 * tcount);
     let no_simp: f64 = tcounts.iter().map(|&t| terms_for_tcount(t)).sum();
-    println!("Got {} terms across all samples ({:+e} naive, {:+e} no-simp)", terms, naive, no_simp);
+    println!(
+        "Got {} terms across all samples ({:+e} naive, {:+e} no-simp)",
+        terms, naive, no_simp
+    );
 
     // let data = format!("\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{:+e}\",\"{:+e}\"\n",
     //                    qs, depth, tcount, min_weight, max_weight, nsamples, seed, terms, time.as_millis(), tcounts.iter().format(","), no_simp, naive);
