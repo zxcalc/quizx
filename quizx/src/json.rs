@@ -14,9 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Json encoding for interoperability with pyzx.
-//!
-//! This module provides methods for encoding and decoding graphs in the json format used by pyzx.
+//! Json encoding for interoperability with pyzx and Quantomatic using the .qgraph format.
 //!
 //! # Examples
 //!
@@ -38,10 +36,10 @@
 //! g.add_edge_with_type(vs[1], vs[2], EType::H);
 //! g.add_edge(vs[2], vs[3]);
 //!
-//! // Encode the graph in pyzx json format.
+//! // Encode the graph in qgraph format.
 //! let json = quizx::json::encode_graph(&g, true).unwrap();
 //!
-//! // Decode the graph from the json string.
+//! // Decode the graph from the qgraph string.
 //! let g2 = quizx::json::decode_graph::<Graph>(&json).unwrap();
 //!
 //! assert_eq!(g.to_tensor4(), g2.to_tensor4());
@@ -97,7 +95,7 @@ type VertexName = String;
 /// Identifier for an encoded edge.
 type EdgeName = String;
 
-/// The json-encoded format for pyzx graphs.
+/// The json-encoded format for pyzx and Quantomatic graphs.
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct JsonGraph {
     /// Wire vertices of the graph.
@@ -145,7 +143,7 @@ struct VertexData {
     /// Hadamard wires are encoded as nodes with this flag set,
     /// so that they can be recovered during decoding.
     ///
-    /// Note that in the pyzx encoding, this is either the string "true" or "false".
+    /// Note that in the pyzx encoder, this is either the string "true" or "false".
     /// So we need to deserialize it into a bool manually.
     #[serde(skip_serializing_if = "is_default")]
     #[serde(default)]
@@ -281,7 +279,7 @@ mod test {
         (g, vs)
     }
 
-    const TEST_JSON: &str = include_str!("../../test_files/simple-graph.json");
+    const TEST_JSON: &str = include_str!("../../test_files/simple-graph.qgraph");
 
     #[rstest]
     fn json_roundtrip(simple_graph: (Graph, Vec<V>)) {
