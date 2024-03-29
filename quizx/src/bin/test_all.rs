@@ -14,18 +14,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::time::Instant;
-use std::fs;
 use quizx::circuit::*;
-use quizx::vec_graph::*;
-use quizx::simplify::*;
 use quizx::extract::*;
+use quizx::simplify::*;
 use quizx::tensor::*;
+use quizx::vec_graph::*;
+use std::fs;
+use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     for e in fs::read_dir("../circuits/small")? {
         if let Some(f) = e?.path().to_str() {
-
             let time = Instant::now();
             println!("{}", f);
             let c = Circuit::from_file(f).expect(&format!("circuit failed to parse: {}", f));
@@ -40,7 +39,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             println!("Extracting circuit...");
             let time = Instant::now();
-            let result = g.extractor()
+            let result = g
+                .extractor()
                 .gflow()
                 // .up_to_perm()
                 .extract();
@@ -62,13 +62,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     } else {
                         println!("Checked successfully in {:.2?}", time.elapsed());
                     }
-                },
+                }
                 Err(ExtractError(msg, _c, _g)) => {
                     println!("extract failed: {}", msg);
                     // println!("{}\n\n{}\n\n{}", msg, _c, _g.to_dot());
-                },
+                }
             }
-
         }
     }
 

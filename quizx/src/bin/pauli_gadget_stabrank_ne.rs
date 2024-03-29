@@ -14,39 +14,45 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::time::{Instant,Duration};
-use std::env;
-use std::fs;
-use std::io::{self,Write};
 use itertools::Itertools;
 use quizx::circuit::*;
+use quizx::decompose::{terms_for_tcount, Decomposer};
 use quizx::graph::*;
+use quizx::random_graph::*;
 use quizx::scalar::*;
 use quizx::tensor::*;
 use quizx::vec_graph::Graph;
-use quizx::decompose::{terms_for_tcount,Decomposer};
-use quizx::random_graph::*;
 use rand::rngs::StdRng;
-use rand::{SeedableRng, Rng};
+use rand::{Rng, SeedableRng};
+use std::env;
+use std::fs;
+use std::io::{self, Write};
+use std::time::{Duration, Instant};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let debug = true;
     let args: Vec<_> = env::args().collect();
     let (qs, depth, min_weight, max_weight, nsamples, norm_est_log_samples, seed) =
         if args.len() >= 6 {
-            (args[1].parse().unwrap(),
-            args[2].parse().unwrap(),
-            args[3].parse().unwrap(),
-            args[4].parse().unwrap(),
-            args[5].parse().unwrap(),
-            args[6].parse().unwrap(),
-            args[7].parse().unwrap())
+            (
+                args[1].parse().unwrap(),
+                args[2].parse().unwrap(),
+                args[3].parse().unwrap(),
+                args[4].parse().unwrap(),
+                args[5].parse().unwrap(),
+                args[6].parse().unwrap(),
+                args[7].parse().unwrap(),
+            )
         } else {
             (50, 30, 10, 10, 1, 3, 1337)
             // (13, 15, 2, 4, 3, 1337)
         };
-    if debug { println!("qubits: {}, depth: {}, min_weight: {}, max_weight: {}, seed: {}",
-                        qs, depth, min_weight, max_weight, seed); }
+    if debug {
+        println!(
+            "qubits: {}, depth: {}, min_weight: {}, max_weight: {}, seed: {}",
+            qs, depth, min_weight, max_weight, seed
+        );
+    }
     let c = Circuit::random_pauli_gadget()
         .qubits(qs)
         .depth(depth)
@@ -59,13 +65,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut g: Graph = c.to_graph();
     let tcount = g.tcount();
-    if debug { println!("g has T-count: {}", g.tcount()); }
-
+    if debug {
+        println!("g has T-count: {}", g.tcount());
+    }
 
     let time_all = Instant::now();
     quizx::simplify::full_simp(&mut g);
-    if debug { println!("g has reduced T-count: {}", g.tcount()); }
-
+    if debug {
+        println!("g has reduced T-count: {}", g.tcount());
+    }
 
     let mut tcounts = vec![];
     let mut terms = 0;
@@ -139,45 +147,60 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             // randomly pick an outcome according to p
-            let outcome =
-                if rng.gen_bool(p) {
-                    // outcome 1: let |g> = |h> = (<1| ⊗ I)|g>
-                    g.plug_output(0, BasisElem::Z1);
-                    // and save <g|g> = <h|h>
-                    renorm = prob.clone();
-                    1
-                } else {
-                    // outcome 0: for |h'> = (<0| ⊗ I)|g>
-                    //   we have <g|g> = <h'|h'> + <h|h>, so <h'|h'> = <g|g> - <h|h>
+            let outcome = if rng.gen_bool(p) {
+                // outcome 1: let |g> = |h> = (<1| ⊗ I)|g>
+                g.plug_output(0, BasisElem::Z1);
+                // and save <g|g> = <h|h>
+                renorm = prob.clone();
+                1
+            } else {
+                // outcome 0: for |h'> = (<0| ⊗ I)|g>
+                //   we have <g|g> = <h'|h'> + <h|h>, so <h'|h'> = <g|g> - <h|h>
 
-                    // let |g> = |h'>
-                    g.plug_output(0, BasisElem::Z0);
+                // let |g> = |h'>
+                g.plug_output(0, BasisElem::Z0);
 
-                    // and <g|g> = <h'|h'>
-                    prob = renorm + Scalar::minus_one() * prob;
-                    renorm = prob.clone();
+                // and <g|g> = <h'|h'>
+                prob = renorm + Scalar::minus_one() * prob;
+                renorm = prob.clone();
 
-                    p = 1.0 - p; // complement probability for output below
+                p = 1.0 - p; // complement probability for output below
 
-                    0
-                };
+                0
+            };
 
             meas.push(outcome);
 
-            if debug { println!("{} (p: {}, terms: {}, time: {:.2?})", outcome, p, terms_single, time_single.elapsed()); }
+            if debug {
+                println!(
+                    "{} (p: {}, terms: {}, time: {:.2?})",
+                    outcome,
+                    p,
+                    terms_single,
+                    time_single.elapsed()
+                );
+            }
             terms += terms_single;
         }
 
-        println!("Got: {} (P: {}, re(P) ~ {})", meas.iter().format(""), prob, prob.float_value().re);
+        println!(
+            "Got: {} (P: {}, re(P) ~ {})",
+            meas.iter().format(""),
+            prob,
+            prob.float_value().re
+        );
         time += time_all.elapsed();
 
         // for small numbers of qubits, it is feasible to check the final probablility
-        success = success &&
-            if qs <= 15 {
+        success = success
+            && if qs <= 15 {
                 print!("Checking tensor...");
                 io::stdout().flush().unwrap();
                 let mut check: Graph = c.to_graph();
-                let effect: Vec<_> = meas.iter().map(|&b| if b == 0 { BasisElem::Z0 } else { BasisElem::Z1 }).collect();
+                let effect: Vec<_> = meas
+                    .iter()
+                    .map(|&b| if b == 0 { BasisElem::Z0 } else { BasisElem::Z1 })
+                    .collect();
                 check.plug_inputs(&vec![BasisElem::Z0; qs]);
                 check.plug_outputs(&effect);
                 let amp = check.to_tensor4()[[]];
@@ -194,21 +217,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 true
             };
 
-
         if debug {
-            println!("Circuit with {} qubits and T-count {} simulated in {:.2?}", qs, tcount, time);
+            println!(
+                "Circuit with {} qubits and T-count {} simulated in {:.2?}",
+                qs, tcount, time
+            );
         }
     }
 
     let naive: f64 = (nsamples as f64) * (qs as f64) * terms_for_tcount(2 * tcount);
     let no_simp: f64 = tcounts.iter().map(|&t| terms_for_tcount(t)).sum();
-    println!("Got {} terms across all samples ({:+e} naive)", terms, naive);
+    println!(
+        "Got {} terms across all samples ({:+e} naive)",
+        terms, naive
+    );
 
     let data = format!("\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{:+e}\",\"{:+e}\"\n",
                        qs, depth, tcount, min_weight, max_weight, nsamples, seed, terms, time.as_millis(), tcounts.iter().format(","), no_simp, naive);
     if success {
         print!("OK {}", data);
-        fs::write(&format!("pauli_gadget_{}_{}_{}_{}_{}_{}", qs, depth, min_weight, max_weight, nsamples, seed), data).expect("Unable to write file");
+        fs::write(
+            &format!(
+                "pauli_gadget_{}_{}_{}_{}_{}_{}",
+                qs, depth, min_weight, max_weight, nsamples, seed
+            ),
+            data,
+        )
+        .expect("Unable to write file");
     } else {
         print!("FAILED {}", data);
     }

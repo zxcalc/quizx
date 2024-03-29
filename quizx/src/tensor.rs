@@ -15,19 +15,19 @@
 // limitations under the License.
 
 // use crate::scalar::*;
+use crate::circuit::*;
 use crate::graph::*;
 use crate::scalar::*;
-use crate::circuit::*;
-use num::{Complex,Rational};
-use ndarray::prelude::*;
 use ndarray::parallel::prelude::*;
+use ndarray::prelude::*;
 use ndarray::*;
+use num::{Complex, Rational};
+use rustc_hash::FxHashMap;
 use std::collections::VecDeque;
 use std::iter::FromIterator;
-use rustc_hash::FxHashMap;
 
 /// Generic tensor type used by quizx
-pub type Tensor<A> = Array<A,IxDyn>;
+pub type Tensor<A> = Array<A, IxDyn>;
 
 /// Shorthand for tensors over D[sqrt(i)]
 pub type Tensor4 = Tensor<Scalar4>;
@@ -38,7 +38,11 @@ pub type Tensorf = Tensor<Complex<f64>>;
 impl Sqrt2 for Complex<f64> {
     fn sqrt2_pow(p: i32) -> Complex<f64> {
         let rt2 = Complex::new(f64::sqrt(2.0), 0.0);
-        if p == 1 { rt2 } else { rt2.powi(p) }
+        if p == 1 {
+            rt2
+        } else {
+            rt2.powi(p)
+        }
     }
 }
 
@@ -48,17 +52,42 @@ impl FromPhase for Complex<f64> {
         Complex::new(-1.0, 0.0).powf(exp)
     }
 
-    fn minus_one() -> Complex<f64> { Self::from_phase(Rational::one()) }
+    fn minus_one() -> Complex<f64> {
+        Self::from_phase(Rational::one())
+    }
 }
 
 /// Wraps all the traits we need to compute tensors from ZX-diagrams.
-pub trait TensorElem: Copy + Send + Sync + PartialEq +
-    Zero + One + Sqrt2 + FromPhase + FromScalar<ScalarN> +
-    ScalarOperand + std::ops::MulAssign + std::fmt::Debug {}
-impl<T> TensorElem for T
-where T: Copy + Send + Sync + PartialEq +
-    Zero + One + Sqrt2 + FromPhase + FromScalar<ScalarN> +
-    ScalarOperand + std::ops::MulAssign + std::fmt::Debug {}
+pub trait TensorElem:
+    Copy
+    + Send
+    + Sync
+    + PartialEq
+    + Zero
+    + One
+    + Sqrt2
+    + FromPhase
+    + FromScalar<ScalarN>
+    + ScalarOperand
+    + std::ops::MulAssign
+    + std::fmt::Debug
+{
+}
+impl<T> TensorElem for T where
+    T: Copy
+        + Send
+        + Sync
+        + PartialEq
+        + Zero
+        + One
+        + Sqrt2
+        + FromPhase
+        + FromScalar<ScalarN>
+        + ScalarOperand
+        + std::ops::MulAssign
+        + std::fmt::Debug
+{
+}
 
 /// Trait that implements conversion of graphs to tensors
 ///
@@ -70,10 +99,14 @@ pub trait ToTensor {
     fn to_tensor<A: TensorElem>(&self) -> Tensor<A>;
 
     /// Shorthand for `to_tensor::<Scalar4>()`
-    fn to_tensor4(&self) -> Tensor<Scalar4> { self.to_tensor() }
+    fn to_tensor4(&self) -> Tensor<Scalar4> {
+        self.to_tensor()
+    }
 
     /// Shorthand for `to_tensor::<Complex<f64>>()`
-    fn to_tensorf(&self) -> Tensor<Complex<f64>> { self.to_tensor() }
+    fn to_tensorf(&self) -> Tensor<Complex<f64>> {
+        self.to_tensor()
+    }
 }
 
 pub trait QubitOps<A: TensorElem> {
@@ -103,7 +136,9 @@ pub trait CompareTensors {
 impl<A: TensorElem> CompareTensors for Tensor<A> {
     fn scalar_eq(t0: &Tensor<A>, t1: &Tensor<A>) -> bool {
         // if dimensions are different, tensors are different
-        if t0.dim() != t1.dim() { return false; }
+        if t0.dim() != t1.dim() {
+            return false;
+        }
 
         // find the first non-zero element of each tensor
         let a0 = t0.iter().find(|s| !s.is_zero());
@@ -112,10 +147,14 @@ impl<A: TensorElem> CompareTensors for Tensor<A> {
             // if both tensors have a non-zero element, there are 2 cases
             (Some(b0), Some(b1)) => {
                 // if the non-zero element is equal, tensors should be equal on the nose
-                if b0 == b1 { t0 == t1 }
+                if b0 == b1 {
+                    t0 == t1
+                }
                 // if they are different, we cross-multiply to check scalar equivalence
-                else { t0 * b1.clone() == t1 * b0.clone() }
-            },
+                else {
+                    t0 * b1.clone() == t1 * b0.clone()
+                }
+            }
             // all-zero tensors of the same dimension are equal
             (None, None) => true,
             // otherwise, one is a zero tensor and the other is non-zero
@@ -134,30 +173,48 @@ impl<A: TensorElem> CompareTensors for Tensor<A> {
     }
 }
 
-
 impl<A: TensorElem> QubitOps<A> for Tensor<A> {
     fn slice_qubit_mut(&mut self, q: usize) -> (ArrayViewMut<A, IxDyn>, ArrayViewMut<A, IxDyn>) {
-        let slice0: SliceInfo<_, IxDyn> = SliceInfo::new(Vec::from_iter((0..self.ndim()).map(|i| {
-            if i==q { SliceOrIndex::from(0) } else { SliceOrIndex::from(..) }
-        }))).unwrap();
+        let slice0: SliceInfo<_, IxDyn> =
+            SliceInfo::new(Vec::from_iter((0..self.ndim()).map(|i| {
+                if i == q {
+                    SliceOrIndex::from(0)
+                } else {
+                    SliceOrIndex::from(..)
+                }
+            })))
+            .unwrap();
 
-        let slice1: SliceInfo<_, IxDyn> = SliceInfo::new(Vec::from_iter((0..self.ndim()).map(|i| {
-            if i==q { SliceOrIndex::from(1) } else { SliceOrIndex::from(..) }
-        }))).unwrap();
+        let slice1: SliceInfo<_, IxDyn> =
+            SliceInfo::new(Vec::from_iter((0..self.ndim()).map(|i| {
+                if i == q {
+                    SliceOrIndex::from(1)
+                } else {
+                    SliceOrIndex::from(..)
+                }
+            })))
+            .unwrap();
 
         self.multi_slice_mut((slice0.as_ref(), slice1.as_ref()))
     }
 
     fn ident(q: usize) -> Tensor<A> {
-        Tensor::from_shape_fn(vec![2;q*2], |ix| {
-            if (0..q).all(|i| ix[i] == ix[q+i]) { A::one() } else { A::zero() }
+        Tensor::from_shape_fn(vec![2; q * 2], |ix| {
+            if (0..q).all(|i| ix[i] == ix[q + i]) {
+                A::one()
+            } else {
+                A::zero()
+            }
         })
     }
 
     fn delta(q: usize) -> Tensor<A> {
-        Tensor::from_shape_fn(vec![2;q], |ix| {
-            if (0..q).all(|i| ix[i] == 0) || (0..q).all(|i| ix[i] == 1) { A::one() }
-            else { A::zero() }
+        Tensor::from_shape_fn(vec![2; q], |ix| {
+            if (0..q).all(|i| ix[i] == 0) || (0..q).all(|i| ix[i] == 1) {
+                A::one()
+            } else {
+                A::zero()
+            }
         })
     }
 
@@ -176,18 +233,29 @@ impl<A: TensorElem> QubitOps<A> for Tensor<A> {
 
     fn delta_at(&mut self, qs: &[usize]) {
         let mut shape: Vec<usize> = vec![1; self.ndim()];
-        for &q in qs { shape[q] = 2; }
+        for &q in qs {
+            shape[q] = 2;
+        }
         let del: Tensor<A> = Tensor::delta(qs.len())
-            .into_shape(shape).expect("Bad indices for delta_at");
+            .into_shape(shape)
+            .expect("Bad indices for delta_at");
         *self *= &del;
     }
 
     fn cphase_at(&mut self, p: Rational, qs: &[usize]) {
         let mut shape: Vec<usize> = vec![1; self.ndim()];
-        for &q in qs { shape[q] = 2; }
-        let cp: Tensor<A> = Tensor::from_shape_fn(vec![2;qs.len()], |ix| {
-            if (0..qs.len()).all(|i| ix[i] == 1) { A::from_phase(p) } else { A::one() }
-        }).into_shape(shape).expect("Bad indices for cphase_at");
+        for &q in qs {
+            shape[q] = 2;
+        }
+        let cp: Tensor<A> = Tensor::from_shape_fn(vec![2; qs.len()], |ix| {
+            if (0..qs.len()).all(|i| ix[i] == 1) {
+                A::from_phase(p)
+            } else {
+                A::one()
+            }
+        })
+        .into_shape(shape)
+        .expect("Bad indices for cphase_at");
         *self *= &cp;
     }
 
@@ -210,14 +278,20 @@ impl<A: TensorElem> QubitOps<A> for Tensor<A> {
     fn plug_n_qubits(self, n: usize, other: &Tensor<A>) -> Tensor<A> {
         let d1 = self.shape().len();
         let d2 = other.shape().len();
-        let shape1: Vec<usize> = (0..(d1+d2-n)).map(|i| if i < d1 { 2 } else { 1 }).collect();
-        let shape2: Vec<usize> = (0..(d1+d2-n)).map(|i| if i < d1-n { 1 } else { 2 }).collect();
+        let shape1: Vec<usize> = (0..(d1 + d2 - n))
+            .map(|i| if i < d1 { 2 } else { 1 })
+            .collect();
+        let shape2: Vec<usize> = (0..(d1 + d2 - n))
+            .map(|i| if i < d1 - n { 1 } else { 2 })
+            .collect();
 
         let t1 = self.into_shared().reshape(shape1);
-        let t1p = t1.broadcast(vec![2; d1+n]).unwrap();
+        let t1p = t1.broadcast(vec![2; d1 + n]).unwrap();
         let t2 = other.clone().into_shared().reshape(shape2);
         let mut t3 = &t1p * &t2;
-        for _ in 0..n { t3 = t3.sum_axis(Axis(d1-n)); }
+        for _ in 0..n {
+            t3 = t3.sum_axis(Axis(d1 - n));
+        }
 
         t3
     }
@@ -250,7 +324,7 @@ impl<G: GraphLike + Clone> ToTensor for G {
         // TODO: pick a good sort order for mid
 
         let mut indexv: VecDeque<V> = VecDeque::new();
-        let mut seenv: FxHashMap<V,usize> = FxHashMap::default();
+        let mut seenv: FxHashMap<V, usize> = FxHashMap::default();
 
         // let mut num_had = 0;
         // let mut i = 1;
@@ -278,7 +352,8 @@ impl<G: GraphLike + Clone> ToTensor for G {
                     deg_v += 1;
                     *deg_w += 1;
 
-                    let wi = indexv.iter()
+                    let wi = indexv
+                        .iter()
                         .position(|x| *x == w)
                         .expect("w should be in indexv");
 
@@ -335,22 +410,22 @@ impl ToTensor for Circuit {
                     a.hadamard_at(g.qs[0]);
                     a.cphase_at(Rational::one(), &g.qs);
                     a.hadamard_at(g.qs[0]);
-                },
+                }
                 XPhase => {
                     a.hadamard_at(g.qs[0]);
                     a.cphase_at(g.phase, &g.qs);
                     a.hadamard_at(g.qs[0]);
-                },
+                }
                 CNOT => {
                     a.hadamard_at(g.qs[1]);
                     a.cphase_at(Rational::one(), &g.qs);
                     a.hadamard_at(g.qs[1]);
-                },
+                }
                 TOFF => {
                     a.hadamard_at(g.qs[2]);
                     a.cphase_at(Rational::one(), &g.qs);
                     a.hadamard_at(g.qs[2]);
-                },
+                }
                 SWAP => a.swap_axes(g.qs[0], g.qs[1]),
                 // n.b. these are pyzx-specific gates
                 XCX => {
@@ -359,18 +434,23 @@ impl ToTensor for Circuit {
                     a.cphase_at(g.phase, &g.qs);
                     a.hadamard_at(g.qs[0]);
                     a.hadamard_at(g.qs[1]);
-                },
+                }
                 // TODO: these "gates" are not implemented yet
-                ParityPhase => { panic!("Unsupported gate: ParityPhase") },
-                InitAncilla => { panic!("Unsupported gate: InitAncilla") },
-                PostSelect => { panic!("Unsupported gate: PostSelect") },
-                UnknownGate => {}, // unknown gates are quietly ignored
+                ParityPhase => {
+                    panic!("Unsupported gate: ParityPhase")
+                }
+                InitAncilla => {
+                    panic!("Unsupported gate: InitAncilla")
+                }
+                PostSelect => {
+                    panic!("Unsupported gate: PostSelect")
+                }
+                UnknownGate => {} // unknown gates are quietly ignored
             }
         }
         a
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -383,7 +463,7 @@ mod tests {
         let mut g = Graph::new();
         g.add_vertex(VType::Z);
         g.add_vertex(VType::Z);
-        g.add_edge(0,1);
+        g.add_edge(0, 1);
         let t: Tensor<Scalar4> = g.to_tensor();
         println!("{}", t);
     }
@@ -393,7 +473,7 @@ mod tests {
         let mut g = Graph::new();
         g.add_vertex(VType::B);
         g.add_vertex(VType::B);
-        g.add_edge(0,1);
+        g.add_edge(0, 1);
         g.set_inputs(vec![0]);
         g.set_outputs(vec![1]);
         let t: Tensor<Scalar4> = g.to_tensor();
@@ -403,8 +483,8 @@ mod tests {
         g.add_vertex(VType::B);
         g.add_vertex(VType::B);
         g.add_vertex(VType::Z);
-        g.add_edge(0,2);
-        g.add_edge(2,1);
+        g.add_edge(0, 2);
+        g.add_edge(2, 1);
         g.set_inputs(vec![0]);
         g.set_outputs(vec![1]);
         let t: Tensor<Scalar4> = g.to_tensor();
@@ -420,13 +500,13 @@ mod tests {
         g.add_vertex(VType::B);
         g.add_vertex(VType::Z);
         g.add_vertex(VType::Z);
-        g.add_edge(0,4);
-        g.add_edge(1,5);
-        g.add_edge_with_type(4,5,EType::N);
-        g.add_edge(2,4);
-        g.add_edge(3,5);
-        g.set_inputs(vec![0,1]);
-        g.set_outputs(vec![2,3]);
+        g.add_edge(0, 4);
+        g.add_edge(1, 5);
+        g.add_edge_with_type(4, 5, EType::N);
+        g.add_edge(2, 4);
+        g.add_edge(3, 5);
+        g.set_inputs(vec![0, 1]);
+        g.set_outputs(vec![2, 3]);
         let t = g.to_tensor4();
         println!("{}", t);
         assert_eq!(t, Tensor::delta(4));
@@ -441,13 +521,13 @@ mod tests {
         g.add_vertex(VType::Z);
         g.add_vertex(VType::B);
         g.add_vertex(VType::B);
-        g.add_edge(0,2);
-        g.add_edge(1,3);
-        g.add_edge_with_type(2,3,EType::H);
-        g.add_edge(2,4);
-        g.add_edge(3,5);
-        g.set_inputs(vec![0,1]);
-        g.set_outputs(vec![4,5]);
+        g.add_edge(0, 2);
+        g.add_edge(1, 3);
+        g.add_edge_with_type(2, 3, EType::H);
+        g.add_edge(2, 4);
+        g.add_edge(3, 5);
+        g.set_inputs(vec![0, 1]);
+        g.set_outputs(vec![4, 5]);
         g.scalar_mut().mul_sqrt2_pow(1);
         let t = g.to_tensor4();
         println!("{}", t);
@@ -469,35 +549,46 @@ mod tests {
 
     #[test]
     fn circuit_eqs() {
-        let c1 = Circuit::from_qasm(r#"
+        let c1 = Circuit::from_qasm(
+            r#"
         qreg q[2];
         cx q[0], q[1];
         cx q[1], q[0];
         cx q[0], q[1];
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
 
-        let c2 = Circuit::from_qasm(r#"
+        let c2 = Circuit::from_qasm(
+            r#"
         qreg q[2];
         swap q[0], q[1];
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
 
         println!("{}", c1.to_tensor4());
         println!("{}", c2.to_tensor4());
         assert_eq!(c1.to_tensor4(), c2.to_tensor4());
-
     }
 
     #[test]
     fn tensor_plug() {
-        let c1 = Circuit::from_qasm(r#"
+        let c1 = Circuit::from_qasm(
+            r#"
         qreg q[2];
         cz q[0], q[1];
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
 
-        let c2 = Circuit::from_qasm(r#"
+        let c2 = Circuit::from_qasm(
+            r#"
         qreg q[2];
         cx q[0], q[1];
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
 
         let c3 = &c1 + &c2;
 
@@ -509,6 +600,5 @@ mod tests {
         println!("{}", c3.to_tensor4());
 
         assert_eq!(t3, c3.to_tensor4());
-
     }
 }

@@ -14,13 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::time::Instant;
 use quizx::circuit::*;
 use quizx::graph::*;
+use std::time::Instant;
 // use quizx::tensor::*;
 // use quizx::scalar::*;
-use quizx::vec_graph::Graph;
 use quizx::decompose::Decomposer;
+use quizx::vec_graph::Graph;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let qs = 40;
@@ -41,16 +41,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let time = Instant::now();
     let mut d = Decomposer::new(&g);
-    d.random_t(true)
-     .with_full_simp();
+    d.random_t(true).with_full_simp();
     let mut max = d.max_terms();
     let mut best_d = d.clone();
 
     for _ in 0..100 {
         let mut d1 = d.clone();
-        d1.decomp_top()
-          .random_t(false)
-          .decomp_until_depth(3);
+        d1.decomp_top().random_t(false).decomp_until_depth(3);
         if d1.max_terms() < max {
             max = d1.max_terms();
             println!("lower max: {}", max);
@@ -61,7 +58,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     d = best_d;
     d.decomp_all();
     println!("Finished in {:.2?}", time.elapsed());
-    println!("got {} terms for T-count {} (naive {} terms)", d.nterms, g.tcount(), max);
+    println!(
+        "got {} terms for T-count {} (naive {} terms)",
+        d.nterms,
+        g.tcount(),
+        max
+    );
 
     // let t = g.to_tensor4();
     // println!("{:?}", t.first().unwrap());
