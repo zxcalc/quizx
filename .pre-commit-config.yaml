@@ -1,0 +1,72 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0 # Use the ref you want to point at
+    hooks:
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-vcs-permalinks
+      - id: check-yaml
+      - id: detect-private-key
+      #- id: end-of-file-fixer
+      #- id: trailing-whitespace
+      - id: fix-byte-order-marker
+      - id: mixed-line-ending
+      # Python-specific
+      - id: check-ast
+      - id: check-docstring-first
+      - id: debug-statements
+
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo format
+        description: Format rust code with `cargo fmt`.
+        entry: cargo fmt --all -- --check
+        language: system
+        files: \.rs$
+        pass_filenames: false
+      - id: cargo-check
+        name: cargo check
+        description: Check rust code with `cargo check`.
+        entry: cargo check --all --all-features --workspace
+        language: system
+        files: \.rs$
+        pass_filenames: false
+      - id: cargo-test
+        name: cargo test
+        description: Run tests with `cargo test`.
+        entry: cargo test --all-features -p quizx
+        language: system
+        files: \.rs$
+        pass_filenames: false
+      - id: cargo-clippy
+        name: cargo clippy
+        description: Run clippy lints with `cargo clippy`.
+        entry: cargo clippy --all-features --workspace -- -D warnings
+        language: system
+        files: \.rs$
+        pass_filenames: false
+      - id: ruff format
+        name: ruff format
+        description: Format python code with `ruff format`.
+        entry: poetry run ruff format
+        language: system
+        files: \.py$
+        pass_filenames: false
+      - id: ruff lint
+        name: ruff lint
+        description: Lint python code with `ruff lint`.
+        entry: poetry run ruff check
+        language: system
+        files: \.py$
+        pass_filenames: false
+      - id: mypy
+        name: mypy
+        description: Run mypy type checker.
+        entry: poetry run mypy pybindings
+        language: system
+        files: \.py$
+        pass_filenames: false
