@@ -59,8 +59,12 @@ impl VertexPhase {
             format!("/{}", phase.numer())
         };
 
-        // NOTE: We should be able to use π instead of "pi" here, but pyzx
-        // currently panics when it sees π.
+        // NOTE: We could insert π instead of "pi" here, but
+        // `pyzx.json_to_graph` panics when it sees π.
+        //
+        // That decoder method is deprecated in `pyzx 0.8.0` (replaced by
+        // `pyzx.Graph.from_json`), so we should be able to remove this
+        // workaround in the future.
         Self(format!("{simstr}{numer}pi{denom}"))
     }
 
