@@ -18,6 +18,7 @@
 
 use super::VertexPhase;
 use crate::graph::VType;
+use crate::scalar::utils::limit_denominator;
 
 use num::{FromPrimitive, One, Rational64, Zero};
 
@@ -37,14 +38,11 @@ impl VertexPhase {
             return Self("0".to_string());
         }
 
-        #[allow(clippy::if_same_then_else)]
-        let simstr = if *phase.denom() > 256 {
-            // TODO: This should approximate the phase to a Rational64 number with a small denominator.
-            //       This is not currently implemented.
-            //       See https://docs.python.org/3/library/fractions.html#fractions.Fraction.limit_denominator.
-            ""
+        let (phase, simstr) = if *phase.denom() > 256 {
+            let phase = limit_denominator(phase, 256);
+            (phase, "~")
         } else {
-            ""
+            (phase, "")
         };
 
         let numer = if *phase.numer() == 1 {

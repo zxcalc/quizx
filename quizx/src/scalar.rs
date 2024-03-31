@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod utils;
+
 use approx::AbsDiffEq;
 use num::complex::Complex;
 use num::rational::Rational64;
