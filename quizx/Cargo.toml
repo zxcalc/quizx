@@ -1,6 +1,5 @@
 [package]
 name = "quizx"
-default-example = "hidden_shift_stabrank"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }

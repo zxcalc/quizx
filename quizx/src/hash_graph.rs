@@ -307,7 +307,6 @@ impl GraphLike for Graph {
 
 impl serde::Serialize for Graph {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        // TODO: Don't ignore the scalar.
         let jg = JsonGraph::from_graph(self, JsonOptions::default());
         jg.serialize(serializer)
     }
@@ -316,7 +315,6 @@ impl serde::Serialize for Graph {
 impl<'de> serde::Deserialize<'de> for Graph {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let jg = JsonGraph::deserialize(deserializer)?;
-        // TODO: Don't ignore the scalar.
         Ok(jg.to_graph(JsonOptions::default()))
     }
 }
