@@ -15,6 +15,7 @@
 // limitations under the License.
 
 pub use crate::graph::*;
+use crate::json::{JsonGraph, JsonOptions};
 use crate::scalar::*;
 use num::rational::Rational64;
 use rustc_hash::FxHashMap;
@@ -230,15 +231,16 @@ impl GraphLike for Graph {
             .copied()
     }
 
-    fn set_coord(&mut self, v: V, coord: (i32, i32)) {
+    fn set_coord(&mut self, v: V, coord: impl Into<Coord>) {
+        let coord = coord.into();
         let d = self.vdata.get_mut(&v).expect("Vertex not found");
-        d.qubit = coord.0;
-        d.row = coord.1;
+        d.qubit = coord.x;
+        d.row = coord.y;
     }
 
-    fn coord(&mut self, v: V) -> (i32, i32) {
+    fn coord(&self, v: V) -> Coord {
         let d = self.vdata.get(&v).expect("Vertex not found");
-        (d.qubit, d.row)
+        Coord::new(d.qubit, d.row)
     }
 
     fn set_qubit(&mut self, v: V, qubit: i32) {
@@ -300,6 +302,20 @@ impl GraphLike for Graph {
 
     fn contains_vertex(&self, v: V) -> bool {
         self.vdata.contains_key(&v)
+    }
+}
+
+impl serde::Serialize for Graph {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let jg = JsonGraph::from_graph(self, JsonOptions::default());
+        jg.serialize(serializer)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Graph {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let jg = JsonGraph::deserialize(deserializer)?;
+        Ok(jg.to_graph(JsonOptions::default()))
     }
 }
 

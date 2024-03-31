@@ -204,10 +204,13 @@ impl VecGraph {
 
     fn vertex_type(&self, v: usize) -> u8 {
         match self.g.vertex_type(v) {
+            VType::B => 0,
             VType::Z => 1,
             VType::X => 2,
             VType::H => 3,
-            VType::B => 0,
+            VType::WInput => 4,
+            VType::WOutput => 5,
+            VType::ZBox => 6,
         }
     }
 
@@ -216,6 +219,9 @@ impl VecGraph {
             1 => VType::Z,
             2 => VType::X,
             3 => VType::H,
+            4 => VType::WInput,
+            5 => VType::WOutput,
+            6 => VType::ZBox,
             _ => VType::B,
         };
         self.g.set_vertex_type(v, ty);
@@ -225,13 +231,18 @@ impl VecGraph {
         match self.g.edge_type_opt(e.0, e.1) {
             Some(EType::N) => 1,
             Some(EType::H) => 2,
+            Some(EType::Wio) => 3,
             None => 0,
         }
     }
 
     fn set_edge_type(&mut self, e: (usize, usize), et_num: u8) {
-        self.g
-            .set_edge_type(e.0, e.1, if et_num == 2 { EType::H } else { EType::N });
+        let et = match et_num {
+            2 => EType::H,
+            3 => EType::Wio,
+            _ => EType::N,
+        };
+        self.g.set_edge_type(e.0, e.1, et);
     }
 
     fn phase(&self, v: usize) -> (i64, i64) {
