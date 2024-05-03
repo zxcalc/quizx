@@ -128,7 +128,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "terms = {}, P = {}, re(P) ~ {}",
                 d.nterms,
                 prob,
-                prob.float_value().re
+                prob.complex_value().re
             );
         }
 

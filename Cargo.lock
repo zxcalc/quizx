@@ -691,6 +691,7 @@ dependencies = [
  "indoc",
  "libc",
  "memoffset",
+ "num-complex",
  "parking_lot",
  "portable-atomic",
  "pyo3-build-config",
@@ -768,6 +769,7 @@ dependencies = [
 name = "quizx_pybindings"
 version = "0.1.0"
 dependencies = [
+ "derive_more",
  "num",
  "pyo3",
  "quizx",
