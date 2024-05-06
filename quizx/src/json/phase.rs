@@ -16,7 +16,7 @@
 
 //! Methods for converting phases.
 
-use super::JsonPhase;
+use super::{JsonError, JsonPhase};
 use crate::phase::utils::limit_denominator;
 use crate::phase::Phase;
 
@@ -80,20 +80,26 @@ impl JsonPhase {
     /// Variables are not currently supported.
     ///
     /// Returns `None` if the string is empty or if it contains an invalid value.
-    pub fn to_phase(&self) -> Option<Phase> {
+    pub fn to_phase(&self) -> Result<Option<Phase>, JsonError> {
         if self.0.is_empty() {
-            return None;
+            return Ok(None);
         }
 
-        // This is directly ported from pyzx,
-        // trying to match its behaviour as closely as possible.
+        // Helper function to return when the phase is invalid.
+        let phase_error = || JsonError::InvalidPhase {
+            phase: self.0.clone(),
+        };
+
+        //  // trying to match its behaviour as closely as possible.
         let s: String = self
             .0
             .chars()
             .map(|c| c.to_ascii_lowercase())
             .filter(|c| !c.is_whitespace())
             .filter(|&c| c != 'π')
+            .filter(|&c| c != '~')
             .collect::<String>();
+        let s = s.replace(r#"\pi"#, "");
         let s = s.replace("pi", "");
         let s = s.as_str();
 
@@ -102,33 +108,34 @@ impl JsonPhase {
 
         if s.is_empty() {
             // The phase was just "pi"
-            return Some(Phase::one());
+            return Ok(Some(Phase::one()));
         }
         if s == "-" {
-            return Some(-Phase::one());
+            return Ok(Some(-Phase::one()));
         }
         if s.contains('.') || s.contains('e') {
-            let f: f64 = s.parse().ok()?;
+            let f: f64 = s.parse().map_err(|_| phase_error())?;
             let phase: Phase = f.into();
-            println!("Limiting denominator of {phase:?}");
-            return Some(phase.limit_denominator(256));
+            let phase = phase.limit_denominator(256);
+            return Ok(Some(phase));
         }
         if s.contains('/') {
             let mut parts = s.split('/');
-            let num: &str = parts.next()?.trim_end_matches('*');
-            let den: i64 = parts.next()?.parse().ok()?;
-            return Some(
+            let num: &str = parts.next().unwrap().trim_end_matches('*');
+            let den: i64 = parts.next().unwrap().parse().map_err(|_| phase_error())?;
+            return Ok(Some(
                 match num {
                     "" => Rational64::new(1, den),
                     "-" => Rational64::new(-1, den),
-                    _ => Rational64::new(num.parse().ok()?, den),
+                    _ => Rational64::new(num.parse().map_err(|_| phase_error())?, den),
                 }
                 .into(),
-            );
+            ));
         }
 
-        let n: i64 = s.parse().ok()?;
-        Rational64::from_i64(n).map(Into::into)
+        let n: i64 = s.parse().map_err(|_| phase_error())?;
+        let r: Rational64 = Rational64::from_i64(n).ok_or_else(phase_error)?;
+        Ok(Some(r.into()))
     }
 }
 
@@ -169,11 +176,13 @@ mod test {
     #[case("-0.3333333333333333*pi", (-1, 3))]
     #[case("1*π", 1)]
     #[case("π", 1)]
+    #[case("~-pi/2", (-1, 2))]
+    #[case(r#"7\pi/4"#, (7, 4))]
     fn test_to_phase(#[case] s: &str, #[case] expected: impl Into<Phase>) {
         let expected = expected.into();
         println!("encoded: {s:?} expected: {expected}");
         let json_phase = JsonPhase(s.to_string());
-        let phase = json_phase.to_phase().unwrap();
+        let phase = json_phase.to_phase().unwrap().unwrap_or(Phase::zero());
         assert_eq!(phase, expected);
     }
 }

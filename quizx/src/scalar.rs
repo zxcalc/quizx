@@ -172,6 +172,16 @@ impl<T: Coeffs> Scalar<T> {
         Phase::from_f64(self.complex_value().arg() / PI)
     }
 
+    /// Returns `true` if this scalar uses an exact representation.
+    pub fn is_exact(&self) -> bool {
+        matches!(self, Exact(_, _))
+    }
+
+    /// Returns `true` if this scalar uses an approximate floating point representation.
+    pub fn is_float(&self) -> bool {
+        matches!(self, Float(_))
+    }
+
     /// Multiply the scalar by the p-th power of sqrt(2).
     pub fn mul_sqrt2_pow(&mut self, p: i32) {
         *self *= Scalar::sqrt2_pow(p);
@@ -247,6 +257,18 @@ impl<T: Coeffs> Scalar<T> {
                 Exact(*pow, new_coeffs)
             }
             Float(c) => Float(c.conj()),
+        }
+    }
+
+    /// Checks if the other scalar is approximately equal to this one.
+    ///
+    /// If both scalars are exact, this method will return true only if they are exactly equal.
+    pub fn approx_eq(&self, other: &Self, epsilon: f64) -> bool {
+        if self.is_exact() && other.is_exact() {
+            self == other
+        } else {
+            let diff = self.complex_value() - other.complex_value();
+            diff.norm_sqr() < epsilon * epsilon
         }
     }
 

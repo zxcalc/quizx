@@ -9,7 +9,7 @@ use num::{One, Zero};
 use crate::phase::Phase;
 use crate::scalar::{Coeffs, FromPhase, Scalar};
 
-use super::{JsonPhase, JsonScalar};
+use super::{JsonError, JsonPhase, JsonScalar};
 
 impl JsonScalar {
     /// Encode a scalar.
@@ -27,15 +27,12 @@ impl JsonScalar {
                     ..Default::default()
                 }
             }
-            Scalar::Exact(pow, _) => {
-                JsonScalar {
-                    // The json format encodes a power of sqrt(2), whereas `pow` here is a power of 2.
-                    power2: pow + 2,
-                    phase: JsonPhase::from_phase(scalar.phase(), false),
-                    is_zero: scalar.is_zero(),
-                    ..Default::default()
-                }
-            }
+            Scalar::Exact(pow, _) => JsonScalar {
+                power2: *pow,
+                phase: JsonPhase::from_phase(scalar.phase(), false),
+                is_zero: scalar.is_zero(),
+                ..Default::default()
+            },
         }
     }
 
@@ -48,32 +45,66 @@ impl JsonScalar {
     }
 
     /// Decode the json into a [`Scalar`].
-    pub fn to_scalar<C: Coeffs>(&self) -> Scalar<C> {
+    pub fn to_scalar<C: Coeffs>(&self) -> Result<Scalar<C>, JsonError> {
         if self.is_unknown {
             // TODO: Unknown scalar flag?
-            return Scalar::one();
+            return Ok(Scalar::one());
         }
 
         if self.is_zero {
-            return Scalar::zero();
+            return Ok(Scalar::zero());
         }
 
-        let phase = self.phase.to_phase().unwrap_or(Phase::zero());
+        let phase = self.phase.to_phase()?.unwrap_or(Phase::zero());
         let mut s = Scalar::from_phase(phase);
 
         if self.power2 != 0 {
             s.mul_sqrt2_pow(self.power2);
         }
 
-        if self.floatfactor != 0.0 {
+        if !self.floatfactor.is_zero() {
             s *= Scalar::real(self.floatfactor);
         }
 
         for p in &self.phasenodes {
-            let p = p.to_phase().unwrap_or(Phase::zero());
+            let p = p.to_phase()?.unwrap_or(Phase::zero());
             s *= Scalar::one_plus_phase(p);
         }
 
-        s
+        Ok(s)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use rstest::rstest;
+
+    use crate::scalar::ScalarN;
+
+    use super::*;
+
+    #[rstest]
+    #[case(ScalarN::zero())]
+    #[case(ScalarN::one())]
+    #[case(ScalarN::from_phase(1))]
+    #[case(ScalarN::from_phase((1,2)))]
+    #[case(ScalarN::from_phase((-1,2)))]
+    #[case(ScalarN::real(2.0))]
+    #[case(ScalarN::complex(1.0, 1.0))]
+    fn scalar_roundtrip(#[case] scalar: ScalarN) -> Result<(), JsonError> {
+        println!(
+            "initial: {scalar:?}. As complex: {}",
+            scalar.complex_value()
+        );
+        let json_scalar = JsonScalar::from_scalar(&scalar);
+        println!("encoded: {json_scalar:?}");
+        let decoded: ScalarN = json_scalar.to_scalar()?;
+        println!(
+            "decoded: {decoded:?}. As complex: {}",
+            decoded.complex_value()
+        );
+        assert!(decoded.approx_eq(&scalar, 1e-6));
+
+        Ok(())
     }
 }

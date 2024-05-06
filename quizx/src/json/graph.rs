@@ -19,8 +19,8 @@
 use num::{One, Rational64, Zero};
 
 use super::{
-    EdgeAttrs, JsonGraph, JsonPhase, JsonScalar, VertexAnnotations, VertexAttrs, VertexData,
-    VertexName,
+    EdgeAttrs, JsonError, JsonGraph, JsonPhase, JsonScalar, VertexAnnotations, VertexAttrs,
+    VertexData, VertexName,
 };
 use crate::graph::{Coord, EType, GraphLike, VData, VType, V};
 use crate::phase::Phase;
@@ -29,7 +29,7 @@ use std::collections::{BTreeMap, HashMap};
 
 impl JsonGraph {
     /// Encode a graph using the json representation.
-    pub fn from_graph(graph: &impl GraphLike) -> Self {
+    pub fn from_graph(graph: &impl GraphLike) -> Result<Self, JsonError> {
         let mut wire_vertices = HashMap::new();
         let mut node_vertices = HashMap::new();
         let mut undir_edges = HashMap::new();
@@ -147,17 +147,17 @@ impl JsonGraph {
         let scalar = graph.scalar();
         let scalar = scalar.is_one().then(|| JsonScalar::from_scalar(scalar));
 
-        Self {
+        Ok(Self {
             wire_vertices,
             node_vertices,
             undir_edges,
             variable_types: Default::default(),
             scalar,
-        }
+        })
     }
 
     /// Decode a graph from the json representation.
-    pub fn to_graph<G: GraphLike>(&self) -> G {
+    pub fn to_graph<G: GraphLike>(&self) -> Result<G, JsonError> {
         let mut graph = G::new();
 
         if !self.variable_types.is_empty() {
@@ -178,7 +178,15 @@ impl JsonGraph {
                 continue;
             }
 
-            let phase = match (attrs.data.value.to_phase(), attrs.data.typ) {
+            let phase = attrs
+                .data
+                .value
+                .to_phase()
+                .map_err(|_| JsonError::InvalidNodePhase {
+                    name: name.to_string(),
+                    phase: attrs.data.value.0.clone(),
+                })?;
+            let phase = match (phase, attrs.data.typ) {
                 (Some(r), _) => r,
                 // The phase defaults to one for Hadamard nodes,
                 (None, VType::H) => Rational64::one().into(),
@@ -265,7 +273,12 @@ impl JsonGraph {
             graph.add_edge_smart(src, tgt, EType::H);
         }
 
-        graph
+        // Set the scalar.
+        if let Some(scalar) = &self.scalar {
+            *graph.scalar_mut() = scalar.to_scalar()?;
+        }
+
+        Ok(graph)
     }
 }
 

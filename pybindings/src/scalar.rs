@@ -171,7 +171,7 @@ impl Scalar {
     pub fn from_json(json: &str) -> Self {
         let json_scalar: quizx::json::JsonScalar = serde_json::from_str(json).unwrap();
         Self {
-            s: json_scalar.to_scalar(),
+            s: json_scalar.to_scalar().unwrap_or_else(|e| panic!("{}", e)),
         }
     }
 
