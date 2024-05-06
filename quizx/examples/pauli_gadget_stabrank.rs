@@ -114,7 +114,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // if debug { println!("{} / {}", prob, renorm); }
 
             // n.b. |g> is sub-normalised in general, so let p = <h|h>/<g|g>
-            let mut p = prob.float_value().re / renorm.float_value().re;
+            let mut p = prob.complex_value().re / renorm.complex_value().re;
 
             // should not happen (unless there are some rounding errors)
             if p < 0.0 {
@@ -166,7 +166,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "Got: {} (P: {}, re(P) ~ {})",
             meas.iter().format(""),
             prob,
-            prob.float_value().re
+            prob.complex_value().re
         );
         time += time_all.elapsed();
 

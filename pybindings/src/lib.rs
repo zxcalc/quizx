@@ -1,3 +1,7 @@
+pub mod scalar;
+
+use crate::scalar::Scalar;
+
 use num::Rational64;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
@@ -16,6 +20,7 @@ fn _quizx(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Circuit>()?;
     m.add_class::<CircuitStats>()?;
     m.add_class::<Decomposer>()?;
+    m.add_class::<Scalar>()?;
     Ok(())
 }
 
@@ -290,6 +295,18 @@ impl VecGraph {
     fn set_outputs(&mut self, outputs: Vec<V>) {
         self.g.set_outputs(outputs)
     }
+
+    /// Returns the graph scalar.
+    #[getter]
+    fn get_scalar(&self) -> Scalar {
+        self.g.scalar().clone().into()
+    }
+
+    /// Sets the graph scalar.
+    #[setter]
+    fn set_scalar(&mut self, scalar: Scalar) {
+        *self.g.scalar_mut() = scalar.into();
+    }
 }
 
 #[pyclass]
@@ -311,6 +328,16 @@ impl Decomposer {
         Decomposer {
             d: quizx::decompose::Decomposer::new(&g.g),
         }
+    }
+
+    #[getter]
+    fn get_scalar(&self) -> Scalar {
+        self.d.scalar.clone().into()
+    }
+
+    #[setter]
+    fn set_scalar(&mut self, scalar: Scalar) {
+        self.d.scalar = scalar.into();
     }
 
     fn graphs(&self) -> PyResult<Vec<VecGraph>> {

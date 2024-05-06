@@ -21,7 +21,7 @@ use num::{integer, Integer};
 use std::cmp::min;
 use std::f64::consts::PI;
 use std::fmt;
-use std::ops::AddAssign;
+use std::ops::{Add, AddAssign, Mul};
 
 /// A type for exact and approximate representation of complex
 /// numbers.
@@ -60,12 +60,15 @@ pub trait FromPhase {
 /// Contains the numbers sqrt(2) and 1/sqrt(2), often used for
 /// renormalisation of qubit tensors and matrices.
 pub trait Sqrt2: Sized {
+    /// Return the number sqrt(2).
     fn sqrt2() -> Self {
         Self::sqrt2_pow(1)
     }
+    /// Return the number 1/sqrt(2).
     fn one_over_sqrt2() -> Self {
         Self::sqrt2_pow(-1)
     }
+    /// Return the p-th power of sqrt(2).
     fn sqrt2_pow(p: i32) -> Self;
 }
 
@@ -91,6 +94,9 @@ pub trait Coeffs: Clone + std::ops::IndexMut<usize, Output = isize> {
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    /// Iterate over the coefficient list.
+    fn iter_coeffs(&self) -> impl Iterator<Item = isize>;
 }
 
 /// Implement Copy whenever our coefficient list allows us to.
@@ -119,15 +125,31 @@ fn lcm_with_padding(n1: usize, n2: usize) -> (usize, usize, usize) {
 }
 
 impl<T: Coeffs> Scalar<T> {
+    /// Create a new complex scalar from a pair of floats.
     pub fn complex(re: f64, im: f64) -> Scalar<T> {
         Float(Complex::new(re, im))
     }
 
+    /// Create a new real scalar from a float number.
     pub fn real(re: f64) -> Scalar<T> {
         Float(Complex::new(re, 0.0))
     }
 
-    pub fn float_value(&self) -> Complex<f64> {
+    /// Create a scalar from a list of integer coefficients.
+    pub fn from_int_coeffs(coeffs: &[isize]) -> Scalar<T> {
+        match T::new(coeffs.len()) {
+            Some((mut coeffs1, pad)) => {
+                for i in 0..coeffs.len() {
+                    coeffs1[i * pad] = coeffs[i];
+                }
+                Exact(0, coeffs1).reduce()
+            }
+            None => panic!("Wrong number of coefficients for scalar type"),
+        }
+    }
+
+    /// Returns the complex number representation of the scalar.
+    pub fn complex_value(&self) -> Complex<f64> {
         match self {
             Exact(pow, coeffs) => {
                 let omega = Complex::new(-1f64, 0f64).powf(1f64 / (coeffs.len() as f64));
@@ -147,7 +169,17 @@ impl<T: Coeffs> Scalar<T> {
     ///
     /// As [`Phase`] is encoded as a rational number, this method may lose precision.
     pub fn phase(&self) -> Phase {
-        Phase::from_f64(self.float_value().arg() / PI)
+        Phase::from_f64(self.complex_value().arg() / PI)
+    }
+
+    /// Returns `true` if this scalar uses an exact representation.
+    pub fn is_exact(&self) -> bool {
+        matches!(self, Exact(_, _))
+    }
+
+    /// Returns `true` if this scalar uses an approximate floating point representation.
+    pub fn is_float(&self) -> bool {
+        matches!(self, Float(_))
     }
 
     /// Multiply the scalar by the p-th power of sqrt(2).
@@ -162,24 +194,12 @@ impl<T: Coeffs> Scalar<T> {
 
     /// Returns an equivalent scalar using complex floating point numbers for the coefficients.
     pub fn to_float(&self) -> Scalar<T> {
-        Float(self.float_value())
+        Float(self.complex_value())
     }
 
     /// Returns a scalar value of 1 + 1^{i \pi p}.
     pub fn one_plus_phase(p: impl Into<Phase>) -> Scalar<T> {
         Scalar::one() + Scalar::from_phase(p)
-    }
-
-    pub fn from_int_coeffs(coeffs: &[isize]) -> Scalar<T> {
-        match T::new(coeffs.len()) {
-            Some((mut coeffs1, pad)) => {
-                for i in 0..coeffs.len() {
-                    coeffs1[i * pad] = coeffs[i];
-                }
-                Exact(0, coeffs1).reduce()
-            }
-            None => panic!("Wrong number of coefficients for scalar type"),
-        }
     }
 
     /// Compute the reduced form of the scalar value
@@ -237,6 +257,18 @@ impl<T: Coeffs> Scalar<T> {
                 Exact(*pow, new_coeffs)
             }
             Float(c) => Float(c.conj()),
+        }
+    }
+
+    /// Checks if the other scalar is approximately equal to this one.
+    ///
+    /// If both scalars are exact, this method will return true only if they are exactly equal.
+    pub fn approx_eq(&self, other: &Self, epsilon: f64) -> bool {
+        if self.is_exact() && other.is_exact() {
+            self == other
+        } else {
+            let diff = self.complex_value() - other.complex_value();
+            diff.norm_sqr() < epsilon * epsilon
         }
     }
 
@@ -392,13 +424,13 @@ impl<T: Coeffs> fmt::Display for Scalar<T> {
 
 // The main implementation of the Mul trait uses references, so
 // we don't need to make a copy of the scalars to multiply them.
-impl<'a, 'b, T: Coeffs> std::ops::Mul<&'b Scalar<T>> for &'a Scalar<T> {
+impl<'a, 'b, T: Coeffs> Mul<&'b Scalar<T>> for &'a Scalar<T> {
     type Output = Scalar<T>;
 
     fn mul(self, rhs: &Scalar<T>) -> Self::Output {
         match (self, rhs) {
-            (Float(c), x) => Float(c * x.float_value()),
-            (x, Float(c)) => Float(x.float_value() * c),
+            (Float(c), x) => Float(c * x.complex_value()),
+            (x, Float(c)) => Float(x.complex_value() * c),
             (Exact(pow0, coeffs0), Exact(pow1, coeffs1)) => {
                 let (lcm, pad0, pad1) = lcm_with_padding(coeffs0.len(), coeffs1.len());
                 match T::new(lcm) {
@@ -416,7 +448,7 @@ impl<'a, 'b, T: Coeffs> std::ops::Mul<&'b Scalar<T>> for &'a Scalar<T> {
 
                         Exact(pow0 + pow1, coeffs).reduce()
                     }
-                    None => Float(self.float_value() * rhs.float_value()),
+                    None => Float(self.complex_value() * rhs.complex_value()),
                 }
             }
         }
@@ -424,19 +456,19 @@ impl<'a, 'b, T: Coeffs> std::ops::Mul<&'b Scalar<T>> for &'a Scalar<T> {
 }
 
 // These 3 variations take ownership of one or both args
-impl<T: Coeffs> std::ops::Mul<Scalar<T>> for Scalar<T> {
+impl<T: Coeffs> Mul for Scalar<T> {
     type Output = Scalar<T>;
     fn mul(self, rhs: Scalar<T>) -> Self::Output {
         &self * &rhs
     }
 }
-impl<'a, T: Coeffs> std::ops::Mul<Scalar<T>> for &'a Scalar<T> {
+impl<'a, T: Coeffs> Mul<Scalar<T>> for &'a Scalar<T> {
     type Output = Scalar<T>;
     fn mul(self, rhs: Scalar<T>) -> Self::Output {
         self * &rhs
     }
 }
-impl<'a, T: Coeffs> std::ops::Mul<&'a Scalar<T>> for Scalar<T> {
+impl<'a, T: Coeffs> Mul<&'a Scalar<T>> for Scalar<T> {
     type Output = Scalar<T>;
     fn mul(self, rhs: &Scalar<T>) -> Self::Output {
         &self * rhs
@@ -459,7 +491,7 @@ impl<'a, T: Coeffs> std::ops::MulAssign<&'a Scalar<T>> for Scalar<T> {
 
 // The main implementation of the Add trait uses references, so we
 // don't need to make a copy of the scalars to add them.
-impl<'a, 'b, T: Coeffs> std::ops::Add<&'b Scalar<T>> for &'a Scalar<T> {
+impl<'a, 'b, T: Coeffs> Add<&'b Scalar<T>> for &'a Scalar<T> {
     type Output = Scalar<T>;
 
     fn add(self, rhs: &Scalar<T>) -> Self::Output {
@@ -471,8 +503,8 @@ impl<'a, 'b, T: Coeffs> std::ops::Add<&'b Scalar<T>> for &'a Scalar<T> {
             return rhs.clone();
         }
         match (self, rhs) {
-            (Float(c), x) => Float(c + x.float_value()),
-            (x, Float(c)) => Float(x.float_value() + c),
+            (Float(c), x) => Float(c + x.complex_value()),
+            (x, Float(c)) => Float(x.complex_value() + c),
             (Exact(pow0, coeffs0), Exact(pow1, coeffs1)) => {
                 let (lcm, pad0, pad1) = lcm_with_padding(coeffs0.len(), coeffs1.len());
 
@@ -493,7 +525,7 @@ impl<'a, 'b, T: Coeffs> std::ops::Add<&'b Scalar<T>> for &'a Scalar<T> {
 
                         Exact(minpow, coeffs).reduce()
                     }
-                    None => Float(self.float_value() + self.float_value()),
+                    None => Float(self.complex_value() + self.complex_value()),
                 }
             }
         }
@@ -501,21 +533,21 @@ impl<'a, 'b, T: Coeffs> std::ops::Add<&'b Scalar<T>> for &'a Scalar<T> {
 }
 
 // These 3 variations take ownership of one or both args
-impl<T: Coeffs> std::ops::Add<Scalar<T>> for Scalar<T> {
+impl<T: Coeffs> Add<Scalar<T>> for Scalar<T> {
     type Output = Scalar<T>;
     fn add(self, rhs: Scalar<T>) -> Self::Output {
         &self + &rhs
     }
 }
 
-impl<'a, T: Coeffs> std::ops::Add<Scalar<T>> for &'a Scalar<T> {
+impl<'a, T: Coeffs> Add<Scalar<T>> for &'a Scalar<T> {
     type Output = Scalar<T>;
     fn add(self, rhs: Scalar<T>) -> Self::Output {
         self + &rhs
     }
 }
 
-impl<'a, T: Coeffs> std::ops::Add<&'a Scalar<T>> for Scalar<T> {
+impl<'a, T: Coeffs> Add<&'a Scalar<T>> for Scalar<T> {
     type Output = Scalar<T>;
     fn add(self, rhs: &Scalar<T>) -> Self::Output {
         &self + rhs
@@ -536,7 +568,7 @@ impl<'a, T: Coeffs> AddAssign<&'a Scalar<T>> for Scalar<T> {
 
 impl<T: Coeffs> FromScalar<Scalar<T>> for Complex<f64> {
     fn from_scalar(s: &Scalar<T>) -> Complex<f64> {
-        s.float_value()
+        s.complex_value()
     }
 }
 
@@ -550,7 +582,7 @@ impl<S: Coeffs, T: Coeffs> FromScalar<Scalar<T>> for Scalar<S> {
                     }
                     Exact(*pow, coeffs1)
                 }
-                None => Float(s.float_value()),
+                None => Float(s.complex_value()),
             },
             Float(c) => Float(*c),
         }
@@ -573,8 +605,8 @@ impl<T: Coeffs> AbsDiffEq<Scalar<T>> for Scalar<T> {
     }
 
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        let c1 = self.float_value();
-        let c2 = other.float_value();
+        let c1 = self.complex_value();
+        let c2 = other.complex_value();
         f64::abs_diff_eq(&c1.re, &c2.re, epsilon) && f64::abs_diff_eq(&c1.im, &c2.im, epsilon)
     }
 }
@@ -628,6 +660,9 @@ macro_rules! fixed_size_scalar {
                     None
                 }
             }
+            fn iter_coeffs(&self) -> impl Iterator<Item = isize> {
+                self.iter().copied()
+            }
         }
 
         pub type $name = Scalar<[isize; $n]>;
@@ -656,6 +691,9 @@ impl Coeffs for Vec<isize> {
     }
     fn new(sz: usize) -> Option<(Self, usize)> {
         Some((vec![0; sz], 1))
+    }
+    fn iter_coeffs(&self) -> impl Iterator<Item = isize> {
+        self.iter().copied()
     }
 }
 
@@ -811,13 +849,13 @@ mod tests {
         for p in ps {
             let p_conj = p.conj();
 
-            let lhs = p.float_value().conj();
-            let rhs = p_conj.float_value();
+            let lhs = p.complex_value().conj();
+            let rhs = p_conj.complex_value();
             assert_abs_diff_eq!(lhs.re, rhs.re, epsilon = 0.00001);
             assert_abs_diff_eq!(lhs.im, rhs.im, epsilon = 0.00001);
 
             let abs = p * p_conj;
-            let absf = abs.float_value();
+            let absf = abs.complex_value();
             println!("p = {:?}", p);
             println!("p_conj = {:?}", p_conj);
             println!("abs = {:?}", abs);

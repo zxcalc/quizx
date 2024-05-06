@@ -15,11 +15,13 @@
 // limitations under the License.
 
 pub use crate::graph::*;
-use crate::json::{JsonGraph, JsonOptions};
+use crate::json::JsonGraph;
 use crate::phase::Phase;
 use crate::scalar::*;
 use num::rational::Rational64;
 use rustc_hash::FxHashMap;
+use serde::de::Error as _;
+use serde::ser::Error as _;
 use std::iter::FromIterator;
 
 pub type VTab<T> = FxHashMap<V, T>;
@@ -308,7 +310,8 @@ impl GraphLike for Graph {
 
 impl serde::Serialize for Graph {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let jg = JsonGraph::from_graph(self, JsonOptions::default());
+        let jg = JsonGraph::from_graph(self)
+            .map_err(|e| S::Error::custom(format!("Failed to convert graph to JSON graph: {e}")))?;
         jg.serialize(serializer)
     }
 }
@@ -316,7 +319,10 @@ impl serde::Serialize for Graph {
 impl<'de> serde::Deserialize<'de> for Graph {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let jg = JsonGraph::deserialize(deserializer)?;
-        Ok(jg.to_graph(JsonOptions::default()))
+        let g = jg
+            .to_graph()
+            .map_err(|e| D::Error::custom(format!("Failed to convert JSON graph to graph: {e}")))?;
+        Ok(g)
     }
 }
 

@@ -14,10 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .scalar import from_pyzx_scalar, to_pyzx_scalar
 from fractions import Fraction
 from typing import Tuple, Dict, Any, Optional
 from pyzx.graph.base import BaseGraph  # type: ignore
 from pyzx.utils import VertexType, EdgeType  # type: ignore
+from pyzx.graph.scalar import Scalar
 
 from . import _quizx
 
@@ -315,3 +317,11 @@ class VecGraph(BaseGraph[int, Tuple[int, int]]):
 
     def set_outputs(self, outputs):
         self._g.set_outputs(list(outputs))
+
+    @property
+    def scalar(self) -> Scalar:
+        return to_pyzx_scalar(self._g.scalar)
+
+    @scalar.setter
+    def scalar(self, s: Scalar):
+        self._g.scalar = from_pyzx_scalar(s)

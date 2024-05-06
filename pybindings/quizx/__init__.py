@@ -1,10 +1,10 @@
-from . import _quizx
+from . import _quizx, simplify
 from .graph import VecGraph
 from .circuit import Circuit
-from . import simplify
 from .decompose import Decomposer
+from ._quizx import Scalar
 
-__all__ = ["VecGraph", "Circuit", "simplify", "Decomposer"]
+__all__ = ["VecGraph", "Circuit", "simplify", "Decomposer", "Scalar"]
 
 
 def extract_circuit(g):

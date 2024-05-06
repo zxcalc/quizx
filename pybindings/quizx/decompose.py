@@ -2,6 +2,8 @@ from typing import List, Optional
 
 from . import _quizx
 from .graph import VecGraph
+from .scalar import from_pyzx_scalar, to_pyzx_scalar
+from pyzx.graph.scalar import Scalar
 
 
 class Decomposer(object):
@@ -30,3 +32,11 @@ class Decomposer(object):
 
     def decomp_until_depth(self, depth: int):
         self._d.decomp_until_depth(depth)
+
+    @property
+    def scalar(self) -> Scalar:
+        return to_pyzx_scalar(self._d.scalar)
+
+    @scalar.setter
+    def scalar(self, s: Scalar):
+        self._d.scalar = from_pyzx_scalar(s)
