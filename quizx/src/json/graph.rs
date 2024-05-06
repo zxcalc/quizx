@@ -18,6 +18,7 @@
 
 use num::{One, Rational64, Zero};
 
+use super::phase::PhaseOptions;
 use super::{
     EdgeAttrs, JsonError, JsonGraph, JsonPhase, JsonScalar, VertexAnnotations, VertexAttrs,
     VertexData, VertexName,
@@ -74,7 +75,14 @@ impl JsonGraph {
                 let phase = graph.phase(v);
                 // Encode zero-phases as empty strings by default. If the vertex
                 // is a Hadamard node, encode "1" as empty strings instead.
-                let value = JsonPhase::from_phase(phase, typ == VType::H);
+                let phase_options = PhaseOptions {
+                    ignore_value: Some(match typ == VType::H {
+                        true => Phase::one(),
+                        false => Phase::zero(),
+                    }),
+                    ..Default::default()
+                };
+                let value = JsonPhase::from_phase(phase, phase_options);
                 let mut attrs = VertexAttrs {
                     annotation: VertexAnnotations {
                         coord,

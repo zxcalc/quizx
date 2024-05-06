@@ -22,48 +22,62 @@ use crate::phase::Phase;
 
 use num::{FromPrimitive, One, Rational64, Zero};
 
+/// A set of options for encoding and decoding phases.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PhaseOptions {
+    /// Ignore this value when encoding phases.
+    ///
+    /// If set to `Some`, then the value will be encoded as an empty string.
+    pub ignore_value: Option<Phase>,
+    /// If set to `true`, then encoded phases will not include the '~' symbol for approximate values.
+    pub ignore_approx: bool,
+    /// If set to `true`, then encoded phases will not include the 'pi' symbol.
+    pub ignore_pi: bool,
+    /// Limit the denominator of the phase to this value.
+    pub limit_denom: Option<i64>,
+}
+
+impl Default for PhaseOptions {
+    fn default() -> Self {
+        Self {
+            ignore_value: None,
+            ignore_approx: false,
+            ignore_pi: false,
+            limit_denom: Some(256),
+        }
+    }
+}
+
 impl JsonPhase {
     /// Encode a vertex phase.
     ///
-    /// By default, zero-values are encoded as an empty string.
-    /// If `ignore_one` is set to `true`, then phases with value one are encoded as an empty instead.
-    pub fn from_phase(phase: impl Into<Phase>, ignore_one: bool) -> Self {
+    /// See [`PhaseOptions`] for encoding options.
+    pub fn from_phase(phase: impl Into<Phase>, options: PhaseOptions) -> Self {
         // This is directly ported from pyzx,
         // trying to match its behaviour as closely as possible.
         let phase = phase.into();
 
-        if !ignore_one && phase.is_zero() {
-            return Self("".to_string());
-        }
-        if ignore_one && phase.is_one() {
-            return Self("".to_string());
+        if let Some(ignore_value) = options.ignore_value {
+            if phase == ignore_value {
+                return Self("".to_string());
+            }
         }
 
-        Self::from_rational(phase.to_rational())
-    }
+        let phase: Rational64 = phase.to_rational();
 
-    /// Encode a phase expressed as a rational number.
-    fn from_rational(phase: Rational64) -> Self {
         if phase.is_zero() {
             return Self("0".to_string());
         }
 
-        let (phase, simstr) = if *phase.denom() > 256 {
-            let phase = limit_denominator(phase, 256);
-            (phase, "~")
-        } else {
-            (phase, "")
-        };
-
-        let numer = match *phase.numer() {
-            1 => "".to_string(),
-            -1 => "-".to_string(),
-            n => format!("{}*", n),
-        };
-
-        let denom = match *phase.denom() {
-            1 => "".to_string(),
-            d => format!("/{}", d),
+        let mut simstr: &str = "";
+        let mut phase = phase;
+        if let Some(limit_denom) = options.limit_denom {
+            if *phase.denom() > limit_denom {
+                if !options.ignore_approx {
+                    simstr = "~";
+                }
+                phase = limit_denominator(phase, limit_denom);
+            }
         };
 
         // NOTE: We could insert π instead of "pi" here, but
@@ -72,7 +86,19 @@ impl JsonPhase {
         // That decoder method is deprecated in `pyzx 0.8.0` (replaced by
         // `pyzx.Graph.from_json`), so we should be able to remove this
         // workaround in the future.
-        Self(format!("{simstr}{numer}pi{denom}"))
+        let numer = match (options.ignore_pi, *phase.numer()) {
+            (false, 1) => "pi".to_string(),
+            (false, -1) => "-pi".to_string(),
+            (false, n) => format!("{}*pi", n),
+            (true, n) => format!("{}", n),
+        };
+
+        let denom = match *phase.denom() {
+            1 => "".to_string(),
+            d => format!("/{}", d),
+        };
+
+        Self(format!("{simstr}{numer}{denom}"))
     }
 
     /// Decode a vertex phase.
@@ -146,7 +172,7 @@ mod test {
     use super::*;
 
     #[rstest]
-    #[case(0, "")]
+    #[case(0, "0")]
     #[case(1, "pi")]
     #[case((1, 2), "pi/2")]
     #[case((1, 3), "pi/3")]
@@ -155,7 +181,7 @@ mod test {
     #[case((2, 3), "2*pi/3")]
     fn test_from_phase(#[case] phase: impl Into<Phase>, #[case] expected: &str) {
         let phase = phase.into();
-        let json_phase = JsonPhase::from_phase(phase, false);
+        let json_phase = JsonPhase::from_phase(phase, Default::default());
         assert_eq!(json_phase.0, expected);
     }
 

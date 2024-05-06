@@ -9,17 +9,25 @@ use num::{One, Zero};
 use crate::phase::Phase;
 use crate::scalar::{Coeffs, FromPhase, Scalar};
 
+use super::phase::PhaseOptions;
 use super::{JsonError, JsonPhase, JsonScalar};
 
 impl JsonScalar {
     /// Encode a scalar.
     pub fn from_scalar<C: Coeffs>(scalar: &Scalar<C>) -> Self {
+        // Pyzx scalars do not support the '~' symbol for approximate values.
+        // Nor 'pi' constants.
+        let phase_options = PhaseOptions {
+            ignore_approx: true,
+            ignore_pi: true,
+            ..Default::default()
+        };
         match scalar {
             Scalar::Float(complex) => {
                 let (r, theta) = complex.to_polar();
                 // Encoding `theta` as a `Phase` here converts it to a fractional value,
                 // which may cause a loss of precision.
-                let phase = JsonPhase::from_phase(theta / PI, false);
+                let phase = JsonPhase::from_phase(theta / PI, phase_options);
                 JsonScalar {
                     phase,
                     floatfactor: r,
@@ -27,12 +35,15 @@ impl JsonScalar {
                     ..Default::default()
                 }
             }
-            Scalar::Exact(pow, _) => JsonScalar {
-                power2: *pow,
-                phase: JsonPhase::from_phase(scalar.phase(), false),
-                is_zero: scalar.is_zero(),
-                ..Default::default()
-            },
+            Scalar::Exact(pow, _) => {
+                let phase = JsonPhase::from_phase(scalar.phase(), phase_options);
+                JsonScalar {
+                    power2: *pow,
+                    phase,
+                    is_zero: scalar.is_zero(),
+                    ..Default::default()
+                }
+            }
         }
     }
 
