@@ -1,4 +1,4 @@
-//! Utility functions for scalar values.
+//! Utility functions for phase values.
 
 use num::rational::Ratio;
 use num::Integer;
@@ -14,7 +14,7 @@ use num::Integer;
 ///
 /// # Example
 /// ```
-/// # use quizx::scalar::utils::limit_denominator;
+/// # use quizx::phase::utils::limit_denominator;
 /// # use num::FromPrimitive;
 /// # use num::rational::Rational64;
 /// assert_eq!(

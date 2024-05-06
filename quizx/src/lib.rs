@@ -26,6 +26,7 @@ pub mod hash_graph;
 pub mod json;
 pub mod linalg;
 pub mod optimize_circuit;
+pub mod phase;
 pub mod random_graph;
 pub mod scalar;
 pub mod simplify;

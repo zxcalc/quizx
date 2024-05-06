@@ -27,6 +27,7 @@
 //! transformations, or even panic, if `check_X` doesn't return true.
 
 use crate::graph::*;
+use crate::phase::Phase;
 use crate::scalar::*;
 use num::traits::Zero;
 use num::Rational64;
@@ -209,7 +210,7 @@ pub fn pi_copy_unchecked(g: &mut impl GraphLike, v: V) {
 
     // Push a pi to all the surrounding nodes
     for neighbor in g.neighbor_vec(v) {
-        g.add_to_phase(neighbor, 1.into());
+        g.add_to_phase(neighbor, 1);
     }
 }
 
@@ -269,7 +270,7 @@ checked_rule1!(check_color_change, color_change_unchecked, color_change);
 /// surrounded by H-edges connected to other Z spiders.
 pub fn check_local_comp(g: &impl GraphLike, v: V) -> bool {
     g.vertex_type(v) == VType::Z
-        && *g.phase(v).denom() == 2
+        && g.phase(v).is_proper_clifford()
         && g.incident_edges(v)
             .all(|(v0, et)| g.vertex_type(v0) == VType::Z && et == EType::H)
 }
@@ -277,7 +278,7 @@ pub fn check_local_comp(g: &impl GraphLike, v: V) -> bool {
 /// Apply a local complementation
 ///
 /// This is the version that deletes the targeted vertex. In
-/// other words, it is an N-ary generalisatio of the Euler
+/// other words, it is an N-ary generalization of the Euler
 /// decomposition rule.
 pub fn local_comp_unchecked(g: &mut impl GraphLike, v: V) {
     let p = g.phase(v);
@@ -294,7 +295,8 @@ pub fn local_comp_unchecked(g: &mut impl GraphLike, v: V) {
 
     let x = ns.len() as i32;
     g.scalar_mut().mul_sqrt2_pow(((x - 1) * (x - 2)) / 2);
-    g.scalar_mut().mul_phase(Rational64::new(*p.numer(), 4));
+    g.scalar_mut()
+        .mul_phase(Rational64::new(*p.to_rational().numer(), 4));
 }
 
 checked_rule1!(check_local_comp, local_comp_unchecked, local_comp);
@@ -307,8 +309,8 @@ pub fn check_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
     g.vertex_type(v0) == VType::Z
         && g.vertex_type(v1) == VType::Z
         && g.edge_type_opt(v0, v1) == Some(EType::H)
-        && g.phase(v0).is_integer()
-        && g.phase(v1).is_integer()
+        && g.phase(v0).is_pauli()
+        && g.phase(v1).is_pauli()
         && g.incident_edges(v0)
             .all(|(w, et)| g.vertex_type(w) == VType::Z && et == EType::H)
         && g.incident_edges(v1)
@@ -367,7 +369,7 @@ fn unfuse_boundary(g: &mut impl GraphLike, v: V, b: V) {
     }
     let vd = VData {
         ty: VType::Z,
-        phase: Rational64::zero(),
+        phase: Phase::zero(),
         row: g.row(v),
         qubit: g.qubit(v),
     };
@@ -381,12 +383,12 @@ fn unfuse_boundary(g: &mut impl GraphLike, v: V, b: V) {
 ///
 /// If the vertex already has a Pauli phase, this is a noop.
 fn unfuse_gadget(g: &mut impl GraphLike, v: V) {
-    if g.phase(v).is_integer() {
+    if g.phase(v).is_pauli() {
         return;
     }
     let vd = VData {
         ty: VType::Z,
-        phase: Rational64::zero(),
+        phase: Phase::zero(),
         row: g.row(v),
         qubit: g.qubit(v),
     };
@@ -430,7 +432,7 @@ pub fn check_gen_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
 // check that a vertex is interior, has phase 0 or pi, and is not
 // a phase gadget
 fn is_interior_pauli(g: &impl GraphLike, v: V) -> bool {
-    g.phase(v).is_integer()
+    g.phase(v).is_pauli()
         && g.neighbors(v)
             .all(|n| g.vertex_type(n) == VType::Z && g.degree(n) > 1)
 }
@@ -438,7 +440,7 @@ fn is_interior_pauli(g: &impl GraphLike, v: V) -> bool {
 // check that a vertex is interior, has phase 0 or pi, and is not
 // a phase gadget
 fn is_boundary_pauli(g: &impl GraphLike, v: V) -> bool {
-    g.phase(v).is_integer() && g.neighbors(v).any(|n| g.vertex_type(n) == VType::B)
+    g.phase(v).is_pauli() && g.neighbors(v).any(|n| g.vertex_type(n) == VType::B)
 }
 
 /// Check gen_pivot applies and at least one vertex is interior Pauli
@@ -579,7 +581,7 @@ pub fn remove_pair_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
         *g.scalar_mut() *= ScalarN::one_plus_phase(p0 + p1);
     // different colors
     } else {
-        let p2 = Rational64::one() + p0 + p1;
+        let p2 = Phase::one() + p0 + p1;
         *g.scalar_mut() *= ScalarN::one()
             + ScalarN::from_phase(p0)
             + ScalarN::from_phase(p1)
@@ -640,7 +642,7 @@ mod tests {
 
         assert_eq!(g.to_tensor4(), h.to_tensor4());
 
-        assert_eq!(g.phase(vs[2]), Rational64::new(3, 4));
+        assert_eq!(g.phase(vs[2]), Rational64::new(3, 4).into());
     }
 
     #[test]
@@ -694,7 +696,7 @@ mod tests {
         println!("\n\nth =\n{}", th);
         assert_eq!(tg, th);
 
-        assert_eq!(g.phase(vs[2]), Rational64::new(3, 4));
+        assert_eq!(g.phase(vs[2]), Rational64::new(3, 4).into());
     }
 
     #[test]
@@ -739,7 +741,7 @@ mod tests {
         assert_eq!(tg, th);
 
         for i in 1..5 {
-            assert_eq!(g.phase(i), Rational64::new(-1, 2));
+            assert_eq!(g.phase(i), Rational64::new(-1, 2).into());
         }
 
         assert_eq!(
@@ -784,8 +786,8 @@ mod tests {
         assert_eq!(h.num_vertices(), 5);
         assert_eq!(h.num_edges(), 6);
 
-        assert_eq!(h.phase(0), Rational64::new(0, 1));
-        assert_eq!(h.phase(6), Rational64::new(1, 1));
+        assert_eq!(h.phase(0), Rational64::new(0, 1).into());
+        assert_eq!(h.phase(6), Rational64::new(1, 1).into());
 
         let mut inputs: Vec<usize> = Vec::new();
         let mut outputs: Vec<usize> = Vec::new();
@@ -836,8 +838,8 @@ mod tests {
         assert_eq!(g.num_vertices(), 5);
         assert_eq!(g.num_edges(), 6);
 
-        assert_eq!(g.phase(0), Rational64::new(1, 1));
-        assert_eq!(g.phase(6), Rational64::new(1, 1));
+        assert_eq!(g.phase(0), Rational64::new(1, 1).into());
+        assert_eq!(g.phase(6), Rational64::new(1, 1).into());
     }
 
     #[test]
@@ -936,13 +938,13 @@ mod tests {
 
             assert!(gadget_fusion(&mut graph, gs[0], gs[1]));
             assert!(graph
-                .find_vertex(|v| graph.phase(v) == Rational64::new(3, 4))
+                .find_vertex(|v| graph.phase(v) == Rational64::new(3, 4).into())
                 .is_some());
             assert!(graph
-                .find_vertex(|v| graph.phase(v) == Rational64::new(1, 4))
+                .find_vertex(|v| graph.phase(v) == Rational64::new(1, 4).into())
                 .is_none());
             assert!(graph
-                .find_vertex(|v| graph.phase(v) == Rational64::new(1, 2))
+                .find_vertex(|v| graph.phase(v) == Rational64::new(1, 2).into())
                 .is_none());
             // println!("{}", g.to_tensor4());
             // println!("{}", h.to_tensor4());
@@ -990,13 +992,13 @@ mod tests {
     fn pi_copy_1() {
         let mut g = Graph::new();
         let vs = [
-            g.add_vertex_with_phase(VType::Z, 1.into()),
-            g.add_vertex_with_phase(VType::Z, (1, 2).into()),
-            g.add_vertex_with_phase(VType::X, (1, 4).into()),
-            g.add_vertex_with_phase(VType::Z, 0.into()),
-            g.add_vertex_with_phase(VType::X, (3, 2).into()),
-            g.add_vertex_with_phase(VType::Z, (3, 4).into()),
-            g.add_vertex_with_phase(VType::B, 0.into()),
+            g.add_vertex_with_phase(VType::Z, 1),
+            g.add_vertex_with_phase(VType::Z, (1, 2)),
+            g.add_vertex_with_phase(VType::X, (1, 4)),
+            g.add_vertex_with_phase(VType::Z, 0),
+            g.add_vertex_with_phase(VType::X, (3, 2)),
+            g.add_vertex_with_phase(VType::Z, (3, 4)),
+            g.add_vertex_with_phase(VType::B, 0),
         ];
 
         g.set_inputs(vec![vs[6]]);

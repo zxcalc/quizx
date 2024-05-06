@@ -3,6 +3,7 @@ use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use quizx::extract::ToCircuit;
 use quizx::graph::*;
+use quizx::phase::Phase;
 
 #[pymodule]
 fn _quizx(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -160,7 +161,7 @@ impl VecGraph {
             3 => VType::H,
             _ => VType::B,
         };
-        let phase = Rational64::new(phase.0, phase.1);
+        let phase = Phase::new((phase.0, phase.1));
         self.g.add_vertex_with_data(VData {
             ty,
             phase,
@@ -246,7 +247,7 @@ impl VecGraph {
     }
 
     fn phase(&self, v: usize) -> (i64, i64) {
-        let p = self.g.phase(v);
+        let p = self.g.phase(v).to_rational();
         (*p.numer(), *p.denom())
     }
 
