@@ -111,7 +111,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!(
                     "P: {} (re(P) ~ {}, terms: {}, time: {:.2?})",
                     prob,
-                    prob.float_value().re,
+                    prob.complex_value().re,
                     d.nterms,
                     time_single.elapsed()
                 );

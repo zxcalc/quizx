@@ -15,7 +15,7 @@
 // limitations under the License.
 
 pub use crate::graph::*;
-use crate::json::{JsonGraph, JsonOptions};
+use crate::json::JsonGraph;
 use crate::phase::Phase;
 use crate::scalar::*;
 use num::rational::Rational64;
@@ -308,7 +308,7 @@ impl GraphLike for Graph {
 
 impl serde::Serialize for Graph {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let jg = JsonGraph::from_graph(self, JsonOptions::default());
+        let jg = JsonGraph::from_graph(self);
         jg.serialize(serializer)
     }
 }
@@ -316,7 +316,7 @@ impl serde::Serialize for Graph {
 impl<'de> serde::Deserialize<'de> for Graph {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let jg = JsonGraph::deserialize(deserializer)?;
-        Ok(jg.to_graph(JsonOptions::default()))
+        Ok(jg.to_graph())
     }
 }
 

@@ -19,7 +19,7 @@
 use num::{One, Rational64, Zero};
 
 use super::{
-    EdgeAttrs, JsonGraph, JsonOptions, JsonPhase, VertexAnnotations, VertexAttrs, VertexData,
+    EdgeAttrs, JsonGraph, JsonPhase, JsonScalar, VertexAnnotations, VertexAttrs, VertexData,
     VertexName,
 };
 use crate::graph::{Coord, EType, GraphLike, VData, VType, V};
@@ -29,7 +29,7 @@ use std::collections::{BTreeMap, HashMap};
 
 impl JsonGraph {
     /// Encode a graph using the json representation.
-    pub fn from_graph(graph: &impl GraphLike, options: JsonOptions) -> Self {
+    pub fn from_graph(graph: &impl GraphLike) -> Self {
         let mut wire_vertices = HashMap::new();
         let mut node_vertices = HashMap::new();
         let mut undir_edges = HashMap::new();
@@ -144,31 +144,24 @@ impl JsonGraph {
             };
         }
 
-        if options.include_scalar {
-            // TODO: Implement scalar encoding, remove this error.
-            eprintln!("Encoding scalars is not yet supported. Ignoring encoding option.");
-        }
+        let scalar = graph.scalar();
+        let scalar = scalar.is_one().then(|| JsonScalar::from_scalar(scalar));
 
         Self {
             wire_vertices,
             node_vertices,
             undir_edges,
             variable_types: Default::default(),
-            scalar: None,
+            scalar,
         }
     }
 
     /// Decode a graph from the json representation.
-    pub fn to_graph<G: GraphLike>(&self, options: JsonOptions) -> G {
+    pub fn to_graph<G: GraphLike>(&self) -> G {
         let mut graph = G::new();
 
         if !self.variable_types.is_empty() {
             unimplemented!("Variables are not currently supported.");
-        }
-
-        if !options.include_scalar && self.scalar.is_some() {
-            // TODO: Implement scalar decoding, remove this error.
-            eprintln!("Decoding scalars is not yet supported. Ignoring it.");
         }
 
         let mut names: HashMap<VertexName, V> = HashMap::new();

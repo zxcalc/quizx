@@ -14,4 +14,7 @@ crate-type = ["cdylib"]
 [dependencies]
 quizx = { workspace = true }
 num = { workspace = true }
-pyo3 = { workspace = true, features = ["extension-module"] }
+pyo3 = { workspace = true, features = ["extension-module", "num-complex"] }
+derive_more = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }

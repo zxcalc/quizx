@@ -140,17 +140,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "{} (P = {}, re(P) ~ {})",
                     meas_str(&effect1),
                     prob1,
-                    prob1.float_value().re
+                    prob1.complex_value().re
                 );
             }
 
-            if prob1.float_value().re > prob.float_value().re {
+            if prob1.complex_value().re > prob.complex_value().re {
                 // always accept if probability increases
                 effect = effect1;
                 prob = prob1;
-            } else if prob.float_value().re != 0.0 {
+            } else if prob.complex_value().re != 0.0 {
                 // accept with probability prob1/prob if probability decreases
-                let p = prob1.float_value().re / prob.float_value().re;
+                let p = prob1.complex_value().re / prob.complex_value().re;
                 if rng.gen_bool(p) {
                     effect = effect1;
                     prob = prob1;
@@ -167,7 +167,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "Finished at: {} (P = {}, re(P) ~ {})",
             meas.iter().format(""),
             prob,
-            prob.float_value().re
+            prob.complex_value().re
         );
         time += time_all.elapsed();
 
