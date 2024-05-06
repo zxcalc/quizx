@@ -155,7 +155,6 @@ mod test {
     #[case((2, 3), "2*pi/3")]
     fn test_from_phase(#[case] phase: impl Into<Phase>, #[case] expected: &str) {
         let phase = phase.into();
-        println!("phase: {phase:?} expected: {expected}");
         let json_phase = JsonPhase::from_phase(phase, false);
         assert_eq!(json_phase.0, expected);
     }
@@ -180,7 +179,6 @@ mod test {
     #[case(r#"7\pi/4"#, (7, 4))]
     fn test_to_phase(#[case] s: &str, #[case] expected: impl Into<Phase>) {
         let expected = expected.into();
-        println!("encoded: {s:?} expected: {expected}");
         let json_phase = JsonPhase(s.to_string());
         let phase = json_phase.to_phase().unwrap().unwrap_or(Phase::zero());
         assert_eq!(phase, expected);

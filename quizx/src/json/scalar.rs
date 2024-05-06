@@ -92,17 +92,8 @@ mod test {
     #[case(ScalarN::real(2.0))]
     #[case(ScalarN::complex(1.0, 1.0))]
     fn scalar_roundtrip(#[case] scalar: ScalarN) -> Result<(), JsonError> {
-        println!(
-            "initial: {scalar:?}. As complex: {}",
-            scalar.complex_value()
-        );
         let json_scalar = JsonScalar::from_scalar(&scalar);
-        println!("encoded: {json_scalar:?}");
         let decoded: ScalarN = json_scalar.to_scalar()?;
-        println!(
-            "decoded: {decoded:?}. As complex: {}",
-            decoded.complex_value()
-        );
         assert!(decoded.approx_eq(&scalar, 1e-6));
 
         Ok(())
