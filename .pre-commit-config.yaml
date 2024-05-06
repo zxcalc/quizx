@@ -70,3 +70,10 @@ repos:
         language: system
         files: \.py$
         pass_filenames: false
+      - id: cargo-doc
+        name: cargo doc
+        description: Generate documentation with `cargo doc`.
+        entry: cargo doc --no-deps --all-features --workspace
+        language: system
+        files: \.rs$
+        pass_filenames: false

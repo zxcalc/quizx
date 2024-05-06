@@ -49,6 +49,8 @@ mod graph;
 mod phase;
 mod scalar;
 
+pub use phase::PhaseOptions;
+
 use crate::graph::VType;
 use crate::hash_graph::{EType, GraphLike};
 
