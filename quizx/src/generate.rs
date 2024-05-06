@@ -353,7 +353,7 @@ impl RandomPauliGadgetCircuitBuilder {
                     1 => lc.push(Gate::new(HAD, vec![q])),
                     2 => {
                         let mut g = Gate::new(XPhase, vec![q]);
-                        g.phase = Rational64::new(1, 2);
+                        g.phase = Rational64::new(1, 2).into();
                         lc.push(g);
                     }
                     _ => {}
@@ -381,7 +381,7 @@ impl RandomPauliGadgetCircuitBuilder {
             };
 
             let mut g = Gate::new(ParityPhase, qs);
-            g.phase = Rational64::new(phase_num as i64, self.phase_denom as i64);
+            g.phase = Rational64::new(phase_num as i64, self.phase_denom as i64).into();
 
             // add pauli gadget to the circuit
             c += &lc;

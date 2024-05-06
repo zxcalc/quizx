@@ -17,7 +17,7 @@
 use crate::gate::*;
 use crate::graph::*;
 use crate::linalg::RowOps;
-use crate::scalar::Mod2;
+use crate::phase::Phase;
 use num::{Rational64, Zero};
 use openqasm::{ast::Symbol, translate::Value, GenericError, ProgramVisitor};
 use std::collections::VecDeque;
@@ -71,7 +71,7 @@ impl CircuitStats {
                     s.cliff += 1;
                 }
                 ZPhase | XPhase => {
-                    if *g.phase.denom() == 1 || *g.phase.denom() == 2 {
+                    if g.phase.is_clifford() {
                         s.cliff += 1;
                     } else {
                         s.non_cliff += 1;
@@ -142,11 +142,11 @@ impl Circuit {
         self.gates.push_front(g);
     }
 
-    pub fn add_gate_with_phase(&mut self, name: &str, qs: Vec<usize>, phase: Rational64) {
+    pub fn add_gate_with_phase(&mut self, name: &str, qs: Vec<usize>, phase: impl Into<Phase>) {
         self.push(Gate {
             t: GType::from_qasm_name(name),
             qs,
-            phase: phase.mod2(),
+            phase: phase.into(),
         });
     }
 
@@ -256,7 +256,7 @@ impl Circuit {
         for i in 0..self.nqubits {
             let v = graph.add_vertex_with_data(VData {
                 ty: VType::B,
-                phase: Rational64::zero(),
+                phase: Phase::zero(),
                 qubit: i as i32,
                 row: 1,
             });
@@ -284,7 +284,7 @@ impl Circuit {
             if let Some(v0) = q {
                 let v = graph.add_vertex_with_data(VData {
                     ty: VType::B,
-                    phase: Rational64::zero(),
+                    phase: Phase::zero(),
                     qubit: i as i32,
                     row: last_row + 1,
                 });
@@ -436,22 +436,22 @@ impl openqasm::GateWriter for &mut CircuitWriter {
         params: &[Value],
         regs: &[usize],
     ) -> Result<(), Self::Error> {
-        fn param_to_ratio(value: Value) -> num::Rational64 {
+        fn param_to_phase(value: Value) -> Phase {
             if value.a.is_zero() {
-                num::Rational64::new(*value.b.numer(), *value.b.denom()).mod2()
+                Rational64::new(*value.b.numer(), *value.b.denom()).into()
             } else {
                 let a = *value.a.numer() as f32 / *value.a.denom() as f32;
-                let mut p = num::Rational64::approximate_float(a / std::f32::consts::PI)
-                    .unwrap_or(0.into());
-                p += num::Rational64::new(*value.b.numer(), *value.b.denom());
-                p.mod2()
+                let mut r =
+                    Rational64::approximate_float(a / std::f32::consts::PI).unwrap_or(0.into());
+                r += Rational64::new(*value.b.numer(), *value.b.denom());
+                Phase::new(r)
             }
         }
 
         let mut g = Gate::from_qasm_name(name.as_str());
         g.qs.extend_from_slice(regs);
         if !params.is_empty() {
-            g.phase = param_to_ratio(params[0]);
+            g.phase = param_to_phase(params[0]);
         }
 
         self.circuit.push(g);

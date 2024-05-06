@@ -16,13 +16,14 @@
 
 //! Methods for converting between a `GraphLike` object and the json representation.
 
-use num::{Rational64, Zero};
+use num::{One, Rational64, Zero};
 
 use super::{
-    EdgeAttrs, JsonGraph, JsonOptions, VertexAnnotations, VertexAttrs, VertexData, VertexName,
-    VertexPhase,
+    EdgeAttrs, JsonGraph, JsonOptions, JsonPhase, VertexAnnotations, VertexAttrs, VertexData,
+    VertexName,
 };
 use crate::graph::{Coord, EType, GraphLike, VData, VType, V};
+use crate::phase::Phase;
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -71,6 +72,9 @@ impl JsonGraph {
                 wire_vertices.insert(v_name, attrs);
             } else {
                 let phase = graph.phase(v);
+                // Encode zero-phases as empty strings by default. If the vertex
+                // is a Hadamard node, encode "1" as empty strings instead.
+                let value = JsonPhase::from_phase(phase, typ == VType::H);
                 let mut attrs = VertexAttrs {
                     annotation: VertexAnnotations {
                         coord,
@@ -78,7 +82,7 @@ impl JsonGraph {
                     },
                     data: VertexData {
                         typ,
-                        value: VertexPhase::from_rational(phase, typ),
+                        value,
                         ..Default::default()
                     },
                 };
@@ -181,11 +185,18 @@ impl JsonGraph {
                 continue;
             }
 
+            let phase = match (attrs.data.value.to_phase(), attrs.data.typ) {
+                (Some(r), _) => r,
+                // The phase defaults to one for Hadamard nodes,
+                (None, VType::H) => Rational64::one().into(),
+                // and zero for all others.
+                (None, _) => Rational64::zero().into(),
+            };
             let v = graph.add_vertex_with_data(VData {
                 ty: attrs.data.typ,
                 qubit: coord.qubit(),
                 row: coord.row(),
-                phase: attrs.data.value.to_rational().unwrap_or(Rational64::zero()),
+                phase,
             });
             names.insert(name.to_string(), v);
         }
@@ -199,7 +210,7 @@ impl JsonGraph {
                 ty: VType::B,
                 qubit: coord.qubit(),
                 row: coord.row(),
-                phase: Rational64::zero(),
+                phase: Phase::zero(),
             });
             names.insert(name.to_string(), v);
             if let Some(input) = attrs.annotation.input {
@@ -230,7 +241,7 @@ impl JsonGraph {
                         ty: VType::Z,
                         qubit: new_coord.qubit(),
                         row: new_coord.row(),
-                        phase: Rational64::zero(),
+                        phase: Phase::zero(),
                     });
                     let name = format!("v{}", graph.num_vertices());
                     names.insert(name, v);

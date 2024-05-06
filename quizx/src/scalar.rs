@@ -14,15 +14,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod utils;
-
 use approx::AbsDiffEq;
 use num::complex::Complex;
-use num::rational::Rational64;
 pub use num::traits::identities::{One, Zero};
 use num::{integer, Integer};
 use std::cmp::min;
+use std::f64::consts::PI;
 use std::fmt;
+use std::ops::AddAssign;
 
 /// A type for exact and approximate representation of complex
 /// numbers.
@@ -50,25 +49,11 @@ pub enum Scalar<T: Coeffs> {
     Float(Complex<f64>),
 }
 
-/// Adds the ability to take non-integer types modulo 2. The output
-/// should be normalised to be in the range (-1,1].
-pub trait Mod2 {
-    fn mod2(&self) -> Self;
-}
-
-impl Mod2 for Rational64 {
-    fn mod2(&self) -> Rational64 {
-        let mut num = self.numer().rem_euclid(2 * *self.denom());
-        if num > *self.denom() {
-            num -= 2 * *self.denom();
-        }
-        Rational64::new(num, *self.denom())
-    }
-}
-
 /// Produce a number from rational root of -1.
 pub trait FromPhase {
-    fn from_phase(p: Rational64) -> Self;
+    /// Returns a number from a rational phase.
+    fn from_phase(p: impl Into<Phase>) -> Self;
+    /// Returns the number -1.
     fn minus_one() -> Self;
 }
 
@@ -113,6 +98,8 @@ impl<T: Coeffs + Copy> Copy for Scalar<T> {}
 
 use Scalar::{Exact, Float};
 
+use crate::phase::Phase;
+
 /// Allows transformation from a scalar.
 ///
 /// We do not use the standard library's [From] trait to avoid a clash
@@ -156,19 +143,30 @@ impl<T: Coeffs> Scalar<T> {
         }
     }
 
+    /// Returns the phase of the scalar, expressed as half turns.
+    ///
+    /// As [`Phase`] is encoded as a rational number, this method may lose precision.
+    pub fn phase(&self) -> Phase {
+        Phase::from_f64(self.float_value().arg() / PI)
+    }
+
+    /// Multiply the scalar by the p-th power of sqrt(2).
     pub fn mul_sqrt2_pow(&mut self, p: i32) {
         *self *= Scalar::sqrt2_pow(p);
     }
 
-    pub fn mul_phase(&mut self, phase: Rational64) {
+    /// Multiply the scalar by a phase.
+    pub fn mul_phase(&mut self, phase: impl Into<Phase>) {
         *self *= Scalar::from_phase(phase);
     }
 
+    /// Returns an equivalent scalar using complex floating point numbers for the coefficients.
     pub fn to_float(&self) -> Scalar<T> {
         Float(self.float_value())
     }
 
-    pub fn one_plus_phase(p: Rational64) -> Scalar<T> {
+    /// Returns a scalar value of 1 + 1^{i \pi p}.
+    pub fn one_plus_phase(p: impl Into<Phase>) -> Scalar<T> {
         Scalar::one() + Scalar::from_phase(p)
     }
 
@@ -308,7 +306,8 @@ impl<T: Coeffs> Sqrt2 for Scalar<T> {
 }
 
 impl<T: Coeffs> FromPhase for Scalar<T> {
-    fn from_phase(p: Rational64) -> Scalar<T> {
+    fn from_phase(p: impl Into<Phase>) -> Scalar<T> {
+        let p = p.into().to_rational();
         let mut rnumer = *p.numer();
         let mut rdenom = *p.denom();
         match T::new(rdenom as usize) {
@@ -333,7 +332,7 @@ impl<T: Coeffs> FromPhase for Scalar<T> {
     }
 
     fn minus_one() -> Scalar<T> {
-        Scalar::from_phase(Rational64::one())
+        Scalar::from_phase(Phase::one())
     }
 }
 
@@ -523,6 +522,18 @@ impl<'a, T: Coeffs> std::ops::Add<&'a Scalar<T>> for Scalar<T> {
     }
 }
 
+impl<T: Coeffs> AddAssign for Scalar<T> {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = &*self + &rhs;
+    }
+}
+
+impl<'a, T: Coeffs> AddAssign<&'a Scalar<T>> for Scalar<T> {
+    fn add_assign(&mut self, rhs: &Scalar<T>) {
+        *self = &*self + rhs;
+    }
+}
+
 impl<T: Coeffs> FromScalar<Scalar<T>> for Complex<f64> {
     fn from_scalar(s: &Scalar<T>) -> Complex<f64> {
         s.float_value()
@@ -543,6 +554,12 @@ impl<S: Coeffs, T: Coeffs> FromScalar<Scalar<T>> for Scalar<S> {
             },
             Float(c) => Float(*c),
         }
+    }
+}
+
+impl<T: Coeffs> From<Complex<f64>> for Scalar<T> {
+    fn from(c: Complex<f64>) -> Scalar<T> {
+        Float(c)
     }
 }
 
@@ -649,6 +666,7 @@ pub type ScalarN = Scalar<Vec<isize>>;
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
+    use num::Rational64;
 
     #[test]
     fn approx_mul() {

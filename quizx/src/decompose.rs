@@ -101,7 +101,7 @@ impl<G: GraphLike> Decomposer<G> {
     pub fn merge(mut ds: Vec<Decomposer<G>>) -> Decomposer<G> {
         if let Some(mut d) = ds.pop() {
             while let Some(d1) = ds.pop() {
-                d.scalar = d.scalar + d1.scalar;
+                d.scalar += d1.scalar;
                 d.nterms += d1.nterms;
                 d.stack.extend(d1.stack);
                 d.done.extend(d1.done);
@@ -202,13 +202,7 @@ impl<G: GraphLike> Decomposer<G> {
                 if self.use_cats {
                     let cat_nodes = Decomposer::cat_ts(&g); //gadget_ts(&g);
                                                             //println!("{:?}", gadget_nodes);
-                    let nts = cat_nodes.iter().fold(0, |acc, &x| {
-                        if g.phase(x).denom() == &4 {
-                            acc + 1
-                        } else {
-                            acc
-                        }
-                    });
+                    let nts = cat_nodes.iter().filter(|&&x| g.phase(x).is_t()).count();
                     if nts > 2 {
                         // println!("using cat!");
                         return self.push_cat_decomp(depth + 1, &g, &cat_nodes);
@@ -266,7 +260,7 @@ impl<G: GraphLike> Decomposer<G> {
         let mut t = vec![];
 
         for v in g.vertices() {
-            if *g.phase(v).denom() == 4 {
+            if g.phase(v).is_t() {
                 t.push(v);
             }
             if t.len() == 6 {
@@ -279,7 +273,7 @@ impl<G: GraphLike> Decomposer<G> {
 
     /// Pick <= 6 T gates from the given graph, chosen at random
     pub fn random_ts(g: &G, rng: &mut impl Rng) -> Vec<V> {
-        let mut all_t: Vec<_> = g.vertices().filter(|&v| *g.phase(v).denom() == 4).collect();
+        let mut all_t: Vec<_> = g.vertices().filter(|&v| g.phase(v).is_t()).collect();
         let mut t = vec![];
 
         while t.len() < 6 && !all_t.is_empty() {
@@ -294,14 +288,14 @@ impl<G: GraphLike> Decomposer<G> {
     /// The fist vertex in the result is the Clifford spider
     pub fn cat_ts(g: &G) -> Vec<V> {
         // the graph g is supposed to be completely simplified
-        let prefered_order = [4, 6, 5, 3];
+        let preferred_order = [4, 6, 5, 3];
         let mut res = vec![];
         let mut index = None;
         for v in g.vertices() {
-            if g.phase(v).denom() == &1 {
+            if g.phase(v).is_pauli() {
                 let mut neigh = g.neighbor_vec(v);
                 if neigh.len() <= 6 {
-                    if let Some(this_ind) = prefered_order.iter().position(|&r| r == neigh.len()) {
+                    if let Some(this_ind) = preferred_order.iter().position(|&r| r == neigh.len()) {
                         match index {
                             Some(ind) if this_ind < ind => {
                                 res = vec![v];
@@ -421,7 +415,7 @@ impl<G: GraphLike> Decomposer<G> {
         // verts[0] is a 0- or pi-spider, linked to all and only to vs in verts[1..] which are T-spiders
         let mut g = g.clone(); // that is annoying ...
         let mut verts = Vec::from(verts);
-        if g.phase(verts[0]).numer() == &1 {
+        if g.phase(verts[0]).is_pauli() {
             g.set_phase(verts[0], Rational64::new(0, 1));
             let mut neigh = g.neighbor_vec(verts[1]);
             neigh.retain(|&x| x != verts[0]);
@@ -430,7 +424,7 @@ impl<G: GraphLike> Decomposer<G> {
             }
             let tmp = g.phase(verts[1]);
             *g.scalar_mut() *= ScalarN::from_phase(tmp);
-            g.set_phase(verts[1], g.phase(verts[1]) * Rational64::new(-1, 1));
+            g.set_phase(verts[1], g.phase(verts[1]) * -1);
         }
         if [3, 5].contains(&verts[1..].len()) {
             let w = g.add_vertex(VType::Z);

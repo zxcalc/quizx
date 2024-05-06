@@ -45,7 +45,7 @@ repos:
       - id: cargo-clippy
         name: cargo clippy
         description: Run clippy lints with `cargo clippy`.
-        entry: cargo clippy --all-features --workspace -- -D warnings
+        entry: cargo clippy --all-features --all-targets --workspace -- -D warnings
         language: system
         files: \.rs$
         pass_filenames: false

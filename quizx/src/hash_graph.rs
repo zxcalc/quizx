@@ -16,6 +16,7 @@
 
 pub use crate::graph::*;
 use crate::json::{JsonGraph, JsonOptions};
+use crate::phase::Phase;
 use crate::scalar::*;
 use num::rational::Rational64;
 use rustc_hash::FxHashMap;
@@ -134,7 +135,7 @@ impl GraphLike for Graph {
     fn add_vertex(&mut self, ty: VType) -> V {
         self.add_vertex_with_data(VData {
             ty,
-            phase: Rational64::new(0, 1),
+            phase: Rational64::new(0, 1).into(),
             qubit: 0,
             row: 0,
         })
@@ -180,17 +181,17 @@ impl GraphLike for Graph {
         self.remove_half_edge(t, s);
     }
 
-    fn set_phase(&mut self, v: V, phase: Rational64) {
-        self.vdata.get_mut(&v).expect("Vertex not found").phase = phase.mod2();
+    fn set_phase(&mut self, v: V, phase: impl Into<Phase>) {
+        self.vdata.get_mut(&v).expect("Vertex not found").phase = phase.into();
     }
 
-    fn phase(&self, v: V) -> Rational64 {
+    fn phase(&self, v: V) -> Phase {
         self.vdata.get(&v).expect("Vertex not found").phase
     }
 
-    fn add_to_phase(&mut self, v: V, phase: Rational64) {
+    fn add_to_phase(&mut self, v: V, phase: impl Into<Phase>) {
         if let Some(d) = self.vdata.get_mut(&v) {
-            d.phase = (d.phase + phase).mod2();
+            d.phase = (d.phase + phase.into()).normalize();
         } else {
             panic!("Vertex not found");
         }

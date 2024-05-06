@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::phase::Phase;
 use crate::scalar::*;
 use num::rational::Rational64;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -41,10 +42,10 @@ pub enum VType {
     ZBox,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct VData {
     pub ty: VType,
-    pub phase: Rational64,
+    pub phase: Phase,
     pub qubit: i32,
     pub row: i32,
 }
@@ -412,9 +413,17 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// Behaviour is undefined if there is no edge between s and t.
     fn remove_edge(&mut self, s: V, t: V);
 
-    fn set_phase(&mut self, v: V, phase: Rational64);
-    fn phase(&self, v: V) -> Rational64;
-    fn add_to_phase(&mut self, v: V, phase: Rational64);
+    /// Set the phase of a vertex
+    fn set_phase(&mut self, v: V, phase: impl Into<Phase>);
+
+    /// Returns the phase of vertex `v`
+    fn phase(&self, v: V) -> Phase;
+
+    /// Adds a value to the phase of a vertex
+    fn add_to_phase(&mut self, v: V, phase: impl Into<Phase>) {
+        self.set_phase(v, self.phase(v) + phase.into());
+    }
+
     fn set_vertex_type(&mut self, v: V, ty: VType);
     fn vertex_type(&self, v: V) -> VType;
     fn vertex_data(&self, v: V) -> VData;
@@ -480,9 +489,10 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         }
     }
 
-    fn add_vertex_with_phase(&mut self, ty: VType, phase: Rational64) -> V {
+    /// Add a vertex to the graph with the given type and phase
+    fn add_vertex_with_phase(&mut self, ty: VType, phase: impl Into<Phase>) -> V {
         let v = self.add_vertex(ty);
-        self.set_phase(v, phase);
+        self.set_phase(v, phase.into());
         v
     }
 
@@ -495,7 +505,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         if s == t {
             if st == VType::Z || st == VType::X {
                 if ety == EType::H {
-                    self.add_to_phase(s, Rational64::new(1, 1));
+                    self.add_to_phase(s, Phase::one());
                     self.scalar_mut().mul_sqrt2_pow(-1);
                 }
             } else {
@@ -677,7 +687,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         let mut n = 0;
         for v in self.vertices() {
             let t = self.vertex_type(v);
-            if (t == VType::Z || t == VType::X) && *self.phase(v).denom() > 2 {
+            if (t == VType::Z || t == VType::X) && !self.phase(v).is_clifford() {
                 n += 1;
             }
         }

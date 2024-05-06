@@ -147,7 +147,7 @@ struct VertexData {
     /// The vertex phase.
     #[serde(skip_serializing_if = "is_default")]
     #[serde(default)]
-    value: VertexPhase,
+    value: JsonPhase,
     /// A flag marking grounded nodes.
     #[serde(skip_serializing_if = "is_default")]
     #[serde(default)]
@@ -211,10 +211,13 @@ struct EdgeAttrs {
     typ: EType,
 }
 
-/// The annotations of a vertex in the json-encoded graph.
+/// A phase, in half turns.
+///
+/// Encoded as string-formatted rational or a floating point number.
+/// Any occurrence of "pi" or "π" in the string is ignored.
 #[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
-struct VertexPhase(String);
+struct JsonPhase(String);
 
 /// Helper method to skip serialization of default values in serde.
 ///
