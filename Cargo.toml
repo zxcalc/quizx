@@ -5,7 +5,7 @@ default-members = ["quizx"]
 
 [workspace.dependencies]
 quizx = { path = "./quizx" }
-num = "0.4.2"
+num = "0.4.3"
 approx = "0.5.1"
 itertools = "0.12.1"
 ndarray = "0.15.6"
