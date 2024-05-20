@@ -40,3 +40,6 @@ class Decomposer(object):
     @scalar.setter
     def scalar(self, s: Scalar):
         self._d.scalar = from_pyzx_scalar(s)
+        
+    def is_ground(self, vertex):
+        return False
