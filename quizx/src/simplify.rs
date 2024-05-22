@@ -379,4 +379,30 @@ mod tests {
         // assert_eq!(h.num_vertices(), 0);
         // assert_eq!(g.to_tensor4(), h.to_tensor4());
     }
+
+    #[test]
+    fn simp_gadget_fusion() {
+        let c = Circuit::from_qasm(
+            r#"
+            qreg q[2];
+            t q[0];
+            cx q[1], q[0];
+            t q[0];
+            cx q[1], q[0];
+            t q[0];
+            t q[1];
+        "#,
+        )
+        .unwrap();
+        let mut g: Graph = c.to_graph();
+        g.plug_inputs(&[BasisElem::X0; 2]);
+        g.plug_outputs(&[BasisElem::X0; 2]);
+
+        let h = g.clone();
+        clifford_simp(&mut g);
+        fuse_gadgets(&mut g);
+
+        println!("{}", g.to_dot());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
+    }
 }
