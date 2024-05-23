@@ -14,6 +14,7 @@ fn _quizx(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(dummy, m)?)?;
     m.add_function(wrap_pyfunction!(interior_clifford_simp, m)?)?;
     m.add_function(wrap_pyfunction!(clifford_simp, m)?)?;
+    m.add_function(wrap_pyfunction!(fuse_gadgets, m)?)?;
     m.add_function(wrap_pyfunction!(full_simp, m)?)?;
     m.add_function(wrap_pyfunction!(extract_circuit, m)?)?;
     m.add_class::<VecGraph>()?;
@@ -37,6 +38,11 @@ fn interior_clifford_simp(g: &mut VecGraph) {
 #[pyfunction]
 fn clifford_simp(g: &mut VecGraph) {
     quizx::simplify::clifford_simp(&mut g.g);
+}
+
+#[pyfunction]
+fn fuse_gadgets(g: &mut VecGraph) {
+    quizx::simplify::fuse_gadgets(&mut g.g);
 }
 
 #[pyfunction]
