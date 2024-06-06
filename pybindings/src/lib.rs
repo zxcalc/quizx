@@ -374,4 +374,10 @@ impl Decomposer {
     fn decomp_until_depth(&mut self, depth: usize) {
         self.d.decomp_until_depth(depth);
     }
+    fn use_cats(&mut self, b: bool) {
+        self.d.use_cats(b);
+    }
+	fn get_nterms(&self) -> usize {
+        self.d.nterms
+    }
 }
