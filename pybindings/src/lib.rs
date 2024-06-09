@@ -377,7 +377,7 @@ impl Decomposer {
     fn use_cats(&mut self, b: bool) {
         self.d.use_cats(b);
     }
-	fn get_nterms(&self) -> usize {
+    fn get_nterms(&self) -> usize {
         self.d.nterms
     }
 }
