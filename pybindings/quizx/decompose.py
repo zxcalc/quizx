@@ -33,6 +33,12 @@ class Decomposer(object):
     def decomp_until_depth(self, depth: int):
         self._d.decomp_until_depth(depth)
 
+    def use_cats(self, b: bool):
+        self._d.use_cats(b)
+
+    def get_nterms(self):
+        return self._d.get_nterms()
+
     @property
     def scalar(self) -> Scalar:
         return to_pyzx_scalar(self._d.scalar)
@@ -40,3 +46,6 @@ class Decomposer(object):
     @scalar.setter
     def scalar(self, s: Scalar):
         self._d.scalar = from_pyzx_scalar(s)
+
+    def is_ground(self, vertex):
+        return False

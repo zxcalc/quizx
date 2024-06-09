@@ -11,4 +11,4 @@ def from_pyzx_scalar(s: PyzxScalar) -> QuizxScalar:
 
 def to_pyzx_scalar(s: QuizxScalar) -> PyzxScalar:
     """Convert a `pyzx.Scalar` to a `quizx::Scalar`."""
-    return PyzxScalar.from_json(s.to_json())
+    return PyzxScalar().from_json(s.to_json())

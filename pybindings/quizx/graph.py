@@ -33,11 +33,11 @@ class VecGraph(BaseGraph[int, Tuple[int, int]]):
     # The documentation of what these methods do
     # can be found in base.BaseGraph
     def __init__(self, rust_graph: Optional[_quizx.VecGraph] = None):
-        BaseGraph.__init__(self)
         if rust_graph:
             self._g = rust_graph
         else:
             self._g = _quizx.VecGraph()
+        BaseGraph.__init__(self)
         self._vdata: Dict[int, Any] = dict()
 
     def get_raw_graph(self) -> _quizx.VecGraph:
@@ -325,3 +325,6 @@ class VecGraph(BaseGraph[int, Tuple[int, int]]):
     @scalar.setter
     def scalar(self, s: Scalar):
         self._g.scalar = from_pyzx_scalar(s)
+
+    def is_ground(self, vertex):
+        return False
