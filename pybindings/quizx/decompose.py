@@ -35,7 +35,7 @@ class Decomposer(object):
 
     def use_cats(self, b: bool):
         self._d.use_cats(b)
-        
+
     def get_nterms(self):
         return self._d.get_nterms()
 
@@ -46,6 +46,6 @@ class Decomposer(object):
     @scalar.setter
     def scalar(self, s: Scalar):
         self._d.scalar = from_pyzx_scalar(s)
-        
+
     def is_ground(self, vertex):
         return False
