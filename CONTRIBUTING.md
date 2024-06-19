@@ -2,7 +2,7 @@
 
 This guide is intended to help you get started with developing quizx.
 
-If you find any errors or omissions in this document, please [open an issue](https://github.com/Quantomatic/quizx/issues/new)!
+If you find any errors or omissions in this document, please [open an issue](https://github.com/zxlang/quizx/issues/new)!
 
 ## #️⃣ Setting up the development environment
 

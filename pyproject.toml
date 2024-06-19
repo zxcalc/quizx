@@ -47,8 +47,8 @@ requires-python = ">=3.10"
 license = { file = "LICENSE" }
 
 [project.urls]
-homepage = "https://github.com/Quantomatic/quizx"
-repository = "https://github.com/Quantomatic/quizx"
+homepage = "https://github.com/zxlang/quizx"
+repository = "https://github.com/zxlang/quizx"
 
 [tool.maturin]
 module-name = "quizx._quizx"
