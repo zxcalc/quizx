@@ -4,11 +4,11 @@ The data from the paper "Simulating quantum circuits with ZX-calculus reduced st
 
 To reproduce, first grab a version of `quizx`. Either get the latest version with:
 
-    git clone https://github.com/Quantomatic/quizx.git
+    git clone https://github.com/zxlang/quizx.git
 
 or the exact version used in the paper with:
 
-    git clone --branch stabrank-v1 https://github.com/Quantomatic/quizx.git
+    git clone --branch stabrank-v1 https://github.com/zxlang/quizx.git
 
 
 In either case, build `quizx` via:

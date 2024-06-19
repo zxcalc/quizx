@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Json encoding for interoperability with pyzx and Quantomatic using the .qgraph format.
+//! Json encoding for interoperability with pyzx and zxlang using the .qgraph format.
 //!
 //! # Examples
 //!
@@ -93,7 +93,7 @@ type VertexName = String;
 /// Identifier for an encoded edge.
 type EdgeName = String;
 
-/// The json-encoded format for pyzx and Quantomatic graphs.
+/// The json-encoded format for pyzx and zxlang graphs.
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct JsonGraph {
     /// Wire vertices of the graph.
