@@ -38,40 +38,6 @@ pub struct Graph {
     scalar: ScalarN,
 }
 
-pub struct EdgeIter<'a> {
-    outer: std::collections::hash_map::Iter<'a, V, VTab<EType>>,
-    inner: Option<(V, std::collections::hash_map::Iter<'a, V, EType>)>,
-}
-
-impl<'a> Iterator for EdgeIter<'a> {
-    /// Iterate over the edges in a graph. An edge is returned as a triple
-    /// (s: V, t: V, ety: EType), where we enforce s <= t to avoid double-
-    /// counting edges.
-    type Item = (V, V, EType);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match &mut self.inner {
-            Some((s, iter)) => match iter.next() {
-                Some((t, ety)) => {
-                    if *s <= *t {
-                        Some((*s, *t, *ety))
-                    } else {
-                        self.next()
-                    }
-                }
-                None => match self.outer.next() {
-                    Some((k, v)) => {
-                        self.inner = Some((*k, v.iter()));
-                        self.next()
-                    }
-                    None => None,
-                },
-            },
-            None => None,
-        }
-    }
-}
-
 impl Graph {
     /// Removes vertex 't' from the adjacency map of 's'. This private method
     /// is used by remove_edge and remove_vertex to make the latter slightly
