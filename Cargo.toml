@@ -13,7 +13,7 @@ openqasm = "0.1.2"
 pyo3 = { version = "0.21" }
 rand = "0.8.3"
 rayon = "1.5.0"
-regex = "1.10.5"
+regex = "1.10.6"
 rustc-hash = "1.1.0"
 derive_more = "0.99.18"
 rstest = "0.19.0"
