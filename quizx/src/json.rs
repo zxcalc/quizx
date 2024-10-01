@@ -54,6 +54,7 @@ pub use phase::PhaseOptions;
 use crate::graph::VType;
 use crate::hash_graph::{EType, GraphLike};
 
+use derive_more::{Display, Error, From};
 use serde::{de, Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -331,17 +332,18 @@ where
 }
 
 /// An error that can occur when decoding a json graph.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Display, Error, From)]
+#[non_exhaustive]
 pub enum JsonError {
     /// Found an invalid phase value.
-    #[error("Got an invalid phase value {phase}")]
+    #[display("Got an invalid phase value {phase}")]
     InvalidPhase { phase: String },
     /// Found an invalid phase value in a node definition.
-    #[error("Got an invalid phase value {phase} for node {name}")]
+    #[display("Got an invalid phase value {phase} for node {name}")]
     InvalidNodePhase { name: String, phase: String },
     /// Some other serde error.
-    #[error(transparent)]
-    SerdeError(#[from] serde_json::Error),
+    #[from]
+    SerdeError(serde_json::Error),
 }
 
 #[cfg(test)]

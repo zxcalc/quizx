@@ -16,6 +16,7 @@
 
 //! Python-side scalar definition.
 
+use derive_more::{Add, Mul};
 use num::complex::Complex;
 use num::rational::Rational64;
 use num::{FromPrimitive, One, Zero};
@@ -38,7 +39,7 @@ use quizx::scalar::{FromPhase, ScalarN, Sqrt2};
 /// The float representation of a scalar is given as a 64-bit
 /// floating point complex number.
 #[pyclass]
-#[derive(Debug, Clone, derive_more::Add, derive_more::Mul, PartialEq)]
+#[derive(Debug, Clone, Add, Mul, PartialEq)]
 pub struct Scalar {
     /// Rust representation of the scalar.
     ///
