@@ -15,7 +15,7 @@ readme = "README.md"
 packages = [{ include = "pybindings" }]
 
 [tool.poetry.dependencies]
-python = ">=3.10"
+python = ">=3.9"
 pyzx = "0.8.0"
 
 [tool.poetry.group.dev.dependencies]
@@ -43,7 +43,7 @@ maintainers = [
     { name = "Aleks Kissinger", email = "aleks0@gmail.com" },
     { name = "Agustin Borgna", email = "agustinborgna@gmail.com" },
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 license = { file = "LICENSE" }
 
 [project.urls]
