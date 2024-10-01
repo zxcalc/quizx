@@ -63,7 +63,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - uses: mozilla-actions/sccache-action@v0.0.4
+      - uses: mozilla-actions/sccache-action@v0.0.6
       - name: Check rust formatting
         run: cargo fmt -p quizx -- --check
       - name: Run clippy
@@ -80,7 +80,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: mozilla-actions/sccache-action@v0.0.4
+      - uses: mozilla-actions/sccache-action@v0.0.6
       - name: Install rust stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -111,7 +111,7 @@ jobs:
     name: 🦀 Test quizx (Rust stable)
     steps:
       - uses: actions/checkout@v4
-      - uses: mozilla-actions/sccache-action@v0.0.4
+      - uses: mozilla-actions/sccache-action@v0.0.6
       - id: toolchain
         uses: dtolnay/rust-toolchain@master
         with:
@@ -140,7 +140,7 @@ jobs:
           toolchain: ${{ matrix.rust }}
       - name: Configure default rust toolchain
         run: rustup override set ${{steps.toolchain.outputs.name}}
-      - uses: mozilla-actions/sccache-action@v0.0.4
+      - uses: mozilla-actions/sccache-action@v0.0.6
       - name: Build with all features
         run: cargo test --verbose --all-features --no-run -p quizx
       - name: Tests with all features
@@ -153,7 +153,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: mozilla-actions/sccache-action@v0.0.4
+      - uses: mozilla-actions/sccache-action@v0.0.6
       - name: Install rust stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
