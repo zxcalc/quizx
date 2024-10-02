@@ -1,50 +1,47 @@
-[tool.poetry]
-name = "quizx"
-version = "0.0.0-alpha.1"
-description = "Quantum Circuit Optimisation and Compilation using the ZX-calculus"
-classifiers = [] # TODO
-authors = ["Aleks Kissinger <aleks0@gmail.com>"]
-maintainers = [
-    "Aleks Kissinger <aleks0@gmail.com>",
-    "Agustin Borgna <agustinborgna@gmail.com>",
-]
-include = ["pyproject.toml"]
-license = "Apache-2.0"
-readme = "README.md"
-
-packages = [{ include = "pybindings" }]
-
-[tool.poetry.dependencies]
-python = ">=3.9"
-pyzx = "0.8.0"
-
-[tool.poetry.group.dev.dependencies]
-maturin = "^1.5.1"
-pytest = "^8.1.1"
-ruff = "^0.3.4"
-pre-commit = "^3.7.0"
-mypy = "^1.9.0"
-
-[build-system]
-requires = ["maturin~=1.5.1"]
-build-backend = "maturin"
-
 [project]
-classifiers = [
-    "License :: OSI Approved :: Apache Software License",
-    "Topic :: Software Development :: Compilers",
-    "Development Status :: 3 - Alpha",
-]
 name = "quizx"
-version = "0.0.0-alpha.1"
+version = "0.1.0"
+requires-python = ">=3.9,<3.14"
 description = "Quantum Circuit Optimisation and Compilation using the ZX-calculus"
+license = { file = "LICENSE" }
+readme = "README.md"
 authors = [{ name = "Aleks Kissinger", email = "aleks0@gmail.com" }]
 maintainers = [
     { name = "Aleks Kissinger", email = "aleks0@gmail.com" },
     { name = "Agustin Borgna", email = "agustinborgna@gmail.com" },
 ]
-requires-python = ">=3.9"
-license = { file = "LICENSE" }
+classifiers = [
+    "Environment :: Console",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Software Development :: Compilers",
+    "Topic :: Scientific/Engineering",
+]
+
+dependencies = ["pyzx >=0.8.0,<0.9.0"]
+
+[tool.uv]
+
+dev-dependencies = [
+    "maturin >=1.7.4,<2",
+    "pytest >=8.3.3,<9",
+    "ruff >=0.6.8,<1",
+    "pre-commit >=3.8.0,<4",
+    "mypy >=1.11.2,<2",
+]
+
+[build-system]
+requires = ["maturin~=1.5.1"]
+build-backend = "maturin"
 
 [project.urls]
 homepage = "https://github.com/zxlang/quizx"
