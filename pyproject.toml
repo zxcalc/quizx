@@ -1,10 +1,10 @@
 [project]
 name = "quizx"
+description = "Quantum Circuit Optimisation and Compilation using the ZX-calculus"
 version = "0.1.0"
 requires-python = ">=3.9,<3.14"
-description = "Quantum Circuit Optimisation and Compilation using the ZX-calculus"
 license = { file = "LICENSE" }
-readme = "README.md"
+readme = "pybindings/README.md"
 authors = [{ name = "Aleks Kissinger", email = "aleks0@gmail.com" }]
 maintainers = [
     { name = "Aleks Kissinger", email = "aleks0@gmail.com" },
