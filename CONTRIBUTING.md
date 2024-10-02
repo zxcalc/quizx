@@ -6,13 +6,13 @@ If you find any errors or omissions in this document, please [open an issue](htt
 
 ## #️⃣ Setting up the development environment
 
-To develop the rust library, you will need to have the rust toolchain installed. You can install it by following the instructions at [https://www.rust-lang.org/tools/install](https://www.rust-lang.org/tools/install).
+To develop the rust library, you will need to have the rust toolchain installed. You can install it by following the instructions at [rust-lang.org/tools/install](https://www.rust-lang.org/tools/install).
 
 If you are using VSCode, you can install the `rust-analyzer` extension to get code completion and other features.
 
-To develop the python library, you will additionally need the Poetry package manager. You can install it by following the instructions at [https://python-poetry.org/docs/](https://python-poetry.org/docs/).
+To develop the python library, you will additionally need the `uv` package manager. You can install it by following the instructions at [docs.astral.sh/uv/](https://docs.astral.sh/uv/).
 
-Finally, we provide a `just` file to help manage the common development workflow. You can install `just` by following the instructions at [https://just.systems/](https://just.systems/).
+Finally, we provide a `just` file to help manage the common development workflow. You can install `just` by following the instructions at [just.systems](https://just.systems/).
 
 Once you have these installed, run `just setup` to download the necessary dependencies and set up some pre-commit hooks.
 
@@ -30,14 +30,10 @@ cargo run --release --example <program_name>
 To build the python library, run:
 
 ```bash
-# Ensure you have all the necessary dependencies installed
-poetry install
-# Enter the environment with the installed dependencies
-poetry shell
-# Build the python library
-maturin develop
+# Setup the dependencies and build the python library
+uv run maturin develop
 # The library will now be available for import in python
-python -c "import quizx"
+uv run python -c "import quizx"
 ```
 
 ## 🏃 Running the tests

@@ -85,24 +85,22 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - name: Install poetry
-        run: pipx install poetry
-      - uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
         with:
-          python-version: '3.11'
-          cache: 'poetry'
+          enable-cache: true
       - name: Install the project libraries
-        run: poetry install
+        run: uv sync --locked
       - name: Check rust formatting
         run: cargo fmt -p quizx_pybindings -- --check
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -p quizx_pybindings -- -D warnings
       - name: Type check python with mypy
-        run: poetry run mypy .
+        run: uv run mypy .
       - name: Check python formatting with ruff
-        run: poetry run ruff format --check
+        run: uv run ruff format --check
       - name: Lint python with ruff
-        run: poetry run ruff check
+        run: uv run ruff check
 
   test-quizx-stable:
     needs: changes
@@ -160,19 +158,16 @@ jobs:
           components: rustfmt, clippy
       - name: Install poetry
         run: pipx install poetry
-      - uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
         with:
-          python-version: '3.11'
-          cache: 'poetry'
+          enable-cache: true
       - name: Install the project libraries
-        run: poetry install
+        run: uv sync --locked
       - name: Build pyo3 bindings
-        run: |
-          poetry run maturin develop
+        run: uv run maturin develop
       - name: Test pyo3 bindings
-        run: true
-        # No tests yet, so running `pytest` fails
-        #run: poetry run pytest
+        run: uv run pytest
 
   # This is a meta job to mark successful completion of the required checks,
   # even if they are skipped due to no changes in the relevant files.
