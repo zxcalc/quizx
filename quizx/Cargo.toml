@@ -1,5 +1,6 @@
 [package]
 name = "quizx"
+description = "Quantum Circuit Optimisation and Compilation using the ZX-calculus"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }

@@ -4,7 +4,7 @@
 
 This is a port of some of the core functionality of PyZX to the [Rust](https://www.rust-lang.org/) programming language. This is a modern systems programming language, which enables writing software that is very fast and memory efficient.
 
-See the [CONTRIBUTING.md](CONTRIBUTING.md) file for detailed instructions for building the libraries from source and contributing to the project.
+See the [CONTRIBUTING.md](https://github.com/zxcalc/quizx/blob/master/CONTRIBUTING.md) file for detailed instructions for building the libraries from source and contributing to the project.
 
 ## A bit about performance
 
