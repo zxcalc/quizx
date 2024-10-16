@@ -53,7 +53,7 @@ impl JsonScalar {
                         [a, 0, b, 0] | [0, a, 0, b]
                             if a.abs() == 1 && b.abs() == 1 && coeffs.len() == 4 =>
                         {
-                            (*pow * 2 + 1, 0.0) // Coefficients contain a factor of sqrt(2)
+                            (*pow * 2 + 1, Default::default()) // Coefficients represent a factor of sqrt(2)
                         }
                         cf => (
                             // In all other cases, we simply assign the complex value to the pyzx floatfactor
@@ -64,8 +64,8 @@ impl JsonScalar {
 
                 JsonScalar {
                     power2: power_sqrt2,
-                    floatfactor,
                     phase,
+                    floatfactor: if floatfactor == 1.0 { Default::default() } else { floatfactor },
                     is_zero: scalar.is_zero(),
                     ..Default::default()
                 }
