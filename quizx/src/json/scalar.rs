@@ -65,7 +65,11 @@ impl JsonScalar {
                 JsonScalar {
                     power2: power_sqrt2,
                     phase,
-                    floatfactor: if floatfactor == 1.0 { Default::default() } else { floatfactor },
+                    floatfactor: if floatfactor == 1.0 {
+                        Default::default()
+                    } else {
+                        floatfactor
+                    },
                     is_zero: scalar.is_zero(),
                     ..Default::default()
                 }
