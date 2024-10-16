@@ -632,7 +632,7 @@ impl<T: Coeffs> PartialEq for Scalar<T> {
 
                 all_eq
             }
-            _ => false,
+            _ => self.complex_value() == other.complex_value(),
         }
     }
 }
