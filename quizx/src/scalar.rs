@@ -16,8 +16,9 @@
 
 use approx::AbsDiffEq;
 use num::complex::Complex;
+use num::integer::sqrt;
 pub use num::traits::identities::{One, Zero};
-use num::{integer, Integer};
+use num::{integer, Integer, Rational64};
 use std::cmp::min;
 use std::f64::consts::PI;
 use std::fmt;
@@ -167,8 +168,39 @@ impl<T: Coeffs> Scalar<T> {
 
     /// Returns the phase of the scalar, expressed as half turns.
     ///
-    /// As [`Phase`] is encoded as a rational number, this method may lose precision.
+    /// We deal with Pi/4 phases of Scalar4 (Clifford+T) exactly. For other cases, [`Phase`] is encoded as a rational
+    /// number, which may lose precision.
     pub fn phase(&self) -> Phase {
+        if let Exact(_, coeffs) = self {
+            if coeffs.len() == 4 {
+                // cases where the phase is a multiple of 1/4 are handled exactly
+                match coeffs.iter_coeffs().collect::<Vec<_>>().as_slice() {
+                    [a, b, 0, c] if -b == *c => {
+                        return Phase::new(((-a - b * sqrt(2)).signum() as i64 + 1) / 2)
+                    }
+                    [0, c, 0, 0] => {
+                        return Phase::new(Rational64::new(if *c > 0 { 1 } else { 5 }, 4))
+                    }
+                    [0, 0, c, 0] => {
+                        return Phase::new(Rational64::new(if *c > 0 { 1 } else { 3 }, 2))
+                    }
+                    [0, 0, 0, c] => {
+                        return Phase::new(Rational64::new(if *c > 0 { 3 } else { 7 }, 4))
+                    }
+                    [c, 0, d, 0] if c == d => {
+                        return Phase::new(Rational64::new(if *c > 0 { 1 } else { 5 }, 4))
+                    }
+                    [0, c, 0, d] if c == d => {
+                        return Phase::new(Rational64::new(if *c > 0 { 1 } else { 3 }, 2))
+                    }
+                    [d, 0, c, 0] if -c == *d => {
+                        return Phase::new(Rational64::new(if *c > 0 { 3 } else { 7 }, 4))
+                    }
+                    _ => {}
+                }
+            }
+        }
+        // for other cases, we use the floating point representation
         Phase::from_f64(self.complex_value().arg() / PI)
     }
 
@@ -632,7 +664,7 @@ impl<T: Coeffs> PartialEq for Scalar<T> {
 
                 all_eq
             }
-            _ => false,
+            _ => self.complex_value() == other.complex_value(),
         }
     }
 }
@@ -705,6 +737,7 @@ mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
     use num::Rational64;
+    use rstest::rstest;
 
     #[test]
     fn approx_mul() {
@@ -764,6 +797,24 @@ mod tests {
             Scalar4::from_phase(Rational64::new(7, 4)),
             Scalar4::from_int_coeffs(&[0, 0, 0, -1])
         );
+    }
+
+    #[rstest]
+    #[case(ScalarN::from_int_coeffs(&[3, 0, 0, 0]))]
+    #[case(ScalarN::from_int_coeffs(&[0, -2, 0, 0]))]
+    #[case(ScalarN::from_int_coeffs(&[0, 0, 1, 0]))]
+    #[case(ScalarN::from_int_coeffs(&[0, 0, 0, 1]))]
+    #[case(ScalarN::from_int_coeffs(&[0, 0, 0, -1]))]
+    #[case(ScalarN::from_int_coeffs(&[2, 0, 2, 0]))]
+    #[case(ScalarN::from_int_coeffs(&[2, 0, -2, 0]))]
+    #[case(ScalarN::from_int_coeffs(&[-2, 0, -2, 0]))]
+    #[case(ScalarN::from_int_coeffs(&[0, 1, 0, 1]))]
+    #[case(ScalarN::from_int_coeffs(&[0, 1, 0, -1]))]
+    #[case(ScalarN::from_int_coeffs(&[0, -2, 0, -2]))]
+    #[case(ScalarN::from_int_coeffs(&[0, 2, 0, -2]))]
+    #[case(ScalarN::from_int_coeffs(&[-1, 2, 3, -4]))]
+    fn get_phase(#[case] s: ScalarN) {
+        assert_abs_diff_eq!(s.phase().to_f64(), s.complex_value().arg() / PI);
     }
 
     #[test]
