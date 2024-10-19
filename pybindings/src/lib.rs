@@ -374,6 +374,9 @@ impl Decomposer {
     fn decomp_until_depth(&mut self, depth: usize) {
         self.d.decomp_until_depth(depth);
     }
+    fn decomp_parallel(&mut self, depth: usize) {
+        self.d = self.d.clone().decomp_parallel(depth);
+    }
     fn use_cats(&mut self, b: bool) {
         self.d.use_cats(b);
     }
