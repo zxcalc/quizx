@@ -47,7 +47,7 @@ impl JsonScalar {
 
                 // In the Clifford+T case where we have Scalar4, we can extract factors of sqrt(2) directly from the
                 // coefficients. Since the coefficients are reduced, sqrt(2) is represented as
-                // [1, 0, +-1, 0], [0, 1, +-1, 0], where the +- lead to phase contributions already extracted in `phase`
+                // [1, 0, +-1, 0], [0, 1, 0, +-1], where the +- lead to phase contributions already extracted in `phase`
                 let (power_sqrt2, floatfactor) =
                     match coeffs.iter_coeffs().collect::<Vec<_>>().as_slice() {
                         [a, 0, b, 0] | [0, a, 0, b]
