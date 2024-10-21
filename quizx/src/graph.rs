@@ -16,6 +16,7 @@
 
 use crate::phase::Phase;
 use crate::scalar::*;
+use derive_more::{Display, From};
 use num::rational::Rational64;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -119,20 +120,8 @@ impl BasisElem {
 }
 
 /// Coordinates for rendering a node.
-#[derive(
-    derive_more::Display,
-    Debug,
-    Default,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    derive_more::From,
-)]
-#[display(fmt = "({},{})", x, y)]
+#[derive(Display, Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, From)]
+#[display("({},{})", x, y)]
 pub struct Coord {
     pub x: i32,
     pub y: i32,

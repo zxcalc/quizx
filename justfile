@@ -5,41 +5,35 @@ help:
 # Prepare the environment for development, installing all the dependencies and
 # setting up the pre-commit hooks.
 setup:
-    poetry install
-    poetry run pre-commit install -t pre-commit
+    uv run pre-commit install -t pre-commit
 
 # Run the pre-commit checks.
 check:
-    poetry run pre-commit run --all-files
+    uv run pre-commit run --all-files
 
 # Build the project.
 build language="[rust|python]": (_run_lang language \
         "cargo build" \
-        "poetry run maturin develop"
+        "uv run maturin develop"
     )
 
 # Run all the tests.
 test language="[rust|python]": (_run_lang language \
         "cargo test --all-features" \
-        "poetry run maturin develop && poetry run pytest"
+        "uv run maturin develop && uv run pytest"
     )
 
 # Auto-fix all clippy warnings.
 fix language="[rust|python]": (_run_lang language \
         "cargo clippy --all-targets --all-features --workspace --fix --allow-staged --allow-dirty" \
-        "poetry run ruff check --fix"
+        "uv run ruff check --fix"
     )
 
 # Format the code.
 format language="[rust|python]": (_run_lang language \
         "cargo fmt" \
-        "poetry run ruff format"
+        "uv run ruff format"
     )
-
-# Load a shell with all the dependencies installed
-shell:
-    poetry shell
-
 
 # Runs a rust and a python command, depending on the `language` variable.
 #

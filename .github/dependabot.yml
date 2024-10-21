@@ -8,7 +8,41 @@ updates:
   - package-ecosystem: "cargo" # See documentation for possible values
     directory: "/" # Location of package manifests
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     commit-message:
       # Use a conventional commit tag
-      prefix: "chore(deps)"
+      prefix: "chore(deps-rs)"
+    groups:
+      dev:
+        dependency-type: "development"
+        update-types: ["patch", "minor"]
+      patch:
+        update-types: ["patch"]
+      minor:
+        update-types: ["minor"]
+      # Major updates still generate individual PRs
+
+  - package-ecosystem: "pip"
+    directory: "/" # Location of package manifests
+    schedule:
+      interval: "monthly"
+    commit-message:
+      # Use a conventional commit tag
+      prefix: "chore(deps-py)"
+    groups:
+      dev:
+        dependency-type: "development"
+        update-types: ["patch", "minor"]
+      patch:
+        update-types: ["patch"]
+      minor:
+        update-types: ["minor"]
+      # Major updates still generate individual PRs
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      # Use a conventional commit tag
+      prefix: "ci(deps)"

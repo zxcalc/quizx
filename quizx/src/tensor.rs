@@ -240,7 +240,7 @@ impl<A: TensorElem> QubitOps<A> for Tensor<A> {
             shape[q] = 2;
         }
         let del: Tensor<A> = Tensor::delta(qs.len())
-            .into_shape(shape)
+            .into_shape_with_order(shape)
             .expect("Bad indices for delta_at");
         *self *= &del;
     }
@@ -258,7 +258,7 @@ impl<A: TensorElem> QubitOps<A> for Tensor<A> {
                 A::one()
             }
         })
-        .into_shape(shape)
+        .into_shape_with_order(shape)
         .expect("Bad indices for cphase_at");
         *self *= &cp;
     }
@@ -289,9 +289,16 @@ impl<A: TensorElem> QubitOps<A> for Tensor<A> {
             .map(|i| if i < d1 - n { 1 } else { 2 })
             .collect();
 
-        let t1 = self.into_shared().reshape(shape1);
+        let t1 = self
+            .into_shared()
+            .into_shape_with_order(shape1)
+            .expect("Invalid tensor reshape");
         let t1p = t1.broadcast(vec![2; d1 + n]).unwrap();
-        let t2 = other.clone().into_shared().reshape(shape2);
+        let t2 = other
+            .clone()
+            .into_shared()
+            .into_shape_with_order(shape2)
+            .expect("Invalid tensor reshape");
         let mut t3 = &t1p * &t2;
         for _ in 0..n {
             t3 = t3.sum_axis(Axis(d1 - n));

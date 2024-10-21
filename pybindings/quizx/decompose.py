@@ -30,6 +30,9 @@ class Decomposer(object):
     def decomp_all(self):
         self._d.decomp_all()
 
+    def decomp_parallel(self, depth: int = 4):
+        self._d.decomp_parallel(depth)
+
     def decomp_until_depth(self, depth: int):
         self._d.decomp_until_depth(depth)
 
