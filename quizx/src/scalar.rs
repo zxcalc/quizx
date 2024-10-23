@@ -16,7 +16,6 @@
 
 use approx::AbsDiffEq;
 use num::complex::Complex;
-use num::integer::sqrt;
 pub use num::traits::identities::{One, Zero};
 use num::{integer, Integer, Rational64};
 use std::cmp::min;
@@ -175,8 +174,8 @@ impl<T: Coeffs> Scalar<T> {
             if coeffs.len() == 4 {
                 // cases where the phase is a multiple of 1/4 are handled exactly
                 match coeffs.iter_coeffs().collect::<Vec<_>>().as_slice() {
-                    [a, b, 0, c] if -b == *c => {
-                        return Phase::new(((-a - b * sqrt(2)).signum() as i64 + 1) / 2)
+                    [_, b, 0, c] if -b == *c => {
+                        return Phase::new(if self.complex_value().re > 0.0 { 0 } else { 1 })
                     }
                     [0, c, 0, 0] => {
                         return Phase::new(Rational64::new(if *c > 0 { 1 } else { 5 }, 4))
@@ -810,8 +809,16 @@ mod tests {
     #[case(ScalarN::from_int_coeffs(&[-2, 0, -2, 0]))]
     #[case(ScalarN::from_int_coeffs(&[0, 1, 0, 1]))]
     #[case(ScalarN::from_int_coeffs(&[0, 1, 0, -1]))]
+    #[case(ScalarN::from_int_coeffs(&[0, -1, 0, 1]))]
     #[case(ScalarN::from_int_coeffs(&[0, -2, 0, -2]))]
     #[case(ScalarN::from_int_coeffs(&[0, 2, 0, -2]))]
+    #[case(ScalarN::from_int_coeffs(&[1, 1, 0, -1]))]
+    #[case(ScalarN::from_int_coeffs(&[1, 1, 0, 1]))]
+    #[case(ScalarN::from_int_coeffs(&[1, -1, 0, 1]))]
+    #[case(ScalarN::from_int_coeffs(&[1, 1, 0, -1]))]
+    #[case(ScalarN::from_int_coeffs(&[2, -1, 0, 1]))]
+    #[case(ScalarN::from_int_coeffs(&[-2, 1, 0, 1]))]
+    #[case(ScalarN::from_int_coeffs(&[2, 2, 0, -2]))]
     #[case(ScalarN::from_int_coeffs(&[-1, 2, 3, -4]))]
     fn get_phase(#[case] s: ScalarN) {
         assert_abs_diff_eq!(s.phase().to_f64(), s.complex_value().arg() / PI);
