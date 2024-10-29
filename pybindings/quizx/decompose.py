@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from . import _quizx
 from .graph import VecGraph
@@ -15,8 +15,14 @@ class Decomposer(object):
         else:
             self._d = _quizx.Decomposer(graph.get_raw_graph())
 
-    def graphs(self) -> List[VecGraph]:
-        return [VecGraph(g) for g in self._d.graphs()]
+    def graphs(self) -> list[VecGraph]:
+        return [VecGraph.from_raw_graph(g) for g in self._d.graphs()]
+
+    def done(self) -> list[VecGraph]:
+        return [VecGraph.from_raw_graph(g) for g in self._d.done()]
+
+    def save(self, b: bool):
+        self._d.save(b)
 
     def apply_optimizations(self, b: bool):
         self._d.apply_optimizations(b)
@@ -29,6 +35,9 @@ class Decomposer(object):
 
     def decomp_all(self):
         self._d.decomp_all()
+
+    def decomp_parallel(self, depth: int = 4):
+        self._d.decomp_parallel(depth)
 
     def decomp_until_depth(self, depth: int):
         self._d.decomp_until_depth(depth)

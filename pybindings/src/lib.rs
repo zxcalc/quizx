@@ -313,6 +313,18 @@ impl VecGraph {
     fn set_scalar(&mut self, scalar: Scalar) {
         *self.g.scalar_mut() = scalar.into();
     }
+
+    fn adjoint(&mut self) {
+        self.g.adjoint()
+    }
+
+    fn plug(&mut self, other: &VecGraph) {
+        self.g.plug(&other.g);
+    }
+
+    fn clone(&self) -> VecGraph {
+        VecGraph { g: self.g.clone() }
+    }
 }
 
 #[pyclass]
@@ -354,6 +366,18 @@ impl Decomposer {
         Ok(gs)
     }
 
+    fn done(&self) -> PyResult<Vec<VecGraph>> {
+        let mut gs = vec![];
+        for g in &self.d.done {
+            gs.push(VecGraph { g: g.clone() });
+        }
+        Ok(gs)
+    }
+
+    fn save(&mut self, b: bool) {
+        self.d.save(b);
+    }
+
     fn apply_optimizations(&mut self, b: bool) {
         if b {
             self.d.with_simp(quizx::decompose::SimpFunc::FullSimp);
@@ -373,6 +397,9 @@ impl Decomposer {
     }
     fn decomp_until_depth(&mut self, depth: usize) {
         self.d.decomp_until_depth(depth);
+    }
+    fn decomp_parallel(&mut self, depth: usize) {
+        self.d = self.d.clone().decomp_parallel(depth);
     }
     fn use_cats(&mut self, b: bool) {
         self.d.use_cats(b);

@@ -16,7 +16,7 @@
 
 from .scalar import from_pyzx_scalar, to_pyzx_scalar
 from fractions import Fraction
-from typing import Tuple, Dict, Any, Optional
+from typing import Tuple, Dict, Any
 from pyzx.graph.base import BaseGraph  # type: ignore
 from pyzx.utils import VertexType, EdgeType  # type: ignore
 from pyzx.graph.scalar import Scalar
@@ -32,12 +32,9 @@ class VecGraph(BaseGraph[int, Tuple[int, int]]):
 
     # The documentation of what these methods do
     # can be found in base.BaseGraph
-    def __init__(self, rust_graph: Optional[_quizx.VecGraph] = None):
-        if rust_graph:
-            self._g = rust_graph
-        else:
-            self._g = _quizx.VecGraph()
-        BaseGraph.__init__(self)
+    def __init__(self) -> None:
+        self._g = _quizx.VecGraph()
+        super().__init__()
         self._vdata: Dict[int, Any] = dict()
 
     def get_raw_graph(self) -> _quizx.VecGraph:
@@ -172,7 +169,7 @@ class VecGraph(BaseGraph[int, Tuple[int, int]]):
         for v in self.vertices():
             if not start < v < end:
                 continue
-            if all(start < v2 < end for v2 in self.graph[v]):
+            if all(start < v2 < end for v2 in self.neighbors(v)):
                 yield v
 
     def edges(self):
@@ -328,3 +325,15 @@ class VecGraph(BaseGraph[int, Tuple[int, int]]):
 
     def is_ground(self, vertex):
         return False
+
+    def adjoint(self):
+        self._g.adjoint()
+
+    def plug(self, other: "VecGraph"):
+        if other._g is self._g:
+            self._g.plug(other._g.clone())
+        else:
+            self._g.plug(other._g)
+
+    def clone(self) -> "VecGraph":
+        return VecGraph.from_raw_graph(self._g.clone())
