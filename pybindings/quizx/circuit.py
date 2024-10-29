@@ -2,6 +2,12 @@ from . import _quizx
 from .graph import VecGraph
 
 
+def extract_circuit(g: VecGraph) -> "Circuit":
+    c = Circuit()
+    c._c = _quizx.extract_circuit(g.get_raw_graph())
+    return c
+
+
 class Circuit:
     def __init__(self):
         self._c = None

@@ -313,6 +313,18 @@ impl VecGraph {
     fn set_scalar(&mut self, scalar: Scalar) {
         *self.g.scalar_mut() = scalar.into();
     }
+
+    fn adjoint(&mut self) {
+        self.g.adjoint()
+    }
+
+    fn plug(&mut self, other: &VecGraph) {
+        self.g.plug(&other.g);
+    }
+
+    fn clone(&self) -> VecGraph {
+        VecGraph { g: self.g.clone() }
+    }
 }
 
 #[pyclass]
@@ -352,6 +364,18 @@ impl Decomposer {
             gs.push(VecGraph { g: g.clone() });
         }
         Ok(gs)
+    }
+
+    fn done(&self) -> PyResult<Vec<VecGraph>> {
+        let mut gs = vec![];
+        for g in &self.d.done {
+            gs.push(VecGraph { g: g.clone() });
+        }
+        Ok(gs)
+    }
+
+    fn save(&mut self, b: bool) {
+        self.d.save(b);
     }
 
     fn apply_optimizations(&mut self, b: bool) {
