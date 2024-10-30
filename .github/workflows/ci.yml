@@ -18,6 +18,9 @@ env:
   MIRIFLAGS: '-Zmiri-permissive-provenance'
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
+  # Supported python version range
+  PYTHON_MIN_VERSION: 3.9
+  PYTHON_MAX_VERSION: 3.13
 
 jobs:
   # Computes if changes where made to each group of files, so we can run only the necessary checks.
@@ -90,7 +93,7 @@ jobs:
         with:
           enable-cache: true
       - name: Install the project libraries
-        run: uv sync --locked
+        run: uv sync --frozen
       - name: Check rust formatting
         run: cargo fmt -p quizx_pybindings -- --check
       - name: Run clippy
@@ -162,12 +165,14 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-      - name: Install the project libraries
-        run: uv sync --locked
-      - name: Build pyo3 bindings
-        run: uv run maturin develop
-      - name: Test pyo3 bindings
-        run: uv run pytest
+      - name: Build pyo3 bindings for minimum supported python version
+        run: uv run --python ${{ env.PYTHON_MIN_VERSION }} maturin develop
+      - name: Test pyo3 bindings for minimum supported python version
+        run: uv run --python ${{ env.PYTHON_MIN_VERSION }} pytest
+      - name: Build pyo3 bindings for latest supported python version
+        run: uv run --python ${{ env.PYTHON_MAX_VERSION }} maturin develop
+      - name: Test pyo3 bindings for latest supported python version
+        run: uv run --python ${{ env.PYTHON_MAX_VERSION }} pytest
 
   # This is a meta job to mark successful completion of the required checks,
   # even if they are skipped due to no changes in the relevant files.
