@@ -1,5 +1,11 @@
 # QuiZX: a quick Rust port of PyZX
 
+[![pypi][]](https://pypi.org/project/quizx/)
+[![py-version][]](https://pypi.org/project/quizx/)
+
+  [pypi]: https://img.shields.io/pypi/v/quizx
+  [py-version]: https://img.shields.io/pypi/pyversions/quizx
+
 [PyZX](https://github.com/zxlang/pyzx) is a Python library for quantum circuit optimisation and compiling using the [ZX-calculus](https://zxcalculus.com). It's great for hacking, learning, and trying things out in [Jupyter](https://jupyter.org/) notebooks. However, it's written to maximise clarity and fun, not performance.
 
 This is a port of some of the core functionality of PyZX to the [Rust](https://www.rust-lang.org/) programming language. This is a modern systems programming language, which enables writing software that is very fast and memory efficient.
