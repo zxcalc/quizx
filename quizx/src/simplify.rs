@@ -257,6 +257,20 @@ pub fn full_simp(g: &mut impl GraphLike) -> bool {
     got_match
 }
 
+pub fn basic_simp(g: &mut impl GraphLike) -> bool {
+    // Simplification that maintains causal g-flow of the graph
+    let mut got_match = false;
+    let mut m = true;
+    while m {
+        m = spider_simp(g);
+        m = id_simp(g) || m;
+        if m {
+            got_match = true;
+        }
+    }
+    got_match
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

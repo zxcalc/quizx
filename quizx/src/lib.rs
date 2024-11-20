@@ -15,6 +15,7 @@
 // limitations under the License.
 
 pub mod annealer;
+pub mod approximate;
 pub mod basic_rules;
 pub mod circuit;
 pub mod decompose;
