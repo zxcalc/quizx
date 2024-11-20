@@ -7,7 +7,6 @@ use crate::simplify::basic_simp;
 pub fn basic_greedy(c: Circuit, err_budget: f64) -> Graph {
     let mut g: Graph = c.to_graph();
     let mut count = two_qubit_count(&g);
-    println!("Two-qubit count before: {count}");
 
     let mut total_err: f64 = 0.0;
 
@@ -33,10 +32,7 @@ pub fn basic_greedy(c: Circuit, err_budget: f64) -> Graph {
             };
         };
     };
-    println!("Total error: {}", total_err);
     basic_simp(&mut g);
-    let count_after = two_qubit_count(&g);
-    println!("Two-qubit count after: {count_after}");
     g
 }
 
