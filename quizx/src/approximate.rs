@@ -80,7 +80,7 @@ pub fn two_qubit_basic_anneal(mut g: Graph, err_budget: f64, max_iter: usize, co
     // Remove vertices that would exceed the error budget (rough upper bound)
     vertex_list.retain(|&v| total_err + (round_error_dict[&v] * 1.5) <= err_budget);
     if vertex_list.is_empty() {
-        println!("All gates would break error budget, nothing to squash.");
+        if !quiet {println!("All gates would break error budget, nothing to squash.");}
         return g;
     }
     // Create probability list
