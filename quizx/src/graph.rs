@@ -165,7 +165,7 @@ pub enum VIter<'a> {
     Hash(std::collections::hash_map::Keys<'a, V, VData>),
 }
 
-impl<'a> Iterator for VIter<'a> {
+impl Iterator for VIter<'_> {
     type Item = V;
     fn next(&mut self) -> Option<V> {
         match self {
@@ -196,7 +196,7 @@ impl<'a> Iterator for VIter<'a> {
     }
 }
 
-impl<'a> ExactSizeIterator for VIter<'a> {}
+impl ExactSizeIterator for VIter<'_> {}
 
 #[allow(clippy::type_complexity)]
 pub enum EIter<'a> {
@@ -212,7 +212,7 @@ pub enum EIter<'a> {
     ),
 }
 
-impl<'a> Iterator for EIter<'a> {
+impl Iterator for EIter<'_> {
     type Item = (V, V, EType);
     fn next(&mut self) -> Option<(V, V, EType)> {
         match self {
@@ -290,14 +290,14 @@ impl<'a> Iterator for EIter<'a> {
     }
 }
 
-impl<'a> ExactSizeIterator for EIter<'a> {}
+impl ExactSizeIterator for EIter<'_> {}
 
 pub enum NeighborIter<'a> {
     Vec(std::slice::Iter<'a, (V, EType)>),
     Hash(std::collections::hash_map::Keys<'a, V, EType>),
 }
 
-impl<'a> Iterator for NeighborIter<'a> {
+impl Iterator for NeighborIter<'_> {
     type Item = V;
     fn next(&mut self) -> Option<V> {
         match self {
@@ -315,14 +315,14 @@ impl<'a> Iterator for NeighborIter<'a> {
     }
 }
 
-impl<'a> ExactSizeIterator for NeighborIter<'a> {}
+impl ExactSizeIterator for NeighborIter<'_> {}
 
 pub enum IncidentEdgeIter<'a> {
     Vec(std::slice::Iter<'a, (V, EType)>),
     Hash(std::collections::hash_map::Iter<'a, V, EType>),
 }
 
-impl<'a> Iterator for IncidentEdgeIter<'a> {
+impl Iterator for IncidentEdgeIter<'_> {
     type Item = (V, EType);
     fn next(&mut self) -> Option<(V, EType)> {
         match self {
@@ -340,7 +340,7 @@ impl<'a> Iterator for IncidentEdgeIter<'a> {
     }
 }
 
-impl<'a> ExactSizeIterator for IncidentEdgeIter<'a> {}
+impl ExactSizeIterator for IncidentEdgeIter<'_> {}
 
 pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// Initialise a new empty graph
