@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.9"
 
 [[package]]
@@ -494,7 +495,7 @@ name = "ipykernel"
 version = "6.29.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "appnope", marker = "platform_system == 'Darwin'" },
+    { name = "appnope", marker = "sys_platform == 'darwin'" },
     { name = "comm" },
     { name = "debugpy" },
     { name = "ipython" },
@@ -824,11 +825,11 @@ wheels = [
 
 [[package]]
 name = "lark"
-version = "1.1.9"
+version = "1.2.2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/2c/e1/804b6196b3fbdd0f8ba785fc62837b034782a891d6f663eea2f30ca23cfa/lark-1.1.9.tar.gz", hash = "sha256:15fa5236490824c2c4aba0e22d2d6d823575dcaf4cdd1848e34b6ad836240fba", size = 255451 }
+sdist = { url = "https://files.pythonhosted.org/packages/af/60/bc7622aefb2aee1c0b4ba23c1446d3e30225c8770b38d7aedbfb65ca9d5a/lark-1.2.2.tar.gz", hash = "sha256:ca807d0162cd16cef15a8feecb862d7319e7a09bdb13aef927968e45040fed80", size = 252132 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e7/9c/eef7c591e6dc952f3636cfe0df712c0f9916cedf317810a3bb53ccb65cdd/lark-1.1.9-py3-none-any.whl", hash = "sha256:a0dd3a87289f8ccbb325901e4222e723e7d745dbfc1803eaf5f3d2ace19cf2db", size = 111693 },
+    { url = "https://files.pythonhosted.org/packages/2d/00/d90b10b962b4277f5e64a78b6609968859ff86889f5b898c1a778c06ec00/lark-1.2.2-py3-none-any.whl", hash = "sha256:c2276486b02f0f1b90be155f2c8ba4a8e194d42775786db622faccd652d8e80c", size = 111036 },
 ]
 
 [[package]]
@@ -1502,7 +1503,7 @@ wheels = [
 
 [[package]]
 name = "pyzx"
-version = "0.8.0"
+version = "0.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ipywidgets" },
@@ -1512,9 +1513,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/93/b2/f040a8f6043ec574e38ef23c333506f9e5ae9c54701c4bed58551fb81c96/pyzx-0.8.0.tar.gz", hash = "sha256:491bf1d652a356bfde75dae70f88a59c393e4da77700d941736059e82ef844c7", size = 311971 }
+sdist = { url = "https://files.pythonhosted.org/packages/a6/22/b37c477bf79249bd2655267de071cb6ab7dbfe39579cfaeb6c3e99e26667/pyzx-0.9.0.tar.gz", hash = "sha256:9e1f4c7e490c6862750a0a0021d1c830eaff948185240eb88b4902105f7e27df", size = 327849 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f4/37/32c79aa44a89eb1ea8d82fdb7710ad2ac7cbbd044e81c9b0502758dbeacd/pyzx-0.8.0-py3-none-any.whl", hash = "sha256:0cfa2204fc96a06ede5efb5dd3931acf3b65c16a379fb75a7367864f89fc50f5", size = 345359 },
+    { url = "https://files.pythonhosted.org/packages/21/78/9b1a64fa38f79d9f93289ed405c880da992ce106236a62bebf700a30100e/pyzx-0.9.0-py3-none-any.whl", hash = "sha256:13211a5922b1b79460c22e7cb685448261145e90bf30a29616f8058982a47b3f", size = 358711 },
 ]
 
 [[package]]
@@ -1536,7 +1537,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pyzx", specifier = ">=0.8.0,<0.9.0" }]
+requires-dist = [{ name = "pyzx", specifier = ">=0.9.0,<0.10.0" }]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1836,7 +1837,7 @@ name = "tqdm"
 version = "4.66.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/58/83/6ba9844a41128c62e810fddddd72473201f3eacde02046066142a2d96cc5/tqdm-4.66.5.tar.gz", hash = "sha256:e1020aef2e5096702d8a025ac7d16b1577279c9d63f8375b63083e9a5f0fcbad", size = 169504 }
 wheels = [
