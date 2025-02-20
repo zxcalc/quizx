@@ -351,7 +351,7 @@ impl std::ops::IndexMut<usize> for Mat2 {
     }
 }
 
-impl<'a, 'b> std::ops::Mul<&'b Mat2> for &'a Mat2 {
+impl std::ops::Mul<&Mat2> for &Mat2 {
     type Output = Mat2;
 
     #[allow(clippy::suspicious_arithmetic_impl)]
@@ -371,13 +371,13 @@ impl<'a, 'b> std::ops::Mul<&'b Mat2> for &'a Mat2 {
     }
 }
 
-impl<'a> std::ops::Mul<Mat2> for &'a Mat2 {
+impl std::ops::Mul<Mat2> for &Mat2 {
     type Output = Mat2;
     fn mul(self, rhs: Mat2) -> Self::Output {
         self * &rhs
     }
 }
-impl<'a> std::ops::Mul<&'a Mat2> for Mat2 {
+impl std::ops::Mul<&Mat2> for Mat2 {
     type Output = Mat2;
     fn mul(self, rhs: &Mat2) -> Self::Output {
         &self * rhs
