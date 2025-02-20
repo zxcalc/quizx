@@ -54,6 +54,7 @@ jobs:
             - 'quizx/**'
             - 'pybindings/**'
             - 'Cargo.toml'
+            - 'pyproject.toml'
 
   check-quizx:
     name: 🦀 Check quizx package
