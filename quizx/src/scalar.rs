@@ -455,7 +455,7 @@ impl<T: Coeffs> fmt::Display for Scalar<T> {
 
 // The main implementation of the Mul trait uses references, so
 // we don't need to make a copy of the scalars to multiply them.
-impl<'a, 'b, T: Coeffs> Mul<&'b Scalar<T>> for &'a Scalar<T> {
+impl<T: Coeffs> Mul<&Scalar<T>> for &Scalar<T> {
     type Output = Scalar<T>;
 
     fn mul(self, rhs: &Scalar<T>) -> Self::Output {
@@ -493,13 +493,13 @@ impl<T: Coeffs> Mul for Scalar<T> {
         &self * &rhs
     }
 }
-impl<'a, T: Coeffs> Mul<Scalar<T>> for &'a Scalar<T> {
+impl<T: Coeffs> Mul<Scalar<T>> for &Scalar<T> {
     type Output = Scalar<T>;
     fn mul(self, rhs: Scalar<T>) -> Self::Output {
         self * &rhs
     }
 }
-impl<'a, T: Coeffs> Mul<&'a Scalar<T>> for Scalar<T> {
+impl<T: Coeffs> Mul<&Scalar<T>> for Scalar<T> {
     type Output = Scalar<T>;
     fn mul(self, rhs: &Scalar<T>) -> Self::Output {
         &self * rhs
@@ -514,7 +514,7 @@ impl<T: Coeffs> std::ops::MulAssign<Scalar<T>> for Scalar<T> {
 }
 
 // Variation takes ownership of rhs
-impl<'a, T: Coeffs> std::ops::MulAssign<&'a Scalar<T>> for Scalar<T> {
+impl<T: Coeffs> std::ops::MulAssign<&Scalar<T>> for Scalar<T> {
     fn mul_assign(&mut self, rhs: &Scalar<T>) {
         *self = &*self * rhs;
     }
@@ -522,7 +522,7 @@ impl<'a, T: Coeffs> std::ops::MulAssign<&'a Scalar<T>> for Scalar<T> {
 
 // The main implementation of the Add trait uses references, so we
 // don't need to make a copy of the scalars to add them.
-impl<'a, 'b, T: Coeffs> Add<&'b Scalar<T>> for &'a Scalar<T> {
+impl<T: Coeffs> Add<&Scalar<T>> for &Scalar<T> {
     type Output = Scalar<T>;
 
     fn add(self, rhs: &Scalar<T>) -> Self::Output {
@@ -571,14 +571,14 @@ impl<T: Coeffs> Add<Scalar<T>> for Scalar<T> {
     }
 }
 
-impl<'a, T: Coeffs> Add<Scalar<T>> for &'a Scalar<T> {
+impl<T: Coeffs> Add<Scalar<T>> for &Scalar<T> {
     type Output = Scalar<T>;
     fn add(self, rhs: Scalar<T>) -> Self::Output {
         self + &rhs
     }
 }
 
-impl<'a, T: Coeffs> Add<&'a Scalar<T>> for Scalar<T> {
+impl<T: Coeffs> Add<&Scalar<T>> for Scalar<T> {
     type Output = Scalar<T>;
     fn add(self, rhs: &Scalar<T>) -> Self::Output {
         &self + rhs
@@ -591,7 +591,7 @@ impl<T: Coeffs> AddAssign for Scalar<T> {
     }
 }
 
-impl<'a, T: Coeffs> AddAssign<&'a Scalar<T>> for Scalar<T> {
+impl<T: Coeffs> AddAssign<&Scalar<T>> for Scalar<T> {
     fn add_assign(&mut self, rhs: &Scalar<T>) {
         *self = &*self + rhs;
     }
