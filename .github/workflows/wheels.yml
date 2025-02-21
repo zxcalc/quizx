@@ -72,7 +72,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
+          args: --release --out ../dist --find-interpreter
           sccache: 'true'
           manylinux: auto
           working-directory: ${{ env.MODULE_DIR }}
@@ -106,7 +106,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
+          args: --release --out ../dist --find-interpreter
           sccache: 'true'
           manylinux: musllinux_1_2
           working-directory: ${{ env.MODULE_DIR }}
@@ -137,7 +137,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
+          args: --release --out ../dist --find-interpreter
           sccache: 'true'
           working-directory: ${{ env.MODULE_DIR }}
       - name: Upload wheels
@@ -166,7 +166,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
+          args: --release --out ../dist --find-interpreter
           sccache: 'true'
           working-directory: ${{ env.MODULE_DIR }}
       - name: Upload wheels
@@ -185,7 +185,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: sdist
-          args: --out dist
+          args: --out ../dist
           working-directory: ${{ env.MODULE_DIR }}
       - name: Upload sdist
         uses: actions/upload-artifact@v4
