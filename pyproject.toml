@@ -14,3 +14,11 @@ dev-dependencies = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.maturin]
+# Maturin is not the build system for the workspace (it is configured inside `pybindings`).
+# We mirror the `pybindings/pyproject.toml` config here so `maturin develop` still works
+# from the root of the workspace.
+manifest-path = "pybindings/Cargo.toml"
+python-source = "pybindings"
+module-name = "quizx._quizx"
