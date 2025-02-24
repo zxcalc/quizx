@@ -136,9 +136,12 @@ class VecGraph(BaseGraph[int, Tuple[int, int]]):
     #     self.ty[index] = VertexType.BOUNDARY
     #     self._phase[index] = 0
 
+    def add_edge(self, edge, edgetype=EdgeType.SIMPLE, smart=False):
+        self._g.add_edge(edge, edgetype)
+
     def add_edges(self, edges, edgetype=EdgeType.SIMPLE, smart=False):
         for e in edges:
-            self._g.add_edge(e, edgetype)
+            self.add_edge(e, edgetype)
 
     def remove_vertices(self, vertices):
         for v in vertices:
