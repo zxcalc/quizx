@@ -63,7 +63,7 @@ pub struct Extractor<'a, G: GraphLike> {
 }
 
 impl<'a, G: GraphLike> Extractor<'a, G> {
-    pub fn new(g: &'a mut G) -> Extractor<G> {
+    pub fn new(g: &'a mut G) -> Extractor<'a, G> {
         Extractor {
             g,
             frontier: Vec::new(),

@@ -12,44 +12,27 @@ check:
     uv run pre-commit run --all-files
 
 # Build the project.
-build language="[rust|python]": (_run_lang language \
-        "cargo build" \
-        "uv run maturin develop"
-    )
+build:
+    cargo build
+    uv run maturin develop
 
-# Run all the tests.
-test language="[rust|python]": (_run_lang language \
-        "cargo test --all-features" \
-        "uv run maturin develop && uv run pytest"
-    )
+# Run the tests.
+test-rust:
+    cargo test --all-features
+# Run the tests.
+test-python:
+    uv run maturin develop && uv run pytest
 
-# Auto-fix all clippy warnings.
-fix language="[rust|python]": (_run_lang language \
-        "cargo clippy --all-targets --all-features --workspace --fix --allow-staged --allow-dirty" \
-        "uv run ruff check --fix"
-    )
+# Auto-fix all lint warnings.
+fix-rust:
+    cargo clippy --all-targets --all-features --workspace --fix --allow-staged --allow-dirty
+# Auto-fix all lint warnings.
+fix-python:
+    uv run ruff check --fix
 
-# Format the code.
-format language="[rust|python]": (_run_lang language \
-        "cargo fmt" \
-        "uv run ruff format"
-    )
-
-# Runs a rust and a python command, depending on the `language` variable.
-#
-# If `language` is set to `rust` or `python`, only run the command for that language.
-# Otherwise, run both commands.
-_run_lang language rust_cmd python_cmd:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [ "{{ language }}" = "rust" ]; then
-        set -x
-        {{ rust_cmd }}
-    elif [ "{{ language }}" = "python" ]; then
-        set -x
-        {{ python_cmd }}
-    else
-        set -x
-        {{ rust_cmd }}
-        {{ python_cmd }}
-    fi
+# Format the rust code.
+format-rust:
+    cargo fmt
+# Format the rust code.
+format-python:
+    uv run ruff format

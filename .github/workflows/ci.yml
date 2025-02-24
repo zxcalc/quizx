@@ -54,6 +54,7 @@ jobs:
             - 'quizx/**'
             - 'pybindings/**'
             - 'Cargo.toml'
+            - 'pyproject.toml'
 
   check-quizx:
     name: 🦀 Check quizx package
@@ -66,7 +67,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - uses: mozilla-actions/sccache-action@v0.0.6
+      - uses: mozilla-actions/sccache-action@v0.0.7
       - name: Check rust formatting
         run: cargo fmt -p quizx -- --check
       - name: Run clippy
@@ -83,13 +84,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: mozilla-actions/sccache-action@v0.0.6
+      - uses: mozilla-actions/sccache-action@v0.0.7
       - name: Install rust stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
       - name: Install the project libraries
@@ -112,7 +113,7 @@ jobs:
     name: 🦀 Test quizx (Rust stable)
     steps:
       - uses: actions/checkout@v4
-      - uses: mozilla-actions/sccache-action@v0.0.6
+      - uses: mozilla-actions/sccache-action@v0.0.7
       - id: toolchain
         uses: dtolnay/rust-toolchain@master
         with:
@@ -141,7 +142,7 @@ jobs:
           toolchain: ${{ matrix.rust }}
       - name: Configure default rust toolchain
         run: rustup override set ${{steps.toolchain.outputs.name}}
-      - uses: mozilla-actions/sccache-action@v0.0.6
+      - uses: mozilla-actions/sccache-action@v0.0.7
       - name: Build with all features
         run: cargo test --verbose --all-features --no-run -p quizx
       - name: Tests with all features
@@ -154,7 +155,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: mozilla-actions/sccache-action@v0.0.6
+      - uses: mozilla-actions/sccache-action@v0.0.7
       - name: Install rust stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -162,7 +163,7 @@ jobs:
       - name: Install poetry
         run: pipx install poetry
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
       - name: Build pyo3 bindings for minimum supported python version
