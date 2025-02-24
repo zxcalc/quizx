@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+## Added
+- `add_edge` method to `VecGraph` class.
+
 ## [0.1.1](https://github.com/zxcalc/quizx/compare/quizx-py-v0.1.0...quizx-py-v0.1.1) (2025-02-21)
 
 
