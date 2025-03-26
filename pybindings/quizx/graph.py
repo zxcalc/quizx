@@ -178,7 +178,7 @@ class VecGraph(BaseGraph[int, Tuple[int, int]]):
     def edges(self, s=None, t=None):
         if not s is None:
             if not t is None and self.connected(s, t):
-                return iter([self.edge(s,t)])
+                return iter([self.edge(s, t)])
             else:
                 return iter([])
         else:
