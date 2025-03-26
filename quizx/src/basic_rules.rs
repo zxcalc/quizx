@@ -386,16 +386,22 @@ fn unfuse_gadget(g: &mut impl GraphLike, v: V) {
     if g.phase(v).is_pauli() {
         return;
     }
-    let vd = VData {
+    let vd1 = VData {
         ty: VType::Z,
         phase: Phase::zero(),
         row: g.row(v),
-        qubit: g.qubit(v),
+        qubit: g.qubit(1),
     };
-    let v1 = g.add_vertex_with_data(vd);
-    let v2 = g.add_vertex_with_data(vd);
-    g.set_phase(v2, g.phase(v));
-    g.set_phase(v, Rational64::zero());
+
+    let vd2 = VData {
+        ty: VType::Z,
+        phase: g.phase(v),
+        row: g.row(v),
+        qubit: g.qubit(0),
+    };
+    let v1 = g.add_vertex_with_data(vd1);
+    let v2 = g.add_vertex_with_data(vd2);
+    g.set_phase(v, Phase::zero());
     g.add_edge_with_type(v, v1, EType::H);
     g.add_edge_with_type(v1, v2, EType::H);
 }

@@ -136,9 +136,12 @@ class VecGraph(BaseGraph[int, Tuple[int, int]]):
     #     self.ty[index] = VertexType.BOUNDARY
     #     self._phase[index] = 0
 
-    def add_edges(self, edges, edgetype=EdgeType.SIMPLE, smart=False):
-        for e in edges:
+    def add_edges(self, edge_pairs, edgetype=EdgeType.SIMPLE, smart=False):
+        for e in edge_pairs:
             self._g.add_edge(e, edgetype)
+
+    def add_edge(self, edge_pair, edgetype=EdgeType.SIMPLE, smart=False):
+        self._g.add_edge(edge_pair, edgetype)
 
     def remove_vertices(self, vertices):
         for v in vertices:
@@ -172,8 +175,14 @@ class VecGraph(BaseGraph[int, Tuple[int, int]]):
             if all(start < v2 < end for v2 in self.neighbors(v)):
                 yield v
 
-    def edges(self):
-        return VecGraph.EIter(self)
+    def edges(self, s=None, t=None):
+        if not s is None:
+            if not t is None and self.connected(s, t):
+                return iter([self.edge(s,t)])
+            else:
+                return iter([])
+        else:
+            return VecGraph.EIter(self)
 
     # def edges_in_range(self, start, end, safe=False):
     #    """like self.edges, but only returns edges that belong to vertices
@@ -197,7 +206,7 @@ class VecGraph(BaseGraph[int, Tuple[int, int]]):
     #                    if v1 > v0:
     #                        yield (v0,v1)
 
-    def edge(self, s, t):
+    def edge(self, s, t, et=EdgeType.SIMPLE):
         return (s, t) if s < t else (t, s)
 
     def edge_set(self):
