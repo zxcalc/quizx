@@ -116,7 +116,7 @@ pub fn check_spider_fusion(g: &impl GraphLike, v0: V, v1: V) -> bool {
 /// assert_eq!(g.to_tensor4(), h.to_tensor4());
 ///
 /// let h = g.clone();
-/// spider_fusion_unchecked(&mut g, v0, v2); // oops!
+/// spider_fusion_unchecked(&mut g, v0, v2); // oops! Not a valid spider fusion
 /// assert_ne!(g.to_tensor4(), h.to_tensor4());
 /// ```
 pub fn spider_fusion_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
