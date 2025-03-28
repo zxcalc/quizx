@@ -20,8 +20,8 @@ As a very anecdotal example of the performance difference, the program `spider_c
 from pyzx.basicrules import *
 
 success = True
-while success
-    success = any(fuse(g, g.edge_s(e), g.edge_t(e)) for e in g.edges()):
+while success:
+    success = any(fuse(g, g.edge_s(e), g.edge_t(e)) for e in g.edges())
 ```
 
 In QuiZX, the Rust code is slightly more verbose, but similar in spirit:
@@ -30,7 +30,7 @@ use quizx::basic_rules::*;
 
 loop {
     match g.find_edge(|v0,v1,_| check_spider_fusion(&g, v0, v1)) {
-        Some((v0,v1,_)) => spider_fusion_unsafe(&mut g, v0, v1),
+        Some((v0,v1,_)) => spider_fusion_unchecked(&mut g, v0, v1),
         None => break,
     };
 }

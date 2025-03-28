@@ -20,8 +20,8 @@ As a very anecdotal example of the performance difference, the program `spider_c
 from pyzx.basicrules import *
 
 success = True
-while success
-    success = any(fuse(g, g.edge_s(e), g.edge_t(e)) for e in g.edges()):
+while success:
+    success = any(fuse(g, g.edge_s(e), g.edge_t(e)) for e in g.edges())
 ```
 
 In QuiZX, the Rust code is slightly more verbose, but similar in spirit:
@@ -30,7 +30,7 @@ use quizx::basic_rules::*;
 
 loop {
     match g.find_edge(|v0,v1,_| check_spider_fusion(&g, v0, v1)) {
-        Some((v0,v1,_)) => spider_fusion_unsafe(&mut g, v0, v1),
+        Some((v0,v1,_)) => spider_fusion_unchecked(&mut g, v0, v1),
         None => break,
     };
 }
@@ -40,7 +40,7 @@ On my laptop, the PyZX code takes about 98 seconds to fuse 1 million spiders, wh
 
 ## TODO
 
-QuiZX is very much a work in progress. It is not intended to have all the features of PyZX, but certainly the core stuff. Here's where it's at:
+QuiZX is not intended to have all the features of PyZX, but certainly the core stuff. Here's where it's at:
 
 - ZX-diagrams
   - [X] building ZX-diagrams and doing basic graph manipulations
@@ -55,7 +55,7 @@ QuiZX is very much a work in progress. It is not intended to have all the featur
   - [X] pivoting variations (boundary-pivot and gadget-pivot)
 - simplifiers
   - [X] clifford simplifier (from [this](https://quantum-journal.org/papers/q-2020-06-04-279/) paper)
-  - [ ] phase gadget simplifier (from [this](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.102.022406) paper)
+  - [X] phase gadget simplifier (from [this](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.102.022406) paper)
   - [ ] simplification-based equality checker
 - tensor evaluation based on [ndarray](https://github.com/rust-ndarray/ndarray)
   - [X] exact scalars with [cyclotomic](https://en.wikipedia.org/wiki/Cyclotomic_field)
@@ -72,6 +72,6 @@ QuiZX is very much a work in progress. It is not intended to have all the featur
   - [X] circuit data type
   - [X] read and write QASM
   - [X] conversion from circuits to ZX-diagrams
-  - [ ] circuit extraction (working, but buggy)
+  - [X] circuit extraction
 
 Pull requests are welcome!

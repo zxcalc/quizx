@@ -703,4 +703,22 @@ mod tests {
         let c1 = g.to_circuit().unwrap();
         assert!(Tensor4::scalar_compare(&c, &c1));
     }
+
+    #[test]
+    fn random_full_extract() {
+        for seed in [1337, 143, 105, 112] {
+            let c = Circuit::random()
+                .seed(seed)
+                .qubits(5)
+                .depth(40)
+                .p_t(0.2)
+                .with_cliffords()
+                .build();
+            let mut g: Graph = c.to_graph();
+            full_simp(&mut g);
+            // println!("{}", g.to_dot());
+            let c1 = g.to_circuit().expect("Circuit should extract.");
+            assert!(Tensor4::scalar_compare(&c, &c1));
+        }
+    }
 }

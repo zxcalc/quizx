@@ -1,6 +1,7 @@
 __pycache__
 target
 *.so
+*.pyd
 build
 dist
 data
