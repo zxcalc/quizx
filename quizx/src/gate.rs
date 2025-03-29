@@ -19,7 +19,6 @@ use crate::graph::*;
 use crate::phase::Phase;
 use crate::scalar::*;
 use num::{Rational64, Zero};
-use std::cmp::max;
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum GType {
@@ -247,11 +246,11 @@ impl Gate {
         phase: impl Into<Phase>,
     ) -> Option<usize> {
         if let Some(v0) = qs[qubit] {
-            let row = graph.row(v0) + 1;
+            let row = graph.row(v0) + 1.0;
             let v = graph.add_vertex_with_data(VData {
                 ty,
                 phase: phase.into(),
-                qubit: (qubit as i32),
+                qubit: (qubit as f64),
                 row,
             });
             graph.add_edge_with_type(v0, v, et);
@@ -407,7 +406,9 @@ impl Gate {
                     Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Phase::zero()),
                     Gate::add_spider(graph, qs, self.qs[1], VType::X, EType::N, Phase::zero()),
                 ) {
-                    let row = max(graph.row(v1), graph.row(v2));
+                    let r1 = graph.row(v1);
+                    let r2 = graph.row(v2);
+                    let row = if r1 < r2 { r2 } else { r1 };
                     graph.set_row(v1, row);
                     graph.set_row(v2, row);
 
@@ -420,7 +421,9 @@ impl Gate {
                     Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Phase::zero()),
                     Gate::add_spider(graph, qs, self.qs[1], VType::Z, EType::N, Phase::zero()),
                 ) {
-                    let row = max(graph.row(v1), graph.row(v2));
+                    let r1 = graph.row(v1);
+                    let r2 = graph.row(v2);
+                    let row = if r1 < r2 { r2 } else { r1 };
                     graph.set_row(v1, row);
                     graph.set_row(v2, row);
 
@@ -433,7 +436,9 @@ impl Gate {
                     Gate::add_spider(graph, qs, self.qs[0], VType::X, EType::N, Phase::zero()),
                     Gate::add_spider(graph, qs, self.qs[1], VType::X, EType::N, Phase::zero()),
                 ) {
-                    let row = max(graph.row(v1), graph.row(v2));
+                    let r1 = graph.row(v1);
+                    let r2 = graph.row(v2);
+                    let row = if r1 < r2 { r2 } else { r1 };
                     graph.set_row(v1, row);
                     graph.set_row(v2, row);
 
@@ -446,7 +451,9 @@ impl Gate {
                     Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Phase::zero()),
                     Gate::add_spider(graph, qs, self.qs[1], VType::Z, EType::N, Phase::zero()),
                 ) {
-                    let row = max(graph.row(v1), graph.row(v2));
+                    let r1 = graph.row(v1);
+                    let r2 = graph.row(v2);
+                    let row = if r1 < r2 { r2 } else { r1 };
                     graph.set_row(v1, row);
                     graph.set_row(v2, row);
 

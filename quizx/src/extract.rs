@@ -318,7 +318,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
                                 ty: VType::Z,
                                 phase: Phase::zero(),
                                 qubit: self.g.qubit(n),
-                                row: self.g.row(n) + 1,
+                                row: self.g.row(n) + 1.0,
                             };
                             let n1 = self.g.add_vertex_with_data(vd);
                             self.g

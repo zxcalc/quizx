@@ -143,8 +143,8 @@ impl GraphLike for Graph {
         self.add_vertex_with_data(VData {
             ty,
             phase: Rational64::new(0, 1).into(),
-            qubit: 0,
-            row: 0,
+            qubit: 0.0,
+            row: 0.0,
         })
     }
 
@@ -272,7 +272,7 @@ impl GraphLike for Graph {
         Coord::new(d.qubit, d.row)
     }
 
-    fn set_qubit(&mut self, v: V, qubit: i32) {
+    fn set_qubit(&mut self, v: V, qubit: f64) {
         if let Some(Some(d)) = self.vdata.get_mut(v) {
             d.qubit = qubit;
         } else {
@@ -280,11 +280,11 @@ impl GraphLike for Graph {
         }
     }
 
-    fn qubit(&self, v: V) -> i32 {
+    fn qubit(&self, v: V) -> f64 {
         self.vdata[v].expect("Vertex not found").qubit
     }
 
-    fn set_row(&mut self, v: V, row: i32) {
+    fn set_row(&mut self, v: V, row: f64) {
         if let Some(Some(d)) = self.vdata.get_mut(v) {
             d.row = row;
         } else {
@@ -292,7 +292,7 @@ impl GraphLike for Graph {
         }
     }
 
-    fn row(&self, v: V) -> i32 {
+    fn row(&self, v: V) -> f64 {
         self.vdata[v].expect("Vertex not found").row
     }
 

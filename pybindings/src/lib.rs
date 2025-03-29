@@ -169,7 +169,7 @@ impl VecGraph {
     fn num_edges(&self) -> usize {
         self.g.num_edges()
     }
-    fn add_vertex(&mut self, ty_num: u8, qubit: i32, row: i32, phase: (i64, i64)) -> usize {
+    fn add_vertex(&mut self, ty_num: u8, qubit: f64, row: f64, phase: (i64, i64)) -> usize {
         let ty = match ty_num {
             1 => VType::Z,
             2 => VType::X,
@@ -274,16 +274,16 @@ impl VecGraph {
         self.g.add_to_phase(v, Rational64::new(phase.0, phase.1));
     }
 
-    fn qubit(&mut self, v: usize) -> i32 {
+    fn qubit(&mut self, v: usize) -> f64 {
         self.g.qubit(v)
     }
-    fn set_qubit(&mut self, v: usize, q: i32) {
+    fn set_qubit(&mut self, v: usize, q: f64) {
         self.g.set_qubit(v, q);
     }
-    fn row(&mut self, v: usize) -> i32 {
+    fn row(&mut self, v: usize) -> f64 {
         self.g.row(v)
     }
-    fn set_row(&mut self, v: usize, r: i32) {
+    fn set_row(&mut self, v: usize, r: f64) {
         self.g.set_row(v, r);
     }
 

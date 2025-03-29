@@ -44,7 +44,7 @@ impl JsonGraph {
 
         for v in graph.vertices() {
             let typ = graph.vertex_type(v);
-            let coord = graph.coord(v).to_f64();
+            let coord = graph.coord(v);
             let v_name = match typ {
                 VType::B => bound_name_gen.next(),
                 _ => vertex_name_gen.next(),
@@ -62,7 +62,7 @@ impl JsonGraph {
                 let attrs = VertexAttrs {
                     annotation: VertexAnnotations {
                         boundary: true,
-                        coord,
+                        coord: (coord.x, coord.y),
                         input,
                         output,
                         ..Default::default()
@@ -85,7 +85,7 @@ impl JsonGraph {
                 let value = JsonPhase::from_phase(phase, phase_options);
                 let mut attrs = VertexAttrs {
                     annotation: VertexAnnotations {
-                        coord,
+                        coord: (coord.x, coord.y),
                         ..Default::default()
                     },
                     data: VertexData {
@@ -122,7 +122,7 @@ impl JsonGraph {
                         h_name.clone(),
                         VertexAttrs {
                             annotation: VertexAnnotations {
-                                coord,
+                                coord: (coord.x, coord.y),
                                 ..Default::default()
                             },
                             data: VertexData {
@@ -179,7 +179,10 @@ impl JsonGraph {
         let mut hadamards: HashMap<&str, (Vec<V>, Coord)> = HashMap::new();
 
         for (name, attrs) in &self.node_vertices {
-            let coord = Coord::from_f64(attrs.annotation.coord);
+            let coord = Coord {
+                x: attrs.annotation.coord.0,
+                y: attrs.annotation.coord.1,
+            };
             if attrs.data.typ == VType::H && attrs.data.is_edge {
                 // A virtual hadamard edge.
                 hadamards.insert(name, (vec![], coord));
@@ -214,7 +217,10 @@ impl JsonGraph {
         let mut inputs: BTreeMap<usize, &str> = BTreeMap::new();
         let mut outputs: BTreeMap<usize, &str> = BTreeMap::new();
         for (name, attrs) in &self.wire_vertices {
-            let coord = Coord::from_f64(attrs.annotation.coord);
+            let coord = Coord {
+                x: attrs.annotation.coord.0,
+                y: attrs.annotation.coord.1,
+            };
             let v = graph.add_vertex_with_data(VData {
                 ty: VType::B,
                 qubit: coord.qubit(),
@@ -245,7 +251,7 @@ impl JsonGraph {
                     // Both ends are virtual Hadamard nodes.
                     //
                     // Not sure how this is possible, but pyzx supports it.
-                    let new_coord = Coord::from_f64(avg_coord(*src_coord, *tgt_coord));
+                    let new_coord = avg_coord(*src_coord, *tgt_coord);
                     let v = graph.add_vertex_with_data(VData {
                         ty: VType::Z,
                         qubit: new_coord.qubit(),
@@ -293,11 +299,9 @@ impl JsonGraph {
 /// Returns the average of two coordinates, as a pair of f64.
 ///
 /// Rounds the result to 3 decimal places.
-fn avg_coord(a: Coord, b: Coord) -> (f64, f64) {
-    let a = a.to_f64();
-    let b = b.to_f64();
-    (
-        ((a.0 + b.0) * 1000.).round() / 2000.,
-        ((a.1 + b.1) * 1000.).round() / 2000.,
-    )
+fn avg_coord(a: Coord, b: Coord) -> Coord {
+    Coord {
+        x: ((a.x + b.x) * 1000.).round() / 2000.,
+        y: ((a.y + b.y) * 1000.).round() / 2000.,
+    }
 }

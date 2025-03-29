@@ -257,8 +257,8 @@ impl Circuit {
             let v = graph.add_vertex_with_data(VData {
                 ty: VType::B,
                 phase: Phase::zero(),
-                qubit: i as i32,
-                row: 1,
+                qubit: i as f64,
+                row: 1.0,
             });
             qs.push(Some(v));
             inputs.push(v);
@@ -272,12 +272,13 @@ impl Circuit {
 
         let last_row = qs
             .iter()
-            .map(|&v| match v {
-                Some(v1) => graph.row(v1),
-                None => 0,
+            .fold(None, |r, &v| match (r, v.map(|v1| graph.row(v1))) {
+                (Some(r), Some(r1)) => Some(if r < r1 { r1 } else { r }),
+                (Some(r), None) => Some(r),
+                (None, Some(r1)) => Some(r1),
+                (None, None) => None,
             })
-            .max()
-            .unwrap_or(0);
+            .unwrap_or(0.0);
 
         let mut outputs = Vec::with_capacity(self.nqubits);
         for (i, &q) in qs.iter().enumerate() {
@@ -285,8 +286,8 @@ impl Circuit {
                 let v = graph.add_vertex_with_data(VData {
                     ty: VType::B,
                     phase: Phase::zero(),
-                    qubit: i as i32,
-                    row: last_row + 1,
+                    qubit: i as f64,
+                    row: last_row + 1.0,
                 });
                 graph.add_edge(v0, v);
                 outputs.push(v);
