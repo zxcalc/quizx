@@ -390,14 +390,14 @@ fn unfuse_gadget(g: &mut impl GraphLike, v: V) {
         ty: VType::Z,
         phase: Phase::zero(),
         row: g.row(v),
-        qubit: g.qubit(1),
+        qubit: -1.0,
     };
 
     let vd2 = VData {
         ty: VType::Z,
         phase: g.phase(v),
         row: g.row(v),
-        qubit: g.qubit(0),
+        qubit: -2.0,
     };
     let v1 = g.add_vertex_with_data(vd1);
     let v2 = g.add_vertex_with_data(vd2);
