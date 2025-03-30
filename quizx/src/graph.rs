@@ -545,7 +545,10 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
                         }
                     }
                 }
-                _ => panic!("Parallel edges only supported between Z and X vertices"),
+                _ => panic!(
+                    "Parallel edges only supported between Z and X vertices ({:?} --> {:?})",
+                    st, tt
+                ),
             }
         } else {
             self.add_edge_with_type(s, t, ety);

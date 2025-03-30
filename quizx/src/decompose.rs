@@ -244,7 +244,7 @@ impl<G: GraphLike> Decomposer<G> {
             // crate::simplify::full_simp(&mut g);
             self.scalar = &self.scalar + g.scalar();
             self.nterms += 1;
-            if g.num_vertices() != 0 {
+            if g.inputs().is_empty() && g.outputs().is_empty() && g.num_vertices() != 0 {
                 println!("{}", g.to_dot());
                 println!("WARNING: graph was not fully reduced");
                 // println!("{}", g.to_dot());
@@ -273,6 +273,7 @@ impl<G: GraphLike> Decomposer<G> {
 
     /// Pick <= 6 T gates from the given graph, chosen at random
     pub fn random_ts(g: &G, rng: &mut impl Rng) -> Vec<V> {
+        // the graph g is assumed to contain no X spiders
         let mut all_t: Vec<_> = g.vertices().filter(|&v| g.phase(v).is_t()).collect();
         let mut t = vec![];
 
@@ -285,16 +286,20 @@ impl<G: GraphLike> Decomposer<G> {
     }
 
     /// Returns a best occurrence of a cat state
-    /// The fist vertex in the result is the Clifford spider
+    /// The fist vertex in the result is the Pauli spider
     pub fn cat_ts(g: &G) -> Vec<V> {
-        // the graph g is supposed to be completely simplified
+        // the graph g is assumed to be graph-like
         let preferred_order = [4, 6, 5, 3];
         let mut res = vec![];
         let mut index = None;
         for v in g.vertices() {
-            if g.phase(v).is_pauli() {
+            if g.vertex_type(v) == VType::Z && g.phase(v).is_pauli() {
                 let mut neigh = g.neighbor_vec(v);
-                if neigh.len() <= 6 {
+                if neigh.len() <= 6
+                    && neigh
+                        .iter()
+                        .all(|&n| g.vertex_type(n) == VType::Z && g.phase(n).is_t())
+                {
                     if let Some(this_ind) = preferred_order.iter().position(|&r| r == neigh.len()) {
                         match index {
                             Some(ind) if this_ind < ind => {
@@ -415,7 +420,7 @@ impl<G: GraphLike> Decomposer<G> {
         // verts[0] is a 0- or pi-spider, linked to all and only to vs in verts[1..] which are T-spiders
         let mut g = g.clone(); // that is annoying ...
         let mut verts = Vec::from(verts);
-        if g.phase(verts[0]).is_pauli() {
+        if g.phase(verts[0]).is_one() {
             g.set_phase(verts[0], Rational64::new(0, 1));
             let mut neigh = g.neighbor_vec(verts[1]);
             neigh.retain(|&x| x != verts[0]);
@@ -892,5 +897,27 @@ mod tests {
         let mut d = Decomposer::new(&g);
         d.with_full_simp().save(true).decomp_all();
         assert_eq!(d.done.len(), 7 * 2 * 2);
+    }
+
+    #[test]
+    fn cat6() {
+        let mut g = Graph::new();
+
+        let mut outputs = vec![];
+        let z = g.add_vertex(VType::Z);
+        for _ in 0..6 {
+            let t = g.add_vertex_with_phase(VType::Z, Rational64::new(1, 4));
+            g.add_edge_with_type(z, t, EType::H);
+
+            let out = g.add_vertex(VType::B);
+            g.add_edge(t, out);
+            outputs.push(out);
+        }
+        g.set_outputs(outputs);
+
+        let mut d = Decomposer::new(&g);
+        d.with_full_simp().save(true).use_cats(true).decomp_all(); // this line panics
+
+        assert_eq!(d.done.len(), 3);
     }
 }

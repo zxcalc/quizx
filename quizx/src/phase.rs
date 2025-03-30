@@ -59,7 +59,7 @@ impl Phase {
 
     /// Returns `true` if the phase is a multiple of 1/2.
     pub fn is_clifford(&self) -> bool {
-        self.r.denom().abs() < 2
+        self.r.denom().abs() <= 2
     }
 
     /// Returns `true` if the phase is either -1/2 or 1/2.
