@@ -200,9 +200,8 @@ impl<G: GraphLike> Decomposer<G> {
                 break;
             } else {
                 if self.use_cats {
-                    let cat_nodes = Decomposer::cat_ts(&g); //gadget_ts(&g);
-                                                            //println!("{:?}", gadget_nodes);
-                    // let nts = cat_nodes.iter().filter(|&&x| g.phase(x).is_t()).count();
+                    let cat_nodes = Decomposer::cat_ts(&g);
+
                     if cat_nodes.len() > 3 {
                         // println!("using cat!");
                         return self.push_cat_decomp(depth + 1, &g, &cat_nodes);
