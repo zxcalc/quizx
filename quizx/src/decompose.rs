@@ -202,8 +202,8 @@ impl<G: GraphLike> Decomposer<G> {
                 if self.use_cats {
                     let cat_nodes = Decomposer::cat_ts(&g); //gadget_ts(&g);
                                                             //println!("{:?}", gadget_nodes);
-                    let nts = cat_nodes.iter().filter(|&&x| g.phase(x).is_t()).count();
-                    if nts > 2 {
+                    // let nts = cat_nodes.iter().filter(|&&x| g.phase(x).is_t()).count();
+                    if cat_nodes.len() > 3 {
                         // println!("using cat!");
                         return self.push_cat_decomp(depth + 1, &g, &cat_nodes);
                     }
@@ -420,6 +420,7 @@ impl<G: GraphLike> Decomposer<G> {
         // verts[0] is a 0- or pi-spider, linked to all and only to vs in verts[1..] which are T-spiders
         let mut g = g.clone(); // that is annoying ...
         let mut verts = Vec::from(verts);
+        let num_ts = verts.len() - 1;
         if g.phase(verts[0]).is_one() {
             g.set_phase(verts[0], Rational64::new(0, 1));
             let mut neigh = g.neighbor_vec(verts[1]);
@@ -431,14 +432,14 @@ impl<G: GraphLike> Decomposer<G> {
             *g.scalar_mut() *= ScalarN::from_phase(tmp);
             g.set_phase(verts[1], g.phase(verts[1]) * -1);
         }
-        if [3, 5].contains(&verts[1..].len()) {
+        if num_ts == 3 || num_ts == 5 {
             let w = g.add_vertex(VType::Z);
             let v = g.add_vertex(VType::Z);
             g.add_edge_with_type(v, w, EType::H);
             g.add_edge_with_type(v, verts[0], EType::H);
             verts.push(v);
         }
-        if verts[1..].len() == 6 {
+        if num_ts == 6 {
             self.push_decomp(
                 &[
                     Decomposer::replace_cat6_0,
@@ -449,7 +450,7 @@ impl<G: GraphLike> Decomposer<G> {
                 &g,
                 &verts,
             )
-        } else if verts[1..].len() == 4 {
+        } else if num_ts == 4 {
             self.push_decomp(
                 &[Decomposer::replace_cat4_0, Decomposer::replace_cat4_1],
                 depth,
@@ -897,6 +898,28 @@ mod tests {
         let mut d = Decomposer::new(&g);
         d.with_full_simp().save(true).decomp_all();
         assert_eq!(d.done.len(), 7 * 2 * 2);
+    }
+
+    #[test]
+    fn cat4() {
+        let mut g = Graph::new();
+
+        let mut outputs = vec![];
+        let z = g.add_vertex(VType::Z);
+        for _ in 0..4 {
+            let t = g.add_vertex_with_phase(VType::Z, Rational64::new(1, 4));
+            g.add_edge_with_type(z, t, EType::H);
+
+            let out = g.add_vertex(VType::B);
+            g.add_edge(t, out);
+            outputs.push(out);
+        }
+        g.set_outputs(outputs);
+
+        let mut d = Decomposer::new(&g);
+        d.with_full_simp().save(true).use_cats(true).decomp_all(); // this line panics
+
+        assert_eq!(d.done.len(), 2);
     }
 
     #[test]
