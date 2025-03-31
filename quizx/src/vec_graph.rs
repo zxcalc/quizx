@@ -175,7 +175,7 @@ impl GraphLike for Graph {
                 self.holes.push(i);
             }
         }
-        
+
         self.numv += 1;
         self.vdata[v] = Some(d);
         self.edata[v] = Some(Vec::new());

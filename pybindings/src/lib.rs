@@ -6,16 +6,16 @@ pub mod scalar;
 
 use crate::scalar::Scalar;
 
+use ::quizx::extract::ToCircuit;
+use ::quizx::graph::*;
+use ::quizx::phase::Phase;
 use num::Rational64;
 use pyo3::exceptions::PyNotImplementedError;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
-use ::quizx::extract::ToCircuit;
-use ::quizx::graph::*;
-use ::quizx::phase::Phase;
 
-type E = (V,V);
+type E = (V, V);
 
 #[pymodule]
 fn quizx(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -210,6 +210,7 @@ impl VecGraph {
     fn add_edge(&mut self, edge_pair: (usize, usize), edgetype: u8) {
         let et = match edgetype {
             2 => EType::H,
+            3 => EType::Wio,
             _ => EType::N,
         };
         self.g.add_edge_smart(edge_pair.0, edge_pair.1, et)
@@ -249,8 +250,17 @@ impl VecGraph {
 
     #[pyo3(signature = (s=None, t=None))]
     fn edges(&self, s: Option<V>, t: Option<V>) -> Vec<E> {
-        // TODO: handle s and t args
-        Vec::from_iter(self.g.edges().map(|(s,t,_)| (s,t)))
+        match (s, t) {
+            (Some(s), Some(t)) => {
+                if self.g.connected(s, t) {
+                    vec![if s < t { (s, t) } else { (t, s) }]
+                } else {
+                    vec![]
+                }
+            }
+            (Some(s), None) => self.incident_edges(s),
+            _ => Vec::from_iter(self.g.edges().map(|(s, t, _)| (s, t))),
+        }
     }
 
     fn edge_st(&self, edge: E) -> (V, V) {
@@ -258,8 +268,13 @@ impl VecGraph {
     }
 
     fn incident_edges(&self, vertex: V) -> Vec<E> {
-        Vec::from_iter(self.g.neighbors(vertex).map(|w|
-            if vertex < w { (vertex, w) } else { (w, vertex) }))
+        Vec::from_iter(self.g.neighbors(vertex).map(|w| {
+            if vertex < w {
+                (vertex, w)
+            } else {
+                (w, vertex)
+            }
+        }))
     }
 
     fn edge_type(&self, e: E) -> u8 {
@@ -280,7 +295,7 @@ impl VecGraph {
         self.g.set_edge_type(e.0, e.1, et);
     }
 
-    #[pyo3(name="type")]
+    #[pyo3(name = "type")]
     fn vertex_type(&self, v: usize) -> u8 {
         match self.g.vertex_type(v) {
             VType::B => 0,
@@ -334,71 +349,99 @@ impl VecGraph {
     }
 
     fn clear_vdata(&self, vertex: V) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn vdata_keys(&self, vertex: V) -> PyResult<Vec<String>> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn vdata(&self, vertex: V, key: String, default: PyObject) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn set_vdata(&self, vertex: V, key: String, val: PyObject) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     // TODO: fix signatures below
     fn is_ground(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn grounds(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn set_ground(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn is_hybrid(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn multigraph(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
-
     fn phases(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn types(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn qubits(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn rows(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn depth(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn edge(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn connected(&self, s: V, t: V) -> bool {
         self.g.connected(s, t)
     }
-
 
     fn add_vertex(&mut self, ty_num: u8, qubit: f64, row: f64, phase: (i64, i64)) -> usize {
         let ty = match ty_num {
@@ -417,7 +460,9 @@ impl VecGraph {
     }
 
     fn add_edges(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn remove_vertex(&mut self, v: V) {
@@ -433,7 +478,6 @@ impl VecGraph {
         self.g.add_to_phase(v, Rational64::new(phase.0, phase.1));
     }
 
-
     fn num_inputs(&self) -> usize {
         self.g.inputs().len()
     }
@@ -443,11 +487,15 @@ impl VecGraph {
     }
 
     fn set_position(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn neighbors(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn vertex_degree(&self, v: V) -> usize {
@@ -455,27 +503,39 @@ impl VecGraph {
     }
 
     fn edge_s(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn edge_t(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn vertex_set(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn edge_set(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn stats(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn copy(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn adjoint(&mut self) {
@@ -483,150 +543,222 @@ impl VecGraph {
     }
 
     fn map_qubits(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn compose(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn tensor(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn __iadd__(&self, other: PyObject) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn __add__(&self, other: PyObject) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn __mul__(&self, other: PyObject) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn __matmul__(&self, other: PyObject) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn merge(&self, other: PyObject) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn subgraph_from_vertices(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn apply_state(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn apply_effect(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn to_tensor(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn to_matrix(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn to_dict(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn to_json(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn to_graphml(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn to_tikz(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     // fn from_json(cls, js:Union[str,Dict[str,Any]]) -> VecGraph: ...
     // fn from_tikz(cls, tikz: str, warn_overlap:bool= True, fuse_overlap:bool = True, ignore_nonzx:bool = False) -> VecGraph: ...
 
     fn is_id(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn pack_circuit_rows(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn qubit_count(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn auto_detect_io(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn normalize(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn translate(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn add_edge_table(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn set_phase_master(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn update_phase_index(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn fuse_phases(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn phase_negate(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn vertex_from_phase_index(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn remove_isolated_vertices(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn vdata_dict(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn set_vdata_dict(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn is_well_formed(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn get_auto_simplify(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn set_auto_simplify(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 
     fn is_phase_gadget(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        return Err(PyNotImplementedError::new_err(
+            "Not implemented on backend: quizx_vec",
+        ));
     }
 }
 

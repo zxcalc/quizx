@@ -397,9 +397,9 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
 
     /// Add a vertex with the given VData struct
     fn add_vertex_with_data(&mut self, d: VData) -> V;
-    
+
     /// Add a vertex with the given name and VData struct
-    /// 
+    ///
     /// Returns an error if vertex already exists
     fn add_named_vertex_with_data(&mut self, v: V, d: VData) -> Result<(), &str>;
 
