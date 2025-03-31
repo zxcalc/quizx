@@ -161,6 +161,27 @@ impl GraphLike for Graph {
         }
     }
 
+    fn add_named_vertex_with_data(&mut self, v: V, d: VData) -> Result<(), &str> {
+        if v < self.vdata.len() {
+            let h = self.holes.iter().position(|&h| h == v);
+            if h.is_none() {
+                return Err("Vertex already in graph");
+            }
+            self.holes.remove(h.unwrap());
+        } else {
+            for i in self.vdata.len()..(v) {
+                self.vdata.push(None);
+                self.edata.push(None);
+                self.holes.push(i);
+            }
+        }
+        
+        self.numv += 1;
+        self.vdata[v] = Some(d);
+        self.edata[v] = Some(Vec::new());
+        Ok(())
+    }
+
     fn remove_vertex(&mut self, v: V) {
         self.numv -= 1;
         self.holes.push(v);

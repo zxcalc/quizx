@@ -118,6 +118,21 @@ impl GraphLike for Graph {
         v
     }
 
+    fn add_named_vertex_with_data(&mut self, v: V, d: VData) -> Result<(), &str> {
+        if self.vdata.contains_key(&v) {
+            return Err("Vertex already in graph");
+        }
+
+        if v >= self.freshv {
+            self.freshv = v + 1;
+        }
+
+        self.numv += 1;
+        self.vdata.insert(v, d);
+        self.edata.insert(v, FxHashMap::default());
+        Ok(())
+    }
+
     fn remove_vertex(&mut self, v: V) {
         self.numv -= 1;
 
