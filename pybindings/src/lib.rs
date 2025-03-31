@@ -9,12 +9,12 @@ use crate::scalar::Scalar;
 use num::Rational64;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
-use quizx::extract::ToCircuit;
-use quizx::graph::*;
-use quizx::phase::Phase;
+use ::quizx::extract::ToCircuit;
+use ::quizx::graph::*;
+use ::quizx::phase::Phase;
 
 #[pymodule]
-fn _quizx(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn quizx(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(dummy, m)?)?;
     m.add_function(wrap_pyfunction!(interior_clifford_simp, m)?)?;
     m.add_function(wrap_pyfunction!(clifford_simp, m)?)?;
@@ -36,22 +36,22 @@ fn dummy(a: i64) -> String {
 
 #[pyfunction]
 fn interior_clifford_simp(g: &mut VecGraph) {
-    quizx::simplify::interior_clifford_simp(&mut g.g);
+    ::quizx::simplify::interior_clifford_simp(&mut g.g);
 }
 
 #[pyfunction]
 fn clifford_simp(g: &mut VecGraph) {
-    quizx::simplify::clifford_simp(&mut g.g);
+    ::quizx::simplify::clifford_simp(&mut g.g);
 }
 
 #[pyfunction]
 fn fuse_gadgets(g: &mut VecGraph) {
-    quizx::simplify::fuse_gadgets(&mut g.g);
+    ::quizx::simplify::fuse_gadgets(&mut g.g);
 }
 
 #[pyfunction]
 fn full_simp(g: &mut VecGraph) {
-    quizx::simplify::full_simp(&mut g.g);
+    ::quizx::simplify::full_simp(&mut g.g);
 }
 
 #[pyfunction]
@@ -64,14 +64,14 @@ fn extract_circuit(g: &mut VecGraph) -> Circuit {
 
 #[pyclass]
 struct CircuitStats {
-    s: quizx::circuit::CircuitStats,
+    s: ::quizx::circuit::CircuitStats,
 }
 
 /// A (mostly) opaque wrapper for quizx circuits
 #[pyclass]
 struct Circuit {
-    c: quizx::circuit::Circuit,
-    s: Option<quizx::circuit::CircuitStats>,
+    c: ::quizx::circuit::Circuit,
+    s: Option<::quizx::circuit::CircuitStats>,
 }
 
 #[pymethods]
@@ -79,7 +79,7 @@ impl Circuit {
     #[staticmethod]
     fn from_qasm(qasm: String) -> Circuit {
         Circuit {
-            c: quizx::circuit::Circuit::from_qasm(&qasm).unwrap(),
+            c: ::quizx::circuit::Circuit::from_qasm(&qasm).unwrap(),
             s: None,
         }
     }
@@ -87,7 +87,7 @@ impl Circuit {
     #[staticmethod]
     fn load(file: String) -> Circuit {
         Circuit {
-            c: quizx::circuit::Circuit::from_file(&file).unwrap(),
+            c: ::quizx::circuit::Circuit::from_file(&file).unwrap(),
             s: None,
         }
     }
@@ -145,7 +145,7 @@ impl CircuitStats {
 /// Wrapper for quizx::vec_graph::Graph
 #[pyclass]
 struct VecGraph {
-    pub g: quizx::vec_graph::Graph,
+    pub g: ::quizx::vec_graph::Graph,
 }
 
 #[pymethods]
@@ -153,7 +153,7 @@ impl VecGraph {
     #[new]
     fn new() -> VecGraph {
         VecGraph {
-            g: quizx::vec_graph::Graph::new(),
+            g: ::quizx::vec_graph::Graph::new(),
         }
     }
 
@@ -333,7 +333,7 @@ impl VecGraph {
 
 #[pyclass]
 struct Decomposer {
-    d: quizx::decompose::Decomposer<quizx::vec_graph::Graph>,
+    d: ::quizx::decompose::Decomposer<::quizx::vec_graph::Graph>,
 }
 
 #[pymethods]
@@ -341,14 +341,14 @@ impl Decomposer {
     #[staticmethod]
     fn empty() -> Decomposer {
         Decomposer {
-            d: quizx::decompose::Decomposer::empty(),
+            d: ::quizx::decompose::Decomposer::empty(),
         }
     }
 
     #[new]
     fn new(g: &VecGraph) -> Decomposer {
         Decomposer {
-            d: quizx::decompose::Decomposer::new(&g.g),
+            d: ::quizx::decompose::Decomposer::new(&g.g),
         }
     }
 
@@ -384,9 +384,9 @@ impl Decomposer {
 
     fn apply_optimizations(&mut self, b: bool) {
         if b {
-            self.d.with_simp(quizx::decompose::SimpFunc::FullSimp);
+            self.d.with_simp(::quizx::decompose::SimpFunc::FullSimp);
         } else {
-            self.d.with_simp(quizx::decompose::SimpFunc::NoSimp);
+            self.d.with_simp(::quizx::decompose::SimpFunc::NoSimp);
         }
     }
 
