@@ -194,11 +194,11 @@ impl VecGraph {
         self.g.set_outputs(outputs)
     }
 
-    fn add_vertices(&self) -> PyResult<Vec<V>> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+    fn add_vertices(&mut self, amount: usize) -> Vec<V> {
+        Vec::from_iter(std::iter::repeat_n(self.g.add_vertex(VType::B), amount))
     }
 
-    fn add_vertex_indexed(&self, v: V) -> PyResult<()> {
+    fn add_vertex_indexed(&mut self, v: V) -> PyResult<()> {
         return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
     }
 
