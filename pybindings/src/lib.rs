@@ -7,11 +7,14 @@ pub mod scalar;
 use crate::scalar::Scalar;
 
 use num::Rational64;
+use pyo3::exceptions::PyNotImplementedError;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use ::quizx::extract::ToCircuit;
 use ::quizx::graph::*;
 use ::quizx::phase::Phase;
+
+type E = (V,V);
 
 #[pymodule]
 fn quizx(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -157,18 +160,181 @@ impl VecGraph {
         }
     }
 
-    fn vindex(&self) -> usize {
-        self.g.vindex()
+    fn clone(&self) -> VecGraph {
+        VecGraph { g: self.g.clone() }
     }
-    fn neighbor_at(&self, v: usize, n: usize) -> usize {
-        self.g.neighbor_at(v, n)
+
+    fn inputs(&self) -> Vec<V> {
+        self.g.inputs().clone()
     }
+
+    fn set_inputs(&mut self, inputs: Vec<V>) {
+        self.g.set_inputs(inputs)
+    }
+
+    fn outputs(&self) -> Vec<V> {
+        self.g.outputs().clone()
+    }
+
+    fn set_outputs(&mut self, outputs: Vec<V>) {
+        self.g.set_outputs(outputs)
+    }
+
+    fn add_vertices(&self) -> PyResult<Vec<V>> {
+        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+    }
+
+    fn add_vertex_indexed(&self, v: V) -> PyResult<()> {
+        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+    }
+
+    #[pyo3(signature = (edge_pair, edgetype=1))]
+    fn add_edge(&mut self, edge_pair: (usize, usize), edgetype: u8) {
+        let et = match edgetype {
+            2 => EType::H,
+            _ => EType::N,
+        };
+        self.g.add_edge_smart(edge_pair.0, edge_pair.1, et)
+    }
+
+    fn remove_vertices(&self, vertices: PyObject) -> PyResult<()> {
+        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+    }
+
+    fn remove_edges(&self, edges: PyObject) -> PyResult<()> {
+        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+    }
+
     fn num_vertices(&self) -> usize {
         self.g.num_vertices()
     }
+
     fn num_edges(&self) -> usize {
         self.g.num_edges()
     }
+
+    fn vertices(&self) -> Vec<V> {
+        Vec::from_iter(self.g.vertices())
+    }
+
+    #[pyo3(signature = (s=None, t=None))]
+    fn edges(&self, s: Option<V>, t: Option<V>) -> Vec<E> {
+        // TODO: handle s and t args
+        Vec::from_iter(self.g.edges().map(|(s,t,_)| (s,t)))
+    }
+
+    fn edge_st(&self, edge: E) -> (V, V) {
+        edge
+    }
+
+    fn incident_edges(&self, vertex: V) -> Vec<E> {
+        Vec::from_iter(self.g.neighbors(vertex).map(|w|
+            if vertex < w { (vertex, w) } else { (w, vertex) }))
+    }
+
+    fn edge_type(&self, e: E) -> u8 {
+        match self.g.edge_type_opt(e.0, e.1) {
+            Some(EType::N) => 1,
+            Some(EType::H) => 2,
+            Some(EType::Wio) => 3,
+            None => 0,
+        }
+    }
+
+    fn set_edge_type(&mut self, e: E, t: u8) {
+        let et = match t {
+            2 => EType::H,
+            3 => EType::Wio,
+            _ => EType::N,
+        };
+        self.g.set_edge_type(e.0, e.1, et);
+    }
+
+    #[pyo3(name="type")]
+    fn vertex_type(&self, v: usize) -> u8 {
+        match self.g.vertex_type(v) {
+            VType::B => 0,
+            VType::Z => 1,
+            VType::X => 2,
+            VType::H => 3,
+            VType::WInput => 4,
+            VType::WOutput => 5,
+            VType::ZBox => 6,
+        }
+    }
+
+    fn set_type(&mut self, vertex: V, t: u8) {
+        let ty = match t {
+            1 => VType::Z,
+            2 => VType::X,
+            3 => VType::H,
+            4 => VType::WInput,
+            5 => VType::WOutput,
+            6 => VType::ZBox,
+            _ => VType::B,
+        };
+        self.g.set_vertex_type(vertex, ty);
+    }
+
+    fn phase(&self, v: usize) -> (i64, i64) {
+        // TODO: should return Fraction
+        let p = self.g.phase(v).to_rational();
+        (*p.numer(), *p.denom())
+    }
+
+    fn set_phase(&mut self, v: usize, phase: (i64, i64)) {
+        // TODO: should accept Fraction
+        self.g.set_phase(v, Rational64::new(phase.0, phase.1));
+    }
+
+    fn add_to_phase(&mut self, v: usize, phase: (i64, i64)) {
+        // TODO: should accept Fraction
+        self.g.add_to_phase(v, Rational64::new(phase.0, phase.1));
+    }
+
+    fn qubit(&mut self, v: usize) -> f64 {
+        self.g.qubit(v)
+    }
+
+    fn set_qubit(&mut self, v: usize, q: f64) {
+        self.g.set_qubit(v, q);
+    }
+
+    fn row(&mut self, v: usize) -> f64 {
+        self.g.row(v)
+    }
+
+    fn set_row(&mut self, v: usize, r: f64) {
+        self.g.set_row(v, r);
+    }
+
+    fn clear_vdata(&self, vertex: V) -> PyResult<()> {
+        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+    }
+
+    fn vdata_keys(&self, vertex: V) -> PyResult<Vec<String>> {
+        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+    }
+
+    fn vdata(&self, vertex: V, key: String, default: PyObject) -> PyResult<PyObject> {
+        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+    }
+
+    fn set_vdata(&self, vertex: V, key: String, val: PyObject) -> PyResult<PyObject> {
+        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+    }
+
+    // TODO: continue bindings from here
+
+    fn num_inputs(&self) -> usize {
+        self.g.inputs().len()
+    }
+
+    fn num_outputs(&self) -> usize {
+        self.g.outputs().len()
+    }
+
+
     fn add_vertex(&mut self, ty_num: u8, qubit: f64, row: f64, phase: (i64, i64)) -> usize {
         let ty = match ty_num {
             1 => VType::Z,
@@ -189,22 +355,6 @@ impl VecGraph {
         self.g.contains_vertex(v)
     }
 
-    fn add_edge(&mut self, e: (usize, usize), et_num: u8) {
-        let et = match et_num {
-            2 => EType::H,
-            _ => EType::N,
-        };
-        self.g.add_edge_with_type(e.0, e.1, et)
-    }
-
-    fn add_edge_smart(&mut self, e: (usize, usize), et_num: u8) {
-        let et = match et_num {
-            1 => EType::H,
-            _ => EType::N,
-        };
-        self.g.add_edge_smart(e.0, e.1, et)
-    }
-
     fn remove_vertex(&mut self, v: usize) {
         self.g.remove_vertex(v)
     }
@@ -218,93 +368,7 @@ impl VecGraph {
         self.g.connected(s, t)
     }
 
-    fn vertex_type(&self, v: usize) -> u8 {
-        match self.g.vertex_type(v) {
-            VType::B => 0,
-            VType::Z => 1,
-            VType::X => 2,
-            VType::H => 3,
-            VType::WInput => 4,
-            VType::WOutput => 5,
-            VType::ZBox => 6,
-        }
-    }
 
-    fn set_vertex_type(&mut self, v: usize, ty_num: u8) {
-        let ty = match ty_num {
-            1 => VType::Z,
-            2 => VType::X,
-            3 => VType::H,
-            4 => VType::WInput,
-            5 => VType::WOutput,
-            6 => VType::ZBox,
-            _ => VType::B,
-        };
-        self.g.set_vertex_type(v, ty);
-    }
-
-    fn edge_type(&self, e: (usize, usize)) -> u8 {
-        match self.g.edge_type_opt(e.0, e.1) {
-            Some(EType::N) => 1,
-            Some(EType::H) => 2,
-            Some(EType::Wio) => 3,
-            None => 0,
-        }
-    }
-
-    fn set_edge_type(&mut self, e: (usize, usize), et_num: u8) {
-        let et = match et_num {
-            2 => EType::H,
-            3 => EType::Wio,
-            _ => EType::N,
-        };
-        self.g.set_edge_type(e.0, e.1, et);
-    }
-
-    fn phase(&self, v: usize) -> (i64, i64) {
-        let p = self.g.phase(v).to_rational();
-        (*p.numer(), *p.denom())
-    }
-
-    fn set_phase(&mut self, v: usize, phase: (i64, i64)) {
-        self.g.set_phase(v, Rational64::new(phase.0, phase.1));
-    }
-
-    fn add_to_phase(&mut self, v: usize, phase: (i64, i64)) {
-        self.g.add_to_phase(v, Rational64::new(phase.0, phase.1));
-    }
-
-    fn qubit(&mut self, v: usize) -> f64 {
-        self.g.qubit(v)
-    }
-    fn set_qubit(&mut self, v: usize, q: f64) {
-        self.g.set_qubit(v, q);
-    }
-    fn row(&mut self, v: usize) -> f64 {
-        self.g.row(v)
-    }
-    fn set_row(&mut self, v: usize, r: f64) {
-        self.g.set_row(v, r);
-    }
-
-    fn inputs(&self) -> Vec<V> {
-        self.g.inputs().clone()
-    }
-    fn num_inputs(&self) -> usize {
-        self.g.inputs().len()
-    }
-    fn set_inputs(&mut self, inputs: Vec<V>) {
-        self.g.set_inputs(inputs)
-    }
-    fn outputs(&self) -> Vec<V> {
-        self.g.outputs().clone()
-    }
-    fn num_outputs(&self) -> usize {
-        self.g.outputs().len()
-    }
-    fn set_outputs(&mut self, outputs: Vec<V>) {
-        self.g.set_outputs(outputs)
-    }
 
     /// Returns the graph scalar.
     #[getter]
@@ -326,9 +390,6 @@ impl VecGraph {
         self.g.plug(&other.g);
     }
 
-    fn clone(&self) -> VecGraph {
-        VecGraph { g: self.g.clone() }
-    }
 }
 
 #[pyclass]
