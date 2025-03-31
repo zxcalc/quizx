@@ -159,7 +159,7 @@ impl Coord {
 
     /// Infer the qubit index from the y-coordinate.
     pub fn qubit(&self) -> f64 {
-        -self.y
+        self.y
     }
 
     /// Infer the row index from the x-coordinate.

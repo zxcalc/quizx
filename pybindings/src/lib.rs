@@ -8,7 +8,8 @@ use crate::scalar::Scalar;
 
 use ::quizx::extract::ToCircuit;
 use ::quizx::graph::*;
-use ::quizx::phase::Phase;
+use ::quizx::phase::*;
+use num::Zero;
 use num::Rational64;
 use pyo3::exceptions::PyNotImplementedError;
 use pyo3::exceptions::PyValueError;
@@ -253,7 +254,7 @@ impl VecGraph {
         match (s, t) {
             (Some(s), Some(t)) => {
                 if self.g.connected(s, t) {
-                    vec![if s < t { (s, t) } else { (t, s) }]
+                    vec![self.edge(s,t)]
                 } else {
                     vec![]
                 }
@@ -373,34 +374,28 @@ impl VecGraph {
     }
 
     // TODO: fix signatures below
-    fn is_ground(&self) -> PyResult<()> {
+    #[pyo3(signature = (vertex))]
+    fn is_ground(&self, vertex: V) -> bool {
+        return false;
+    }
+
+    fn grounds(&self) -> Vec<V> {
+        return vec![];
+    }
+
+    #[pyo3(signature = (vertex, flag=true))]
+    fn set_ground(&self, vertex: V, flag: bool) -> PyResult<()> {
         return Err(PyNotImplementedError::new_err(
             "Not implemented on backend: quizx_vec",
         ));
     }
 
-    fn grounds(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ));
+    fn is_hybrid(&self) -> bool {
+        return false;
     }
 
-    fn set_ground(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ));
-    }
-
-    fn is_hybrid(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ));
-    }
-
-    fn multigraph(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ));
+    fn multigraph(&self) -> bool {
+        return false;
     }
 
     fn phases(&self) -> PyResult<()> {
@@ -433,36 +428,44 @@ impl VecGraph {
         ));
     }
 
-    fn edge(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ));
+    fn edge(&self, s: V, t: V) -> E {
+        if s < t { (s, t) } else { (t, s) }
     }
 
     fn connected(&self, s: V, t: V) -> bool {
         self.g.connected(s, t)
     }
 
-    fn add_vertex(&mut self, ty_num: u8, qubit: f64, row: f64, phase: (i64, i64)) -> usize {
-        let ty = match ty_num {
+    #[pyo3(signature = (ty, qubit=-1.0, row=-1.0, phase=None, ground=false))]
+    fn add_vertex(&mut self, ty: u8, qubit: f64, row: f64, phase: Option<(i64, i64)>, ground: bool) -> usize {
+        // TODO: should accept Fraction for phase
+        let ty1 = match ty {
             1 => VType::Z,
             2 => VType::X,
             3 => VType::H,
             _ => VType::B,
         };
-        let phase = Phase::new((phase.0, phase.1));
+        let phase1 = match phase {
+            Some(p) => Phase::new((p.0, p.1)),
+            None => Phase::zero(),
+        };
         self.g.add_vertex_with_data(VData {
-            ty,
-            phase,
+            ty: ty1,
+            phase: phase1,
             qubit,
             row,
         })
     }
 
-    fn add_edges(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ));
+    #[pyo3(signature = (edge_pairs, edgetype=1))]
+    fn add_edges(&mut self, edge_pairs: PyObject, edgetype: u8) -> PyResult<()> {
+        Python::with_gil(|py| -> PyResult<()> {
+            for eo in edge_pairs.bind(py).try_iter()? {
+                let ep = eo?.extract::<(V,V)>()?;
+                self.add_edge(ep, edgetype);
+            }
+            Ok(())
+        })
     }
 
     fn remove_vertex(&mut self, v: V) {
@@ -486,32 +489,24 @@ impl VecGraph {
         self.g.outputs().len()
     }
 
-    fn set_position(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ));
+    fn set_position(&mut self, vertex: V, q: f64, r: f64) -> () {
+        self.g.set_coord(vertex, Coord::new(r, q));
     }
 
-    fn neighbors(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ));
+    fn neighbors(&self, vertex: V) -> Vec<V> {
+        Vec::from_iter(self.g.neighbors(vertex))
     }
 
     fn vertex_degree(&self, v: V) -> usize {
         self.g.degree(v)
     }
 
-    fn edge_s(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ));
+    fn edge_s(&self, edge: E) -> V {
+        edge.0
     }
 
-    fn edge_t(&self) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ));
+    fn edge_t(&self, edge: E) -> V {
+        edge.1
     }
 
     fn vertex_set(&self) -> PyResult<()> {
