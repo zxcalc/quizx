@@ -8,6 +8,7 @@ use crate::scalar::Scalar;
 
 use num::Rational64;
 use pyo3::exceptions::PyNotImplementedError;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use ::quizx::extract::ToCircuit;
@@ -199,7 +200,10 @@ impl VecGraph {
     }
 
     fn add_vertex_indexed(&mut self, v: V) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+        match self.g.add_named_vertex_with_data(v, VData::default()) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(PyValueError::new_err("Vertex already exists")),
+        }
     }
 
     #[pyo3(signature = (edge_pair, edgetype=1))]

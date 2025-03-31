@@ -51,6 +51,17 @@ pub struct VData {
     pub row: f64,
 }
 
+impl VData {
+    pub fn default() -> Self {
+        VData {
+            ty: VType::B,
+            phase: Phase::zero(),
+            qubit: 0.0,
+            row: 0.0,
+        }
+    }
+}
+
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum EType {
     /// Normal edge.
