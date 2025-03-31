@@ -215,12 +215,24 @@ impl VecGraph {
         self.g.add_edge_smart(edge_pair.0, edge_pair.1, et)
     }
 
-    fn remove_vertices(&self, vertices: PyObject) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+    fn remove_vertices(&mut self, vertices: PyObject) -> PyResult<()> {
+        Python::with_gil(|py| -> PyResult<()> {
+            for vo in vertices.bind(py).try_iter()? {
+                let v = vo?.extract::<V>()?;
+                self.g.remove_vertex(v);
+            }
+            Ok(())
+        })
     }
 
-    fn remove_edges(&self, edges: PyObject) -> PyResult<()> {
-        return Err(PyNotImplementedError::new_err("Not implemented on backend: quizx_vec"));
+    fn remove_edges(&mut self, edges: PyObject) -> PyResult<()> {
+        Python::with_gil(|py| -> PyResult<()> {
+            for eo in edges.bind(py).try_iter()? {
+                let e = eo?.extract::<E>()?;
+                self.g.remove_edge(e.0, e.1);
+            }
+            Ok(())
+        })
     }
 
     fn num_vertices(&self) -> usize {
