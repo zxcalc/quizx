@@ -4,6 +4,9 @@
 
 pub mod scalar;
 
+use std::collections::HashMap;
+use std::collections::HashSet;
+
 use crate::scalar::Scalar;
 
 use ::quizx::extract::ToCircuit;
@@ -11,8 +14,8 @@ use ::quizx::graph::*;
 use ::quizx::phase::*;
 use num::Rational64;
 use num::Zero;
-use pyo3::exceptions::PyNotImplementedError;
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::*;
+use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
@@ -201,7 +204,7 @@ impl VecGraph {
     }
 
     fn add_vertex_indexed(&mut self, v: V) -> PyResult<()> {
-        match self.g.add_named_vertex_with_data(v, VData::default()) {
+        match self.g.add_named_vertex_with_data(v, VData::empty()) {
             Ok(_) => Ok(()),
             Err(_) => Err(PyValueError::new_err("Vertex already exists")),
         }
@@ -322,15 +325,22 @@ impl VecGraph {
         self.g.set_vertex_type(vertex, ty);
     }
 
-    fn phase(&self, v: usize) -> (i64, i64) {
-        // TODO: should return Fraction
+    fn phase(&self, v: usize) -> PyResult<PyObject> {
         let p = self.g.phase(v).to_rational();
-        (*p.numer(), *p.denom())
+        // (*p.numer(), *p.denom())
+        Python::with_gil(|py| -> PyResult<PyObject> {
+            let fractions = PyModule::import(py, "fractions")?;
+            let f = fractions.getattr("Fraction")?;
+            Ok(f.call((*p.numer(), *p.denom()), None)?.unbind())
+        })
     }
 
-    fn set_phase(&mut self, v: usize, phase: (i64, i64)) {
-        // TODO: should accept Fraction
-        self.g.set_phase(v, Rational64::new(phase.0, phase.1));
+    fn set_phase(&mut self, v: usize, phase: PyObject) -> PyResult<()> {
+        Python::with_gil(|py| -> PyResult<()> {
+            let phase1 = pyfraction_to_phase(phase.bind(py))?;
+            self.g.set_phase(v, phase1);
+            Ok(())
+        })
     }
 
     fn qubit(&mut self, v: usize) -> f64 {
@@ -350,24 +360,32 @@ impl VecGraph {
     }
 
     fn clear_vdata(&self, vertex: V) -> PyResult<()> {
+        let _vertex = vertex;
         Err(PyNotImplementedError::new_err(
             "Not implemented on backend: quizx_vec",
         ))
     }
 
     fn vdata_keys(&self, vertex: V) -> PyResult<Vec<String>> {
+        let _vertex = vertex;
         Err(PyNotImplementedError::new_err(
             "Not implemented on backend: quizx_vec",
         ))
     }
 
     fn vdata(&self, vertex: V, key: String, default: PyObject) -> PyResult<()> {
+        let _vertex = vertex;
+        let _key = key;
+        let _default = default;
         Err(PyNotImplementedError::new_err(
             "Not implemented on backend: quizx_vec",
         ))
     }
 
     fn set_vdata(&self, vertex: V, key: String, val: PyObject) -> PyResult<()> {
+        let _vertex = vertex;
+        let _key = key;
+        let _val = val;
         Err(PyNotImplementedError::new_err(
             "Not implemented on backend: quizx_vec",
         ))
@@ -376,6 +394,7 @@ impl VecGraph {
     // TODO: fix signatures below
     #[pyo3(signature = (vertex))]
     fn is_ground(&self, vertex: V) -> bool {
+        let _vertex = vertex;
         false
     }
 
@@ -385,6 +404,8 @@ impl VecGraph {
 
     #[pyo3(signature = (vertex, flag=true))]
     fn set_ground(&self, vertex: V, flag: bool) -> PyResult<()> {
+        let _vertex = vertex;
+        let _flag = flag;
         Err(PyNotImplementedError::new_err(
             "Not implemented on backend: quizx_vec",
         ))
@@ -440,15 +461,16 @@ impl VecGraph {
         self.g.connected(s, t)
     }
 
-    #[pyo3(signature = (ty, qubit=-1.0, row=-1.0, phase=None, ground=false))]
+    #[pyo3(signature = (ty=0, qubit=-1.0, row=-1.0, phase=None, ground=false))]
     fn add_vertex(
         &mut self,
         ty: u8,
         qubit: f64,
         row: f64,
-        phase: Option<(i64, i64)>,
+        phase: Option<PyObject>,
         ground: bool,
-    ) -> usize {
+    ) -> PyResult<usize> {
+        let _ground = ground;
         // TODO: should accept Fraction for phase
         let ty1 = match ty {
             1 => VType::Z,
@@ -456,16 +478,18 @@ impl VecGraph {
             3 => VType::H,
             _ => VType::B,
         };
+
         let phase1 = match phase {
-            Some(p) => Phase::new((p.0, p.1)),
+            Some(p) => Python::with_gil(|py| pyfraction_to_phase(p.bind(py)))?,
             None => Phase::zero(),
         };
-        self.g.add_vertex_with_data(VData {
+
+        Ok(self.g.add_vertex_with_data(VData {
             ty: ty1,
             phase: phase1,
             qubit,
             row,
-        })
+        }))
     }
 
     #[pyo3(signature = (edge_pairs, edgetype=1))]
@@ -487,9 +511,10 @@ impl VecGraph {
         self.g.remove_edge(e.0, e.1)
     }
 
-    fn add_to_phase(&mut self, v: usize, phase: (i64, i64)) {
-        // TODO: should accept Fraction
-        self.g.add_to_phase(v, Rational64::new(phase.0, phase.1));
+    fn add_to_phase(&mut self, v: usize, phase: PyObject) -> PyResult<()> {
+        let phase1 = Python::with_gil(|py| pyfraction_to_phase(phase.bind(py)))?;
+        self.g.add_to_phase(v, phase1);
+        Ok(())
     }
 
     fn num_inputs(&self) -> usize {
@@ -520,43 +545,47 @@ impl VecGraph {
         edge.1
     }
 
-    fn vertex_set(&self) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
+    fn vertex_set(&self) -> HashSet<V> {
+        HashSet::from_iter(self.g.vertices())
     }
 
-    fn edge_set(&self) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
+    fn edge_set(&self) -> HashSet<E> {
+        HashSet::from_iter(self.g.edges().map(|(s, t, _)| (s, t)))
     }
 
-    fn stats(&self) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
+    fn stats(&self) -> String {
+        format!("TODO: stats here")
     }
 
-    fn copy(&self) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
+    #[pyo3(signature = (adjoint=false, backend=None))]
+    fn copy(&self, adjoint: bool, backend: Option<&str>) -> PyResult<VecGraph> {
+        if backend != None && backend != Some("quizx_vec") {
+            Err(PyNotImplementedError::new_err(
+                "Copy to other backends not implemented on backend: quizx_vec",
+            ))
+        } else {
+            let mut g = self.clone();
+            if adjoint {
+                g.adjoint();
+            }
+            Ok(g)
+        }
     }
 
     fn adjoint(&mut self) {
         self.g.adjoint()
     }
 
-    fn map_qubits(&self) -> PyResult<()> {
+    fn map_qubits(&self, qubit_map: HashMap<i32, (f64, f64)>) -> PyResult<()> {
+        let _qubit_map = qubit_map;
         Err(PyNotImplementedError::new_err(
             "Not implemented on backend: quizx_vec",
         ))
     }
 
-    fn compose(&self) -> PyResult<()> {
+    fn compose(&self, other: PyObject) -> PyResult<()> {
         Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
+            "Compose with other backends not implemented on backend: quizx_vec",
         ))
     }
 
@@ -848,4 +877,14 @@ impl Decomposer {
     fn get_nterms(&self) -> usize {
         self.d.nterms
     }
+}
+
+fn pyfraction_to_phase(obj: &Bound<'_, PyAny>) -> PyResult<Phase> {
+    let num = obj
+        .getattr(intern!(obj.py(), "numerator"))?
+        .extract::<i64>()?;
+    let denom = obj
+        .getattr(intern!(obj.py(), "denominator"))?
+        .extract::<i64>()?;
+    Ok(Phase::new(Rational64::new(num, denom)))
 }

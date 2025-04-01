@@ -52,7 +52,7 @@ pub struct VData {
 }
 
 impl VData {
-    pub fn default() -> Self {
+    pub fn empty() -> Self {
         VData {
             ty: VType::B,
             phase: Phase::zero(),
