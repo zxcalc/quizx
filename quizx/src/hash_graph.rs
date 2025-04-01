@@ -218,13 +218,13 @@ impl GraphLike for Graph {
     fn set_coord(&mut self, v: V, coord: impl Into<Coord>) {
         let coord = coord.into();
         let d = self.vdata.get_mut(&v).expect("Vertex not found");
-        d.qubit = coord.x;
-        d.row = coord.y;
+        d.qubit = coord.y;
+        d.row = coord.x;
     }
 
     fn coord(&self, v: V) -> Coord {
         let d = self.vdata.get(&v).expect("Vertex not found");
-        Coord::new(d.qubit, d.row)
+        Coord::new(d.row, d.qubit)
     }
 
     fn set_qubit(&mut self, v: V, qubit: f64) {

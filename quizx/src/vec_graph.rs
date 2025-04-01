@@ -281,8 +281,8 @@ impl GraphLike for Graph {
     fn set_coord(&mut self, v: V, coord: impl Into<Coord>) {
         let coord = coord.into();
         if let Some(Some(d)) = self.vdata.get_mut(v) {
-            d.qubit = coord.x;
-            d.row = coord.y;
+            d.qubit = coord.y;
+            d.row = coord.x;
         } else {
             panic!("Vertex not found")
         }
@@ -290,7 +290,7 @@ impl GraphLike for Graph {
 
     fn coord(&self, v: V) -> Coord {
         let d = self.vdata[v].expect("Vertex not found");
-        Coord::new(d.qubit, d.row)
+        Coord::new(d.row, d.qubit)
     }
 
     fn set_qubit(&mut self, v: V, qubit: f64) {
