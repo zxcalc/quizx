@@ -220,24 +220,20 @@ impl VecGraph {
         self.g.add_edge_smart(edge_pair.0, edge_pair.1, et)
     }
 
-    fn remove_vertices(&mut self, vertices: PyObject) -> PyResult<()> {
-        Python::with_gil(|py| -> PyResult<()> {
-            for vo in vertices.bind(py).try_iter()? {
-                let v = vo?.extract::<V>()?;
-                self.g.remove_vertex(v);
-            }
-            Ok(())
-        })
+    fn remove_vertices(&mut self, vertices: &Bound<'_, PyAny>) -> PyResult<()> {
+        for vo in vertices.try_iter()? {
+            let v = vo?.extract::<V>()?;
+            self.g.remove_vertex(v);
+        }
+        Ok(())
     }
 
-    fn remove_edges(&mut self, edges: PyObject) -> PyResult<()> {
-        Python::with_gil(|py| -> PyResult<()> {
-            for eo in edges.bind(py).try_iter()? {
-                let e = eo?.extract::<E>()?;
-                self.g.remove_edge(e.0, e.1);
-            }
-            Ok(())
-        })
+    fn remove_edges(&mut self, edges: &Bound<'_, PyAny>) -> PyResult<()> {
+        for eo in edges.try_iter()? {
+            let e = eo?.extract::<E>()?;
+            self.g.remove_edge(e.0, e.1);
+        }
+        Ok(())
     }
 
     fn num_vertices(&self) -> usize {
@@ -325,22 +321,17 @@ impl VecGraph {
         self.g.set_vertex_type(vertex, ty);
     }
 
-    fn phase(&self, v: usize) -> PyResult<PyObject> {
+    fn phase(&self, py: Python<'_>, v: usize) -> PyResult<PyObject> {
         let p = self.g.phase(v).to_rational();
-        // (*p.numer(), *p.denom())
-        Python::with_gil(|py| -> PyResult<PyObject> {
-            let fractions = PyModule::import(py, "fractions")?;
-            let f = fractions.getattr("Fraction")?;
-            Ok(f.call((*p.numer(), *p.denom()), None)?.unbind())
-        })
+        let fractions = PyModule::import(py, "fractions")?;
+        let f = fractions.getattr("Fraction")?;
+        Ok(f.call((*p.numer(), *p.denom()), None)?.unbind())
     }
 
-    fn set_phase(&mut self, v: usize, phase: PyObject) -> PyResult<()> {
-        Python::with_gil(|py| -> PyResult<()> {
-            let phase1 = pyfraction_to_phase(phase.bind(py))?;
-            self.g.set_phase(v, phase1);
-            Ok(())
-        })
+    fn set_phase(&mut self, v: usize, phase: &Bound<'_, PyAny>) -> PyResult<()> {
+        let phase1 = pyfraction_to_phase(phase)?;
+        self.g.set_phase(v, phase1);
+        Ok(())
     }
 
     fn qubit(&mut self, v: usize) -> f64 {
@@ -467,7 +458,7 @@ impl VecGraph {
         ty: u8,
         qubit: f64,
         row: f64,
-        phase: Option<PyObject>,
+        phase: Option<&Bound<'_,PyAny>>,
         ground: bool,
     ) -> PyResult<usize> {
         let _ground = ground;
@@ -480,7 +471,7 @@ impl VecGraph {
         };
 
         let phase1 = match phase {
-            Some(p) => Python::with_gil(|py| pyfraction_to_phase(p.bind(py)))?,
+            Some(p) => pyfraction_to_phase(p)?,
             None => Phase::zero(),
         };
 
@@ -493,14 +484,12 @@ impl VecGraph {
     }
 
     #[pyo3(signature = (edge_pairs, edgetype=1))]
-    fn add_edges(&mut self, edge_pairs: PyObject, edgetype: u8) -> PyResult<()> {
-        Python::with_gil(|py| -> PyResult<()> {
-            for eo in edge_pairs.bind(py).try_iter()? {
-                let ep = eo?.extract::<(V, V)>()?;
-                self.add_edge(ep, edgetype);
-            }
-            Ok(())
-        })
+    fn add_edges(&mut self, edge_pairs: &Bound<'_, PyAny>, edgetype: u8) -> PyResult<()> {
+        for eo in edge_pairs.try_iter()? {
+            let ep = eo?.extract::<(V, V)>()?;
+            self.add_edge(ep, edgetype);
+        }
+        Ok(())
     }
 
     fn remove_vertex(&mut self, v: V) {
@@ -511,8 +500,8 @@ impl VecGraph {
         self.g.remove_edge(e.0, e.1)
     }
 
-    fn add_to_phase(&mut self, v: usize, phase: PyObject) -> PyResult<()> {
-        let phase1 = Python::with_gil(|py| pyfraction_to_phase(phase.bind(py)))?;
+    fn add_to_phase(&mut self, v: usize, phase: &Bound<'_, PyAny>) -> PyResult<()> {
+        let phase1 = pyfraction_to_phase(phase)?;
         self.g.add_to_phase(v, phase1);
         Ok(())
     }
@@ -583,10 +572,14 @@ impl VecGraph {
         ))
     }
 
-    fn compose(&self, other: PyObject) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Compose with other backends not implemented on backend: quizx_vec",
-        ))
+    fn compose(&mut self, other: Bound<'_, PyAny>) -> PyResult<()> {
+        let other1 = other.downcast::<VecGraph>().or_else(|_|
+            Err(PyNotImplementedError::new_err(
+                "Operations with mixed backends not implemented on backend: quizx_vec",
+            ))
+        )?;
+        self.g.plug(&other1.borrow().g);
+        Ok(())
     }
 
     fn tensor(&self) -> PyResult<()> {
@@ -879,7 +872,7 @@ impl Decomposer {
     }
 }
 
-fn pyfraction_to_phase(obj: &Bound<'_, PyAny>) -> PyResult<Phase> {
+fn pyfraction_to_phase<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Phase> {
     let num = obj
         .getattr(intern!(obj.py(), "numerator"))?
         .extract::<i64>()?;
