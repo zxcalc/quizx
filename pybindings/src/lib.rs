@@ -200,7 +200,7 @@ impl VecGraph {
     }
 
     fn add_vertices(&mut self, amount: usize) -> Vec<V> {
-        Vec::from_iter(std::iter::repeat_n(self.g.add_vertex(VType::B), amount))
+        vec![self.g.add_vertex(VType::B); amount]
     }
 
     fn add_vertex_indexed(&mut self, v: V) -> PyResult<()> {
@@ -458,7 +458,7 @@ impl VecGraph {
         ty: u8,
         qubit: f64,
         row: f64,
-        phase: Option<&Bound<'_,PyAny>>,
+        phase: Option<&Bound<'_, PyAny>>,
         ground: bool,
     ) -> PyResult<usize> {
         let _ground = ground;
@@ -543,12 +543,26 @@ impl VecGraph {
     }
 
     fn stats(&self) -> String {
-        format!("TODO: stats here")
+        let mut degrees: HashMap<usize, usize> = HashMap::new();
+        for v in self.g.vertices() {
+            let d = self.g.degree(v);
+            degrees.insert(d, 1 + *degrees.get(&d).unwrap_or(&0));
+        }
+
+        let mut s = format!(
+            "VecGraph ({} vertices, {} edges)\nDegrees:",
+            self.g.num_vertices(),
+            self.g.num_edges()
+        );
+        for e in degrees {
+            s += &format!("  {}: {}\n", e.0, e.1);
+        }
+        s
     }
 
     #[pyo3(signature = (adjoint=false, backend=None))]
     fn copy(&self, adjoint: bool, backend: Option<&str>) -> PyResult<VecGraph> {
-        if backend != None && backend != Some("quizx_vec") {
+        if backend.is_some() && backend != Some("quizx_vec") {
             Err(PyNotImplementedError::new_err(
                 "Copy to other backends not implemented on backend: quizx_vec",
             ))
@@ -572,68 +586,107 @@ impl VecGraph {
         ))
     }
 
-    fn compose(&mut self, other: Bound<'_, PyAny>) -> PyResult<()> {
-        let other1 = other.downcast::<VecGraph>().or_else(|_|
-            Err(PyNotImplementedError::new_err(
-                "Operations with mixed backends not implemented on backend: quizx_vec",
-            ))
-        )?;
-        self.g.plug(&other1.borrow().g);
+    fn compose(&mut self, other: &Bound<'_, PyAny>) -> PyResult<()> {
+        let other1 = other
+            .downcast::<VecGraph>().map_err(|_| PyNotImplementedError::new_err(
+                    "Operations with mixed backends not implemented on backend: quizx_vec",
+                ))?
+            .borrow();
+
+        // TODO: GraphLike::plug seems to not be working right
+        // TODO: fix coords
+        self.g.plug(&other1.g);
         Ok(())
     }
 
-    fn tensor(&self) -> PyResult<()> {
+    fn tensor(&mut self, other: &Bound<'_, PyAny>) -> PyResult<()> {
+        let other1 = other
+            .downcast::<VecGraph>().map_err(|_| PyNotImplementedError::new_err(
+                    "Operations with mixed backends not implemented on backend: quizx_vec",
+                ))?
+            .borrow();
+
+        let mp = self.g.append_graph(&other1.g);
+
+        for i in other1.g.inputs() {
+            self.g.inputs_mut().push(mp[i]);
+        }
+
+        for o in other1.g.outputs() {
+            self.g.outputs_mut().push(mp[o]);
+        }
+
+        // TODO: fix coords
+        Ok(())
+    }
+
+    fn __iadd__(&mut self, other: &Bound<'_, PyAny>) -> PyResult<()> {
+        // TODO: should return a reference to Self. I don't know how to do this w PyO3
+        self.compose(other)
+    }
+
+    fn __add__(&self, other: &Bound<'_, PyAny>) -> PyResult<VecGraph> {
+        let mut g = self.clone();
+        g.compose(other)?;
+        Ok(g)
+    }
+
+    fn __mul__(&self, other: &Bound<'_, PyAny>) -> PyResult<VecGraph> {
+        let mut other1 = other
+            .downcast::<VecGraph>().map_err(|_| PyNotImplementedError::new_err(
+                    "Operations with mixed backends not implemented on backend: quizx_vec",
+                ))?
+            .borrow()
+            .clone();
+        other1.g.plug(&self.g);
+        Ok(other1)
+    }
+
+    fn __matmul__(&self, other: &Bound<'_, PyAny>) -> PyResult<VecGraph> {
+        let mut other1 = other
+            .downcast::<VecGraph>().map_err(|_| PyNotImplementedError::new_err(
+                    "Operations with mixed backends not implemented on backend: quizx_vec",
+                ))?
+            .borrow()
+            .clone();
+        other1.g.plug(&self.g);
+        Ok(other1)
+    }
+
+    fn merge(&self, other: &Bound<'_, PyAny>) -> PyResult<()> {
+        let _other = other;
         Err(PyNotImplementedError::new_err(
             "Not implemented on backend: quizx_vec",
         ))
     }
 
-    fn __iadd__(&self, other: PyObject) -> PyResult<()> {
+    fn subgraph_from_vertices(&self, verts: Vec<V>) -> PyResult<()> {
+        let _verts = verts;
         Err(PyNotImplementedError::new_err(
             "Not implemented on backend: quizx_vec",
         ))
     }
 
-    fn __add__(&self, other: PyObject) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
+    fn apply_state(&mut self, state: String) {
+        let e = Vec::from_iter(state.chars().map(|c| match c {
+            '0' => BasisElem::Z0,
+            '1' => BasisElem::Z1,
+            '+' => BasisElem::X0,
+            '-' => BasisElem::X1,
+            _ => BasisElem::SKIP,
+        }));
+        self.g.plug_inputs(&e);
     }
 
-    fn __mul__(&self, other: PyObject) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
-    }
-
-    fn __matmul__(&self, other: PyObject) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
-    }
-
-    fn merge(&self, other: PyObject) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
-    }
-
-    fn subgraph_from_vertices(&self) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
-    }
-
-    fn apply_state(&self) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
-    }
-
-    fn apply_effect(&self) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
+    fn apply_effect(&mut self, state: String) {
+        let e = Vec::from_iter(state.chars().map(|c| match c {
+            '0' => BasisElem::Z0,
+            '1' => BasisElem::Z1,
+            '+' => BasisElem::X0,
+            '-' => BasisElem::X1,
+            _ => BasisElem::SKIP,
+        }));
+        self.g.plug_outputs(&e);
     }
 
     fn to_tensor(&self) -> PyResult<()> {

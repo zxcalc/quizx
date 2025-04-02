@@ -101,6 +101,7 @@ pub enum BasisElem {
     Z1, // |1>
     X0, // |+>
     X1, // |->
+    SKIP,
 }
 
 impl BasisElem {
@@ -126,6 +127,7 @@ impl BasisElem {
             BasisElem::Z1 => BasisElem::Z0,
             BasisElem::X0 => BasisElem::X1,
             BasisElem::X1 => BasisElem::X0,
+            BasisElem::SKIP => BasisElem::SKIP,
         }
     }
 }
@@ -576,15 +578,17 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// Note this does not replace the vertex from the input/output list or do
     /// normalisation.
     fn plug_vertex(&mut self, v: V, b: BasisElem) {
-        self.set_vertex_type(v, VType::Z);
-        self.set_phase(v, b.phase());
+        if b != BasisElem::SKIP {
+            self.set_vertex_type(v, VType::Z);
+            self.set_phase(v, b.phase());
 
-        if b.is_z() {
-            let n = self
-                .neighbors(v)
-                .next()
-                .expect("Boundary should have 1 neighbor.");
-            self.toggle_edge_type(v, n);
+            if b.is_z() {
+                let n = self
+                    .neighbors(v)
+                    .next()
+                    .expect("Boundary should have 1 neighbor.");
+                self.toggle_edge_type(v, n);
+            }
         }
     }
 
@@ -606,26 +610,38 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     ///
     /// The list `plug` should be of length <= the number of inputs.
     fn plug_inputs(&mut self, plug: &[BasisElem]) {
-        let sz = plug.len();
-        assert!(sz <= self.inputs().len(), "Too many input states");
-        for (i, &b) in plug.iter().enumerate() {
-            self.plug_vertex(self.inputs()[i], b);
+        let mut inp: Vec<V> = vec![];
+        let mut num_plugged = 0;
+        let inputs = self.inputs().clone();
+        for (i, &v) in inputs.iter().enumerate() {
+            if plug[i] != BasisElem::SKIP && i < plug.len() {
+                self.plug_vertex(v, plug[i]);
+                num_plugged += 1;
+            } else {
+                inp.push(v);
+            }
         }
-        self.set_inputs(self.inputs()[sz..].to_owned());
-        self.scalar_mut().mul_sqrt2_pow(-(sz as i32));
+        self.set_inputs(inp);
+        self.scalar_mut().mul_sqrt2_pow(-(num_plugged as i32));
     }
 
     /// Plug the given list of normalised basis elements in as outputs, starting from the left
     ///
     /// The list `plug` should of length <= the number of outputs.
     fn plug_outputs(&mut self, plug: &[BasisElem]) {
-        let sz = plug.len();
-        assert!(sz <= self.outputs().len(), "Too many output effects");
-        for (i, &b) in plug.iter().enumerate() {
-            self.plug_vertex(self.outputs()[i], b);
+        let mut outp: Vec<V> = vec![];
+        let mut num_plugged = 0;
+        let outputs = self.outputs().clone();
+        for (i, &v) in outputs.iter().enumerate() {
+            if plug[i] != BasisElem::SKIP && i < plug.len() {
+                self.plug_vertex(v, plug[i]);
+                num_plugged += 1;
+            } else {
+                outp.push(v);
+            }
         }
-        self.set_outputs(self.outputs()[sz..].to_owned());
-        self.scalar_mut().mul_sqrt2_pow(-(sz as i32));
+        self.set_outputs(outp);
+        self.scalar_mut().mul_sqrt2_pow(-(num_plugged as i32));
     }
 
     /// Appends the given graph to the current one, with fresh names.

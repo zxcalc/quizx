@@ -1,5 +1,3 @@
-from pyzx.graph.scalar import Scalar as PyzxScalar
-from quizx import Scalar as QuizxScalar
 # from quizx.scalar import from_pyzx_scalar, to_pyzx_scalar
 
 
