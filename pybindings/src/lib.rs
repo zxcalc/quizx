@@ -588,9 +588,12 @@ impl VecGraph {
 
     fn compose(&mut self, other: &Bound<'_, PyAny>) -> PyResult<()> {
         let other1 = other
-            .downcast::<VecGraph>().map_err(|_| PyNotImplementedError::new_err(
+            .downcast::<VecGraph>()
+            .map_err(|_| {
+                PyNotImplementedError::new_err(
                     "Operations with mixed backends not implemented on backend: quizx_vec",
-                ))?
+                )
+            })?
             .borrow();
 
         // TODO: GraphLike::plug seems to not be working right
@@ -601,9 +604,12 @@ impl VecGraph {
 
     fn tensor(&mut self, other: &Bound<'_, PyAny>) -> PyResult<()> {
         let other1 = other
-            .downcast::<VecGraph>().map_err(|_| PyNotImplementedError::new_err(
+            .downcast::<VecGraph>()
+            .map_err(|_| {
+                PyNotImplementedError::new_err(
                     "Operations with mixed backends not implemented on backend: quizx_vec",
-                ))?
+                )
+            })?
             .borrow();
 
         let mp = self.g.append_graph(&other1.g);
@@ -633,9 +639,12 @@ impl VecGraph {
 
     fn __mul__(&self, other: &Bound<'_, PyAny>) -> PyResult<VecGraph> {
         let mut other1 = other
-            .downcast::<VecGraph>().map_err(|_| PyNotImplementedError::new_err(
+            .downcast::<VecGraph>()
+            .map_err(|_| {
+                PyNotImplementedError::new_err(
                     "Operations with mixed backends not implemented on backend: quizx_vec",
-                ))?
+                )
+            })?
             .borrow()
             .clone();
         other1.g.plug(&self.g);
@@ -644,9 +653,12 @@ impl VecGraph {
 
     fn __matmul__(&self, other: &Bound<'_, PyAny>) -> PyResult<VecGraph> {
         let mut other1 = other
-            .downcast::<VecGraph>().map_err(|_| PyNotImplementedError::new_err(
+            .downcast::<VecGraph>()
+            .map_err(|_| {
+                PyNotImplementedError::new_err(
                     "Operations with mixed backends not implemented on backend: quizx_vec",
-                ))?
+                )
+            })?
             .borrow()
             .clone();
         other1.g.plug(&self.g);

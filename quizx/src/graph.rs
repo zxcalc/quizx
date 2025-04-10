@@ -622,7 +622,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
             }
         }
         self.set_inputs(inp);
-        self.scalar_mut().mul_sqrt2_pow(-(num_plugged as i32));
+        self.scalar_mut().mul_sqrt2_pow(-num_plugged);
     }
 
     /// Plug the given list of normalised basis elements in as outputs, starting from the left
@@ -641,7 +641,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
             }
         }
         self.set_outputs(outp);
-        self.scalar_mut().mul_sqrt2_pow(-(num_plugged as i32));
+        self.scalar_mut().mul_sqrt2_pow(-num_plugged);
     }
 
     /// Appends the given graph to the current one, with fresh names.
