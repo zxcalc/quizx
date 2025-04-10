@@ -200,7 +200,7 @@ impl VecGraph {
     }
 
     fn add_vertices(&mut self, amount: usize) -> Vec<V> {
-        vec![self.g.add_vertex(VType::B); amount]
+        Vec::from_iter((0..amount).map(|_| self.g.add_vertex(VType::B)))
     }
 
     fn add_vertex_indexed(&mut self, v: V) -> PyResult<()> {
@@ -937,7 +937,7 @@ impl Decomposer {
     }
 }
 
-fn pyfraction_to_phase<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Phase> {
+fn pyfraction_to_phase(obj: &Bound<'_, PyAny>) -> PyResult<Phase> {
     let num = obj
         .getattr(intern!(obj.py(), "numerator"))?
         .extract::<i64>()?;
