@@ -109,7 +109,6 @@ impl Scalar {
         }
     }
 
-
     /// Returns the float representation of the scalar.
     pub fn to_number(&self) -> Complex<f64> {
         self.s.complex_value()

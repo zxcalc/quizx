@@ -28,7 +28,6 @@ impl VecGraph {
         }
     }
 
-
     /// Returns the graph scalar.
     ///
     /// Warning: this returns a *copy* of the scalar, so for changes to have
@@ -36,10 +35,10 @@ impl VecGraph {
     ///     s = g.scalar
     ///     s.add_phase(Fraction(1,2))
     ///     g.set_scalar(s)
-    /// 
+    ///
     /// This is different from the behaviour of other backends, but it seems to be
     /// unavoidable due to Rust's ownership limitations.
-    /// 
+    ///
     #[getter]
     fn get_scalar(&mut self) -> Scalar {
         self.g.scalar().clone().into()
@@ -277,7 +276,7 @@ impl VecGraph {
         false
     }
 
-    fn phases(&self) -> HashMap<V,Rational64> {
+    fn phases(&self) -> HashMap<V, Rational64> {
         let mut m = HashMap::default();
         for v in self.g.vertices() {
             m.insert(v, self.phase(v));
@@ -285,7 +284,7 @@ impl VecGraph {
         m
     }
 
-    fn types(&self) -> HashMap<V,u8> {
+    fn types(&self) -> HashMap<V, u8> {
         let mut m = HashMap::default();
         for v in self.g.vertices() {
             m.insert(v, self.vertex_type(v));
@@ -293,7 +292,7 @@ impl VecGraph {
         m
     }
 
-    fn qubits(&self) -> HashMap<V,f64> {
+    fn qubits(&self) -> HashMap<V, f64> {
         let mut m = HashMap::default();
         for v in self.g.vertices() {
             m.insert(v, self.qubit(v));
@@ -301,7 +300,7 @@ impl VecGraph {
         m
     }
 
-    fn rows(&self) -> HashMap<V,f64> {
+    fn rows(&self) -> HashMap<V, f64> {
         let mut m = HashMap::default();
         for v in self.g.vertices() {
             m.insert(v, self.row(v));
@@ -546,7 +545,9 @@ impl VecGraph {
     }
 
     fn subgraph_from_vertices(&self, verts: Vec<V>) -> VecGraph {
-        VecGraph { g: self.g.subgraph_from_vertices(verts) }
+        VecGraph {
+            g: self.g.subgraph_from_vertices(verts),
+        }
     }
 
     fn apply_state(&mut self, state: String) {
@@ -585,7 +586,9 @@ impl VecGraph {
         let tensor_to_matrix = m.getattr("tensor_to_matrix")?;
 
         let tensor = tensorfy.call((self.clone(), preserve_scalar), None)?;
-        Ok(tensor_to_matrix.call((tensor, self.num_inputs(), self.num_outputs()), None)?.unbind())
+        Ok(tensor_to_matrix
+            .call((tensor, self.num_inputs(), self.num_outputs()), None)?
+            .unbind())
     }
 
     fn to_dict(&self) -> PyResult<()> {
@@ -715,8 +718,7 @@ impl VecGraph {
         true
     }
 
-    fn set_auto_simplify(&self) {
-    }
+    fn set_auto_simplify(&self) {}
 
     fn is_phase_gadget(&self) -> PyResult<()> {
         Err(PyNotImplementedError::new_err(

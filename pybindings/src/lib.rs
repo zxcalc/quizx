@@ -12,7 +12,6 @@ use ::quizx::extract::ToCircuit;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
-
 #[pymodule]
 fn quizx(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(dummy, m)?)?;
@@ -141,7 +140,6 @@ impl CircuitStats {
         self.s.to_string()
     }
 }
-
 
 #[pyclass]
 struct Decomposer {
