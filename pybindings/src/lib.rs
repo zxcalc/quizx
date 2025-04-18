@@ -165,11 +165,20 @@ impl VecGraph {
         }
     }
 
-    // TODO: should return a PyZX-compatible scalar
 
     /// Returns the graph scalar.
+    ///
+    /// Warning: this returns a *copy* of the scalar, so for changes to have
+    /// effect, you must set the scalar back afters, e.g. in Python:
+    ///     s = g.scalar
+    ///     s.add_phase(Fraction(1,2))
+    ///     g.set_scalar(s)
+    /// 
+    /// This is different from the behaviour of other backends, but it seems to be
+    /// unavoidable due to Rust's ownership limitations.
+    /// 
     #[getter]
-    fn get_scalar(&self) -> Scalar {
+    fn get_scalar(&mut self) -> Scalar {
         self.g.scalar().clone().into()
     }
 
@@ -321,20 +330,15 @@ impl VecGraph {
         self.g.set_vertex_type(vertex, ty);
     }
 
-    fn phase(&self, py: Python<'_>, v: usize) -> PyResult<PyObject> {
-        let p = self.g.phase(v).to_rational();
-        let fractions = PyModule::import(py, "fractions")?;
-        let f = fractions.getattr("Fraction")?;
-        Ok(f.call((*p.numer(), *p.denom()), None)?.unbind())
+    fn phase(&self, v: usize) -> Rational64 {
+        self.g.phase(v).to_rational()
     }
 
-    fn set_phase(&mut self, v: usize, phase: &Bound<'_, PyAny>) -> PyResult<()> {
-        let phase1 = pyfraction_to_phase(phase)?;
-        self.g.set_phase(v, phase1);
-        Ok(())
+    fn set_phase(&mut self, v: usize, phase: Rational64) {
+        self.g.set_phase(v, Phase::new(phase));
     }
 
-    fn qubit(&mut self, v: usize) -> f64 {
+    fn qubit(&self, v: usize) -> f64 {
         self.g.qubit(v)
     }
 
@@ -342,7 +346,7 @@ impl VecGraph {
         self.g.set_qubit(v, q);
     }
 
-    fn row(&mut self, v: usize) -> f64 {
+    fn row(&self, v: usize) -> f64 {
         self.g.row(v)
     }
 
@@ -410,34 +414,40 @@ impl VecGraph {
         false
     }
 
-    fn phases(&self) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
+    fn phases(&self) -> HashMap<V,Rational64> {
+        let mut m = HashMap::default();
+        for v in self.g.vertices() {
+            m.insert(v, self.phase(v));
+        }
+        m
     }
 
-    fn types(&self) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
+    fn types(&self) -> HashMap<V,u8> {
+        let mut m = HashMap::default();
+        for v in self.g.vertices() {
+            m.insert(v, self.vertex_type(v));
+        }
+        m
     }
 
-    fn qubits(&self) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
+    fn qubits(&self) -> HashMap<V,f64> {
+        let mut m = HashMap::default();
+        for v in self.g.vertices() {
+            m.insert(v, self.qubit(v));
+        }
+        m
     }
 
-    fn rows(&self) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
+    fn rows(&self) -> HashMap<V,f64> {
+        let mut m = HashMap::default();
+        for v in self.g.vertices() {
+            m.insert(v, self.row(v));
+        }
+        m
     }
 
-    fn depth(&self) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
+    fn depth(&self) -> f64 {
+        self.g.depth()
     }
 
     fn edge(&self, s: V, t: V) -> E {
@@ -698,16 +708,21 @@ impl VecGraph {
         self.g.plug_outputs(&e);
     }
 
-    fn to_tensor(&self) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
+    #[pyo3(signature = (preserve_scalar=true))]
+    fn to_tensor(&self, py: Python<'_>, preserve_scalar: bool) -> PyResult<PyObject> {
+        let m = PyModule::import(py, "pyzx.tensor")?;
+        let f = m.getattr("tensorfy")?;
+        Ok(f.call((self.clone(), preserve_scalar), None)?.unbind())
     }
 
-    fn to_matrix(&self) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
+    #[pyo3(signature = (preserve_scalar=true))]
+    fn to_matrix(&self, py: Python<'_>, preserve_scalar: bool) -> PyResult<PyObject> {
+        let m = PyModule::import(py, "pyzx.tensor")?;
+        let tensorfy = m.getattr("tensorfy")?;
+        let tensor_to_matrix = m.getattr("tensor_to_matrix")?;
+
+        let tensor = tensorfy.call((self.clone(), preserve_scalar), None)?;
+        Ok(tensor_to_matrix.call((tensor, self.num_inputs(), self.num_outputs()), None)?.unbind())
     }
 
     fn to_dict(&self) -> PyResult<()> {

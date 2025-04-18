@@ -16,6 +16,7 @@
 
 use crate::phase::Phase;
 use crate::scalar::*;
+use crate::util::*;
 use derive_more::{Display, From};
 use num::rational::Rational64;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -839,6 +840,11 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         }
 
         g
+    }
+
+    /// Returns max row of any vertex
+    fn depth(&self) -> f64 {
+        pmax(self.vertices().map(|v| self.row(v))).unwrap_or(-1.0)
     }
 }
 

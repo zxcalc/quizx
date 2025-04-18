@@ -708,6 +708,7 @@ dependencies = [
  "libc",
  "memoffset",
  "num-complex",
+ "num-rational",
  "once_cell",
  "portable-atomic",
  "pyo3-build-config",
