@@ -672,11 +672,8 @@ impl VecGraph {
         ))
     }
 
-    fn subgraph_from_vertices(&self, verts: Vec<V>) -> PyResult<()> {
-        let _verts = verts;
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
+    fn subgraph_from_vertices(&self, verts: Vec<V>) -> VecGraph {
+        VecGraph { g: self.g.subgraph_from_vertices(verts) }
     }
 
     fn apply_state(&mut self, state: String) {
@@ -836,16 +833,11 @@ impl VecGraph {
         ))
     }
 
-    fn get_auto_simplify(&self) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
+    fn get_auto_simplify(&self) -> bool {
+        true
     }
 
-    fn set_auto_simplify(&self) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx_vec",
-        ))
+    fn set_auto_simplify(&self) {
     }
 
     fn is_phase_gadget(&self) -> PyResult<()> {

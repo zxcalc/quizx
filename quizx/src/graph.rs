@@ -822,6 +822,24 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
 
         comps
     }
+
+    /// Returns the full subgraph containing the given vertices
+    fn subgraph_from_vertices(&self, verts: Vec<V>) -> Self {
+        let mut g = Self::new();
+        let mut vert_map: FxHashMap<V, V> = FxHashMap::default();
+        for v in verts {
+            let w = g.add_vertex_with_data(self.vertex_data(v));
+            vert_map.insert(v, w);
+        }
+
+        for (s, t, ety) in self.edges() {
+            if vert_map.contains_key(&s) && vert_map.contains_key(&t) {
+                g.add_edge_with_type(vert_map[&s], vert_map[&t], ety);
+            }
+        }
+
+        g
+    }
 }
 
 #[cfg(test)]
