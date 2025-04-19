@@ -10,13 +10,14 @@ use crate::circuit::to_pyzx_circuit;
 use crate::scalar::Scalar;
 use crate::vec_graph::VecGraph;
 
+use pyo3::exceptions::PyValueError;
+use ::quizx::extract::ExtractError;
 use ::quizx::extract::ToCircuit;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
 #[pymodule]
 fn quizx(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(dummy, m)?)?;
     m.add_function(wrap_pyfunction!(interior_clifford_simp, m)?)?;
     m.add_function(wrap_pyfunction!(clifford_simp, m)?)?;
     m.add_function(wrap_pyfunction!(fuse_gadgets, m)?)?;
@@ -28,11 +29,6 @@ fn quizx(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Decomposer>()?;
     m.add_class::<Scalar>()?;
     Ok(())
-}
-
-#[pyfunction]
-fn dummy(a: i64) -> String {
-    format!("FOO! {}", a)
 }
 
 #[pyfunction]
@@ -56,10 +52,10 @@ fn full_simp(g: &mut VecGraph) {
 }
 
 #[pyfunction]
-fn extract_circuit(g: &mut VecGraph) -> Circuit {
-    Circuit {
-        c: g.g.to_circuit().unwrap(),
-        s: None,
+fn extract_circuit(py: Python<'_>, g: &mut VecGraph) -> PyResult<PyObject> {
+    match g.g.to_circuit() {
+        Ok(c) => to_pyzx_circuit(py, c),
+        Err(ExtractError(s, _, _)) => Err(PyValueError::new_err(s))
     }
 }
 
