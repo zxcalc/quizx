@@ -19,7 +19,7 @@
 use derive_more::{Add, Mul};
 use num::complex::Complex;
 use num::rational::Rational64;
-use num::{FromPrimitive, One, Zero};
+use num::{One, Zero};
 use pyo3::prelude::*;
 use quizx::scalar::{FromPhase, ScalarN, Sqrt2};
 
@@ -76,15 +76,9 @@ impl Scalar {
         }
     }
 
-    /// Returns a scalar value of 1^{i \pi phase}.
-    //
-    // TODO: Phase should be a `Rational64` instead of a float.
-    //       That requires pyo3 to map python's `fractions.Fraction` to rationals.
-    //       See https://github.com/PyO3/pyo3/pull/4148
+    /// Returns a scalar value of e^{i \pi phase}.
     #[staticmethod]
-    pub fn from_phase(phase: f64) -> Self {
-        let phase =
-            Rational64::from_f64(phase).unwrap_or_else(|| panic!("Invalid phase value {phase}"));
+    pub fn from_phase(phase: Rational64) -> Self {
         Self {
             s: ScalarN::from_phase(phase),
         }
@@ -103,7 +97,7 @@ impl Scalar {
     // TODO: Phase should be a `Rational64` instead of a float.
     // See `from_phase`
     #[staticmethod]
-    pub fn one_plus_phase(phase: f64) -> Self {
+    pub fn one_plus_phase(phase: Rational64) -> Self {
         Self::one() + Self::from_phase(phase)
     }
 
@@ -116,27 +110,21 @@ impl Scalar {
     }
 
     /// Returns the float representation of the scalar.
-    pub fn complex_value(&self) -> Complex<f64> {
+    pub fn to_number(&self) -> Complex<f64> {
         self.s.complex_value()
     }
 
     /// Returns the scalar multiplied by the n-th power of sqrt(2).
-    pub fn mul_sqrt2_pow(&self, n: i32) -> Self {
-        let mut s = self.clone();
-        s.s.mul_sqrt2_pow(n);
-        s
+    pub fn add_power(&mut self, n: i32) {
+        self.s.mul_sqrt2_pow(n);
     }
 
     /// Returns the scalar multiplied by a phase.
     //
     // TODO: Phase should be a `Rational64` instead of a float.
     // See `from_phase`
-    pub fn mul_phase(&mut self, phase: f64) -> Self {
-        let mut s = self.clone();
-        let phase =
-            Rational64::from_f64(phase).unwrap_or_else(|| panic!("Invalid phase value {phase}"));
-        s.s.mul_phase(phase);
-        s
+    pub fn add_phase(&mut self, phase: Rational64) {
+        self.s.mul_phase(phase);
     }
 
     /// Returns a zero scalar.
@@ -246,6 +234,10 @@ impl Scalar {
     }
 
     pub fn __float__(&self) -> f64 {
-        self.complex_value().re
+        self.__complex__().re
+    }
+
+    pub fn __complex__(&self) -> Complex<f64> {
+        self.s.complex_value()
     }
 }

@@ -2,76 +2,73 @@
 // a `PyResult<T>`.
 #![allow(clippy::useless_conversion)]
 
+pub mod circuit;
 pub mod scalar;
+pub mod vec_graph;
 
+use crate::circuit::to_pyzx_circuit;
 use crate::scalar::Scalar;
+use crate::vec_graph::VecGraph;
 
-use num::Rational64;
+use ::quizx::extract::ExtractError;
+use ::quizx::extract::ToCircuit;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
-use quizx::extract::ToCircuit;
-use quizx::graph::*;
-use quizx::phase::Phase;
 
 #[pymodule]
-fn _quizx(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(dummy, m)?)?;
+fn quizx(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(interior_clifford_simp, m)?)?;
     m.add_function(wrap_pyfunction!(clifford_simp, m)?)?;
     m.add_function(wrap_pyfunction!(fuse_gadgets, m)?)?;
     m.add_function(wrap_pyfunction!(full_simp, m)?)?;
     m.add_function(wrap_pyfunction!(extract_circuit, m)?)?;
     m.add_class::<VecGraph>()?;
-    m.add_class::<Circuit>()?;
-    m.add_class::<CircuitStats>()?;
+    // m.add_class::<Circuit>()?;
+    // m.add_class::<CircuitStats>()?;
     m.add_class::<Decomposer>()?;
     m.add_class::<Scalar>()?;
     Ok(())
 }
 
 #[pyfunction]
-fn dummy(a: i64) -> String {
-    format!("FOO! {}", a)
-}
-
-#[pyfunction]
 fn interior_clifford_simp(g: &mut VecGraph) {
-    quizx::simplify::interior_clifford_simp(&mut g.g);
+    ::quizx::simplify::interior_clifford_simp(&mut g.g);
 }
 
 #[pyfunction]
 fn clifford_simp(g: &mut VecGraph) {
-    quizx::simplify::clifford_simp(&mut g.g);
+    ::quizx::simplify::clifford_simp(&mut g.g);
 }
 
 #[pyfunction]
 fn fuse_gadgets(g: &mut VecGraph) {
-    quizx::simplify::fuse_gadgets(&mut g.g);
+    ::quizx::simplify::fuse_gadgets(&mut g.g);
 }
 
 #[pyfunction]
 fn full_simp(g: &mut VecGraph) {
-    quizx::simplify::full_simp(&mut g.g);
+    ::quizx::simplify::full_simp(&mut g.g);
 }
 
 #[pyfunction]
-fn extract_circuit(g: &mut VecGraph) -> Circuit {
-    Circuit {
-        c: g.g.to_circuit().unwrap(),
-        s: None,
+fn extract_circuit(py: Python<'_>, g: &mut VecGraph) -> PyResult<PyObject> {
+    match g.g.to_circuit() {
+        Ok(c) => to_pyzx_circuit(py, c),
+        Err(ExtractError(s, _, _)) => Err(PyValueError::new_err(s)),
     }
 }
 
 #[pyclass]
 struct CircuitStats {
-    s: quizx::circuit::CircuitStats,
+    s: ::quizx::circuit::CircuitStats,
 }
 
 /// A (mostly) opaque wrapper for quizx circuits
 #[pyclass]
 struct Circuit {
-    c: quizx::circuit::Circuit,
-    s: Option<quizx::circuit::CircuitStats>,
+    c: ::quizx::circuit::Circuit,
+    s: Option<::quizx::circuit::CircuitStats>,
 }
 
 #[pymethods]
@@ -79,7 +76,7 @@ impl Circuit {
     #[staticmethod]
     fn from_qasm(qasm: String) -> Circuit {
         Circuit {
-            c: quizx::circuit::Circuit::from_qasm(&qasm).unwrap(),
+            c: ::quizx::circuit::Circuit::from_qasm(&qasm).unwrap(),
             s: None,
         }
     }
@@ -87,7 +84,7 @@ impl Circuit {
     #[staticmethod]
     fn load(file: String) -> Circuit {
         Circuit {
-            c: quizx::circuit::Circuit::from_file(&file).unwrap(),
+            c: ::quizx::circuit::Circuit::from_file(&file).unwrap(),
             s: None,
         }
     }
@@ -142,198 +139,9 @@ impl CircuitStats {
     }
 }
 
-/// Wrapper for quizx::vec_graph::Graph
-#[pyclass]
-struct VecGraph {
-    pub g: quizx::vec_graph::Graph,
-}
-
-#[pymethods]
-impl VecGraph {
-    #[new]
-    fn new() -> VecGraph {
-        VecGraph {
-            g: quizx::vec_graph::Graph::new(),
-        }
-    }
-
-    fn vindex(&self) -> usize {
-        self.g.vindex()
-    }
-    fn neighbor_at(&self, v: usize, n: usize) -> usize {
-        self.g.neighbor_at(v, n)
-    }
-    fn num_vertices(&self) -> usize {
-        self.g.num_vertices()
-    }
-    fn num_edges(&self) -> usize {
-        self.g.num_edges()
-    }
-    fn add_vertex(&mut self, ty_num: u8, qubit: f64, row: f64, phase: (i64, i64)) -> usize {
-        let ty = match ty_num {
-            1 => VType::Z,
-            2 => VType::X,
-            3 => VType::H,
-            _ => VType::B,
-        };
-        let phase = Phase::new((phase.0, phase.1));
-        self.g.add_vertex_with_data(VData {
-            ty,
-            phase,
-            qubit,
-            row,
-        })
-    }
-
-    fn contains_vertex(&self, v: usize) -> bool {
-        self.g.contains_vertex(v)
-    }
-
-    fn add_edge(&mut self, e: (usize, usize), et_num: u8) {
-        let et = match et_num {
-            2 => EType::H,
-            _ => EType::N,
-        };
-        self.g.add_edge_with_type(e.0, e.1, et)
-    }
-
-    fn add_edge_smart(&mut self, e: (usize, usize), et_num: u8) {
-        let et = match et_num {
-            1 => EType::H,
-            _ => EType::N,
-        };
-        self.g.add_edge_smart(e.0, e.1, et)
-    }
-
-    fn remove_vertex(&mut self, v: usize) {
-        self.g.remove_vertex(v)
-    }
-    fn remove_edge(&mut self, e: (usize, usize)) {
-        self.g.remove_edge(e.0, e.1)
-    }
-    fn degree(&self, v: usize) -> usize {
-        self.g.degree(v)
-    }
-    fn connected(&self, s: usize, t: usize) -> bool {
-        self.g.connected(s, t)
-    }
-
-    fn vertex_type(&self, v: usize) -> u8 {
-        match self.g.vertex_type(v) {
-            VType::B => 0,
-            VType::Z => 1,
-            VType::X => 2,
-            VType::H => 3,
-            VType::WInput => 4,
-            VType::WOutput => 5,
-            VType::ZBox => 6,
-        }
-    }
-
-    fn set_vertex_type(&mut self, v: usize, ty_num: u8) {
-        let ty = match ty_num {
-            1 => VType::Z,
-            2 => VType::X,
-            3 => VType::H,
-            4 => VType::WInput,
-            5 => VType::WOutput,
-            6 => VType::ZBox,
-            _ => VType::B,
-        };
-        self.g.set_vertex_type(v, ty);
-    }
-
-    fn edge_type(&self, e: (usize, usize)) -> u8 {
-        match self.g.edge_type_opt(e.0, e.1) {
-            Some(EType::N) => 1,
-            Some(EType::H) => 2,
-            Some(EType::Wio) => 3,
-            None => 0,
-        }
-    }
-
-    fn set_edge_type(&mut self, e: (usize, usize), et_num: u8) {
-        let et = match et_num {
-            2 => EType::H,
-            3 => EType::Wio,
-            _ => EType::N,
-        };
-        self.g.set_edge_type(e.0, e.1, et);
-    }
-
-    fn phase(&self, v: usize) -> (i64, i64) {
-        let p = self.g.phase(v).to_rational();
-        (*p.numer(), *p.denom())
-    }
-
-    fn set_phase(&mut self, v: usize, phase: (i64, i64)) {
-        self.g.set_phase(v, Rational64::new(phase.0, phase.1));
-    }
-
-    fn add_to_phase(&mut self, v: usize, phase: (i64, i64)) {
-        self.g.add_to_phase(v, Rational64::new(phase.0, phase.1));
-    }
-
-    fn qubit(&mut self, v: usize) -> f64 {
-        self.g.qubit(v)
-    }
-    fn set_qubit(&mut self, v: usize, q: f64) {
-        self.g.set_qubit(v, q);
-    }
-    fn row(&mut self, v: usize) -> f64 {
-        self.g.row(v)
-    }
-    fn set_row(&mut self, v: usize, r: f64) {
-        self.g.set_row(v, r);
-    }
-
-    fn inputs(&self) -> Vec<V> {
-        self.g.inputs().clone()
-    }
-    fn num_inputs(&self) -> usize {
-        self.g.inputs().len()
-    }
-    fn set_inputs(&mut self, inputs: Vec<V>) {
-        self.g.set_inputs(inputs)
-    }
-    fn outputs(&self) -> Vec<V> {
-        self.g.outputs().clone()
-    }
-    fn num_outputs(&self) -> usize {
-        self.g.outputs().len()
-    }
-    fn set_outputs(&mut self, outputs: Vec<V>) {
-        self.g.set_outputs(outputs)
-    }
-
-    /// Returns the graph scalar.
-    #[getter]
-    fn get_scalar(&self) -> Scalar {
-        self.g.scalar().clone().into()
-    }
-
-    /// Sets the graph scalar.
-    #[setter]
-    fn set_scalar(&mut self, scalar: Scalar) {
-        *self.g.scalar_mut() = scalar.into();
-    }
-
-    fn adjoint(&mut self) {
-        self.g.adjoint()
-    }
-
-    fn plug(&mut self, other: &VecGraph) {
-        self.g.plug(&other.g);
-    }
-
-    fn clone(&self) -> VecGraph {
-        VecGraph { g: self.g.clone() }
-    }
-}
-
 #[pyclass]
 struct Decomposer {
-    d: quizx::decompose::Decomposer<quizx::vec_graph::Graph>,
+    d: ::quizx::decompose::Decomposer<::quizx::vec_graph::Graph>,
 }
 
 #[pymethods]
@@ -341,14 +149,14 @@ impl Decomposer {
     #[staticmethod]
     fn empty() -> Decomposer {
         Decomposer {
-            d: quizx::decompose::Decomposer::empty(),
+            d: ::quizx::decompose::Decomposer::empty(),
         }
     }
 
     #[new]
     fn new(g: &VecGraph) -> Decomposer {
         Decomposer {
-            d: quizx::decompose::Decomposer::new(&g.g),
+            d: ::quizx::decompose::Decomposer::new(&g.g),
         }
     }
 
@@ -384,9 +192,9 @@ impl Decomposer {
 
     fn apply_optimizations(&mut self, b: bool) {
         if b {
-            self.d.with_simp(quizx::decompose::SimpFunc::FullSimp);
+            self.d.with_simp(::quizx::decompose::SimpFunc::FullSimp);
         } else {
-            self.d.with_simp(quizx::decompose::SimpFunc::NoSimp);
+            self.d.with_simp(::quizx::decompose::SimpFunc::NoSimp);
         }
     }
 

@@ -161,6 +161,27 @@ impl GraphLike for Graph {
         }
     }
 
+    fn add_named_vertex_with_data(&mut self, v: V, d: VData) -> Result<(), &str> {
+        if v < self.vdata.len() {
+            let h = self.holes.iter().position(|&h| h == v);
+            if h.is_none() {
+                return Err("Vertex already in graph");
+            }
+            self.holes.remove(h.unwrap());
+        } else {
+            for i in self.vdata.len()..(v) {
+                self.vdata.push(None);
+                self.edata.push(None);
+                self.holes.push(i);
+            }
+        }
+
+        self.numv += 1;
+        self.vdata[v] = Some(d);
+        self.edata[v] = Some(Vec::new());
+        Ok(())
+    }
+
     fn remove_vertex(&mut self, v: V) {
         self.numv -= 1;
         self.holes.push(v);
@@ -260,8 +281,8 @@ impl GraphLike for Graph {
     fn set_coord(&mut self, v: V, coord: impl Into<Coord>) {
         let coord = coord.into();
         if let Some(Some(d)) = self.vdata.get_mut(v) {
-            d.qubit = coord.x;
-            d.row = coord.y;
+            d.qubit = coord.y;
+            d.row = coord.x;
         } else {
             panic!("Vertex not found")
         }
@@ -269,7 +290,7 @@ impl GraphLike for Graph {
 
     fn coord(&self, v: V) -> Coord {
         let d = self.vdata[v].expect("Vertex not found");
-        Coord::new(d.qubit, d.row)
+        Coord::new(d.row, d.qubit)
     }
 
     fn set_qubit(&mut self, v: V, qubit: f64) {

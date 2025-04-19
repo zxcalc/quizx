@@ -1,4 +1,4 @@
-from quizx.graph import VecGraph
+from quizx import VecGraph
 from pyzx import EdgeType
 
 

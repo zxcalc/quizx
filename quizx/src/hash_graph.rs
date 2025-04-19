@@ -118,6 +118,21 @@ impl GraphLike for Graph {
         v
     }
 
+    fn add_named_vertex_with_data(&mut self, v: V, d: VData) -> Result<(), &str> {
+        if self.vdata.contains_key(&v) {
+            return Err("Vertex already in graph");
+        }
+
+        if v >= self.freshv {
+            self.freshv = v + 1;
+        }
+
+        self.numv += 1;
+        self.vdata.insert(v, d);
+        self.edata.insert(v, FxHashMap::default());
+        Ok(())
+    }
+
     fn remove_vertex(&mut self, v: V) {
         self.numv -= 1;
 
@@ -203,13 +218,13 @@ impl GraphLike for Graph {
     fn set_coord(&mut self, v: V, coord: impl Into<Coord>) {
         let coord = coord.into();
         let d = self.vdata.get_mut(&v).expect("Vertex not found");
-        d.qubit = coord.x;
-        d.row = coord.y;
+        d.qubit = coord.y;
+        d.row = coord.x;
     }
 
     fn coord(&self, v: V) -> Coord {
         let d = self.vdata.get(&v).expect("Vertex not found");
-        Coord::new(d.qubit, d.row)
+        Coord::new(d.row, d.qubit)
     }
 
     fn set_qubit(&mut self, v: V, qubit: f64) {

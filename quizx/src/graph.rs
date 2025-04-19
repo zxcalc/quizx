@@ -16,6 +16,7 @@
 
 use crate::phase::Phase;
 use crate::scalar::*;
+use crate::util::*;
 use derive_more::{Display, From};
 use num::rational::Rational64;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -49,6 +50,17 @@ pub struct VData {
     pub phase: Phase,
     pub qubit: f64,
     pub row: f64,
+}
+
+impl VData {
+    pub fn empty() -> Self {
+        VData {
+            ty: VType::B,
+            phase: Phase::zero(),
+            qubit: 0.0,
+            row: 0.0,
+        }
+    }
 }
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -90,6 +102,7 @@ pub enum BasisElem {
     Z1, // |1>
     X0, // |+>
     X1, // |->
+    SKIP,
 }
 
 impl BasisElem {
@@ -115,6 +128,7 @@ impl BasisElem {
             BasisElem::Z1 => BasisElem::Z0,
             BasisElem::X0 => BasisElem::X1,
             BasisElem::X1 => BasisElem::X0,
+            BasisElem::SKIP => BasisElem::SKIP,
         }
     }
 }
@@ -148,7 +162,7 @@ impl Coord {
 
     /// Infer the qubit index from the y-coordinate.
     pub fn qubit(&self) -> f64 {
-        -self.y
+        self.y
     }
 
     /// Infer the row index from the x-coordinate.
@@ -387,6 +401,11 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// Add a vertex with the given VData struct
     fn add_vertex_with_data(&mut self, d: VData) -> V;
 
+    /// Add a vertex with the given name and VData struct
+    ///
+    /// Returns an error if vertex already exists
+    fn add_named_vertex_with_data(&mut self, v: V, d: VData) -> Result<(), &str>;
+
     /// Remove a vertex from a graph
     ///
     /// Behavior is undefined if the vertex is not in the graph.
@@ -560,15 +579,17 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// Note this does not replace the vertex from the input/output list or do
     /// normalisation.
     fn plug_vertex(&mut self, v: V, b: BasisElem) {
-        self.set_vertex_type(v, VType::Z);
-        self.set_phase(v, b.phase());
+        if b != BasisElem::SKIP {
+            self.set_vertex_type(v, VType::Z);
+            self.set_phase(v, b.phase());
 
-        if b.is_z() {
-            let n = self
-                .neighbors(v)
-                .next()
-                .expect("Boundary should have 1 neighbor.");
-            self.toggle_edge_type(v, n);
+            if b.is_z() {
+                let n = self
+                    .neighbors(v)
+                    .next()
+                    .expect("Boundary should have 1 neighbor.");
+                self.toggle_edge_type(v, n);
+            }
         }
     }
 
@@ -590,26 +611,38 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     ///
     /// The list `plug` should be of length <= the number of inputs.
     fn plug_inputs(&mut self, plug: &[BasisElem]) {
-        let sz = plug.len();
-        assert!(sz <= self.inputs().len(), "Too many input states");
-        for (i, &b) in plug.iter().enumerate() {
-            self.plug_vertex(self.inputs()[i], b);
+        let mut inp: Vec<V> = vec![];
+        let mut num_plugged = 0;
+        let inputs = self.inputs().clone();
+        for (i, &v) in inputs.iter().enumerate() {
+            if plug[i] != BasisElem::SKIP && i < plug.len() {
+                self.plug_vertex(v, plug[i]);
+                num_plugged += 1;
+            } else {
+                inp.push(v);
+            }
         }
-        self.set_inputs(self.inputs()[sz..].to_owned());
-        self.scalar_mut().mul_sqrt2_pow(-(sz as i32));
+        self.set_inputs(inp);
+        self.scalar_mut().mul_sqrt2_pow(-num_plugged);
     }
 
     /// Plug the given list of normalised basis elements in as outputs, starting from the left
     ///
     /// The list `plug` should of length <= the number of outputs.
     fn plug_outputs(&mut self, plug: &[BasisElem]) {
-        let sz = plug.len();
-        assert!(sz <= self.outputs().len(), "Too many output effects");
-        for (i, &b) in plug.iter().enumerate() {
-            self.plug_vertex(self.outputs()[i], b);
+        let mut outp: Vec<V> = vec![];
+        let mut num_plugged = 0;
+        let outputs = self.outputs().clone();
+        for (i, &v) in outputs.iter().enumerate() {
+            if plug[i] != BasisElem::SKIP && i < plug.len() {
+                self.plug_vertex(v, plug[i]);
+                num_plugged += 1;
+            } else {
+                outp.push(v);
+            }
         }
-        self.set_outputs(self.outputs()[sz..].to_owned());
-        self.scalar_mut().mul_sqrt2_pow(-(sz as i32));
+        self.set_outputs(outp);
+        self.scalar_mut().mul_sqrt2_pow(-num_plugged);
     }
 
     /// Appends the given graph to the current one, with fresh names.
@@ -789,6 +822,29 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         }
 
         comps
+    }
+
+    /// Returns the full subgraph containing the given vertices
+    fn subgraph_from_vertices(&self, verts: Vec<V>) -> Self {
+        let mut g = Self::new();
+        let mut vert_map: FxHashMap<V, V> = FxHashMap::default();
+        for v in verts {
+            let w = g.add_vertex_with_data(self.vertex_data(v));
+            vert_map.insert(v, w);
+        }
+
+        for (s, t, ety) in self.edges() {
+            if vert_map.contains_key(&s) && vert_map.contains_key(&t) {
+                g.add_edge_with_type(vert_map[&s], vert_map[&t], ety);
+            }
+        }
+
+        g
+    }
+
+    /// Returns max row of any vertex
+    fn depth(&self) -> f64 {
+        pmax(self.vertices().map(|v| self.row(v))).unwrap_or(-1.0)
     }
 }
 

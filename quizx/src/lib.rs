@@ -31,4 +31,5 @@ pub mod random_graph;
 pub mod scalar;
 pub mod simplify;
 pub mod tensor;
+pub mod util;
 pub mod vec_graph;
