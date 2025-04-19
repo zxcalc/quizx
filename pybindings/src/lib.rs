@@ -2,9 +2,11 @@
 // a `PyResult<T>`.
 #![allow(clippy::useless_conversion)]
 
+pub mod circuit;
 pub mod scalar;
 pub mod vec_graph;
 
+use crate::circuit::to_pyzx_circuit;
 use crate::scalar::Scalar;
 use crate::vec_graph::VecGraph;
 

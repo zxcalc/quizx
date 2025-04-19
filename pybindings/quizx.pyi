@@ -19,7 +19,6 @@ from pyzx.simplify import Simplifier
 from pyzx.graph.scalar import Scalar
 import numpy as np
 
-
 VT = int
 ET = Tuple[int, int]
 
