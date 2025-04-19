@@ -10,9 +10,9 @@ use crate::circuit::to_pyzx_circuit;
 use crate::scalar::Scalar;
 use crate::vec_graph::VecGraph;
 
-use pyo3::exceptions::PyValueError;
 use ::quizx::extract::ExtractError;
 use ::quizx::extract::ToCircuit;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
@@ -55,7 +55,7 @@ fn full_simp(g: &mut VecGraph) {
 fn extract_circuit(py: Python<'_>, g: &mut VecGraph) -> PyResult<PyObject> {
     match g.g.to_circuit() {
         Ok(c) => to_pyzx_circuit(py, c),
-        Err(ExtractError(s, _, _)) => Err(PyValueError::new_err(s))
+        Err(ExtractError(s, _, _)) => Err(PyValueError::new_err(s)),
     }
 }
 
