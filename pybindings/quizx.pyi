@@ -13,7 +13,6 @@ from typing import (
     Any,
     Union,
 )
-from builtins import complex as complex_
 from pyzx.graph.base import BaseGraph, VertexType, EdgeType, FractionLike, FloatInt
 from pyzx.simplify import Simplifier
 from pyzx.graph.scalar import Scalar
