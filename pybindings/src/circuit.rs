@@ -73,3 +73,88 @@ pub fn to_pyzx_circuit(py: Python<'_>, c: Circuit) -> PyResult<PyObject> {
 
     Ok(c1.unbind())
 }
+
+// Below is the old wrapper class for quizx circuits. It's not clear yet whether we should keep
+// this or just convert to/from PyZX circuits when we interact with Python.
+
+/*
+#[pyclass]
+struct CircuitStats {
+    s: ::quizx::circuit::CircuitStats,
+}
+
+/// A (mostly) opaque wrapper for quizx circuits
+#[pyclass]
+struct Circuit {
+    c: ::quizx::circuit::Circuit,
+    s: Option<::quizx::circuit::CircuitStats>,
+}
+
+#[pymethods]
+impl Circuit {
+    #[staticmethod]
+    fn from_qasm(qasm: String) -> Circuit {
+        Circuit {
+            c: ::quizx::circuit::Circuit::from_qasm(&qasm).unwrap(),
+            s: None,
+        }
+    }
+
+    #[staticmethod]
+    fn load(file: String) -> Circuit {
+        Circuit {
+            c: ::quizx::circuit::Circuit::from_file(&file).unwrap(),
+            s: None,
+        }
+    }
+
+    fn to_qasm(&self) -> String {
+        self.c.to_qasm()
+    }
+    fn to_graph(&self) -> VecGraph {
+        VecGraph {
+            g: self.c.to_graph(),
+        }
+    }
+
+    fn num_gates(&self) -> usize {
+        self.c.num_gates()
+    }
+    fn stats(&mut self) -> CircuitStats {
+        // generate stats the first time this method is called
+        if self.s.is_none() {
+            self.s = Some(self.c.stats());
+        }
+        CircuitStats { s: self.s.unwrap() }
+    }
+}
+
+#[pymethods]
+impl CircuitStats {
+    fn qubits(&self) -> usize {
+        self.s.qubits
+    }
+    fn total(&self) -> usize {
+        self.s.total
+    }
+    fn oneq(&self) -> usize {
+        self.s.oneq
+    }
+    fn twoq(&self) -> usize {
+        self.s.twoq
+    }
+    fn moreq(&self) -> usize {
+        self.s.moreq
+    }
+    fn cliff(&self) -> usize {
+        self.s.cliff
+    }
+    fn non_cliff(&self) -> usize {
+        self.s.non_cliff
+    }
+    #[allow(clippy::inherent_to_string)]
+    fn to_string(&self) -> String {
+        self.s.to_string()
+    }
+}
+*/

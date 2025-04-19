@@ -24,8 +24,8 @@ fn quizx(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(full_simp, m)?)?;
     m.add_function(wrap_pyfunction!(extract_circuit, m)?)?;
     m.add_class::<VecGraph>()?;
-    m.add_class::<Circuit>()?;
-    m.add_class::<CircuitStats>()?;
+    // m.add_class::<Circuit>()?;
+    // m.add_class::<CircuitStats>()?;
     m.add_class::<Decomposer>()?;
     m.add_class::<Scalar>()?;
     Ok(())
