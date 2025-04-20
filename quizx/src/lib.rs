@@ -29,6 +29,7 @@ pub mod optimize_circuit;
 pub mod phase;
 pub mod random_graph;
 pub mod scalar;
+pub mod fscalar;
 pub mod simplify;
 pub mod tensor;
 pub mod util;
