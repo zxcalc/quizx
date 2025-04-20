@@ -153,7 +153,7 @@ impl JsonGraph {
         }
 
         let scalar = graph.scalar();
-        let scalar = scalar.is_one().then(|| JsonScalar::from_scalar(scalar));
+        let scalar = (!scalar.is_one()).then(|| JsonScalar::from_scalar(scalar));
 
         Ok(Self {
             wire_vertices,
