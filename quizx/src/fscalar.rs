@@ -183,7 +183,7 @@ impl Mul<&FScalar> for &FScalar {
         for i in 0..4 {
             if self.c[i] != 0.0 {
                 for j in 0..4 {
-                    let pos = (i * j) % 8;
+                    let pos = (i + j) % 8;
                     if pos < 4 {
                         c[pos] += self.c[i] * rhs.c[j];
                     } else {
@@ -297,16 +297,16 @@ impl From<[f64; 4]> for FScalar {
 impl From<&FScalar> for Complex<f64> {
     fn from(value: &FScalar) -> Self {
         Complex {
-            re: value.c[0] + (value.c[1] + value.c[3])/SQRT_2,
-            im: value.c[2] + (value.c[1] - value.c[3])/SQRT_2 }
+            re: value.c[0] + (value.c[1] - value.c[3]) * 0.5 * SQRT_2,
+            im: value.c[2] + (value.c[1] + value.c[3]) * 0.5 * SQRT_2 }
     }
 }
 
 impl From<FScalar> for Complex<f64> {
     fn from(value: FScalar) -> Self {
         Complex {
-            re: value.c[0] + (value.c[1] + value.c[3])/SQRT_2,
-            im: value.c[2] + (value.c[1] - value.c[3])/SQRT_2 }
+            re: value.c[0] + (value.c[1] - value.c[3]) * 0.5 * SQRT_2,
+            im: value.c[2] + (value.c[1] + value.c[3]) * 0.5 * SQRT_2 }
     }
 }
 
@@ -369,5 +369,48 @@ mod test {
         assert_abs_diff_eq!(sa * sb, (a * b).into());
         assert_abs_diff_eq!(sc + (sa * sb), (c + (a * b)).into());
         assert_abs_diff_eq!(sd - (sa * sb), (d - (a * b)).into());
+    }
+
+    #[test]
+    fn complex_arith() {
+        let one: FScalar = 1.into();
+        let i: FScalar = [0, 0, 1, 0].into();
+        let om: FScalar = [0, 1, 0, 0].into();
+        let sqrt2 = FScalar::sqrt2_pow(1);
+        assert_eq!(om * om, i);
+        assert_eq!((one + i) * (one + i).conj(), one + one);
+        assert_eq!(om + om.conj(), sqrt2);
+
+        let c1: Complex<f64> = (one + i + i).into();
+        let c2: Complex<f64> = Complex::new(1.0, 2.0);
+        assert_eq!(c1, c2);
+
+        let c1: Complex<f64> = (FScalar::sqrt2_pow(3) + i * sqrt2).into();
+        let c2: Complex<f64> = Complex::new(2.0 * SQRT_2, SQRT_2);
+        assert_abs_diff_eq!(c1.re, c2.re);
+        assert_abs_diff_eq!(c1.im, c2.im);
+    }
+
+    #[test]
+    fn sqrt2() {
+        // n.b. exact equality in the sqrt2_pow tests. This may break if conversion to Complex is
+        // implemented differently.
+        let sqrt2 = FScalar::sqrt2_pow(1);
+        let sqrt2_c: Complex<f64> = sqrt2.into();
+        assert_eq!(sqrt2_c.re, SQRT_2);
+        assert_eq!(sqrt2_c.im, 0.0);
+
+        let sqrt2_pow = FScalar::sqrt2_pow(7);
+        let sqrt2_pow_c: Complex<f64> = sqrt2_pow.into();
+        assert_eq!(sqrt2_pow_c.re, 2.0*2.0*2.0*SQRT_2);
+        assert_eq!(sqrt2_pow_c.im, 0.0);
+
+        let two: FScalar = 2.into();
+        let a = FScalar::sqrt2_pow(10);
+        let b = FScalar::sqrt2_pow(11);
+        let c: FScalar = 32.into();
+        assert_eq!(two, sqrt2 * sqrt2);
+        assert_eq!(a * sqrt2, b);
+        assert_eq!(a, c);
     }
 }
