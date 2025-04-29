@@ -79,6 +79,14 @@ impl TryFrom<&JsonScalar> for FScalar {
     }
 }
 
+impl TryFrom<JsonScalar> for FScalar {
+    type Error = JsonError;
+
+    fn try_from(value: JsonScalar) -> Result<Self, Self::Error> {
+        value.try_into()
+    }
+}
+
 impl JsonScalar {
     /// Encode a scalar.
     pub fn from_scalar<C: Coeffs>(scalar: &Scalar<C>) -> Self {
