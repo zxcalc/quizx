@@ -24,6 +24,38 @@ impl FScalar {
             }
         }
     }
+    
+    pub fn sqrt2() -> Self {
+        FScalar { c: [0.0, 1.0, 0.0, -1.0] }
+    }
+
+    pub fn dyadic(pow: i32, coeffs: [i64; 4]) -> Self {
+        let f = 2.0_f64.powi(pow);
+        FScalar { c:
+            coeffs.map(|coeff| f * (coeff as f64))
+        }
+    }
+
+    pub fn from_phase(phase: impl Into<Phase>) -> Self {
+        let p: Phase = phase.into();
+        p.into()
+    }
+
+    pub fn one_plus_phase(phase: impl Into<Phase>) -> Self {
+        FScalar::one() + FScalar::from_phase(phase)
+    }
+
+    pub fn mul_sqrt2_pow(&mut self, p: i32) {
+        *self *= FScalar::sqrt2_pow(p);
+    }
+
+    pub fn mul_phase(&mut self, phase: impl Into<Phase>) {
+        *self *= FScalar::from_phase(phase);
+    }
+
+    pub fn mul_one_plus_phase(&mut self, phase: impl Into<Phase>) {
+        *self *= FScalar::one_plus_phase(phase)
+    }
 
     pub fn conj(&self) -> Self {
         FScalar { c: [self.c[0], -self.c[3], -self.c[2], -self.c[1]] }

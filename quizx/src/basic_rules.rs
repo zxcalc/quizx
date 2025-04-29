@@ -28,7 +28,7 @@
 
 use crate::graph::*;
 use crate::phase::Phase;
-use crate::scalar::*;
+use crate::fscalar::*;
 use num::traits::Zero;
 use num::Rational64;
 use rustc_hash::FxHashSet;
@@ -557,7 +557,7 @@ pub fn check_remove_single(g: &impl GraphLike, v: V) -> bool {
 /// Remove an isolated Z or X vertex and add it as a global scalar
 pub fn remove_single_unchecked(g: &mut impl GraphLike, v: V) {
     let p = g.phase(v);
-    *g.scalar_mut() *= ScalarN::one_plus_phase(p);
+    g.scalar_mut().mul_one_plus_phase(p);
     g.remove_vertex(v);
 }
 
@@ -584,14 +584,14 @@ pub fn remove_pair_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 
     // same color
     if (t0 == t1 && et == EType::N) || (t0 != t1 && et == EType::H) {
-        *g.scalar_mut() *= ScalarN::one_plus_phase(p0 + p1);
+        g.scalar_mut().mul_one_plus_phase(p0 + p1);
     // different colors
     } else {
         let p2 = Phase::one() + p0 + p1;
-        *g.scalar_mut() *= ScalarN::one()
-            + ScalarN::from_phase(p0)
-            + ScalarN::from_phase(p1)
-            + ScalarN::from_phase(p2);
+        *g.scalar_mut() *= FScalar::one()
+            + FScalar::from_phase(p0)
+            + FScalar::from_phase(p1)
+            + FScalar::from_phase(p2);
         g.scalar_mut().mul_sqrt2_pow(-1);
     }
 
@@ -684,7 +684,7 @@ mod tests {
         assert_eq!(g.num_edges(), 7);
         assert_eq!(g.degree(vs[2]), 4);
         assert_eq!(g.degree(vs[4]), 3);
-        assert_eq!(*g.scalar(), Scalar::one());
+        assert!(g.scalar().is_one());
 
         let h = g.clone();
         let success = spider_fusion(&mut g, vs[2], vs[3]);
@@ -694,7 +694,7 @@ mod tests {
         assert_eq!(g.num_edges(), 4);
         assert_eq!(g.degree(vs[2]), 3);
         assert_eq!(g.degree(vs[4]), 1);
-        assert_eq!(*g.scalar(), Scalar::sqrt2_pow(-2));
+        assert_eq!(*g.scalar(), FScalar::sqrt2_pow(-2));
 
         let tg = g.to_tensor4();
         let th = h.to_tensor4();
@@ -752,7 +752,7 @@ mod tests {
 
         assert_eq!(
             *g.scalar(),
-            Scalar::sqrt2_pow((4 - 1) * (4 - 2) / 2) * Scalar::from_phase(Rational64::new(1, 4))
+            FScalar::sqrt2_pow((4 - 1) * (4 - 2) / 2) * FScalar::from_phase(Rational64::new(1, 4))
         );
 
         let h = g.clone();

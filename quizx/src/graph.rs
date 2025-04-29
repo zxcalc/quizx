@@ -15,7 +15,7 @@
 // limitations under the License.
 
 use crate::phase::Phase;
-use crate::scalar::*;
+use crate::fscalar::*;
 use crate::util::*;
 use derive_more::{Display, From};
 use num::rational::Rational64;
@@ -446,8 +446,8 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     fn neighbors(&self, v: V) -> NeighborIter;
     fn incident_edges(&self, v: V) -> IncidentEdgeIter;
     fn degree(&self, v: V) -> usize;
-    fn scalar(&self) -> &ScalarN;
-    fn scalar_mut(&mut self) -> &mut ScalarN;
+    fn scalar(&self) -> &FScalar;
+    fn scalar_mut(&mut self) -> &mut FScalar;
     fn find_edge<F>(&self, f: F) -> Option<(V, V, EType)>
     where
         F: Fn(V, V, EType) -> bool;
