@@ -42,6 +42,10 @@ impl FScalar {
         FScalar { c: [self.c[0], -self.c[3], -self.c[2], -self.c[1]] }
     }
 
+    pub fn complex_value(&self) -> Complex<f64> {
+        self.into()
+    }
+
     pub fn exact_dyadic_form(&self) -> [(i64, i16); 4] {
         self.c.map(|f| {
             let (mut m, mut e, s) = f.integer_decode();

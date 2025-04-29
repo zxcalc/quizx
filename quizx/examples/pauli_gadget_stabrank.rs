@@ -18,7 +18,7 @@ use itertools::Itertools;
 use quizx::circuit::*;
 use quizx::decompose::{terms_for_tcount, Decomposer};
 use quizx::graph::*;
-use quizx::scalar::*;
+use quizx::fscalar::*;
 use quizx::tensor::*;
 use quizx::vec_graph::Graph;
 use rand::rngs::StdRng;
@@ -81,8 +81,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Sample {} of {}", s, nsamples);
         g = c.to_graph();
         g.plug_inputs(&vec![BasisElem::Z0; qs]);
-        let mut renorm = Scalar::one();
-        let mut prob = Scalar::one();
+        let mut renorm = FScalar::one();
+        let mut prob = FScalar::one();
         let mut meas = vec![];
 
         for i in 0..qs {
@@ -140,7 +140,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 g.plug_output(0, BasisElem::Z0);
 
                 // and <g|g> = <h'|h'>
-                prob = renorm + Scalar::minus_one() * prob;
+                prob = renorm + FScalar::minus_one() * prob;
                 renorm = prob.clone();
 
                 p = 1.0 - p; // complement probability for output below
@@ -182,9 +182,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .collect();
                 check.plug_inputs(&vec![BasisElem::Z0; qs]);
                 check.plug_outputs(&effect);
-                let amp = check.to_tensor4()[[]];
+                let amp = check.to_tensorf()[[]];
                 let check_prob = amp * amp.conj();
-                if Scalar::from_scalar(&check_prob) == prob {
+                if check_prob == prob {
                     println!("OK");
                     true
                 } else {

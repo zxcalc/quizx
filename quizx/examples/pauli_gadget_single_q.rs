@@ -18,6 +18,7 @@ use std::env;
 use std::time::{Duration, Instant};
 // use std::fs;
 use std::io::{self, Write};
+use num::Complex;
 // use itertools::Itertools;
 use quizx::circuit::*;
 use quizx::graph::*;
@@ -108,10 +109,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             prob = d.scalar;
 
             if debug {
+                let prob_c: Complex<f64> = prob.into();
                 println!(
                     "P: {} (re(P) ~ {}, terms: {}, time: {:.2?})",
                     prob,
-                    prob.complex_value().re,
+                    prob_c.re,
                     d.nterms,
                     time_single.elapsed()
                 );

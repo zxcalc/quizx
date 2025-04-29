@@ -17,7 +17,6 @@
 use crate::{circuit::Circuit, fscalar::FScalar};
 use crate::graph::*;
 use crate::phase::Phase;
-use crate::fscalar::*;
 use num::{Rational64, Zero};
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
