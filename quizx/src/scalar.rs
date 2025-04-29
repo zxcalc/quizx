@@ -14,10 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub use crate::scalar_traits::{FromPhase, Sqrt2};
 use approx::AbsDiffEq;
 use num::complex::Complex;
 pub use num::traits::identities::{One, Zero};
-pub use crate::scalar_traits::{FromPhase, Sqrt2};
 use num::{integer, Integer, Rational64};
 use std::cmp::min;
 use std::f64::consts::PI;

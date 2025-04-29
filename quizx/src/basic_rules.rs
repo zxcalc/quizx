@@ -26,9 +26,9 @@
 //! Note calling `X_unchecked` is allowed to make unsound ZX-diagram
 //! transformations, or even panic, if `check_X` doesn't return true.
 
+use crate::fscalar::*;
 use crate::graph::*;
 use crate::phase::Phase;
-use crate::fscalar::*;
 use num::traits::Zero;
 use num::Rational64;
 use rustc_hash::FxHashSet;

@@ -17,9 +17,9 @@
 use itertools::Itertools;
 use quizx::circuit::*;
 use quizx::decompose::{terms_for_tcount, Decomposer};
+use quizx::fscalar::*;
 use quizx::graph::*;
 use quizx::random_graph::*;
-use quizx::fscalar::*;
 use quizx::tensor::*;
 use quizx::vec_graph::Graph;
 use rand::rngs::StdRng;

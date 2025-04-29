@@ -42,7 +42,7 @@
 //! // Decode the graph from the qgraph string.
 //! let g2 = quizx::json::decode_graph::<Graph>(&json).unwrap();
 //!
-//! assert_eq!(g.to_tensor4(), g2.to_tensor4());
+//! assert_eq!(g.to_tensorf(), g2.to_tensorf());
 //! ```
 
 mod graph;

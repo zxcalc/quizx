@@ -17,8 +17,8 @@
 use std::env;
 use std::time::{Duration, Instant};
 // use std::fs;
-use std::io::{self, Write};
 use num::Complex;
+use std::io::{self, Write};
 // use itertools::Itertools;
 use quizx::circuit::*;
 use quizx::graph::*;

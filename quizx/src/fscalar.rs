@@ -11,14 +11,14 @@ pub use crate::scalar_traits::{FromPhase, Sqrt2};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FScalar {
-    c: [f64; 4]
+    c: [f64; 4],
 }
 
 impl FScalar {
     pub fn dyadic(pow: i32, coeffs: [i64; 4]) -> Self {
         let f = 2.0_f64.powi(pow);
-        FScalar { c:
-            coeffs.map(|coeff| f * (coeff as f64))
+        FScalar {
+            c: coeffs.map(|coeff| f * (coeff as f64)),
         }
     }
 
@@ -39,7 +39,9 @@ impl FScalar {
     }
 
     pub fn conj(&self) -> Self {
-        FScalar { c: [self.c[0], -self.c[3], -self.c[2], -self.c[1]] }
+        FScalar {
+            c: [self.c[0], -self.c[3], -self.c[2], -self.c[1]],
+        }
     }
 
     pub fn complex_value(&self) -> Complex<f64> {
@@ -63,7 +65,9 @@ impl FScalar {
     }
 
     fn num_coeffs(&self) -> usize {
-        self.c.iter().fold(0, |n, &co| if co != 0.0 { n + 1 } else { n })
+        self.c
+            .iter()
+            .fold(0, |n, &co| if co != 0.0 { n + 1 } else { n })
     }
 
     pub fn exact_phase_and_pow(&self) -> Option<(Phase, i16)> {
@@ -77,10 +81,21 @@ impl FScalar {
         let edf = s.exact_dyadic_form();
 
         for i in 0..4 {
-            if edf[i].0 == 1 && edf[(i+1)%4].0 == 0 && edf[(i+2)%4].0 == 0 && edf[(i+3)%4].0 == 0 {
-                return Some((Phase::new(Rational64::new(i as i64, 4)), edf[i].1 * 2 + p))
-            } else if edf[i].0 == -1 && edf[(i+1)%4].0 == 0 && edf[(i+2)%4].0 == 0 && edf[(i+3)%4].0 == 0 {
-                return Some((Phase::new(Rational64::new((i + 4) as i64, 4)), edf[i].1 * 2 + p))
+            if edf[i].0 == 1
+                && edf[(i + 1) % 4].0 == 0
+                && edf[(i + 2) % 4].0 == 0
+                && edf[(i + 3) % 4].0 == 0
+            {
+                return Some((Phase::new(Rational64::new(i as i64, 4)), edf[i].1 * 2 + p));
+            } else if edf[i].0 == -1
+                && edf[(i + 1) % 4].0 == 0
+                && edf[(i + 2) % 4].0 == 0
+                && edf[(i + 3) % 4].0 == 0
+            {
+                return Some((
+                    Phase::new(Rational64::new((i + 4) as i64, 4)),
+                    edf[i].1 * 2 + p,
+                ));
             }
         }
 
@@ -90,13 +105,13 @@ impl FScalar {
 
 impl Sqrt2 for FScalar {
     fn sqrt2_pow(p: i32) -> Self {
-        FScalar { c:
-            if p % 2 == 0 {
-                [2.0_f64.powi(p/2), 0.0, 0.0, 0.0]
+        FScalar {
+            c: if p % 2 == 0 {
+                [2.0_f64.powi(p / 2), 0.0, 0.0, 0.0]
             } else {
-                let f = 2.0_f64.powi((p-1)/2);
+                let f = 2.0_f64.powi((p - 1) / 2);
                 [0.0, f, 0.0, -f]
-            }
+            },
         }
     }
 }
@@ -108,7 +123,9 @@ impl FromPhase for FScalar {
     }
 
     fn minus_one() -> Self {
-        FScalar { c: [-1.0, 0.0, 0.0, 0.0] }
+        FScalar {
+            c: [-1.0, 0.0, 0.0, 0.0],
+        }
     }
 }
 
@@ -139,10 +156,18 @@ impl fmt::Display for FScalar {
                     }
                 }
 
-                if e != 0 { write!(f, "e{}", e)?; }
-                if i == 1 { write!(f, " ω")?; }
-                if i == 2 { write!(f, " ω²")?; }
-                if i == 3 { write!(f, " ω³")?; }
+                if e != 0 {
+                    write!(f, "e{}", e)?;
+                }
+                if i == 1 {
+                    write!(f, " ω")?;
+                }
+                if i == 2 {
+                    write!(f, " ω²")?;
+                }
+                if i == 3 {
+                    write!(f, " ω³")?;
+                }
             }
         }
 
@@ -154,16 +179,17 @@ impl fmt::Display for FScalar {
     }
 }
 
-
 impl Add<&FScalar> for &FScalar {
     type Output = FScalar;
     fn add(self, rhs: &FScalar) -> Self::Output {
-        FScalar { c: [
-            self.c[0] + rhs.c[0],
-            self.c[1] + rhs.c[1],
-            self.c[2] + rhs.c[2],
-            self.c[3] + rhs.c[3]
-            ] }
+        FScalar {
+            c: [
+                self.c[0] + rhs.c[0],
+                self.c[1] + rhs.c[1],
+                self.c[2] + rhs.c[2],
+                self.c[3] + rhs.c[3],
+            ],
+        }
     }
 }
 
@@ -204,12 +230,14 @@ impl AddAssign<&FScalar> for FScalar {
 impl Sub<&FScalar> for &FScalar {
     type Output = FScalar;
     fn sub(self, rhs: &FScalar) -> Self::Output {
-        FScalar { c: [
-            self.c[0] - rhs.c[0],
-            self.c[1] - rhs.c[1],
-            self.c[2] - rhs.c[2],
-            self.c[3] - rhs.c[3]
-            ] }
+        FScalar {
+            c: [
+                self.c[0] - rhs.c[0],
+                self.c[1] - rhs.c[1],
+                self.c[2] - rhs.c[2],
+                self.c[3] - rhs.c[3],
+            ],
+        }
     }
 }
 
@@ -302,7 +330,9 @@ impl MulAssign<&FScalar> for FScalar {
 
 impl Zero for FScalar {
     fn zero() -> Self {
-        FScalar { c: [0.0, 0.0, 0.0, 0.0] }
+        FScalar {
+            c: [0.0, 0.0, 0.0, 0.0],
+        }
     }
 
     fn is_zero(&self) -> bool {
@@ -312,7 +342,9 @@ impl Zero for FScalar {
 
 impl One for FScalar {
     fn one() -> Self {
-        FScalar { c: [1.0, 0.0, 0.0, 0.0] }
+        FScalar {
+            c: [1.0, 0.0, 0.0, 0.0],
+        }
     }
 
     fn is_one(&self) -> bool {
@@ -336,25 +368,38 @@ impl AbsDiffEq<FScalar> for FScalar {
 
 impl From<f64> for FScalar {
     fn from(value: f64) -> Self {
-        FScalar { c: [value, 0.0, 0.0, 0.0] }
+        FScalar {
+            c: [value, 0.0, 0.0, 0.0],
+        }
     }
 }
 
 impl From<i32> for FScalar {
     fn from(value: i32) -> Self {
-        FScalar { c: [value as f64, 0.0, 0.0, 0.0] }
+        FScalar {
+            c: [value as f64, 0.0, 0.0, 0.0],
+        }
     }
 }
 
 impl From<Complex<f64>> for FScalar {
     fn from(value: Complex<f64>) -> Self {
-        FScalar { c: [value.re, 0.0, value.im, 0.0] }
+        FScalar {
+            c: [value.re, 0.0, value.im, 0.0],
+        }
     }
 }
 
 impl From<[i32; 4]> for FScalar {
     fn from(value: [i32; 4]) -> Self {
-        FScalar { c: [value[0] as f64, value[1] as f64, value[2] as f64, value[3] as f64] }
+        FScalar {
+            c: [
+                value[0] as f64,
+                value[1] as f64,
+                value[2] as f64,
+                value[3] as f64,
+            ],
+        }
     }
 }
 
@@ -368,7 +413,8 @@ impl From<&FScalar> for Complex<f64> {
     fn from(value: &FScalar) -> Self {
         Complex {
             re: value.c[0] + (value.c[1] - value.c[3]) * 0.5 * SQRT_2,
-            im: value.c[2] + (value.c[1] + value.c[3]) * 0.5 * SQRT_2 }
+            im: value.c[2] + (value.c[1] + value.c[3]) * 0.5 * SQRT_2,
+        }
     }
 }
 
@@ -376,7 +422,8 @@ impl From<FScalar> for Complex<f64> {
     fn from(value: FScalar) -> Self {
         Complex {
             re: value.c[0] + (value.c[1] - value.c[3]) * 0.5 * SQRT_2,
-            im: value.c[2] + (value.c[1] + value.c[3]) * 0.5 * SQRT_2 }
+            im: value.c[2] + (value.c[1] + value.c[3]) * 0.5 * SQRT_2,
+        }
     }
 }
 
@@ -387,14 +434,16 @@ impl From<Phase> for FScalar {
             let pos = (r.numer() * (4 / r.denom())).rem_euclid(8) as usize;
             let mut c: [f64; 4] = [0.0, 0.0, 0.0, 0.0];
             if pos >= 4 {
-                c[pos-4] = -1.0;
+                c[pos - 4] = -1.0;
             } else {
                 c[pos] = 1.0;
             }
             FScalar { c }
         } else {
             let angle = PI * r.to_f64().unwrap();
-            FScalar { c: [f64::cos(angle), 0.0, f64::sin(angle), 0.0] }
+            FScalar {
+                c: [f64::cos(angle), 0.0, f64::sin(angle), 0.0],
+            }
         }
     }
 }
@@ -421,7 +470,13 @@ mod test {
         let s: FScalar = [0.5, 0.25, 0.125, 0.0625].into();
         assert_eq!(format!("{}", s), "1e-1 + 1e-2 ω + 1e-3 ω² + 1e-4 ω³");
 
-        let s: FScalar = [2.0f64.powi(11), 2.0f64.powi(21), 2.0f64.powi(31), 2.0f64.powi(41)].into();
+        let s: FScalar = [
+            2.0f64.powi(11),
+            2.0f64.powi(21),
+            2.0f64.powi(31),
+            2.0f64.powi(41),
+        ]
+        .into();
         assert_eq!(format!("{}", s), "1e11 + 1e21 ω + 1e31 ω² + 1e41 ω³");
     }
 
@@ -453,7 +508,7 @@ mod test {
         let sb: FScalar = b.into();
         let sc: FScalar = c.into();
         let sd: FScalar = d.into();
-        
+
         assert_abs_diff_eq!(sa * sa, (a * a).into());
         assert_abs_diff_eq!(sa * sb, (a * b).into());
         assert_abs_diff_eq!(sc + (sa * sb), (c + (a * b)).into());
@@ -491,7 +546,7 @@ mod test {
 
         let sqrt2_pow = FScalar::sqrt2_pow(7);
         let sqrt2_pow_c: Complex<f64> = sqrt2_pow.into();
-        assert_eq!(sqrt2_pow_c.re, 2.0*2.0*2.0*SQRT_2);
+        assert_eq!(sqrt2_pow_c.re, 2.0 * 2.0 * 2.0 * SQRT_2);
         assert_eq!(sqrt2_pow_c.im, 0.0);
 
         let two: FScalar = 2.into();
@@ -506,38 +561,118 @@ mod test {
     #[test]
     fn from_t_phase() {
         let s: FScalar = Phase::new(Rational64::new(0, 1)).into();
-        assert_eq!(s, FScalar { c: [1.0, 0.0, 0.0, 0.0] });
+        assert_eq!(
+            s,
+            FScalar {
+                c: [1.0, 0.0, 0.0, 0.0]
+            }
+        );
         let s: FScalar = Phase::new(Rational64::new(1, 4)).into();
-        assert_eq!(s, FScalar { c: [0.0, 1.0, 0.0, 0.0] });
+        assert_eq!(
+            s,
+            FScalar {
+                c: [0.0, 1.0, 0.0, 0.0]
+            }
+        );
         let s: FScalar = Phase::new(Rational64::new(1, 2)).into();
-        assert_eq!(s, FScalar { c: [0.0, 0.0, 1.0, 0.0] });
+        assert_eq!(
+            s,
+            FScalar {
+                c: [0.0, 0.0, 1.0, 0.0]
+            }
+        );
         let s: FScalar = Phase::new(Rational64::new(3, 4)).into();
-        assert_eq!(s, FScalar { c: [0.0, 0.0, 0.0, 1.0] });
+        assert_eq!(
+            s,
+            FScalar {
+                c: [0.0, 0.0, 0.0, 1.0]
+            }
+        );
         let s: FScalar = Phase::new(Rational64::new(1, 1)).into();
-        assert_eq!(s, FScalar { c: [-1.0, 0.0, 0.0, 0.0] });
+        assert_eq!(
+            s,
+            FScalar {
+                c: [-1.0, 0.0, 0.0, 0.0]
+            }
+        );
         let s: FScalar = Phase::new(Rational64::new(5, 4)).into();
-        assert_eq!(s, FScalar { c: [0.0, -1.0, 0.0, 0.0] });
+        assert_eq!(
+            s,
+            FScalar {
+                c: [0.0, -1.0, 0.0, 0.0]
+            }
+        );
         let s: FScalar = Phase::new(Rational64::new(3, 2)).into();
-        assert_eq!(s, FScalar { c: [0.0, 0.0, -1.0, 0.0] });
+        assert_eq!(
+            s,
+            FScalar {
+                c: [0.0, 0.0, -1.0, 0.0]
+            }
+        );
         let s: FScalar = Phase::new(Rational64::new(7, 4)).into();
-        assert_eq!(s, FScalar { c: [0.0, 0.0, 0.0, -1.0] });
+        assert_eq!(
+            s,
+            FScalar {
+                c: [0.0, 0.0, 0.0, -1.0]
+            }
+        );
 
         let s: FScalar = Phase::new(Rational64::new(0, 1)).into();
-        assert_eq!(s, FScalar { c: [1.0, 0.0, 0.0, 0.0] });
+        assert_eq!(
+            s,
+            FScalar {
+                c: [1.0, 0.0, 0.0, 0.0]
+            }
+        );
         let s: FScalar = Phase::new(Rational64::new(-7, 4)).into();
-        assert_eq!(s, FScalar { c: [0.0, 1.0, 0.0, 0.0] });
+        assert_eq!(
+            s,
+            FScalar {
+                c: [0.0, 1.0, 0.0, 0.0]
+            }
+        );
         let s: FScalar = Phase::new(Rational64::new(-3, 2)).into();
-        assert_eq!(s, FScalar { c: [0.0, 0.0, 1.0, 0.0] });
+        assert_eq!(
+            s,
+            FScalar {
+                c: [0.0, 0.0, 1.0, 0.0]
+            }
+        );
         let s: FScalar = Phase::new(Rational64::new(-5, 4)).into();
-        assert_eq!(s, FScalar { c: [0.0, 0.0, 0.0, 1.0] });
+        assert_eq!(
+            s,
+            FScalar {
+                c: [0.0, 0.0, 0.0, 1.0]
+            }
+        );
         let s: FScalar = Phase::new(Rational64::new(-1, 1)).into();
-        assert_eq!(s, FScalar { c: [-1.0, 0.0, 0.0, 0.0] });
+        assert_eq!(
+            s,
+            FScalar {
+                c: [-1.0, 0.0, 0.0, 0.0]
+            }
+        );
         let s: FScalar = Phase::new(Rational64::new(-3, 4)).into();
-        assert_eq!(s, FScalar { c: [0.0, -1.0, 0.0, 0.0] });
+        assert_eq!(
+            s,
+            FScalar {
+                c: [0.0, -1.0, 0.0, 0.0]
+            }
+        );
         let s: FScalar = Phase::new(Rational64::new(-1, 2)).into();
-        assert_eq!(s, FScalar { c: [0.0, 0.0, -1.0, 0.0] });
+        assert_eq!(
+            s,
+            FScalar {
+                c: [0.0, 0.0, -1.0, 0.0]
+            }
+        );
         let s: FScalar = Phase::new(Rational64::new(-1, 4)).into();
-        assert_eq!(s, FScalar { c: [0.0, 0.0, 0.0, -1.0] });
+        assert_eq!(
+            s,
+            FScalar {
+                c: [0.0, 0.0, 0.0, -1.0]
+            }
+        );
     }
 
     #[test]

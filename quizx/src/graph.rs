@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::phase::Phase;
 use crate::fscalar::*;
+use crate::phase::Phase;
 use crate::util::*;
 use derive_more::{Display, From};
 use num::rational::Rational64;

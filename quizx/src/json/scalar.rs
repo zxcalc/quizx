@@ -24,14 +24,12 @@ impl From<FScalar> for JsonScalar {
         };
 
         match value.exact_phase_and_pow() {
-            Some((phase, pow)) => {
-                JsonScalar {
-                    power2: pow as i32,
-                    phase: JsonPhase::from_phase(phase, phase_options),
-                    floatfactor: 1.0,
-                    is_zero: false,
-                    ..Default::default()
-                }
+            Some((phase, pow)) => JsonScalar {
+                power2: pow as i32,
+                phase: JsonPhase::from_phase(phase, phase_options),
+                floatfactor: 1.0,
+                is_zero: false,
+                ..Default::default()
             },
             None => {
                 let complex: Complex<f64> = value.into();
@@ -51,7 +49,7 @@ impl From<FScalar> for JsonScalar {
 impl TryFrom<&JsonScalar> for FScalar {
     type Error = JsonError;
 
-    fn try_from(value: &JsonScalar) -> Result<Self,Self::Error> {
+    fn try_from(value: &JsonScalar) -> Result<Self, Self::Error> {
         if value.is_unknown {
             // TODO: Unknown scalar flag?
             return Ok(FScalar::one());
@@ -80,7 +78,6 @@ impl TryFrom<&JsonScalar> for FScalar {
         Ok(s)
     }
 }
-
 
 impl JsonScalar {
     /// Encode a scalar.

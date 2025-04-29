@@ -16,9 +16,9 @@
 
 // use crate::scalar::*;
 use crate::circuit::*;
+use crate::fscalar::*;
 use crate::graph::*;
 use crate::phase::Phase;
-use crate::fscalar::*;
 use ndarray::parallel::prelude::*;
 use ndarray::prelude::*;
 use ndarray::*;

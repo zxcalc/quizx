@@ -14,10 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::fscalar::*;
 pub use crate::graph::*;
 use crate::json::JsonGraph;
 use crate::phase::Phase;
-use crate::fscalar::*;
 use num::rational::Rational64;
 use rustc_hash::FxHashMap;
 use serde::de::Error as _;

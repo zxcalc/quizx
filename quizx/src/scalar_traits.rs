@@ -22,4 +22,3 @@ pub trait Sqrt2: Sized {
     /// Return the p-th power of sqrt(2).
     fn sqrt2_pow(p: i32) -> Self;
 }
-

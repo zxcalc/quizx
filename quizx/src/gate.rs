@@ -14,9 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{circuit::Circuit, fscalar::FScalar};
 use crate::graph::*;
 use crate::phase::Phase;
+use crate::{circuit::Circuit, fscalar::FScalar};
 use num::{Rational64, Zero};
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
