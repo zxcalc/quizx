@@ -1,10 +1,12 @@
 use approx::AbsDiffEq;
 use num::complex::Complex;
 pub use num::traits::identities::{One, Zero};
-use num::Float;
-use std::f64::consts::SQRT_2;
+use num::{Float, Rational64, ToPrimitive};
+use std::f64::consts::{PI, SQRT_2};
 use std::fmt;
 use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
+
+use crate::phase::Phase;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FScalar {
@@ -310,6 +312,25 @@ impl From<FScalar> for Complex<f64> {
     }
 }
 
+impl From<Phase> for FScalar {
+    fn from(value: Phase) -> Self {
+        let r: Rational64 = value.into();
+        if 4 % r.denom() == 0 {
+            let pos = (r.numer() * (4 / r.denom())).rem_euclid(8) as usize;
+            let mut c: [f64; 4] = [0.0, 0.0, 0.0, 0.0];
+            if pos >= 4 {
+                c[pos-4] = -1.0;
+            } else {
+                c[pos] = 1.0;
+            }
+            FScalar { c }
+        } else {
+            let angle = PI * r.to_f64().unwrap();
+            FScalar { c: [f64::cos(angle), 0.0, f64::sin(angle), 0.0] }
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -412,5 +433,57 @@ mod test {
         assert_eq!(two, sqrt2 * sqrt2);
         assert_eq!(a * sqrt2, b);
         assert_eq!(a, c);
+    }
+
+    #[test]
+    fn from_t_phase() {
+        let s: FScalar = Phase::new(Rational64::new(0, 1)).into();
+        assert_eq!(s, FScalar { c: [1.0, 0.0, 0.0, 0.0] });
+        let s: FScalar = Phase::new(Rational64::new(1, 4)).into();
+        assert_eq!(s, FScalar { c: [0.0, 1.0, 0.0, 0.0] });
+        let s: FScalar = Phase::new(Rational64::new(1, 2)).into();
+        assert_eq!(s, FScalar { c: [0.0, 0.0, 1.0, 0.0] });
+        let s: FScalar = Phase::new(Rational64::new(3, 4)).into();
+        assert_eq!(s, FScalar { c: [0.0, 0.0, 0.0, 1.0] });
+        let s: FScalar = Phase::new(Rational64::new(1, 1)).into();
+        assert_eq!(s, FScalar { c: [-1.0, 0.0, 0.0, 0.0] });
+        let s: FScalar = Phase::new(Rational64::new(5, 4)).into();
+        assert_eq!(s, FScalar { c: [0.0, -1.0, 0.0, 0.0] });
+        let s: FScalar = Phase::new(Rational64::new(3, 2)).into();
+        assert_eq!(s, FScalar { c: [0.0, 0.0, -1.0, 0.0] });
+        let s: FScalar = Phase::new(Rational64::new(7, 4)).into();
+        assert_eq!(s, FScalar { c: [0.0, 0.0, 0.0, -1.0] });
+
+        let s: FScalar = Phase::new(Rational64::new(0, 1)).into();
+        assert_eq!(s, FScalar { c: [1.0, 0.0, 0.0, 0.0] });
+        let s: FScalar = Phase::new(Rational64::new(-7, 4)).into();
+        assert_eq!(s, FScalar { c: [0.0, 1.0, 0.0, 0.0] });
+        let s: FScalar = Phase::new(Rational64::new(-3, 2)).into();
+        assert_eq!(s, FScalar { c: [0.0, 0.0, 1.0, 0.0] });
+        let s: FScalar = Phase::new(Rational64::new(-5, 4)).into();
+        assert_eq!(s, FScalar { c: [0.0, 0.0, 0.0, 1.0] });
+        let s: FScalar = Phase::new(Rational64::new(-1, 1)).into();
+        assert_eq!(s, FScalar { c: [-1.0, 0.0, 0.0, 0.0] });
+        let s: FScalar = Phase::new(Rational64::new(-3, 4)).into();
+        assert_eq!(s, FScalar { c: [0.0, -1.0, 0.0, 0.0] });
+        let s: FScalar = Phase::new(Rational64::new(-1, 2)).into();
+        assert_eq!(s, FScalar { c: [0.0, 0.0, -1.0, 0.0] });
+        let s: FScalar = Phase::new(Rational64::new(-1, 4)).into();
+        assert_eq!(s, FScalar { c: [0.0, 0.0, 0.0, -1.0] });
+    }
+
+    #[test]
+    fn from_gen_phase() {
+        let r = Rational64::new(-5, 37);
+        let s1: FScalar = Phase::new(r).into();
+        let c = Complex::new(0.0, PI * r.to_f64().unwrap()).exp();
+        let s2: FScalar = c.into();
+
+        assert_eq!(s1, s2);
+        let r = Rational64::new(12, 117);
+        let s1: FScalar = Phase::new(r).into();
+        let c = Complex::new(0.0, PI * r.to_f64().unwrap()).exp();
+        let s2: FScalar = c.into();
+        assert_eq!(s1, s2);
     }
 }
