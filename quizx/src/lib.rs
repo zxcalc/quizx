@@ -28,6 +28,7 @@ pub mod linalg;
 pub mod optimize_circuit;
 pub mod phase;
 pub mod random_graph;
+pub mod scalar_traits;
 pub mod scalar;
 pub mod fscalar;
 pub mod simplify;

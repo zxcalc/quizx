@@ -7,6 +7,7 @@ use std::fmt;
 use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 
 use crate::phase::Phase;
+pub use crate::scalar_traits::{FromPhase, Sqrt2};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FScalar {
@@ -14,31 +15,11 @@ pub struct FScalar {
 }
 
 impl FScalar {
-    pub fn sqrt2_pow(p: i32) -> Self {
-        FScalar { c:
-            if p % 2 == 0 {
-                [2.0_f64.powi(p/2), 0.0, 0.0, 0.0]
-            } else {
-                let f = 2.0_f64.powi((p-1)/2);
-                [0.0, f, 0.0, -f]
-            }
-        }
-    }
-    
-    pub fn sqrt2() -> Self {
-        FScalar { c: [0.0, 1.0, 0.0, -1.0] }
-    }
-
     pub fn dyadic(pow: i32, coeffs: [i64; 4]) -> Self {
         let f = 2.0_f64.powi(pow);
         FScalar { c:
             coeffs.map(|coeff| f * (coeff as f64))
         }
-    }
-
-    pub fn from_phase(phase: impl Into<Phase>) -> Self {
-        let p: Phase = phase.into();
-        p.into()
     }
 
     pub fn one_plus_phase(phase: impl Into<Phase>) -> Self {
@@ -77,6 +58,32 @@ impl FScalar {
         })
     }
 }
+
+impl Sqrt2 for FScalar {
+    fn sqrt2_pow(p: i32) -> Self {
+        FScalar { c:
+            if p % 2 == 0 {
+                [2.0_f64.powi(p/2), 0.0, 0.0, 0.0]
+            } else {
+                let f = 2.0_f64.powi((p-1)/2);
+                [0.0, f, 0.0, -f]
+            }
+        }
+    }
+}
+
+impl FromPhase for FScalar {
+    fn from_phase(phase: impl Into<Phase>) -> Self {
+        let p: Phase = phase.into();
+        p.into()
+    }
+
+    fn minus_one() -> Self {
+        FScalar { c: [-1.0, 0.0, 0.0, 0.0] }
+    }
+}
+
+impl ndarray::ScalarOperand for FScalar {}
 
 impl fmt::Display for FScalar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

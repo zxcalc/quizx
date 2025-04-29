@@ -113,11 +113,11 @@ pub fn check_spider_fusion(g: &impl GraphLike, v0: V, v1: V) -> bool {
 ///
 /// let h = g.clone();
 /// spider_fusion_unchecked(&mut g, v0, v1);
-/// assert_eq!(g.to_tensor4(), h.to_tensor4());
+/// assert_eq!(g.to_tensorf(), h.to_tensorf());
 ///
 /// let h = g.clone();
 /// spider_fusion_unchecked(&mut g, v0, v2); // oops! Not a valid spider fusion
-/// assert_ne!(g.to_tensor4(), h.to_tensor4());
+/// assert_ne!(g.to_tensorf(), h.to_tensorf());
 /// ```
 pub fn spider_fusion_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     for (v, et) in Vec::from_iter(g.incident_edges(v1)) {
@@ -150,7 +150,7 @@ pub fn spider_fusion_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 /// let h = g.clone();
 /// let success = spider_fusion(&mut g, v0, v1);
 /// assert!(success);
-/// assert_eq!(g.to_tensor4(), h.to_tensor4());
+/// assert_eq!(g.to_tensorf(), h.to_tensorf());
 ///
 /// let h = g.clone();
 /// let success = spider_fusion(&mut g, v0, v2); // should fail
@@ -646,7 +646,7 @@ mod tests {
         assert_eq!(g.num_edges(), 5);
         assert_eq!(g.degree(vs[2]), 5);
 
-        assert_eq!(g.to_tensor4(), h.to_tensor4());
+        assert_eq!(g.to_tensorf(), h.to_tensorf());
 
         assert_eq!(g.phase(vs[2]), Rational64::new(3, 4).into());
     }
@@ -696,8 +696,8 @@ mod tests {
         assert_eq!(g.degree(vs[4]), 1);
         assert_eq!(*g.scalar(), FScalar::sqrt2_pow(-2));
 
-        let tg = g.to_tensor4();
-        let th = h.to_tensor4();
+        let tg = g.to_tensorf();
+        let th = h.to_tensorf();
         println!("\n\ntg =\n{}", tg);
         println!("\n\nth =\n{}", th);
         assert_eq!(tg, th);
@@ -740,8 +740,8 @@ mod tests {
         assert_eq!(g.num_vertices(), 8);
         assert_eq!(g.num_edges(), 10);
 
-        let tg = g.to_tensor4();
-        let th = h.to_tensor4();
+        let tg = g.to_tensorf();
+        let th = h.to_tensorf();
         println!("\n\ntg =\n{}", tg);
         println!("\n\nth =\n{}", th);
         assert_eq!(tg, th);
@@ -787,7 +787,7 @@ mod tests {
         let success = pivot(&mut h, 3, 4);
         assert!(success, "Pivot should match");
 
-        assert_eq!(g.to_tensor4(), h.to_tensor4());
+        assert_eq!(g.to_tensorf(), h.to_tensorf());
 
         assert_eq!(h.num_vertices(), 5);
         assert_eq!(h.num_edges(), 6);
@@ -815,7 +815,7 @@ mod tests {
         let mut h = g.clone();
         let success = pivot(&mut h, 3, 4);
         assert!(success, "Second pivot should match");
-        assert_eq!(g.to_tensor4(), h.to_tensor4());
+        assert_eq!(g.to_tensorf(), h.to_tensorf());
     }
 
     #[test]
@@ -879,8 +879,8 @@ mod tests {
         assert!(success, "gen_pivot should match");
 
         println!("g=\n{}\n\nh=\n{}", g.to_dot(), h.to_dot());
-        println!("gt=\n{}\n\nht=\n{}", g.to_tensor4(), h.to_tensor4());
-        assert_eq!(g.to_tensor4(), h.to_tensor4());
+        println!("gt=\n{}\n\nht=\n{}", g.to_tensorf(), h.to_tensorf());
+        assert_eq!(g.to_tensorf(), h.to_tensorf());
     }
 
     #[test]
@@ -912,8 +912,8 @@ mod tests {
         assert!(success, "gen_pivot should match");
 
         println!("g=\n{}\n\nh=\n{}", g.to_dot(), h.to_dot());
-        println!("gt=\n{}\n\nht=\n{}", g.to_tensor4(), h.to_tensor4());
-        assert_eq!(g.to_tensor4(), h.to_tensor4());
+        println!("gt=\n{}\n\nht=\n{}", g.to_tensorf(), h.to_tensorf());
+        assert_eq!(g.to_tensorf(), h.to_tensorf());
     }
 
     #[test]
@@ -952,11 +952,11 @@ mod tests {
             assert!(graph
                 .find_vertex(|v| graph.phase(v) == Rational64::new(1, 2).into())
                 .is_none());
-            // println!("{}", g.to_tensor4());
-            // println!("{}", h.to_tensor4());
+            // println!("{}", g.to_tensorf());
+            // println!("{}", h.to_tensorf());
             // println!("g = {} * \n {} \n\n", g.scalar(), g.to_dot());
             // println!("h = {} * \n {} \n\n", h.scalar(), h.to_dot());
-            assert_eq!(graph.to_tensor4(), h.to_tensor4());
+            assert_eq!(graph.to_tensorf(), h.to_tensorf());
         }
     }
 
@@ -968,7 +968,7 @@ mod tests {
             let mut h = g.clone();
             assert!(remove_single(&mut h, 0));
             assert_eq!(h.num_vertices(), 0, "h still has vertices");
-            assert_eq!(g.to_tensor4(), h.to_tensor4());
+            assert_eq!(g.to_tensorf(), h.to_tensorf());
         }
 
         for &t0 in &[VType::Z, VType::X] {
@@ -982,8 +982,8 @@ mod tests {
                     assert!(remove_pair(&mut h, 0, 1));
                     assert_eq!(h.num_vertices(), 0, "h still has vertices");
                     assert_eq!(
-                        g.to_tensor4(),
-                        h.to_tensor4(),
+                        g.to_tensorf(),
+                        h.to_tensorf(),
                         "Eq failed on case: {:?}, {:?}, {:?}",
                         t0,
                         t1,
@@ -1026,11 +1026,11 @@ mod tests {
 
         let h = g.clone();
         pi_copy(&mut g, vs[0]);
-        assert_eq!(g.to_tensor4(), h.to_tensor4());
+        assert_eq!(g.to_tensorf(), h.to_tensorf());
         pi_copy(&mut g, vs[1]);
-        assert_eq!(g.to_tensor4(), h.to_tensor4());
+        assert_eq!(g.to_tensorf(), h.to_tensorf());
         pi_copy(&mut g, vs[4]);
-        assert_eq!(g.to_tensor4(), h.to_tensor4());
+        assert_eq!(g.to_tensorf(), h.to_tensorf());
     }
 }
 

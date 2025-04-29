@@ -881,8 +881,8 @@ mod tests {
         h.set_inputs(vec![0]);
         h.set_outputs(vec![3]);
 
-        let tg = g.to_tensor4();
-        let th = h.to_tensor4();
+        let tg = g.to_tensorf();
+        let th = h.to_tensorf();
         println!("\n\ntg =\n{}", tg);
         println!("\n\nth =\n{}", th);
         assert_eq!(tg, th);

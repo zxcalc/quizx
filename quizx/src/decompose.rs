@@ -753,10 +753,10 @@ mod tests {
         d.decomp_top();
         assert_eq!(d.stack.len(), 2);
 
-        let t = g.to_tensor4();
-        let mut tsum = Tensor4::zeros(vec![2]);
+        let t = g.to_tensorf();
+        let mut tsum = TensorF::zeros(vec![2]);
         for (_, h) in &d.stack {
-            tsum = tsum + h.to_tensor4();
+            tsum = tsum + h.to_tensorf();
         }
         assert_eq!(t, tsum);
     }
@@ -777,10 +777,10 @@ mod tests {
         d.decomp_top();
         assert_eq!(d.stack.len(), 2);
 
-        let t = g.to_tensor4();
-        let mut tsum = Tensor4::zeros(vec![2; 2]);
+        let t = g.to_tensorf();
+        let mut tsum = TensorF::zeros(vec![2; 2]);
         for (_, h) in &d.stack {
-            tsum = tsum + h.to_tensor4();
+            tsum = tsum + h.to_tensorf();
         }
         assert_eq!(t, tsum);
     }
@@ -801,10 +801,10 @@ mod tests {
         d.decomp_top();
         assert_eq!(d.stack.len(), 7);
 
-        let t = g.to_tensor4();
-        let mut tsum = Tensor4::zeros(vec![2; 6]);
+        let t = g.to_tensorf();
+        let mut tsum = TensorF::zeros(vec![2; 6]);
         for (_, h) in &d.stack {
-            tsum = tsum + h.to_tensor4();
+            tsum = tsum + h.to_tensorf();
         }
         assert_eq!(t, tsum);
     }
@@ -831,9 +831,9 @@ mod tests {
         assert_eq!(d.done.len(), 7 * 2 * 2);
 
         // thorough but SLOW
-        // let t = g.to_tensor4();
-        // let mut tsum = Tensor4::zeros(vec![2; 9]);
-        // for h in &d.done { tsum = tsum + h.to_tensor4(); }
+        // let t = g.to_tensorf();
+        // let mut tsum = TensorF::zeros(vec![2; 9]);
+        // for h in &d.done { tsum = tsum + h.to_tensorf(); }
         // assert_eq!(t, tsum);
     }
 
@@ -856,7 +856,7 @@ mod tests {
     //     d.decomp_all();
     //     // assert_eq!(d.nterms, 7*2*2);
 
-    //     let sc = g.to_tensor4()[[]];
+    //     let sc = g.to_tensorf()[[]];
     //     assert_eq!(Scalar::from_scalar(&sc), d.scalar);
     // }
 
