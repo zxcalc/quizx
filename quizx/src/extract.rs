@@ -368,10 +368,10 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
                 if gadgets.contains(&n) {
                     // TODO: this can be probably be done with
                     // gen_pivot_unsafe
-                    // let t = g.to_tensor4();
+                    // let t = g.to_tensorf();
                     if boundary_pivot(self.g, v, n) {
                         // println!("FIXED GADGET: ({}, gad = {})", v, n);
-                        // assert_eq!(t, g.to_tensor4());
+                        // assert_eq!(t, g.to_tensorf());
                         // println!("{}", g.to_dot());
                         gadgets.remove(&n);
                         return Ok(true);
@@ -404,7 +404,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
     }
 
     pub fn extract(&mut self) -> Result<Circuit, ExtractError<G>> {
-        // let t = self.to_tensor4(); // DEBUG
+        // let t = self.to_tensorf(); // DEBUG
         let mut c = Circuit::new(self.g.outputs().len());
 
         // Pre-generate a set of all the phase gadgets. The extraction should
@@ -433,8 +433,8 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
 
             // Uncomment to debug {{{
             // println!("frontier: {:?}", frontier);
-            // let t1 = self.g.to_tensor4().plug_n_qubits(c.num_qubits(), &c.to_tensor4());
-            // assert!(Tensor4::scalar_eq(&t, &t1));
+            // let t1 = self.g.to_tensorf().plug_n_qubits(c.num_qubits(), &c.to_tensorf());
+            // assert!(TensorF::scalar_eq(&t, &t1));
             // }}}
 
             // GADGET PHASE
@@ -514,7 +514,7 @@ mod tests {
         println!("{}", c);
         // panic!("foo");
 
-        assert_eq!(g.to_tensor4(), c.to_tensor4());
+        assert_eq!(g.to_tensorf(), c.to_tensorf());
     }
 
     #[test]
@@ -538,7 +538,7 @@ mod tests {
         println!("{}", c);
         // panic!("foo");
 
-        assert_eq!(g.to_tensor4(), c.to_tensor4());
+        assert_eq!(g.to_tensorf(), c.to_tensorf());
     }
 
     #[test]
@@ -557,7 +557,7 @@ mod tests {
         match g.to_circuit() {
             Ok(c1) => {
                 println!("CIRCUIT: {}\n", c1);
-                assert_eq!(c.to_tensor4(), c1.to_tensor4());
+                assert_eq!(c.to_tensorf(), c1.to_tensorf());
             }
             Err(ExtractError(msg, c1, g)) => {
                 println!("CIRCUIT: {}\n\nGRAPH: {}\n", c1, g.to_dot());
@@ -583,7 +583,7 @@ mod tests {
 
         match g.to_circuit() {
             Ok(c1) => {
-                assert_eq!(c.to_tensor4(), c1.to_tensor4());
+                assert_eq!(c.to_tensorf(), c1.to_tensorf());
             }
             Err(ExtractError(msg, c1, g)) => {
                 println!("CIRCUIT: {}\n\nGRAPH: {}\n", c1, g.to_dot());
@@ -615,7 +615,7 @@ mod tests {
         match g.to_circuit() {
             Ok(c1) => {
                 println!("CIRCUIT: {}\n", c1);
-                assert_eq!(c.to_tensor4(), c1.to_tensor4());
+                assert_eq!(c.to_tensorf(), c1.to_tensorf());
             }
             Err(ExtractError(msg, c1, g)) => {
                 println!("CIRCUIT: {}\n\nGRAPH: {}\n", c1, g.to_dot());
@@ -637,9 +637,9 @@ mod tests {
         let mut g: Graph = c.to_graph();
         clifford_simp(&mut g);
 
-        assert_eq!(c.to_tensor4(), g.to_tensor4());
+        assert_eq!(c.to_tensorf(), g.to_tensorf());
         let c1 = g.to_circuit().expect("Circuit should extract.");
-        assert!(Tensor4::scalar_compare(&c, &c1));
+        assert!(TensorF::scalar_compare(&c, &c1));
     }
 
     #[test]
@@ -656,9 +656,9 @@ mod tests {
         let mut g: Graph = c.to_graph();
         clifford_simp(&mut g);
 
-        assert_eq!(c.to_tensor4(), g.to_tensor4());
+        assert_eq!(c.to_tensorf(), g.to_tensorf());
         let c1 = g.to_circuit().expect("Circuit should extract.");
-        assert!(Tensor4::scalar_compare(&c, &c1));
+        assert!(TensorF::scalar_compare(&c, &c1));
     }
 
     #[test]
@@ -699,9 +699,9 @@ mod tests {
 
         let mut g: Graph = c.to_graph();
         clifford_simp(&mut g);
-        assert!(Tensor4::scalar_compare(&g, &c));
+        assert!(TensorF::scalar_compare(&g, &c));
         let c1 = g.to_circuit().unwrap();
-        assert!(Tensor4::scalar_compare(&c, &c1));
+        assert!(TensorF::scalar_compare(&c, &c1));
     }
 
     #[test]
@@ -718,7 +718,7 @@ mod tests {
             full_simp(&mut g);
             // println!("{}", g.to_dot());
             let c1 = g.to_circuit().expect("Circuit should extract.");
-            assert!(Tensor4::scalar_compare(&c, &c1));
+            assert!(TensorF::scalar_compare(&c, &c1));
         }
     }
 }

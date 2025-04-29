@@ -23,6 +23,7 @@ use super::{
     EdgeAttrs, JsonError, JsonGraph, JsonPhase, JsonScalar, VertexAnnotations, VertexAttrs,
     VertexData, VertexName,
 };
+use crate::fscalar::FScalar;
 use crate::graph::{Coord, EType, GraphLike, VData, VType, V};
 use crate::phase::Phase;
 
@@ -152,8 +153,8 @@ impl JsonGraph {
             };
         }
 
-        let scalar = graph.scalar();
-        let scalar = scalar.is_one().then(|| JsonScalar::from_scalar(scalar));
+        let scalar = graph.scalar().clone();
+        let scalar = scalar.is_one().then(|| JsonScalar::from(scalar));
 
         Ok(Self {
             wire_vertices,
@@ -289,7 +290,7 @@ impl JsonGraph {
 
         // Set the scalar.
         if let Some(scalar) = &self.scalar {
-            *graph.scalar_mut() = scalar.to_scalar()?;
+            *graph.scalar_mut() = FScalar::try_from(scalar)?;
         }
 
         Ok(graph)

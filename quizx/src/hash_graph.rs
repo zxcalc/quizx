@@ -17,7 +17,7 @@
 pub use crate::graph::*;
 use crate::json::JsonGraph;
 use crate::phase::Phase;
-use crate::scalar::*;
+use crate::fscalar::*;
 use num::rational::Rational64;
 use rustc_hash::FxHashMap;
 use serde::de::Error as _;
@@ -35,7 +35,7 @@ pub struct Graph {
     numv: usize,
     nume: usize,
     freshv: V,
-    scalar: ScalarN,
+    scalar: FScalar,
 }
 
 impl Graph {
@@ -57,7 +57,7 @@ impl GraphLike for Graph {
             numv: 0,
             nume: 0,
             freshv: 0,
-            scalar: Scalar::one(),
+            scalar: 1.into(),
         }
     }
 
@@ -255,10 +255,10 @@ impl GraphLike for Graph {
         self.edata.get(&v).expect("Vertex not found").len()
     }
 
-    fn scalar(&self) -> &ScalarN {
+    fn scalar(&self) -> &FScalar {
         &self.scalar
     }
-    fn scalar_mut(&mut self) -> &mut ScalarN {
+    fn scalar_mut(&mut self) -> &mut FScalar {
         &mut self.scalar
     }
 

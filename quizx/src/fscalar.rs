@@ -57,6 +57,31 @@ impl FScalar {
             }
         })
     }
+
+    fn num_coeffs(&self) -> usize {
+        self.c.iter().fold(0, |n, &co| if co != 0.0 { n + 1 } else { n })
+    }
+
+    pub fn exact_phase_and_pow(&self) -> Option<(Phase, i16)> {
+        let mut p = 0;
+        let mut s = self.clone();
+        if self.num_coeffs() > 1 {
+            p = -1;
+            s *= Self::sqrt2()
+        };
+
+        let edf = s.exact_dyadic_form();
+
+        for i in 0..4 {
+            if edf[i].0 == 1 && edf[(i+1)%4].0 == 0 && edf[(i+2)%4].0 == 0 && edf[(i+3)%4].0 == 0 {
+                return Some((Phase::new(Rational64::new(i as i64, 4)), edf[i].1 * 2 + p))
+            } else if edf[i].0 == -1 && edf[(i+1)%4].0 == 0 && edf[(i+2)%4].0 == 0 && edf[(i+3)%4].0 == 0 {
+                return Some((Phase::new(Rational64::new((i + 4) as i64, 4)), edf[i].1 * 2 + p))
+            }
+        }
+
+        None
+    }
 }
 
 impl Sqrt2 for FScalar {
