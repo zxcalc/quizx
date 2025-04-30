@@ -22,6 +22,18 @@ impl FScalar {
         }
     }
 
+    pub fn real(r: f64) -> Self {
+        FScalar {
+            c: [r, 0.0, 0.0, 0.0],
+        }
+    }
+
+    pub fn complex(r: f64, i: f64) -> Self {
+        FScalar {
+            c: [r, 0.0, i, 0.0],
+        }
+    }
+
     pub fn one_plus_phase(phase: impl Into<Phase>) -> Self {
         FScalar::one() + FScalar::from_phase(phase)
     }
@@ -200,14 +212,14 @@ impl Add<FScalar> for FScalar {
 impl Add<FScalar> for &FScalar {
     type Output = FScalar;
     fn add(self, rhs: FScalar) -> Self::Output {
-        self + rhs
+        self + &rhs
     }
 }
 
 impl Add<&FScalar> for FScalar {
     type Output = FScalar;
     fn add(self, rhs: &FScalar) -> Self::Output {
-        self + rhs
+        &self + rhs
     }
 }
 
@@ -247,14 +259,14 @@ impl Sub<FScalar> for FScalar {
 impl Sub<FScalar> for &FScalar {
     type Output = FScalar;
     fn sub(self, rhs: FScalar) -> Self::Output {
-        self - rhs
+        self - &rhs
     }
 }
 
 impl Sub<&FScalar> for FScalar {
     type Output = FScalar;
     fn sub(self, rhs: &FScalar) -> Self::Output {
-        self - rhs
+        &self - rhs
     }
 }
 
@@ -291,22 +303,22 @@ impl Mul<&FScalar> for &FScalar {
 }
 
 // These 3 variations take ownership of one or both args
-impl Mul for FScalar {
+impl Mul<FScalar> for FScalar {
     type Output = FScalar;
     fn mul(self, rhs: FScalar) -> Self::Output {
-        self * rhs
+        &self * &rhs
     }
 }
 impl Mul<FScalar> for &FScalar {
     type Output = FScalar;
     fn mul(self, rhs: FScalar) -> Self::Output {
-        self * rhs
+        self * &rhs
     }
 }
 impl Mul<&FScalar> for FScalar {
     type Output = FScalar;
     fn mul(self, rhs: &FScalar) -> Self::Output {
-        self * rhs
+        &self * rhs
     }
 }
 

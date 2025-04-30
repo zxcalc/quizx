@@ -130,7 +130,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // outcome 1: let |g> = |h> = (<1| ⊗ I)|g>
                 g.plug_output(0, BasisElem::Z1);
                 // and save <g|g> = <h|h>
-                renorm = prob.clone();
+                renorm = prob;
                 1
             } else {
                 // outcome 0: for |h'> = (<0| ⊗ I)|g>
@@ -141,7 +141,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 // and <g|g> = <h'|h'>
                 prob = renorm + FScalar::minus_one() * prob;
-                renorm = prob.clone();
+                renorm = prob;
 
                 p = 1.0 - p; // complement probability for output below
 

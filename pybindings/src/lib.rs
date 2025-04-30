@@ -162,7 +162,7 @@ impl Decomposer {
 
     #[getter]
     fn get_scalar(&self) -> Scalar {
-        self.d.scalar.clone().into()
+        self.d.scalar.into()
     }
 
     #[setter]

@@ -119,7 +119,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         d.with_full_simp();
 
         let d = d.decomp_parallel(3);
-        let prob = &d.scalar * &d.scalar.conj();
+        let prob = d.scalar * d.scalar.conj();
         terms += d.nterms;
 
         if debug {

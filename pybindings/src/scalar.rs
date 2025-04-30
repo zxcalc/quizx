@@ -174,18 +174,18 @@ impl Scalar {
 
     pub fn __add__(&self, other: &Self) -> Self {
         Self {
-            s: &self.s + &other.s,
+            s: self.s + other.s,
         }
     }
 
     pub fn __radd__(&self, other: &Self) -> Self {
         Self {
-            s: &self.s + &other.s,
+            s: self.s + other.s,
         }
     }
 
     pub fn __iadd__(&mut self, other: &Self) {
-        self.s = &self.s + &other.s;
+        self.s += other.s;
     }
 
     pub fn __sub__(&self, other: &Self) -> Self {
@@ -204,13 +204,13 @@ impl Scalar {
 
     pub fn __mul__(&self, other: &Self) -> Self {
         Self {
-            s: &self.s * &other.s,
+            s: self.s * other.s,
         }
     }
 
     pub fn __rmul__(&self, other: &Self) -> Self {
         Self {
-            s: &self.s * &other.s,
+            s: self.s * other.s,
         }
     }
 
