@@ -17,8 +17,8 @@
 use itertools::Itertools;
 use quizx::circuit::*;
 use quizx::decompose::Decomposer;
-use quizx::graph::*;
 use quizx::fscalar::*;
+use quizx::graph::*;
 use quizx::vec_graph::Graph;
 use std::env;
 use std::fs;
