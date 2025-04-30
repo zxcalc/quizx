@@ -41,10 +41,8 @@ uv run python -c "import quizx"
 To compile and test the code, run:
 
 ```bash
-just test
-# or, to test only the rust code or the python code
-just test rust
-just test python
+just test-rust
+just test-python
 ```
 
 ## 💅 Coding Style
@@ -56,7 +54,8 @@ correctly.
 To format your code, run:
 
 ```bash
-just format
+just format-rust
+just format-python
 ```
 
 We also use various linters to catch common mistakes and enforce best practices. To run these, use:
@@ -68,10 +67,8 @@ just check
 To quickly fix common issues, run:
 
 ```bash
-just fix
-# or, to fix only the rust code or the python code
-just fix rust
-just fix python
+just fix-rust
+just fix-python
 ```
 
 ## 🌐 Contributing to quizx
