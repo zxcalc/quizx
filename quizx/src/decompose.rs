@@ -164,7 +164,7 @@ impl<G: GraphLike> Decomposer<G> {
             let cat_nodes = Decomposer::cat_ts(&g); //gadget_ts(&g);
                                                     //println!("{:?}", gadget_nodes);
                                                     //let nts = cat_nodes.iter().fold(0, |acc, &x| if g.phase(x).denom() == &4 { acc + 1 } else { acc });
-            if !cat_nodes.is_empty() {
+            if cat_nodes.len() > 3 {
                 // println!("using cat!");
                 return self.push_cat_decomp(depth + 1, &g, &cat_nodes);
             }
@@ -419,7 +419,7 @@ impl<G: GraphLike> Decomposer<G> {
         // verts[0] is a 0- or pi-spider, linked to all and only to vs in verts[1..] which are T-spiders
         let mut g = g.clone(); // that is annoying ...
         let mut verts = Vec::from(verts);
-        let num_ts = verts.len() - 1;
+        let mut num_verts = verts.len() - 1;
         if g.phase(verts[0]).is_one() {
             g.set_phase(verts[0], Rational64::new(0, 1));
             let mut neigh = g.neighbor_vec(verts[1]);
@@ -431,14 +431,15 @@ impl<G: GraphLike> Decomposer<G> {
             *g.scalar_mut() *= ScalarN::from_phase(tmp);
             g.set_phase(verts[1], g.phase(verts[1]) * -1);
         }
-        if num_ts == 3 || num_ts == 5 {
+        if num_verts == 3 || num_verts == 5 {
             let w = g.add_vertex(VType::Z);
             let v = g.add_vertex(VType::Z);
             g.add_edge_with_type(v, w, EType::H);
             g.add_edge_with_type(v, verts[0], EType::H);
             verts.push(v);
+            num_verts += 1;
         }
-        if num_ts == 6 {
+        if num_verts == 6 {
             self.push_decomp(
                 &[
                     Decomposer::replace_cat6_0,
@@ -449,7 +450,7 @@ impl<G: GraphLike> Decomposer<G> {
                 &g,
                 &verts,
             )
-        } else if num_ts == 4 {
+        } else if num_verts == 4 {
             self.push_decomp(
                 &[Decomposer::replace_cat4_0, Decomposer::replace_cat4_1],
                 depth,
@@ -457,8 +458,7 @@ impl<G: GraphLike> Decomposer<G> {
                 &verts,
             )
         } else {
-            println!("this shouldn't be printed");
-            self
+            panic!("this shouldn't be printed")
         }
     }
 
