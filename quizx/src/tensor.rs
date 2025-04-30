@@ -316,7 +316,7 @@ impl<G: GraphLike + Clone> ToTensor for G {
         for v in g.vertices() {
             let t = g.vertex_type(v);
             if t != VType::B && t != VType::Z {
-                panic!("Vertex type currently unsupported: {:?}", t);
+                panic!("Vertex type currently unsupported: {t:?}");
             }
         }
 
@@ -476,7 +476,7 @@ mod tests {
         g.add_vertex(VType::Z);
         g.add_edge(0, 1);
         let t: Tensor<FScalar> = g.to_tensor();
-        println!("{}", t);
+        println!("{t}");
     }
 
     #[test]
@@ -519,7 +519,7 @@ mod tests {
         g.set_inputs(vec![0, 1]);
         g.set_outputs(vec![2, 3]);
         let t = g.to_tensorf();
-        println!("{}", t);
+        println!("{t}");
         assert_eq!(t, Tensor::delta(4));
     }
 
@@ -541,7 +541,7 @@ mod tests {
         g.set_outputs(vec![4, 5]);
         g.scalar_mut().mul_sqrt2_pow(1);
         let t = g.to_tensorf();
-        println!("{}", t);
+        println!("{t}");
         assert_eq!(t, Tensor::cphase(Rational64::one(), 2));
     }
 
@@ -607,7 +607,7 @@ mod tests {
         let t2 = c2.to_tensorf();
         let t3 = t1.plug_n_qubits(2, &t2);
 
-        println!("{}", t3);
+        println!("{t3}");
         println!("{}", c3.to_tensorf());
 
         assert_eq!(t3, c3.to_tensorf());

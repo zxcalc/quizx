@@ -305,7 +305,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
                         // for unitary circuits, an additional boundary must be an input
                         if !self.g.inputs().contains(&n) {
                             return Err(ExtractError(
-                                format!("Two outputs connected to a single vertex {}.", v),
+                                format!("Two outputs connected to a single vertex {v}."),
                                 c.clone(),
                                 self.g.clone(),
                             ));
@@ -337,7 +337,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
                         // we should not encounter any non-Z vertices at this point
                     } else if self.g.vertex_type(n) != VType::Z {
                         return Err(ExtractError(
-                            format!("Bad neighbour: {}", n),
+                            format!("Bad neighbour: {n}"),
                             c.clone(),
                             self.g.clone(),
                         ));
@@ -347,7 +347,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
                 // this will happen if there is an output vertex not connected to anything, which
                 // is a mal-formed graph
                 return Err(ExtractError(
-                    format!("Bad output vertex {}", o),
+                    format!("Bad output vertex {o}"),
                     c.clone(),
                     self.g.clone(),
                 ));
@@ -377,7 +377,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
                         return Ok(true);
                     } else {
                         return Err(ExtractError(
-                            format!("Could not remove gadget by pivoting: ({}, {})", v, n),
+                            format!("Could not remove gadget by pivoting: ({v}, {n})"),
                             c.clone(),
                             self.g.clone(),
                         ));
@@ -511,7 +511,7 @@ mod tests {
         let mut e = Extractor::new(&mut g1);
         e.perm_to_cnots(&mut c, 3);
         // c.adjoint();
-        println!("{}", c);
+        println!("{c}");
         // panic!("foo");
 
         assert_eq!(g.to_tensorf(), c.to_tensorf());
@@ -535,7 +535,7 @@ mod tests {
         let mut e = Extractor::new(&mut g1);
         e.perm_to_cnots(&mut c, 3);
         // c.adjoint();
-        println!("{}", c);
+        println!("{c}");
         // panic!("foo");
 
         assert_eq!(g.to_tensorf(), c.to_tensorf());
@@ -556,12 +556,12 @@ mod tests {
 
         match g.to_circuit() {
             Ok(c1) => {
-                println!("CIRCUIT: {}\n", c1);
+                println!("CIRCUIT: {c1}\n");
                 assert_eq!(c.to_tensorf(), c1.to_tensorf());
             }
             Err(ExtractError(msg, c1, g)) => {
                 println!("CIRCUIT: {}\n\nGRAPH: {}\n", c1, g.to_dot());
-                panic!("Extraction failed: {}", msg);
+                panic!("Extraction failed: {msg}");
             }
         }
     }
@@ -587,7 +587,7 @@ mod tests {
             }
             Err(ExtractError(msg, c1, g)) => {
                 println!("CIRCUIT: {}\n\nGRAPH: {}\n", c1, g.to_dot());
-                panic!("Extraction failed: {}", msg);
+                panic!("Extraction failed: {msg}");
             }
         }
     }
@@ -614,12 +614,12 @@ mod tests {
 
         match g.to_circuit() {
             Ok(c1) => {
-                println!("CIRCUIT: {}\n", c1);
+                println!("CIRCUIT: {c1}\n");
                 assert_eq!(c.to_tensorf(), c1.to_tensorf());
             }
             Err(ExtractError(msg, c1, g)) => {
                 println!("CIRCUIT: {}\n\nGRAPH: {}\n", c1, g.to_dot());
-                panic!("Extraction failed: {}", msg);
+                panic!("Extraction failed: {msg}");
             }
         }
     }

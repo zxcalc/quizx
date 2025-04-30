@@ -138,7 +138,7 @@ impl Gate {
         }
 
         s += " ";
-        let qs: Vec<String> = self.qs.iter().map(|i| format!("q[{}]", i)).collect();
+        let qs: Vec<String> = self.qs.iter().map(|i| format!("q[{i}]")).collect();
         s += &qs.join(", ");
 
         s

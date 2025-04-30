@@ -698,8 +698,8 @@ mod tests {
 
         let tg = g.to_tensorf();
         let th = h.to_tensorf();
-        println!("\n\ntg =\n{}", tg);
-        println!("\n\nth =\n{}", th);
+        println!("\n\ntg =\n{tg}");
+        println!("\n\nth =\n{th}");
         assert_eq!(tg, th);
 
         assert_eq!(g.phase(vs[2]), Rational64::new(3, 4).into());
@@ -742,8 +742,8 @@ mod tests {
 
         let tg = g.to_tensorf();
         let th = h.to_tensorf();
-        println!("\n\ntg =\n{}", tg);
-        println!("\n\nth =\n{}", th);
+        println!("\n\ntg =\n{tg}");
+        println!("\n\nth =\n{th}");
         assert_eq!(tg, th);
 
         for i in 1..5 {
@@ -984,10 +984,7 @@ mod tests {
                     assert_eq!(
                         g.to_tensorf(),
                         h.to_tensorf(),
-                        "Eq failed on case: {:?}, {:?}, {:?}",
-                        t0,
-                        t1,
-                        et
+                        "Eq failed on case: {t0:?}, {t1:?}, {et:?}"
                     );
                 }
             }

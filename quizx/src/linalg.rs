@@ -317,7 +317,7 @@ impl fmt::Display for Mat2 {
         for row in &self.d {
             write!(f, "[ ")?;
             for x in row {
-                write!(f, "{} ", x)?;
+                write!(f, "{x} ")?;
             }
             writeln!(f, "]")?;
         }

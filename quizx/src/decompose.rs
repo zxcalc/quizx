@@ -241,7 +241,7 @@ impl<G: GraphLike> Decomposer<G> {
             self.push_single_decomp(depth + 1, &g, ts);
         } else {
             // crate::simplify::full_simp(&mut g);
-            self.scalar = &self.scalar + g.scalar();
+            self.scalar += g.scalar();
             self.nterms += 1;
             if g.inputs().is_empty() && g.outputs().is_empty() && g.num_vertices() != 0 {
                 println!("{}", g.to_dot());
@@ -707,22 +707,22 @@ mod tests {
         // form scalars for the BSS decomposition were computed
         let one = FScalar::one();
         let om = FScalar::dyadic(0, [0, 1, 0, 0]);
-        let om2 = &om * &om;
+        let om2 = om * om;
         let om7 = FScalar::dyadic(0, [0, 0, 0, -1]);
-        assert_eq!(&om * &om7, FScalar::one());
+        assert_eq!(om * om7, FScalar::one());
 
         let minus = FScalar::dyadic(0, [-1, 0, 0, 0]);
         let onefourth = FScalar::dyadic(-2, [1, 0, 0, 0]);
-        let two = &one + &one;
+        let two = one + one;
         let sqrt2 = FScalar::sqrt2();
-        let eight = &two * &two * &two;
+        let eight = two * two * two;
 
-        let k6 = &om7 * &two * &om;
-        let phi = &om7 * &eight * &sqrt2 * &om2;
-        let b60 = &om7 * &minus * &onefourth * (&one + &sqrt2);
-        let b66 = &om7 * &onefourth * (&one + (&minus * &sqrt2));
-        let o6 = &om7 * &minus * &two * &sqrt2 * &om2;
-        let e6 = &om7 * &minus * &two * &om2;
+        let k6 = om7 * two * om;
+        let phi = om7 * eight * sqrt2 * om2;
+        let b60 = om7 * minus * onefourth * (one + sqrt2);
+        let b66 = om7 * onefourth * (one + (minus * sqrt2));
+        let o6 = om7 * minus * two * sqrt2 * om2;
+        let e6 = om7 * minus * two * om2;
 
         assert_eq!(b60, FScalar::dyadic(-2, [-1, 0, 1, 1]));
         assert_eq!(b66, FScalar::dyadic(-2, [-1, 0, 1, -1]));
@@ -735,8 +735,8 @@ mod tests {
     #[test]
     fn single_scalars() {
         let s0 = FScalar::sqrt2_pow(-1);
-        let s1 = FScalar::from_phase(Rational64::new(1, 4)) * &s0;
-        println!("s0 = {:?}\ns1 = {:?}", s0, s1);
+        let s1 = FScalar::from_phase(Rational64::new(1, 4)) * s0;
+        println!("s0 = {s0:?}\ns1 = {s1:?}");
         assert_eq!(s0, FScalar::dyadic(-1, [0, 1, 0, -1]));
         assert_eq!(s1, FScalar::dyadic(-1, [1, 0, 1, 0]));
     }

@@ -72,7 +72,7 @@ impl FScalar {
 
     pub fn exact_phase_and_pow(&self) -> Option<(Phase, i16)> {
         let mut p = 0;
-        let mut s = self.clone();
+        let mut s = *self;
         if self.num_coeffs() > 1 {
             p = -1;
             s *= Self::sqrt2()
@@ -146,18 +146,16 @@ impl fmt::Display for FScalar {
 
             if v != 0 {
                 if fst {
-                    write!(f, "{}", v)?;
+                    write!(f, "{v}")?;
                     fst = false;
+                } else if v > 0 {
+                    write!(f, " + {v}")?;
                 } else {
-                    if v > 0 {
-                        write!(f, " + {}", v)?;
-                    } else {
-                        write!(f, " - {}", -v)?;
-                    }
+                    write!(f, " - {}", -v)?;
                 }
 
                 if e != 0 {
-                    write!(f, "e{}", e)?;
+                    write!(f, "e{e}")?;
                 }
                 if i == 1 {
                     write!(f, " ω")?;
@@ -204,26 +202,26 @@ impl Add<FScalar> for FScalar {
 impl Add<FScalar> for &FScalar {
     type Output = FScalar;
     fn add(self, rhs: FScalar) -> Self::Output {
-        self + &rhs
+        self + rhs
     }
 }
 
 impl Add<&FScalar> for FScalar {
     type Output = FScalar;
     fn add(self, rhs: &FScalar) -> Self::Output {
-        &self + rhs
+        self + rhs
     }
 }
 
 impl AddAssign for FScalar {
     fn add_assign(&mut self, rhs: Self) {
-        *self = &*self + &rhs;
+        *self = *self + rhs;
     }
 }
 
 impl AddAssign<&FScalar> for FScalar {
     fn add_assign(&mut self, rhs: &FScalar) {
-        *self = &*self + rhs;
+        *self = *self + rhs;
     }
 }
 
@@ -251,26 +249,26 @@ impl Sub<FScalar> for FScalar {
 impl Sub<FScalar> for &FScalar {
     type Output = FScalar;
     fn sub(self, rhs: FScalar) -> Self::Output {
-        self - &rhs
+        self - rhs
     }
 }
 
 impl Sub<&FScalar> for FScalar {
     type Output = FScalar;
     fn sub(self, rhs: &FScalar) -> Self::Output {
-        &self - rhs
+        self - rhs
     }
 }
 
 impl SubAssign for FScalar {
     fn sub_assign(&mut self, rhs: Self) {
-        *self = &*self - &rhs;
+        *self = *self - rhs;
     }
 }
 
 impl SubAssign<&FScalar> for FScalar {
     fn sub_assign(&mut self, rhs: &FScalar) {
-        *self = &*self - rhs;
+        *self = *self - rhs;
     }
 }
 
@@ -298,33 +296,33 @@ impl Mul<&FScalar> for &FScalar {
 impl Mul for FScalar {
     type Output = FScalar;
     fn mul(self, rhs: FScalar) -> Self::Output {
-        &self * &rhs
+        self * rhs
     }
 }
 impl Mul<FScalar> for &FScalar {
     type Output = FScalar;
     fn mul(self, rhs: FScalar) -> Self::Output {
-        self * &rhs
+        self * rhs
     }
 }
 impl Mul<&FScalar> for FScalar {
     type Output = FScalar;
     fn mul(self, rhs: &FScalar) -> Self::Output {
-        &self * rhs
+        self * rhs
     }
 }
 
 /// Implements *=
 impl MulAssign<FScalar> for FScalar {
     fn mul_assign(&mut self, rhs: FScalar) {
-        *self = &*self * &rhs;
+        *self = *self * rhs;
     }
 }
 
 // Variation takes ownership of rhs
 impl MulAssign<&FScalar> for FScalar {
     fn mul_assign(&mut self, rhs: &FScalar) {
-        *self = &*self * rhs;
+        *self = *self * rhs;
     }
 }
 
@@ -456,19 +454,19 @@ mod test {
     #[test]
     fn display() {
         let s = FScalar::zero();
-        assert_eq!(format!("{}", s), "0");
+        assert_eq!(format!("{s}"), "0");
 
         let s: FScalar = [1, 2, 3, 4].into();
-        assert_eq!(format!("{}", s), "1 + 2 ω + 3 ω² + 4 ω³");
+        assert_eq!(format!("{s}"), "1 + 2 ω + 3 ω² + 4 ω³");
 
         let s: FScalar = [-1, -2, -3, -4].into();
-        assert_eq!(format!("{}", s), "-1 - 2 ω - 3 ω² - 4 ω³");
+        assert_eq!(format!("{s}"), "-1 - 2 ω - 3 ω² - 4 ω³");
 
         let s: FScalar = [0, 2, 0, 4].into();
-        assert_eq!(format!("{}", s), "2 ω + 4 ω³");
+        assert_eq!(format!("{s}"), "2 ω + 4 ω³");
 
         let s: FScalar = [0.5, 0.25, 0.125, 0.0625].into();
-        assert_eq!(format!("{}", s), "1e-1 + 1e-2 ω + 1e-3 ω² + 1e-4 ω³");
+        assert_eq!(format!("{s}"), "1e-1 + 1e-2 ω + 1e-3 ω² + 1e-4 ω³");
 
         let s: FScalar = [
             2.0f64.powi(11),
@@ -477,7 +475,7 @@ mod test {
             2.0f64.powi(41),
         ]
         .into();
-        assert_eq!(format!("{}", s), "1e11 + 1e21 ω + 1e31 ω² + 1e41 ω³");
+        assert_eq!(format!("{s}"), "1e11 + 1e21 ω + 1e31 ω² + 1e41 ω³");
     }
 
     #[test]

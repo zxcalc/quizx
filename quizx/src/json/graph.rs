@@ -37,9 +37,9 @@ impl JsonGraph {
         let mut undir_edges = HashMap::new();
 
         // The encoding requires unique string names for vertices and edges.
-        let mut vertex_name_gen = (0..).map(|i| format!("v{}", i));
-        let mut bound_name_gen = (0..).map(|i| format!("b{}", i));
-        let mut edge_name_gen = (0..).map(|i| format!("e{}", i));
+        let mut vertex_name_gen = (0..).map(|i| format!("v{i}"));
+        let mut bound_name_gen = (0..).map(|i| format!("b{i}"));
+        let mut edge_name_gen = (0..).map(|i| format!("e{i}"));
 
         let mut v_names: HashMap<V, VertexName> = HashMap::new();
 
@@ -153,7 +153,7 @@ impl JsonGraph {
             };
         }
 
-        let scalar = graph.scalar().clone();
+        let scalar = *graph.scalar();
         let scalar = scalar.is_one().then(|| JsonScalar::from(scalar));
 
         Ok(Self {
