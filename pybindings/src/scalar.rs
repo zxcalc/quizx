@@ -190,7 +190,7 @@ impl Scalar {
 
     pub fn __sub__(&self, other: &Self) -> Self {
         Self {
-            s: &self.s + (&other.s * FScalar::minus_one()),
+            s: self.s + (other.s * FScalar::minus_one()),
         }
     }
 
@@ -224,7 +224,7 @@ impl Scalar {
 
     pub fn __neg__(&self) -> Self {
         Self {
-            s: &self.s * FScalar::minus_one(),
+            s: self.s * FScalar::minus_one(),
         }
     }
 

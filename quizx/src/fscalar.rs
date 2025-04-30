@@ -205,21 +205,25 @@ impl Add<&FScalar> for &FScalar {
 impl Add<FScalar> for FScalar {
     type Output = FScalar;
     fn add(self, rhs: FScalar) -> Self::Output {
-        &self + &rhs
+        let rself = &self;
+        let rrhs = &rhs;
+        rself + rrhs
     }
 }
 
 impl Add<FScalar> for &FScalar {
     type Output = FScalar;
     fn add(self, rhs: FScalar) -> Self::Output {
-        self + &rhs
+        let rrhs = &rhs;
+        self + rrhs
     }
 }
 
 impl Add<&FScalar> for FScalar {
     type Output = FScalar;
     fn add(self, rhs: &FScalar) -> Self::Output {
-        &self + rhs
+        let rself = &self;
+        rself + rhs
     }
 }
 
@@ -259,14 +263,16 @@ impl Sub<FScalar> for FScalar {
 impl Sub<FScalar> for &FScalar {
     type Output = FScalar;
     fn sub(self, rhs: FScalar) -> Self::Output {
-        self - &rhs
+        let rrhs = &rhs;
+        self - rrhs
     }
 }
 
 impl Sub<&FScalar> for FScalar {
     type Output = FScalar;
     fn sub(self, rhs: &FScalar) -> Self::Output {
-        &self - rhs
+        let rself = &self;
+        rself - rhs
     }
 }
 
@@ -306,19 +312,23 @@ impl Mul<&FScalar> for &FScalar {
 impl Mul<FScalar> for FScalar {
     type Output = FScalar;
     fn mul(self, rhs: FScalar) -> Self::Output {
-        &self * &rhs
+        let rself = &self;
+        let rrhs = &rhs;
+        rself * rrhs
     }
 }
 impl Mul<FScalar> for &FScalar {
     type Output = FScalar;
     fn mul(self, rhs: FScalar) -> Self::Output {
-        self * &rhs
+        let rrhs = &rhs;
+        self * rrhs
     }
 }
 impl Mul<&FScalar> for FScalar {
     type Output = FScalar;
     fn mul(self, rhs: &FScalar) -> Self::Output {
-        &self * rhs
+        let rself = &self;
+        rself * rhs
     }
 }
 

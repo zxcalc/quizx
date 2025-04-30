@@ -45,7 +45,7 @@ impl From<&FScalar> for JsonScalar {
 
 impl From<FScalar> for JsonScalar {
     fn from(value: FScalar) -> Self {
-        value.into()
+        JsonScalar::from(&value)
     }
 }
 
@@ -86,7 +86,7 @@ impl TryFrom<JsonScalar> for FScalar {
     type Error = JsonError;
 
     fn try_from(value: JsonScalar) -> Result<Self, Self::Error> {
-        value.try_into()
+        FScalar::try_from(&value)
     }
 }
 
