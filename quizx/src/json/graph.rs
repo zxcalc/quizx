@@ -23,6 +23,7 @@ use super::{
     EdgeAttrs, JsonError, JsonGraph, JsonPhase, JsonScalar, VertexAnnotations, VertexAttrs,
     VertexData, VertexName,
 };
+use crate::fscalar::FScalar;
 use crate::graph::{Coord, EType, GraphLike, VData, VType, V};
 use crate::phase::Phase;
 
@@ -36,9 +37,9 @@ impl JsonGraph {
         let mut undir_edges = HashMap::new();
 
         // The encoding requires unique string names for vertices and edges.
-        let mut vertex_name_gen = (0..).map(|i| format!("v{}", i));
-        let mut bound_name_gen = (0..).map(|i| format!("b{}", i));
-        let mut edge_name_gen = (0..).map(|i| format!("e{}", i));
+        let mut vertex_name_gen = (0..).map(|i| format!("v{i}"));
+        let mut bound_name_gen = (0..).map(|i| format!("b{i}"));
+        let mut edge_name_gen = (0..).map(|i| format!("e{i}"));
 
         let mut v_names: HashMap<V, VertexName> = HashMap::new();
 
@@ -152,8 +153,8 @@ impl JsonGraph {
             };
         }
 
-        let scalar = graph.scalar();
-        let scalar = scalar.is_one().then(|| JsonScalar::from_scalar(scalar));
+        let scalar = *graph.scalar();
+        let scalar = scalar.is_one().then(|| JsonScalar::from(scalar));
 
         Ok(Self {
             wire_vertices,
@@ -289,7 +290,7 @@ impl JsonGraph {
 
         // Set the scalar.
         if let Some(scalar) = &self.scalar {
-            *graph.scalar_mut() = scalar.to_scalar()?;
+            *graph.scalar_mut() = FScalar::try_from(scalar)?;
         }
 
         Ok(graph)

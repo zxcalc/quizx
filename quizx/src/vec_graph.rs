@@ -14,9 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::fscalar::*;
 pub use crate::graph::*;
 use crate::phase::Phase;
-use crate::scalar::*;
 use num::rational::Rational64;
 use std::mem;
 
@@ -31,7 +31,7 @@ pub struct Graph {
     outputs: Vec<V>,
     numv: usize,
     nume: usize,
-    scalar: ScalarN,
+    scalar: FScalar,
 }
 
 impl Graph {
@@ -96,7 +96,7 @@ impl GraphLike for Graph {
             outputs: Vec::new(),
             numv: 0,
             nume: 0,
-            scalar: Scalar::one(),
+            scalar: 1.into(),
         }
     }
 
@@ -341,10 +341,10 @@ impl GraphLike for Graph {
         }
     }
 
-    fn scalar(&self) -> &ScalarN {
+    fn scalar(&self) -> &FScalar {
         &self.scalar
     }
-    fn scalar_mut(&mut self) -> &mut ScalarN {
+    fn scalar_mut(&mut self) -> &mut FScalar {
         &mut self.scalar
     }
 

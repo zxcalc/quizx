@@ -89,13 +89,13 @@ impl JsonPhase {
         let numer = match (options.ignore_pi, *phase.numer()) {
             (false, 1) => "pi".to_string(),
             (false, -1) => "-pi".to_string(),
-            (false, n) => format!("{}*pi", n),
-            (true, n) => format!("{}", n),
+            (false, n) => format!("{n}*pi"),
+            (true, n) => format!("{n}"),
         };
 
         let denom = match *phase.denom() {
             1 => "".to_string(),
-            d => format!("/{}", d),
+            d => format!("/{d}"),
         };
 
         Self(format!("{simstr}{numer}{denom}"))

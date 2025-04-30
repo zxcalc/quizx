@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::fscalar::*;
 use crate::phase::Phase;
-use crate::scalar::*;
 use crate::util::*;
 use derive_more::{Display, From};
 use num::rational::Rational64;
@@ -446,8 +446,8 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     fn neighbors(&self, v: V) -> NeighborIter;
     fn incident_edges(&self, v: V) -> IncidentEdgeIter;
     fn degree(&self, v: V) -> usize;
-    fn scalar(&self) -> &ScalarN;
-    fn scalar_mut(&mut self) -> &mut ScalarN;
+    fn scalar(&self) -> &FScalar;
+    fn scalar_mut(&mut self) -> &mut FScalar;
     fn find_edge<F>(&self, f: F) -> Option<(V, V, EType)>
     where
         F: Fn(V, V, EType) -> bool;
@@ -565,8 +565,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
                     }
                 }
                 _ => panic!(
-                    "Parallel edges only supported between Z and X vertices ({:?} --> {:?})",
-                    st, tt
+                    "Parallel edges only supported between Z and X vertices ({st:?} --> {tt:?})"
                 ),
             }
         } else {
@@ -682,11 +681,11 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
             let (no, et0) = self
                 .incident_edges(o)
                 .next()
-                .unwrap_or_else(|| panic!("Bad output: {}", o));
+                .unwrap_or_else(|| panic!("Bad output: {o}"));
             let (ni, et1) = other
                 .incident_edges(i)
                 .next()
-                .unwrap_or_else(|| panic!("Bad input: {}", i));
+                .unwrap_or_else(|| panic!("Bad input: {i}"));
             let et = EType::merge(et0, et1);
 
             self.add_edge_smart(no, vmap[&ni], et);
@@ -738,19 +737,19 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
                     VType::ZBox => "purple",
                 },
                 if self.inputs().contains(&v) {
-                    format!("{}:i", v)
+                    format!("{v}:i")
                 } else if self.outputs().contains(&v) {
-                    format!("{}:o", v)
+                    format!("{v}:o")
                 } else if !p.is_zero() {
-                    format!("{}:{}", v, p)
+                    format!("{v}:{p}")
                 } else {
-                    format!("{}", v)
+                    format!("{v}")
                 }
             );
             let q = self.qubit(v);
             let r = self.row(v);
             if q != 0.0 || r != 0.0 {
-                dot += &format!(", pos=\"{},{}!\"", q, r);
+                dot += &format!(", pos=\"{q},{r}!\"");
             }
             dot += "]\n";
         }
@@ -758,7 +757,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         dot += "\n";
 
         for (s, t, ty) in self.edges() {
-            dot += &format!("  {} -- {}", s, t);
+            dot += &format!("  {s} -- {t}");
             if ty == EType::H {
                 dot += " [color=blue]";
             }
@@ -881,10 +880,10 @@ mod tests {
         h.set_inputs(vec![0]);
         h.set_outputs(vec![3]);
 
-        let tg = g.to_tensor4();
-        let th = h.to_tensor4();
-        println!("\n\ntg =\n{}", tg);
-        println!("\n\nth =\n{}", th);
+        let tg = g.to_tensorf();
+        let th = h.to_tensorf();
+        println!("\n\ntg =\n{tg}");
+        println!("\n\nth =\n{th}");
         assert_eq!(tg, th);
     }
 
