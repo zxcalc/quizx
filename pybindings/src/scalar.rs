@@ -68,9 +68,7 @@ impl Scalar {
     /// Create a new real scalar from a float number.
     #[staticmethod]
     pub fn real(real: f64) -> Self {
-        Self {
-            s: real.into(),
-        }
+        Self { s: real.into() }
     }
 
     /// Returns a scalar value of e^{i \pi phase}.
@@ -85,7 +83,7 @@ impl Scalar {
     #[staticmethod]
     pub fn from_int_coeffs(coeffs: Vec<i32>) -> Self {
         Self {
-            s: [coeffs[0], coeffs[1], coeffs[2], coeffs[3]].into()
+            s: [coeffs[0], coeffs[1], coeffs[2], coeffs[3]].into(),
         }
     }
 
