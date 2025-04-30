@@ -136,9 +136,7 @@ impl fmt::Display for FScalar {
         let mut fst = true;
 
         let dy = self.exact_dyadic_form();
-        for i in 0..4 {
-            let (mut v, mut e) = dy[i];
-
+        for (i, (mut v, mut e)) in dy.iter().enumerate() {
             if v > -1024 && v < 1024 && e > 0 && e <= 10 {
                 v *= 2i64.pow(e as u32);
                 e = 0;
