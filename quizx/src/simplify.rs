@@ -284,7 +284,7 @@ mod tests {
         clifford_simp(&mut g);
 
         println!("{}", g.to_dot());
-        assert_eq!(c.to_tensor4(), g.to_tensor4());
+        assert_eq!(c.to_tensorf(), g.to_tensorf());
     }
 
     #[test]
@@ -311,13 +311,13 @@ mod tests {
 
         let mut h = g.clone();
         assert!(interior_clifford_simp(&mut h));
-        assert_eq!(g.to_tensor4(), h.to_tensor4());
+        assert_eq!(g.to_tensorf(), h.to_tensorf());
 
         let mut h = g.clone();
         assert!(clifford_simp(&mut h));
         println!("{}", g.to_dot());
         println!("{}", h.to_dot());
-        assert_eq!(g.to_tensor4(), h.to_tensor4());
+        assert_eq!(g.to_tensorf(), h.to_tensorf());
     }
 
     #[test]
@@ -334,13 +334,13 @@ mod tests {
 
         let mut h = g.clone();
         assert!(interior_clifford_simp(&mut h));
-        assert_eq!(g.to_tensor4(), h.to_tensor4());
+        assert_eq!(g.to_tensorf(), h.to_tensorf());
 
         let mut h = g.clone();
         assert!(clifford_simp(&mut h));
         println!("{}", g.to_dot());
         println!("{}", h.to_dot());
-        assert_eq!(g.to_tensor4(), h.to_tensor4());
+        assert_eq!(g.to_tensorf(), h.to_tensorf());
     }
 
     #[test]
@@ -357,7 +357,7 @@ mod tests {
         let mut h = g.clone();
         full_simp(&mut h);
         assert_eq!(h.num_vertices(), 0);
-        assert_eq!(g.to_tensor4(), h.to_tensor4());
+        assert_eq!(g.to_tensorf(), h.to_tensorf());
     }
 
     #[test]
@@ -377,7 +377,7 @@ mod tests {
         full_simp(&mut g);
         assert!(g.is_identity());
         // assert_eq!(h.num_vertices(), 0);
-        // assert_eq!(g.to_tensor4(), h.to_tensor4());
+        // assert_eq!(g.to_tensorf(), h.to_tensorf());
     }
 
     #[test]
@@ -403,6 +403,6 @@ mod tests {
         fuse_gadgets(&mut g);
 
         println!("{}", g.to_dot());
-        assert_eq!(g.to_tensor4(), h.to_tensor4());
+        assert_eq!(g.to_tensorf(), h.to_tensorf());
     }
 }

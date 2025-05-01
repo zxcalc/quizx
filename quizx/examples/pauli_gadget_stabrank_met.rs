@@ -15,10 +15,11 @@
 // limitations under the License.
 
 use itertools::Itertools;
+use num::Complex;
 use quizx::circuit::*;
 use quizx::decompose::{terms_for_tcount, Decomposer};
+use quizx::fscalar::*;
 use quizx::graph::*;
-use quizx::scalar::*;
 use quizx::tensor::*;
 use quizx::vec_graph::Graph;
 use rand::rngs::StdRng;
@@ -93,7 +94,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         g.plug_inputs(&vec![BasisElem::X0; qs]);
         quizx::simplify::full_simp(&mut g);
 
-        let mut prob = Scalar::zero();
+        let mut prob = FScalar::zero();
 
         // let time_single = Instant::now();
         // let mut terms_single = 0;
@@ -132,15 +133,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             d.with_full_simp();
 
             let d = d.decomp_parallel(3);
-            let prob1 = &d.scalar * &d.scalar.conj();
+            let prob1 = d.scalar * d.scalar.conj();
             terms += d.nterms;
 
             if debug {
+                let prob1_c: Complex<f64> = prob1.into();
                 println!(
                     "{} (P = {}, re(P) ~ {})",
                     meas_str(&effect1),
                     prob1,
-                    prob1.complex_value().re
+                    prob1_c.re
                 );
             }
 
@@ -183,9 +185,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .collect();
                 check.plug_inputs(&vec![BasisElem::Z0; qs]);
                 check.plug_outputs(&effect);
-                let amp = check.to_tensor4()[[]];
+                let amp = check.to_tensorf()[[]];
                 let check_prob = amp * amp.conj();
-                if Scalar::from_scalar(&check_prob) == prob {
+                if check_prob == prob {
                     println!("OK");
                     true
                 } else {
