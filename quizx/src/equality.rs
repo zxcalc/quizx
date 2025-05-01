@@ -9,7 +9,7 @@ use crate::vec_graph::Graph;
 /// Checks the equality of two circuits by comparing the linear maps they represent.
 /// This approach is only feasible for a small number of qubits.
 pub fn compare_tensors(c1: &Circuit, c2: &Circuit) -> bool {
-    c1.to_tensor4() == c2.to_tensor4()
+    c1.to_tensorf() == c2.to_tensorf()
 }
 
 /// Implements `Circuit.verify_equality` from pyzx.
@@ -39,7 +39,7 @@ pub fn verify_equality_with_options(
         if !up_to_global_phase {
             // both circuits are verifiably equal if the resulting global phase is zero
             // otherwise, they are verifiably unequal / only equal up to global phase
-            return Some(g.scalar().phase().is_zero());
+            return Some(g.scalar().exact_phase_and_pow().unwrap().0.is_zero());
         }
         // both circuits are verifiably equal up to global phase
         return Some(true);
