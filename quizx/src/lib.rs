@@ -18,6 +18,7 @@ pub mod annealer;
 pub mod basic_rules;
 pub mod circuit;
 pub mod decompose;
+pub mod equality;
 pub mod extract;
 pub mod gate;
 pub mod generate;
