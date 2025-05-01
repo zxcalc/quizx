@@ -56,7 +56,7 @@ QuiZX is not intended to have all the features of PyZX, but certainly the core s
 - simplifiers
   - [X] clifford simplifier (from [this](https://quantum-journal.org/papers/q-2020-06-04-279/) paper)
   - [X] phase gadget simplifier (from [this](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.102.022406) paper)
-  - [ ] simplification-based equality checker
+  - [X] simplification-based equality checker
 - tensor evaluation based on [ndarray](https://github.com/rust-ndarray/ndarray)
   - [X] exact scalars with [cyclotomic](https://en.wikipedia.org/wiki/Cyclotomic_field)
       rational numbers
