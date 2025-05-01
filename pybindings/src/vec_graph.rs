@@ -46,7 +46,7 @@ impl VecGraph {
     ///
     #[getter]
     fn get_scalar(&mut self) -> Scalar {
-        self.g.scalar().clone().into()
+        (*self.g.scalar()).into()
     }
 
     /// Sets the graph scalar.

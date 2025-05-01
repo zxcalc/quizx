@@ -21,7 +21,7 @@ use num::complex::Complex;
 use num::rational::Rational64;
 use num::{One, Zero};
 use pyo3::prelude::*;
-use quizx::scalar::{FromPhase, ScalarN, Sqrt2};
+use quizx::fscalar::*;
 
 /// A type for exact and approximate representation of complex
 /// numbers.
@@ -42,19 +42,16 @@ use quizx::scalar::{FromPhase, ScalarN, Sqrt2};
 #[derive(Debug, Clone, Add, Mul, PartialEq)]
 pub struct Scalar {
     /// Rust representation of the scalar.
-    ///
-    /// Fixed to variable length coefficient lengths, as
-    /// pyo3 cannot bind to generic types.
-    s: ScalarN,
+    s: FScalar,
 }
 
-impl From<ScalarN> for Scalar {
-    fn from(s: ScalarN) -> Self {
+impl From<FScalar> for Scalar {
+    fn from(s: FScalar) -> Self {
         Self { s }
     }
 }
 
-impl From<Scalar> for ScalarN {
+impl From<Scalar> for FScalar {
     fn from(s: Scalar) -> Self {
         s.s
     }
@@ -71,24 +68,22 @@ impl Scalar {
     /// Create a new real scalar from a float number.
     #[staticmethod]
     pub fn real(real: f64) -> Self {
-        Self {
-            s: ScalarN::real(real),
-        }
+        Self { s: real.into() }
     }
 
     /// Returns a scalar value of e^{i \pi phase}.
     #[staticmethod]
     pub fn from_phase(phase: Rational64) -> Self {
         Self {
-            s: ScalarN::from_phase(phase),
+            s: FScalar::from_phase(phase),
         }
     }
 
     /// Create a scalar from a list of integer coefficients.
     #[staticmethod]
-    pub fn from_int_coeffs(coeffs: Vec<isize>) -> Self {
+    pub fn from_int_coeffs(coeffs: Vec<i32>) -> Self {
         Self {
-            s: ScalarN::from_int_coeffs(&coeffs),
+            s: [coeffs[0], coeffs[1], coeffs[2], coeffs[3]].into(),
         }
     }
 
@@ -105,7 +100,7 @@ impl Scalar {
     #[staticmethod]
     pub fn sqrt2_pow(p: i32) -> Self {
         Self {
-            s: ScalarN::sqrt2_pow(p),
+            s: FScalar::sqrt2_pow(p),
         }
     }
 
@@ -130,13 +125,13 @@ impl Scalar {
     /// Returns a zero scalar.
     #[staticmethod]
     pub fn zero() -> Self {
-        Self { s: ScalarN::zero() }
+        Self { s: FScalar::zero() }
     }
 
     /// Returns a one scalar.
     #[staticmethod]
     pub fn one() -> Self {
-        Self { s: ScalarN::one() }
+        Self { s: FScalar::one() }
     }
 
     /// Returns `True` if the scalar is zero.
@@ -151,7 +146,7 @@ impl Scalar {
 
     /// Encode the scalar in pyzx-compatible JSON format.
     pub fn to_json(&self) -> String {
-        let json_scalar = quizx::json::JsonScalar::from_scalar(&self.s);
+        let json_scalar = quizx::json::JsonScalar::from(self.s);
         serde_json::to_string(&json_scalar).unwrap()
     }
 
@@ -160,7 +155,7 @@ impl Scalar {
     pub fn from_json(json: &str) -> Self {
         let json_scalar: quizx::json::JsonScalar = serde_json::from_str(json).unwrap();
         Self {
-            s: json_scalar.to_scalar().unwrap_or_else(|e| panic!("{}", e)),
+            s: json_scalar.try_into().unwrap_or_else(|e| panic!("{}", e)),
         }
     }
 
@@ -179,23 +174,23 @@ impl Scalar {
 
     pub fn __add__(&self, other: &Self) -> Self {
         Self {
-            s: &self.s + &other.s,
+            s: self.s + other.s,
         }
     }
 
     pub fn __radd__(&self, other: &Self) -> Self {
         Self {
-            s: &self.s + &other.s,
+            s: self.s + other.s,
         }
     }
 
     pub fn __iadd__(&mut self, other: &Self) {
-        self.s = &self.s + &other.s;
+        self.s += other.s;
     }
 
     pub fn __sub__(&self, other: &Self) -> Self {
         Self {
-            s: &self.s + (&other.s * ScalarN::minus_one()),
+            s: self.s + (other.s * FScalar::minus_one()),
         }
     }
 
@@ -209,13 +204,13 @@ impl Scalar {
 
     pub fn __mul__(&self, other: &Self) -> Self {
         Self {
-            s: &self.s * &other.s,
+            s: self.s * other.s,
         }
     }
 
     pub fn __rmul__(&self, other: &Self) -> Self {
         Self {
-            s: &self.s * &other.s,
+            s: self.s * other.s,
         }
     }
 
@@ -229,7 +224,7 @@ impl Scalar {
 
     pub fn __neg__(&self) -> Self {
         Self {
-            s: &self.s * ScalarN::minus_one(),
+            s: self.s * FScalar::minus_one(),
         }
     }
 

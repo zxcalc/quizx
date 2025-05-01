@@ -17,9 +17,9 @@
 use itertools::Itertools;
 use quizx::circuit::*;
 use quizx::decompose::{terms_for_tcount, Decomposer};
+use quizx::fscalar::*;
 use quizx::graph::*;
 use quizx::random_graph::*;
-use quizx::scalar::*;
 use quizx::tensor::*;
 use quizx::vec_graph::Graph;
 use rand::rngs::StdRng;
@@ -89,8 +89,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         g.plug_inputs(&vec![BasisElem::Z0; qs]);
         quizx::simplify::full_simp(&mut g);
 
-        let mut renorm = Scalar::one();
-        let mut prob = Scalar::one();
+        let mut renorm = FScalar::one();
+        let mut prob = FScalar::one();
         let mut meas = vec![];
 
         for i in 0..qs {
@@ -103,7 +103,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             random_state_builder.qubits(g.outputs().len() - 1);
 
             let time_single = Instant::now();
-            let mut mean = ScalarN::zero();
+            let mut mean = FScalar::zero();
             let mut terms_single = 0;
 
             for _ in 0..2usize.pow(norm_est_log_samples) {
@@ -123,7 +123,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 d.with_full_simp();
 
                 let d = d.decomp_parallel(3);
-                mean += &d.scalar * &d.scalar.conj();
+                mean += d.scalar * d.scalar.conj();
                 terms_single += d.nterms;
             }
 
@@ -151,7 +151,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // outcome 1: let |g> = |h> = (<1| ⊗ I)|g>
                 g.plug_output(0, BasisElem::Z1);
                 // and save <g|g> = <h|h>
-                renorm = prob.clone();
+                renorm = prob;
                 1
             } else {
                 // outcome 0: for |h'> = (<0| ⊗ I)|g>
@@ -161,8 +161,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 g.plug_output(0, BasisElem::Z0);
 
                 // and <g|g> = <h'|h'>
-                prob = renorm + Scalar::minus_one() * prob;
-                renorm = prob.clone();
+                prob = renorm + FScalar::minus_one() * prob;
+                renorm = prob;
 
                 p = 1.0 - p; // complement probability for output below
 
@@ -203,9 +203,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .collect();
                 check.plug_inputs(&vec![BasisElem::Z0; qs]);
                 check.plug_outputs(&effect);
-                let amp = check.to_tensor4()[[]];
+                let amp = check.to_tensorf()[[]];
                 let check_prob = amp * amp.conj();
-                if Scalar::from_scalar(&check_prob) == prob {
+                if check_prob == prob {
                     println!("OK");
                     true
                 } else {

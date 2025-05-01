@@ -18,7 +18,6 @@ use itertools::Itertools;
 use quizx::circuit::*;
 use quizx::decompose::{terms_for_tcount, Decomposer};
 use quizx::graph::*;
-use quizx::scalar::*;
 use quizx::tensor::*;
 use quizx::vec_graph::Graph;
 use rand::rngs::StdRng;
@@ -120,7 +119,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         d.with_full_simp();
 
         let d = d.decomp_parallel(3);
-        let prob = &d.scalar * &d.scalar.conj();
+        let prob = d.scalar * d.scalar.conj();
         terms += d.nterms;
 
         if debug {
@@ -142,9 +141,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let mut check: Graph = c.to_graph();
                 check.plug_inputs(&vec![BasisElem::Z0; qs]);
                 check.plug_outputs(&effect);
-                let amp = check.to_tensor4()[[]];
+                let amp = check.to_tensorf()[[]];
                 let check_prob = amp * amp.conj();
-                if Scalar::from_scalar(&check_prob) == prob {
+                if check_prob == prob {
                     println!("OK");
                     true
                 } else {
