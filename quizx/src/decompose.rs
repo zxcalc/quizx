@@ -29,6 +29,13 @@ pub enum SimpFunc {
 }
 use SimpFunc::*;
 
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum DecompFunc {
+    BSS,
+    BSSWithCats,
+}
+use DecompFunc::*;
+
 /// Store the (partial) decomposition of a graph into stabilisers
 #[derive(Clone)]
 pub struct Decomposer<G: GraphLike> {
@@ -37,8 +44,8 @@ pub struct Decomposer<G: GraphLike> {
     pub scalar: FScalar,
     pub nterms: usize,
     simp_func: SimpFunc,
+    decomp_func: DecompFunc,
     random_t: bool,
-    use_cats: bool,
     save: bool, // save graphs on 'done' stack
 }
 
@@ -66,8 +73,8 @@ impl<G: GraphLike> Decomposer<G> {
             scalar: 0.into(),
             nterms: 0,
             simp_func: NoSimp,
+            decomp_func: BSS,
             random_t: false,
-            use_cats: false,
             save: false,
         }
     }
@@ -132,7 +139,11 @@ impl<G: GraphLike> Decomposer<G> {
     }
 
     pub fn use_cats(&mut self, b: bool) -> &mut Self {
-        self.use_cats = b;
+        if b {
+            self.decomp_func = BSSWithCats;
+        } else {
+            self.decomp_func = BSS;
+        }
         self
     }
 
@@ -160,7 +171,7 @@ impl<G: GraphLike> Decomposer<G> {
     /// stack.
     pub fn decomp_top(&mut self) -> &mut Self {
         let (depth, g) = self.stack.pop_back().unwrap();
-        if self.use_cats {
+        if self.decomp_func == BSSWithCats {
             let cat_nodes = Decomposer::cat_ts(&g); //gadget_ts(&g);
                                                     //println!("{:?}", gadget_nodes);
                                                     //let nts = cat_nodes.iter().fold(0, |acc, &x| if g.phase(x).denom() == &4 { acc + 1 } else { acc });
@@ -199,7 +210,7 @@ impl<G: GraphLike> Decomposer<G> {
                 self.stack.push_front((d, g));
                 break;
             } else {
-                if self.use_cats {
+                if self.decomp_func == BSSWithCats {
                     let cat_nodes = Decomposer::cat_ts(&g);
 
                     if cat_nodes.len() > 3 {
