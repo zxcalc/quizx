@@ -25,5 +25,5 @@ version = "0.1.0"
 authors = ["Aleks Kissinger <aleks0@gmail.com>"]
 edition = "2021"
 rust-version = "1.75"
-homepage = "https://github.com/zxlang/quizx"
+homepage = "https://github.com/zxcalc/quizx"
 license-file = "LICENSE"
