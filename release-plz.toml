@@ -6,6 +6,7 @@ release = false
 
 # Open the release PR as a draft
 pr_draft = true
+pr_name = "chore(🦀): release {{ package }} {{ version }}"
 
 # Enforce adding the project name in the git tag, to avoid collisions with python.
 # (This would normally only be enabled once there are multiple packages in the workspace)
