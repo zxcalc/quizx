@@ -1,0 +1,61 @@
+# Automatic changelog generation for rust projects
+
+[workspace]
+# Disable processing the packages by default
+release = false
+
+# Open the release PR as a draft
+pr_draft = true
+
+# Enforce adding the project name in the git tag, to avoid collisions with python.
+# (This would normally only be enabled once there are multiple packages in the workspace)
+git_tag_name = "{{ package }}@v{{ version }}"
+git_release_name = "{{ package }}: v{{ version }}"
+
+# Only create releases / push to crates.io after merging a release-please PR.
+# This lets merge new crates to `main` without worrying about accidentally creating
+# github releases.
+#
+# To trigger a release manually, merge a PR from a branch starting with `release-plz-`.
+release_always = false
+
+# Include a list of contributors in the release body
+git_release_body = """
+{{ changelog }}
+{% if remote.contributors %}
+### Contributors
+{% for contributor in remote.contributors %}
+* @{{ contributor.username }}
+{% endfor %}
+{% endif %}
+"""
+
+[changelog]
+sort_commits = "oldest"
+protect_breaking_commits = true
+
+header = """# Changelog
+
+This is the changelog for the `quizx` rust library.
+For the changelog of the `quizx` python library, see the separate [`CHANGELOG.md`](https://github.com/zxcalc/quizx/blob/master/pybindings/CHANGELOG.md) file.
+
+"""
+
+# Allowed conventional commit types
+commit_parsers = [
+    { message = "^feat", group = "New Features" },
+    { message = "^fix", group = "Bug Fixes" },
+    { message = "^docs", group = "Documentation" },
+    { message = "^style", group = "Styling" },
+    { message = "^refactor", group = "Refactor" },
+    { message = "^perf", group = "Performance" },
+    { message = "^test", group = "Testing" },
+    { message = "^chore", group = "Miscellaneous Tasks", skip = true },
+    { message = "^revert", group = "Reverted changes", skip = true },
+    { message = "^ci", group = "CI", skip = true },
+]
+
+[[package]]
+name = "quizx"
+release = true
+git_release_latest = true
