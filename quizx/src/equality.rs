@@ -1,4 +1,5 @@
-use num::Zero;
+use approx::abs_diff_eq;
+use num::Complex;
 
 use crate::circuit::Circuit;
 use crate::graph::GraphLike;
@@ -39,7 +40,8 @@ pub fn verify_equality_with_options(
         if !up_to_global_phase {
             // both circuits are verifiably equal if the resulting global phase is zero
             // otherwise, they are verifiably unequal / only equal up to global phase
-            return Some(g.scalar().exact_phase_and_pow().unwrap().0.is_zero());
+            let c: Complex<f64> = g.scalar().into();
+            return Some(abs_diff_eq!(c.arg(), 0.0));
         }
         // both circuits are verifiably equal up to global phase
         return Some(true);
