@@ -9,12 +9,34 @@ use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 use crate::phase::Phase;
 pub use crate::scalar_traits::{FromPhase, Sqrt2};
 
+/// This is the main representation of scalars used in QuiZX. It is a wrapper around
+/// four `f64` values, used to represent the coefficients in a complex number of
+/// the form:
+///
+///   a + b ω + c ω² + d ω³
+///
+/// where ω is the 4th root of -1, i.e. exp(i π/4).
+///
+/// When scalars come from a Clifford+T circuit or ZX diagram, i.e. where all phase
+/// angles are integer multiples of π/4, scalars are guaranteed to be of the form
+/// above, with rational coefficients of the form x/2^y, for integers x, y.
+///
+/// These correspond exactly to the signficand and exponent of a floating point
+/// number (see e.g. [floats on Wikipedia](https://en.wikipedia.org/wiki/Double-precision_floating-point_format)),
+/// so as long as x and y for each coefficient are not too large to fit in an `f64`,
+/// `FScalar` can exactly represent any Clifford+T scalar.
+///
+/// Note that ω² = i, so for all other complex numbers, `FScalar` gives an approximate
+/// representation of that number as a + c ω² = a + i c. This allows easy conversions
+/// to and from `Complex<f64>` provided in the standard library.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FScalar {
     c: [f64; 4],
 }
 
 impl FScalar {
+    /// Constructs a scalar from a power of two and 4 integer coefficients. For
+    /// `coeffs := [a,b,c,d]`, the resulting scalar is: `2^pow * (a + b ω + c ω² + d ω³)`.
     pub fn dyadic(pow: i32, coeffs: [i64; 4]) -> Self {
         let f = 2.0_f64.powi(pow);
         FScalar {
@@ -22,44 +44,55 @@ impl FScalar {
         }
     }
 
+    /// Constructs a scalar as a real number with the given float value
     pub fn real(r: f64) -> Self {
         FScalar {
             c: [r, 0.0, 0.0, 0.0],
         }
     }
 
-    pub fn complex(r: f64, i: f64) -> Self {
+    /// Constructs a scalar as a complex number `re + im * i`.
+    pub fn complex(re: f64, im: f64) -> Self {
         FScalar {
-            c: [r, 0.0, i, 0.0],
+            c: [re, 0.0, im, 0.0],
         }
     }
 
+    /// Constructs a scalar `1 + e^(i π * phase)` for the given `Phase`
     pub fn one_plus_phase(phase: impl Into<Phase>) -> Self {
         FScalar::one() + FScalar::from_phase(phase)
     }
 
+    /// Convience method for multipling by the given power of sqrt(2)
     pub fn mul_sqrt2_pow(&mut self, p: i32) {
         *self *= FScalar::sqrt2_pow(p);
     }
 
+    /// Convience method for multipling by `e^(i π * phase)` for the given `Phase`
     pub fn mul_phase(&mut self, phase: impl Into<Phase>) {
         *self *= FScalar::from_phase(phase);
     }
 
+    /// Convience method for multipling by `1 + e^(i π * phase)` for the given `Phase`
     pub fn mul_one_plus_phase(&mut self, phase: impl Into<Phase>) {
         *self *= FScalar::one_plus_phase(phase)
     }
 
+    /// Returns the complex conjugate of the scalar
     pub fn conj(&self) -> Self {
         FScalar {
             c: [self.c[0], -self.c[3], -self.c[2], -self.c[1]],
         }
     }
 
+    /// Converts `FScalar` into a `Complex<f64>`
     pub fn complex_value(&self) -> Complex<f64> {
         self.into()
     }
 
+    /// Returns an array of 4 pairs giving each coefficient as a pair of integers
+    /// `(a,p)`, meaning `a * 2^p`. This is convenient e.g. for the base-2 scientific
+    /// notation used to output scalars.
     pub fn exact_dyadic_form(&self) -> [(i64, i16); 4] {
         self.c.map(|f| {
             let (mut m, mut e, s) = f.integer_decode();
@@ -76,13 +109,16 @@ impl FScalar {
         })
     }
 
+    /// The number of non-zero coefficients
     fn num_coeffs(&self) -> usize {
         self.c
             .iter()
             .fold(0, |n, &co| if co != 0.0 { n + 1 } else { n })
     }
 
-    pub fn exact_phase_and_pow(&self) -> Option<(Phase, i16)> {
+    /// If the scalar is an exact representation of a number in the form `exp(i k π / 4) * sqrt(2)^p`,
+    /// return `Some((k/4, p))`, otherwise return `None`.
+    pub fn exact_phase_and_sqrt2_pow(&self) -> Option<(Phase, i16)> {
         let mut p = 0;
         let mut s = *self;
         if self.num_coeffs() > 1 {

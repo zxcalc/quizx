@@ -20,7 +20,7 @@ impl From<&FScalar> for JsonScalar {
             ..Default::default()
         };
 
-        match value.exact_phase_and_pow() {
+        match value.exact_phase_and_sqrt2_pow() {
             Some((phase, pow)) => JsonScalar {
                 power2: pow as i32,
                 phase: JsonPhase::from_phase(phase, phase_options),
