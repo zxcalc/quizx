@@ -18,7 +18,17 @@
 //!
 //! In QuiZX, the Rust code is slightly more verbose, but similar in spirit:
 //! ```rust
+//! # use quizx::graph::*;
+//! # use quizx::vec_graph::Graph;
+//! # use quizx::basic_rules::check_spider_fusion;
 //! use quizx::basic_rules::*;
+//!
+//! let mut g = Graph::new();
+//! let v0 = g.add_vertex(VType::Z);
+//! let v1 = g.add_vertex(VType::Z);
+//! let v2 = g.add_vertex(VType::X);
+//! g.add_edge(v0, v1);
+//! g.add_edge(v1, v2);
 //!
 //! loop {
 //!     match g.find_edge(|v0,v1,_| check_spider_fusion(&g, v0, v1)) {
