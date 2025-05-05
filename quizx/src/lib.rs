@@ -1,3 +1,45 @@
+//! [PyZX](https://github.com/zxlang/pyzx) is a Python library for quantum circuit optimisation and compiling using the [ZX-calculus](https://zxcalculus.com). It's great for hacking, learning, and trying things out in [Jupyter](https://jupyter.org/) notebooks. However, it's written to maximise clarity and fun, not performance.
+//!
+//! This is a port of some of the core functionality of PyZX to the [Rust](https://www.rust-lang.org/) programming language. This is a modern systems programming language, which enables writing software that is very fast and memory efficient.
+//!
+//! Check the [Rust Changelog](https://github.com/zxcalc/quizx/blob/master/quizx/CHANGELOG.md) for the latest updates.
+//!
+//! ## A bit about performance
+//!
+//! As a very anecdotal example of the performance difference, the program `spider_chain` builds a chain of 1 million green spiders and fuses them all. In PyZX, you can fuse all the spiders in a ZX-diagram as follows:
+//!
+//! ```python
+//! from pyzx.basicrules import *
+//!
+//! success = True
+//! while success:
+//!     success = any(fuse(g, g.edge_s(e), g.edge_t(e)) for e in g.edges())
+//! ```
+//!
+//! In QuiZX, the Rust code is slightly more verbose, but similar in spirit:
+//! ```rust
+//! # use quizx::graph::*;
+//! # use quizx::vec_graph::Graph;
+//! # use quizx::basic_rules::check_spider_fusion;
+//! use quizx::basic_rules::*;
+//!
+//! let mut g = Graph::new();
+//! let v0 = g.add_vertex(VType::Z);
+//! let v1 = g.add_vertex(VType::Z);
+//! let v2 = g.add_vertex(VType::X);
+//! g.add_edge(v0, v1);
+//! g.add_edge(v1, v2);
+//!
+//! loop {
+//!     match g.find_edge(|v0,v1,_| check_spider_fusion(&g, v0, v1)) {
+//!         Some((v0,v1,_)) => spider_fusion_unchecked(&mut g, v0, v1),
+//!         None => break,
+//!     };
+//! }
+//! ```
+//!
+//! On my laptop, the PyZX code takes about 98 seconds to fuse 1 million spiders, whereas the QuiZX code takes 17 milliseconds.
+
 // QuiZX - Rust library for quantum circuit rewriting and optimisation
 //         using the ZX-calculus
 // Copyright (C) 2021 - Aleks Kissinger

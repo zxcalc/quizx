@@ -1,18 +1,20 @@
 [package]
 name = "quizx_pybindings"
-version = { workspace = true }
+version = "0.0.0"
 authors = { workspace = true }
 edition = { workspace = true }
 rust-version = { workspace = true }
 homepage = { workspace = true }
-license-file = { workspace = true }
+license = { workspace = true }
+
+publish = false
 
 [lib]
 name = "libquizx"
 crate-type = ["cdylib"]
 
 [dependencies]
-quizx = { workspace = true }
+quizx = { version = "0.1.0", path = "../quizx" }
 num = { workspace = true }
 pyo3 = { workspace = true, features = [
     "extension-module",
