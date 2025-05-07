@@ -5,6 +5,24 @@
 ## Added
 - `add_edge` method to `VecGraph` class.
 
+## [0.1.2](https://github.com/zxcalc/quizx/compare/quizx-py-v0.1.1...quizx-py-v0.1.2) (2025-05-07)
+
+
+### Bug Fixes
+
+* make qubit and row into floats (closes [#93](https://github.com/zxcalc/quizx/issues/93)) ([0da3b64](https://github.com/zxcalc/quizx/commit/0da3b64b6a7ad63a690c9c389a04a4e140ec3b55))
+* **python:** Implement add_edge in VecGraph ([#102](https://github.com/zxcalc/quizx/issues/102)) ([9718a97](https://github.com/zxcalc/quizx/commit/9718a973ed647cd6ec6961029d42f51fb3a24112))
+
+
+### Documentation
+
+* **rs:** Add crate documentation ([#122](https://github.com/zxcalc/quizx/issues/122)) ([b7415e7](https://github.com/zxcalc/quizx/commit/b7415e701c37013965944de378ded66a49f8e8e4))
+
+
+### Miscellaneous Chores
+
+* release 0.1.2 ([13d5dc7](https://github.com/zxcalc/quizx/commit/13d5dc7b458f6e21f9c9c0ce357abda6b075864a))
+
 ## [0.1.1](https://github.com/zxcalc/quizx/compare/quizx-py-v0.1.0...quizx-py-v0.1.1) (2025-02-21)
 
 
