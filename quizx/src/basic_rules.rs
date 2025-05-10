@@ -557,8 +557,19 @@ pub fn check_remove_single(g: &impl GraphLike, v: V) -> bool {
 
 /// Remove an isolated Z or X vertex and add it as a global scalar
 pub fn remove_single_unchecked(g: &mut impl GraphLike, v: V) {
-    let p = g.phase(v);
-    g.scalar_mut().mul_one_plus_phase(p);
+    let vd = g.vertex_data(v);
+    let p = vd.phase;
+
+    if vd.vars.is_empty() {
+        g.scalar_mut().mul_one_plus_phase(p);
+    } else {
+        let var0 = vd.vars.clone();
+        let mut var1 = vec![0];
+        var1.extend(vd.vars.iter());
+        g.mul_scalar_coeff(var0, FScalar::one_plus_phase(p));
+        g.mul_scalar_coeff(var1, FScalar::one_plus_phase(p + Phase::one()));
+    }
+
     g.remove_vertex(v);
 }
 
@@ -575,7 +586,7 @@ pub fn check_remove_pair(g: &impl GraphLike, v0: V, v1: V) -> bool {
         && g.connected(v0, v1)
 }
 
-/// Remove an isolated Z or X vertex and add it as a global scalar
+/// Remove a pair of connected Z or X vertices and add it as a global scalar
 pub fn remove_pair_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     let t0 = g.vertex_type(v0);
     let t1 = g.vertex_type(v1);

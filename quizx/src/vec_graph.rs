@@ -392,11 +392,11 @@ impl GraphLike for Graph {
         self.scalar_coeffs.get(vars).map(|s| *s)
     }
 
-    fn mult_scalar_coeff(&mut self, vars: &Vec<u16>, s: FScalar) {
-        if let Some(t) = self.scalar_coeffs.get_mut(vars) {
+    fn mul_scalar_coeff(&mut self, vars: Vec<u16>, s: FScalar) {
+        if let Some(t) = self.scalar_coeffs.get_mut(&vars) {
             *t *= s;
         } else {
-            self.scalar_coeffs.insert(vars.clone(), s);
+            self.scalar_coeffs.insert(vars, s);
         }
     }
 }

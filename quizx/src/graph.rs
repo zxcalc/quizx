@@ -460,7 +460,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
 
     fn scalar_vars(&self) -> impl Iterator<Item = &Vec<u16>>;
     fn get_scalar_coeff(&self, vars: &Vec<u16>) -> Option<FScalar>;
-    fn mult_scalar_coeff(&mut self, vars: &Vec<u16>, s: FScalar);
+    fn mul_scalar_coeff(&mut self, vars: Vec<u16>, s: FScalar);
 
     fn add_edge(&mut self, s: V, t: V) {
         self.add_edge_with_type(s, t, EType::N);
