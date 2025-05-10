@@ -17,11 +17,10 @@
 use crate::circuit::*;
 use crate::gate::*;
 use crate::graph::*;
-// use crate::tensor::*;
 use crate::basic_rules::{boundary_pivot, remove_id};
 use crate::linalg::*;
-use crate::phase::Phase;
-use num::{Rational64, Zero};
+use num::Rational64;
+use num::Zero;
 use rustc_hash::FxHashSet;
 use std::fmt;
 
@@ -316,9 +315,9 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
                         if self.g.degree(v) > 2 {
                             let vd = VData {
                                 ty: VType::Z,
-                                phase: Phase::zero(),
                                 qubit: self.g.qubit(n),
                                 row: self.g.row(n) + 1.0,
+                                ..Default::default()
                             };
                             let n1 = self.g.add_vertex_with_data(vd);
                             self.g

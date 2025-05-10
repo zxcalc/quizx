@@ -44,19 +44,21 @@ pub enum VType {
     ZBox,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct VData {
     pub ty: VType,
     pub phase: Phase,
+    pub vars: Vec<u16>,
     pub qubit: f64,
     pub row: f64,
 }
 
-impl VData {
-    pub fn empty() -> Self {
+impl Default for VData {
+    fn default() -> Self {
         VData {
             ty: VType::B,
             phase: Phase::zero(),
+            vars: vec![],
             qubit: 0.0,
             row: 0.0,
         }
@@ -434,7 +436,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
 
     fn set_vertex_type(&mut self, v: V, ty: VType);
     fn vertex_type(&self, v: V) -> VType;
-    fn vertex_data(&self, v: V) -> VData;
+    fn vertex_data(&self, v: V) -> &VData;
     fn set_edge_type(&mut self, s: V, t: V, ety: EType);
     fn edge_type_opt(&self, s: V, t: V) -> Option<EType>;
     fn set_coord(&mut self, v: V, coord: impl Into<Coord>);
@@ -652,7 +654,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         let mut vmap = FxHashMap::default();
 
         for v in other.vertices() {
-            let v1 = self.add_vertex_with_data(other.vertex_data(v));
+            let v1 = self.add_vertex_with_data(other.vertex_data(v).clone());
             vmap.insert(v, v1);
         }
 
@@ -828,7 +830,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         let mut g = Self::new();
         let mut vert_map: FxHashMap<V, V> = FxHashMap::default();
         for v in verts {
-            let w = g.add_vertex_with_data(self.vertex_data(v));
+            let w = g.add_vertex_with_data(self.vertex_data(v).clone());
             vert_map.insert(v, w);
         }
 

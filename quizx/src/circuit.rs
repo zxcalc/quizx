@@ -256,9 +256,9 @@ impl Circuit {
         for i in 0..self.nqubits {
             let v = graph.add_vertex_with_data(VData {
                 ty: VType::B,
-                phase: Phase::zero(),
                 qubit: i as f64,
                 row: 1.0,
+                ..Default::default()
             });
             qs.push(Some(v));
             inputs.push(v);
@@ -285,9 +285,9 @@ impl Circuit {
             if let Some(v0) = q {
                 let v = graph.add_vertex_with_data(VData {
                     ty: VType::B,
-                    phase: Phase::zero(),
                     qubit: i as f64,
                     row: last_row + 1.0,
+                    ..Default::default()
                 });
                 graph.add_edge(v0, v);
                 outputs.push(v);

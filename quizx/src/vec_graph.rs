@@ -143,8 +143,7 @@ impl GraphLike for Graph {
         self.add_vertex_with_data(VData {
             ty,
             phase: Rational64::new(0, 1).into(),
-            qubit: 0.0,
-            row: 0.0,
+            ..Default::default()
         })
     }
 
@@ -227,7 +226,7 @@ impl GraphLike for Graph {
     }
 
     fn phase(&self, v: V) -> Phase {
-        self.vdata[v].expect("Vertex not found").phase
+        self.vdata[v].as_ref().expect("Vertex not found").phase
     }
 
     fn add_to_phase(&mut self, v: V, phase: impl Into<Phase>) {
@@ -246,8 +245,8 @@ impl GraphLike for Graph {
         }
     }
 
-    fn vertex_data(&self, v: V) -> VData {
-        self.vdata[v].expect("Vertex not found")
+    fn vertex_data(&self, v: V) -> &VData {
+        self.vdata[v].as_ref().expect("Vertex not found")
     }
 
     fn vertex_type(&self, v: V) -> VType {
@@ -289,7 +288,7 @@ impl GraphLike for Graph {
     }
 
     fn coord(&self, v: V) -> Coord {
-        let d = self.vdata[v].expect("Vertex not found");
+        let d = self.vdata[v].as_ref().expect("Vertex not found");
         Coord::new(d.row, d.qubit)
     }
 
@@ -302,7 +301,7 @@ impl GraphLike for Graph {
     }
 
     fn qubit(&self, v: V) -> f64 {
-        self.vdata[v].expect("Vertex not found").qubit
+        self.vdata[v].as_ref().expect("Vertex not found").qubit
     }
 
     fn set_row(&mut self, v: V, row: f64) {
@@ -314,7 +313,7 @@ impl GraphLike for Graph {
     }
 
     fn row(&self, v: V) -> f64 {
-        self.vdata[v].expect("Vertex not found").row
+        self.vdata[v].as_ref().expect("Vertex not found").row
     }
 
     fn neighbors(&self, v: V) -> NeighborIter {

@@ -369,9 +369,9 @@ fn unfuse_boundary(g: &mut impl GraphLike, v: V, b: V) {
     }
     let vd = VData {
         ty: VType::Z,
-        phase: Phase::zero(),
         row: g.row(v),
         qubit: g.qubit(v),
+        ..Default::default()
     };
     let v1 = g.add_vertex_with_data(vd);
     g.add_edge_with_type(v, v1, EType::H);
@@ -388,9 +388,9 @@ fn unfuse_gadget(g: &mut impl GraphLike, v: V) {
     }
     let vd1 = VData {
         ty: VType::Z,
-        phase: Phase::zero(),
         row: g.row(v),
         qubit: -1.0,
+        ..Default::default()
     };
 
     let vd2 = VData {
@@ -398,6 +398,7 @@ fn unfuse_gadget(g: &mut impl GraphLike, v: V) {
         phase: g.phase(v),
         row: g.row(v),
         qubit: -2.0,
+        ..Default::default()
     };
     let v1 = g.add_vertex_with_data(vd1);
     let v2 = g.add_vertex_with_data(vd2);

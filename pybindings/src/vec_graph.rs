@@ -80,7 +80,7 @@ impl VecGraph {
     }
 
     fn add_vertex_indexed(&mut self, v: V) -> PyResult<()> {
-        match self.g.add_named_vertex_with_data(v, VData::empty()) {
+        match self.g.add_named_vertex_with_data(v, VData::default()) {
             Ok(_) => Ok(()),
             Err(_) => Err(PyValueError::new_err("Vertex already exists")),
         }
@@ -357,6 +357,7 @@ impl VecGraph {
             phase: phase1,
             qubit,
             row,
+            ..Default::default()
         }))
     }
 

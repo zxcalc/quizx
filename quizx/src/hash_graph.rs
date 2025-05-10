@@ -18,7 +18,6 @@ use crate::fscalar::*;
 pub use crate::graph::*;
 use crate::json::JsonGraph;
 use crate::phase::Phase;
-use num::rational::Rational64;
 use rustc_hash::FxHashMap;
 use serde::de::Error as _;
 use serde::ser::Error as _;
@@ -102,10 +101,7 @@ impl GraphLike for Graph {
 
     fn add_vertex(&mut self, ty: VType) -> V {
         self.add_vertex_with_data(VData {
-            ty,
-            phase: Rational64::new(0, 1).into(),
-            qubit: 0.0,
-            row: 0.0,
+            ty, ..Default::default()
         })
     }
 
@@ -184,8 +180,8 @@ impl GraphLike for Graph {
         self.vdata.get_mut(&v).expect("Vertex not found").ty = ty;
     }
 
-    fn vertex_data(&self, v: V) -> VData {
-        *self.vdata.get(&v).expect("Vertex not found")
+    fn vertex_data(&self, v: V) -> &VData {
+        *self.vdata.get(&v).as_ref().expect("Vertex not found")
     }
 
     fn vertex_type(&self, v: V) -> VType {
