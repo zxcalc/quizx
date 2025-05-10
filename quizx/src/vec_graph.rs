@@ -18,6 +18,7 @@ use crate::fscalar::*;
 pub use crate::graph::*;
 use crate::phase::Phase;
 use num::rational::Rational64;
+use rustc_hash::FxHashMap;
 use std::mem;
 
 pub type VTab<T> = Vec<Option<T>>;
@@ -32,6 +33,7 @@ pub struct Graph {
     numv: usize,
     nume: usize,
     scalar: FScalar,
+    scalar_coeffs: FxHashMap<Vec<u16>, FScalar>,
 }
 
 impl Graph {
@@ -97,6 +99,7 @@ impl GraphLike for Graph {
             numv: 0,
             nume: 0,
             scalar: 1.into(),
+            scalar_coeffs: FxHashMap::default(),
         }
     }
 
@@ -379,6 +382,22 @@ impl GraphLike for Graph {
 
     fn contains_vertex(&self, v: V) -> bool {
         v < self.vdata.len() && self.vdata[v].is_some()
+    }
+
+    fn scalar_vars(&self) -> impl Iterator<Item = &Vec<u16>> {
+        self.scalar_coeffs.keys()
+    }
+
+    fn get_scalar_coeff(&self, vars: &Vec<u16>) -> Option<FScalar> {
+        self.scalar_coeffs.get(vars).map(|s| *s)
+    }
+
+    fn mult_scalar_coeff(&mut self, vars: &Vec<u16>, s: FScalar) {
+        if let Some(t) = self.scalar_coeffs.get_mut(vars) {
+            *t *= s;
+        } else {
+            self.scalar_coeffs.insert(vars.clone(), s);
+        }
     }
 }
 

@@ -35,6 +35,7 @@ pub struct Graph {
     nume: usize,
     freshv: V,
     scalar: FScalar,
+    scalar_coeffs: FxHashMap<Vec<u16>, FScalar>,
 }
 
 impl Graph {
@@ -57,6 +58,7 @@ impl GraphLike for Graph {
             nume: 0,
             freshv: 0,
             scalar: 1.into(),
+            scalar_coeffs: FxHashMap::default(),
         }
     }
 
@@ -101,7 +103,8 @@ impl GraphLike for Graph {
 
     fn add_vertex(&mut self, ty: VType) -> V {
         self.add_vertex_with_data(VData {
-            ty, ..Default::default()
+            ty,
+            ..Default::default()
         })
     }
 
@@ -282,6 +285,22 @@ impl GraphLike for Graph {
 
     fn contains_vertex(&self, v: V) -> bool {
         self.vdata.contains_key(&v)
+    }
+
+    fn scalar_vars(&self) -> impl Iterator<Item = &Vec<u16>> {
+        self.scalar_coeffs.keys()
+    }
+
+    fn get_scalar_coeff(&self, vars: &Vec<u16>) -> Option<FScalar> {
+        self.scalar_coeffs.get(vars).map(|s| *s)
+    }
+
+    fn mult_scalar_coeff(&mut self, vars: &Vec<u16>, s: FScalar) {
+        if let Some(t) = self.scalar_coeffs.get_mut(vars) {
+            *t *= s;
+        } else {
+            self.scalar_coeffs.insert(vars.clone(), s);
+        }
     }
 }
 
