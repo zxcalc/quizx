@@ -607,7 +607,6 @@ pub fn remove_pair_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
                 FScalar::one_plus_phase(p0 + p1 + Phase::one()),
             );
         }
-        g.scalar_mut().mul_one_plus_phase(p0 + p1);
 
     // different colors
     } else {
@@ -617,11 +616,11 @@ pub fn remove_pair_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
             FScalar::from_phase(p0 + p1),
         );
 
+        g.scalar_mut().mul_sqrt2_pow(-1);
+
         if vars0.is_empty() && vars1.is_empty() {
             *g.scalar_mut() *= FScalar::one() + x0 + x1 - x2;
         } else {
-            g.scalar_mut().mul_sqrt2_pow(-1);
-
             let s00 = FScalar::one() + x0 + x1 - x2;
             let s01 = FScalar::one() + x0 - x1 + x2;
             let s10 = FScalar::one() - x0 + x1 + x2;

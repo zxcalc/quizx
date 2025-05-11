@@ -18,7 +18,6 @@ use crate::fscalar::*;
 pub use crate::graph::*;
 use crate::json::JsonGraph;
 use crate::params::Expr;
-use crate::phase::Phase;
 use rustc_hash::FxHashMap;
 use serde::de::Error as _;
 use serde::ser::Error as _;
@@ -164,36 +163,12 @@ impl GraphLike for Graph {
         self.remove_half_edge(t, s);
     }
 
-    fn set_phase(&mut self, v: V, phase: impl Into<Phase>) {
-        self.vdata.get_mut(&v).expect("Vertex not found").phase = phase.into();
-    }
-
-    fn phase(&self, v: V) -> Phase {
-        self.vdata.get(&v).expect("Vertex not found").phase
-    }
-
-    fn add_to_phase(&mut self, v: V, phase: impl Into<Phase>) {
-        if let Some(d) = self.vdata.get_mut(&v) {
-            d.phase = (d.phase + phase.into()).normalize();
-        } else {
-            panic!("Vertex not found");
-        }
-    }
-
-    fn set_vertex_type(&mut self, v: V, ty: VType) {
-        self.vdata.get_mut(&v).expect("Vertex not found").ty = ty;
-    }
-
     fn vertex_data(&self, v: V) -> &VData {
         self.vdata.get(&v).expect("Vertex not found")
     }
 
     fn vertex_data_mut(&mut self, v: V) -> &mut VData {
         self.vdata.get_mut(&v).expect("Vertex not found")
-    }
-
-    fn vertex_type(&self, v: V) -> VType {
-        self.vdata.get(&v).expect("Vertex not found").ty
     }
 
     fn set_edge_type(&mut self, s: V, t: V, ety: EType) {
@@ -217,34 +192,6 @@ impl GraphLike for Graph {
             .expect("Source vertex not found")
             .get(&t)
             .copied()
-    }
-
-    fn set_coord(&mut self, v: V, coord: impl Into<Coord>) {
-        let coord = coord.into();
-        let d = self.vdata.get_mut(&v).expect("Vertex not found");
-        d.qubit = coord.y;
-        d.row = coord.x;
-    }
-
-    fn coord(&self, v: V) -> Coord {
-        let d = self.vdata.get(&v).expect("Vertex not found");
-        Coord::new(d.row, d.qubit)
-    }
-
-    fn set_qubit(&mut self, v: V, qubit: f64) {
-        self.vdata.get_mut(&v).expect("Vertex not found").qubit = qubit;
-    }
-
-    fn qubit(&self, v: V) -> f64 {
-        self.vdata.get(&v).expect("Vertex not found").qubit
-    }
-
-    fn set_row(&mut self, v: V, row: f64) {
-        self.vdata.get_mut(&v).expect("Vertex not found").row = row;
-    }
-
-    fn row(&self, v: V) -> f64 {
-        self.vdata.get(&v).expect("Vertex not found").row
     }
 
     fn neighbors(&self, v: V) -> NeighborIter {

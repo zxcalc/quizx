@@ -424,6 +424,27 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// Behaviour is undefined if there is no edge between s and t.
     fn remove_edge(&mut self, s: V, t: V);
 
+    fn vertex_data(&self, v: V) -> &VData;
+    fn vertex_data_mut(&mut self, v: V) -> &mut VData;
+    fn set_edge_type(&mut self, s: V, t: V, ety: EType);
+    fn edge_type_opt(&self, s: V, t: V) -> Option<EType>;
+    fn neighbors(&self, v: V) -> NeighborIter;
+    fn incident_edges(&self, v: V) -> IncidentEdgeIter;
+    fn degree(&self, v: V) -> usize;
+    fn scalar(&self) -> &FScalar;
+    fn scalar_mut(&mut self) -> &mut FScalar;
+    fn find_edge<F>(&self, f: F) -> Option<(V, V, EType)>
+    where
+        F: Fn(V, V, EType) -> bool;
+    fn find_vertex<F>(&self, f: F) -> Option<V>
+    where
+        F: Fn(V) -> bool;
+    fn contains_vertex(&self, v: V) -> bool;
+
+    fn scalar_factors(&self) -> impl Iterator<Item = (&Expr, &FScalar)>;
+    fn get_scalar_factor(&self, e: &Expr) -> Option<FScalar>;
+    fn mul_scalar_factor(&mut self, e: Expr, s: FScalar);
+
     /// Returns the phase and any boolean variables at a vertex
     fn phase_and_vars(&self, v: V) -> (Phase, Parity) {
         let vd = self.vertex_data(v);
@@ -454,32 +475,33 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         self.vertex_data(v).ty
     }
 
-    fn vertex_data(&self, v: V) -> &VData;
-    fn vertex_data_mut(&mut self, v: V) -> &mut VData;
-    fn set_edge_type(&mut self, s: V, t: V, ety: EType);
-    fn edge_type_opt(&self, s: V, t: V) -> Option<EType>;
-    fn set_coord(&mut self, v: V, coord: impl Into<Coord>);
-    fn coord(&self, v: V) -> Coord;
-    fn set_qubit(&mut self, v: V, qubit: f64);
-    fn qubit(&self, v: V) -> f64;
-    fn set_row(&mut self, v: V, row: f64);
-    fn row(&self, v: V) -> f64;
-    fn neighbors(&self, v: V) -> NeighborIter;
-    fn incident_edges(&self, v: V) -> IncidentEdgeIter;
-    fn degree(&self, v: V) -> usize;
-    fn scalar(&self) -> &FScalar;
-    fn scalar_mut(&mut self) -> &mut FScalar;
-    fn find_edge<F>(&self, f: F) -> Option<(V, V, EType)>
-    where
-        F: Fn(V, V, EType) -> bool;
-    fn find_vertex<F>(&self, f: F) -> Option<V>
-    where
-        F: Fn(V) -> bool;
-    fn contains_vertex(&self, v: V) -> bool;
+    fn set_coord(&mut self, v: V, coord: impl Into<Coord>) {
+        let coord = coord.into();
+        let d = self.vertex_data_mut(v);
+        d.qubit = coord.y;
+        d.row = coord.x;
+    }
 
-    fn scalar_factors(&self) -> impl Iterator<Item = (&Expr, &FScalar)>;
-    fn get_scalar_factor(&self, e: &Expr) -> Option<FScalar>;
-    fn mul_scalar_factor(&mut self, e: Expr, s: FScalar);
+    fn coord(&self, v: V) -> Coord {
+        let d = self.vertex_data(v);
+        Coord::new(d.row, d.qubit)
+    }
+
+    fn set_qubit(&mut self, v: V, qubit: f64) {
+        self.vertex_data_mut(v).qubit = qubit;
+    }
+
+    fn qubit(&self, v: V) -> f64 {
+        self.vertex_data(v).qubit
+    }
+
+    fn set_row(&mut self, v: V, row: f64) {
+        self.vertex_data_mut(v).row = row;
+    }
+
+    fn row(&self, v: V) -> f64 {
+        self.vertex_data(v).row
+    }
 
     fn add_edge(&mut self, s: V, t: V) {
         self.add_edge_with_type(s, t, EType::N);
