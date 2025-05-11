@@ -174,47 +174,6 @@ impl Coord {
     }
 }
 
-pub enum VIter<'a> {
-    Vec(
-        usize,
-        std::iter::Enumerate<std::slice::Iter<'a, Option<VData>>>,
-    ),
-    Hash(std::collections::hash_map::Keys<'a, V, VData>),
-}
-
-impl Iterator for VIter<'_> {
-    type Item = V;
-    fn next(&mut self) -> Option<V> {
-        match self {
-            VIter::Vec(_, inner) => {
-                let mut next = inner.next();
-
-                // skip over "holes", i.e. vertices that have been deleted
-                while next.is_some() && !next.unwrap().1.is_some() {
-                    next = inner.next();
-                }
-
-                match next {
-                    Some((v, Some(_))) => Some(v),
-                    Some((_, None)) => panic!("encountered deleted vertex in VIter"), // should never happen
-                    None => None,
-                }
-            }
-            VIter::Hash(inner) => inner.next().copied(),
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = match self {
-            VIter::Vec(sz, _) => *sz,
-            VIter::Hash(inner) => inner.len(),
-        };
-        (len, Some(len))
-    }
-}
-
-impl ExactSizeIterator for VIter<'_> {}
-
 #[allow(clippy::type_complexity)]
 pub enum EIter<'a> {
     Vec(
@@ -373,7 +332,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     fn num_edges(&self) -> usize;
 
     /// Get iterator over all vertices
-    fn vertices(&self) -> VIter;
+    fn vertices(&self) -> impl Iterator<Item = V>;
 
     /// Get iterator over all edges
     ///
@@ -424,7 +383,10 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// Behaviour is undefined if there is no edge between s and t.
     fn remove_edge(&mut self, s: V, t: V);
 
+    /// Get the data associated to the given vertex
     fn vertex_data(&self, v: V) -> &VData;
+
+    /// Get a mutable ref to the data associated to the given vertex
     fn vertex_data_mut(&mut self, v: V) -> &mut VData;
     fn set_edge_type(&mut self, s: V, t: V, ety: EType);
     fn edge_type_opt(&self, s: V, t: V) -> Option<EType>;

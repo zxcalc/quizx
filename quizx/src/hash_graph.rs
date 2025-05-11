@@ -74,8 +74,8 @@ impl GraphLike for Graph {
         self.nume
     }
 
-    fn vertices(&self) -> VIter {
-        VIter::Hash(self.vdata.keys())
+    fn vertices(&self) -> impl Iterator<Item = V> {
+        self.vdata.keys().cloned()
     }
 
     fn edges(&self) -> EIter {

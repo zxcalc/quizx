@@ -115,8 +115,8 @@ impl GraphLike for Graph {
         self.nume
     }
 
-    fn vertices(&self) -> VIter {
-        VIter::Vec(self.numv, self.vdata.iter().enumerate())
+    fn vertices(&self) -> impl Iterator<Item = V> {
+        (0..self.vdata.len()).filter(|&i| self.vdata[i].is_some())
     }
 
     fn edges(&self) -> EIter {
