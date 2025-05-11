@@ -3,8 +3,18 @@ use std::ops::{Add, Index};
 
 pub type Var = u16;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+/// A representation for an XOR of variables, represented as unsigned
+/// integers. The variable "0" is reserved to mean the constant "1".
+///
+/// For example [0, 3, 4] means 1 ⊕ b3 ⊕ b4.
+///
+/// Variables are kept sorted to ensure uniqueness.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub struct Parity(Vec<Var>);
+
+/// A boolean expression, represented as a conjunction of XORs
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
+pub struct Expr(Vec<Parity>);
 
 impl Parity {
     pub fn single(v: Var) -> Self {
@@ -16,12 +26,22 @@ impl Parity {
         self.0.len()
     }
 
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub fn is_one(&self) -> bool {
         self.len() == 1 && self[0] == 0
     }
 
     pub fn one() -> Self {
         Parity(vec![0])
+    }
+
+    /// Returns of a copy of the parity negated
+    pub fn negated(&self) -> Self {
+        &Parity::one() + self
     }
 }
 
@@ -32,8 +52,11 @@ impl Index<usize> for Parity {
     }
 }
 
+/// Converts a vec into a Parity. This will sort the variables, but
+/// it does not automatically cancel out duplicates.
 impl From<Vec<Var>> for Parity {
-    fn from(value: Vec<Var>) -> Self {
+    fn from(mut value: Vec<Var>) -> Self {
+        value.sort();
         Parity(value)
     }
 }
@@ -98,6 +121,41 @@ impl Add<Parity> for Parity {
     type Output = Parity;
     fn add(self, rhs: Parity) -> Self::Output {
         &self + &rhs
+    }
+}
+
+impl Expr {
+    pub fn linear(p: impl Into<Parity>) -> Self {
+        Expr(vec![p.into()])
+    }
+
+    pub fn quadratic(p1: impl Into<Parity>, p2: impl Into<Parity>) -> Self {
+        let mut p1 = p1.into();
+        let mut p2 = p2.into();
+        if p1 > p2 {
+            (p1, p2) = (p2, p1);
+        }
+
+        if p1.is_one() || p1 == p2 {
+            Expr(vec![p2])
+        } else {
+            Expr(vec![p1, p2])
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_linear(&self) -> bool {
+        self.len() == 1
+    }
+}
+
+impl Index<usize> for Expr {
+    type Output = Parity;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
     }
 }
 

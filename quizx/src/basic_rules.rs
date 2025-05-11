@@ -28,6 +28,7 @@
 
 use crate::fscalar::*;
 use crate::graph::*;
+use crate::params::Expr;
 use crate::phase::Phase;
 use num::traits::Zero;
 use num::Rational64;
@@ -557,17 +558,14 @@ pub fn check_remove_single(g: &impl GraphLike, v: V) -> bool {
 
 /// Remove an isolated Z or X vertex and add it as a global scalar
 pub fn remove_single_unchecked(g: &mut impl GraphLike, v: V) {
-    let vd = g.vertex_data(v);
-    let p = vd.phase;
+    let (p, vars) = g.phase_and_vars(v);
 
-    if vd.vars.is_empty() {
+    if vars.is_empty() {
         g.scalar_mut().mul_one_plus_phase(p);
     } else {
-        let var0 = vd.vars.clone();
-        let mut var1 = vec![0];
-        var1.extend(vd.vars.iter());
-        g.mul_scalar_coeff(var0, FScalar::one_plus_phase(p));
-        g.mul_scalar_coeff(var1, FScalar::one_plus_phase(p + Phase::one()));
+        let p1 = p + Phase::one();
+        g.mul_scalar_factor(Expr::linear(vars.negated()), FScalar::one_plus_phase(p));
+        g.mul_scalar_factor(Expr::linear(vars), FScalar::one_plus_phase(p1));
     }
 
     g.remove_vertex(v);
@@ -591,20 +589,61 @@ pub fn remove_pair_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     let t0 = g.vertex_type(v0);
     let t1 = g.vertex_type(v1);
     let et = g.edge_type(v0, v1);
-    let p0 = g.phase(v0);
-    let p1 = g.phase(v1);
+    let (p0, vars0) = g.phase_and_vars(v0);
+    let (p1, vars1) = g.phase_and_vars(v1);
 
     // same color
     if (t0 == t1 && et == EType::N) || (t0 != t1 && et == EType::H) {
+        if vars0.is_empty() && vars1.is_empty() {
+            g.scalar_mut().mul_one_plus_phase(p0 + p1);
+        } else {
+            let vars = vars0 + vars1;
+            g.mul_scalar_factor(
+                Expr::linear(vars.negated()),
+                FScalar::one_plus_phase(p0 + p1),
+            );
+            g.mul_scalar_factor(
+                Expr::linear(vars),
+                FScalar::one_plus_phase(p0 + p1 + Phase::one()),
+            );
+        }
         g.scalar_mut().mul_one_plus_phase(p0 + p1);
+
     // different colors
     } else {
-        let p2 = Phase::one() + p0 + p1;
-        *g.scalar_mut() *= FScalar::one()
-            + FScalar::from_phase(p0)
-            + FScalar::from_phase(p1)
-            + FScalar::from_phase(p2);
-        g.scalar_mut().mul_sqrt2_pow(-1);
+        let (x0, x1, x2) = (
+            FScalar::from_phase(p0),
+            FScalar::from_phase(p1),
+            FScalar::from_phase(p0 + p1),
+        );
+
+        if vars0.is_empty() && vars1.is_empty() {
+            *g.scalar_mut() *= FScalar::one() + x0 + x1 - x2;
+        } else {
+            g.scalar_mut().mul_sqrt2_pow(-1);
+
+            let s00 = FScalar::one() + x0 + x1 - x2;
+            let s01 = FScalar::one() + x0 - x1 + x2;
+            let s10 = FScalar::one() - x0 + x1 + x2;
+            let s11 = FScalar::one() - x0 - x1 - x2;
+
+            if s00 == s01 && s10 == s11 {
+                g.mul_scalar_factor(Expr::linear(vars1.negated()), s00);
+                g.mul_scalar_factor(Expr::linear(vars1), s11);
+            } else if s00 == s10 && s01 == s11 {
+                g.mul_scalar_factor(Expr::linear(vars0.negated()), s00);
+                g.mul_scalar_factor(Expr::linear(vars0), s11);
+            } else if s00 == s11 && s01 == s10 {
+                let vars = vars0 + vars1;
+                g.mul_scalar_factor(Expr::linear(vars.negated()), s00);
+                g.mul_scalar_factor(Expr::linear(vars), s11);
+            } else {
+                g.mul_scalar_factor(Expr::quadratic(vars0.negated(), vars1.negated()), s00);
+                g.mul_scalar_factor(Expr::quadratic(vars0.negated(), vars1.clone()), s01);
+                g.mul_scalar_factor(Expr::quadratic(vars0.clone(), vars1.negated()), s10);
+                g.mul_scalar_factor(Expr::quadratic(vars0, vars1), s11);
+            }
+        }
     }
 
     g.remove_vertex(v0);

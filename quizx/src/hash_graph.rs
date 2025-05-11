@@ -17,6 +17,7 @@
 use crate::fscalar::*;
 pub use crate::graph::*;
 use crate::json::JsonGraph;
+use crate::params::Expr;
 use crate::phase::Phase;
 use rustc_hash::FxHashMap;
 use serde::de::Error as _;
@@ -35,7 +36,7 @@ pub struct Graph {
     nume: usize,
     freshv: V,
     scalar: FScalar,
-    scalar_coeffs: FxHashMap<Vec<u16>, FScalar>,
+    scalar_factors: FxHashMap<Expr, FScalar>,
 }
 
 impl Graph {
@@ -58,7 +59,7 @@ impl GraphLike for Graph {
             nume: 0,
             freshv: 0,
             scalar: 1.into(),
-            scalar_coeffs: FxHashMap::default(),
+            scalar_factors: FxHashMap::default(),
         }
     }
 
@@ -184,7 +185,11 @@ impl GraphLike for Graph {
     }
 
     fn vertex_data(&self, v: V) -> &VData {
-        *self.vdata.get(&v).as_ref().expect("Vertex not found")
+        self.vdata.get(&v).expect("Vertex not found")
+    }
+
+    fn vertex_data_mut(&mut self, v: V) -> &mut VData {
+        self.vdata.get_mut(&v).expect("Vertex not found")
     }
 
     fn vertex_type(&self, v: V) -> VType {
@@ -287,19 +292,19 @@ impl GraphLike for Graph {
         self.vdata.contains_key(&v)
     }
 
-    fn scalar_vars(&self) -> impl Iterator<Item = &Vec<u16>> {
-        self.scalar_coeffs.keys()
+    fn scalar_factors(&self) -> impl Iterator<Item = (&Expr, &FScalar)> {
+        self.scalar_factors.iter()
     }
 
-    fn get_scalar_coeff(&self, vars: &Vec<u16>) -> Option<FScalar> {
-        self.scalar_coeffs.get(vars).map(|s| *s)
+    fn get_scalar_factor(&self, e: &Expr) -> Option<FScalar> {
+        self.scalar_factors.get(e).map(|s| *s)
     }
 
-    fn mul_scalar_coeff(&mut self, vars: Vec<u16>, s: FScalar) {
-        if let Some(t) = self.scalar_coeffs.get_mut(&vars) {
+    fn mul_scalar_factor(&mut self, e: Expr, s: FScalar) {
+        if let Some(t) = self.scalar_factors.get_mut(&e) {
             *t *= s;
         } else {
-            self.scalar_coeffs.insert(vars, s);
+            self.scalar_factors.insert(e, s);
         }
     }
 }

@@ -16,7 +16,7 @@
 
 use crate::fscalar::*;
 pub use crate::graph::*;
-use crate::phase::Phase;
+use crate::params::Expr;
 use num::rational::Rational64;
 use rustc_hash::FxHashMap;
 use std::mem;
@@ -33,7 +33,7 @@ pub struct Graph {
     numv: usize,
     nume: usize,
     scalar: FScalar,
-    scalar_coeffs: FxHashMap<Vec<u16>, FScalar>,
+    scalar_factors: FxHashMap<Expr, FScalar>,
 }
 
 impl Graph {
@@ -99,7 +99,7 @@ impl GraphLike for Graph {
             numv: 0,
             nume: 0,
             scalar: 1.into(),
-            scalar_coeffs: FxHashMap::default(),
+            scalar_factors: FxHashMap::default(),
         }
     }
 
@@ -220,40 +220,13 @@ impl GraphLike for Graph {
         self.remove_half_edge(t, s);
     }
 
-    fn set_phase(&mut self, v: V, phase: impl Into<Phase>) {
-        if let Some(Some(d)) = self.vdata.get_mut(v) {
-            d.phase = phase.into();
-        } else {
-            panic!("Vertex not found");
-        }
-    }
-
-    fn phase(&self, v: V) -> Phase {
-        self.vdata[v].as_ref().expect("Vertex not found").phase
-    }
-
-    fn add_to_phase(&mut self, v: V, phase: impl Into<Phase>) {
-        if let Some(Some(d)) = self.vdata.get_mut(v) {
-            d.phase = (d.phase + phase.into()).normalize();
-        } else {
-            panic!("Vertex not found");
-        }
-    }
-
-    fn set_vertex_type(&mut self, v: V, ty: VType) {
-        if let Some(Some(d)) = self.vdata.get_mut(v) {
-            d.ty = ty;
-        } else {
-            panic!("Vertex not found");
-        }
-    }
-
     fn vertex_data(&self, v: V) -> &VData {
         self.vdata[v].as_ref().expect("Vertex not found")
     }
 
-    fn vertex_type(&self, v: V) -> VType {
-        self.vertex_data(v).ty
+    fn vertex_data_mut(&mut self, v: V) -> &mut VData {
+        let vd = self.vdata.get_mut(v).expect("Vertex not found");
+        vd.as_mut().expect("Vertex not found")
     }
 
     fn set_edge_type(&mut self, s: V, t: V, ety: EType) {
@@ -384,19 +357,19 @@ impl GraphLike for Graph {
         v < self.vdata.len() && self.vdata[v].is_some()
     }
 
-    fn scalar_vars(&self) -> impl Iterator<Item = &Vec<u16>> {
-        self.scalar_coeffs.keys()
+    fn scalar_factors(&self) -> impl Iterator<Item = (&Expr, &FScalar)> {
+        self.scalar_factors.iter()
     }
 
-    fn get_scalar_coeff(&self, vars: &Vec<u16>) -> Option<FScalar> {
-        self.scalar_coeffs.get(vars).map(|s| *s)
+    fn get_scalar_factor(&self, e: &Expr) -> Option<FScalar> {
+        self.scalar_factors.get(e).map(|s| *s)
     }
 
-    fn mul_scalar_coeff(&mut self, vars: Vec<u16>, s: FScalar) {
-        if let Some(t) = self.scalar_coeffs.get_mut(&vars) {
+    fn mul_scalar_factor(&mut self, e: Expr, s: FScalar) {
+        if let Some(t) = self.scalar_factors.get_mut(&e) {
             *t *= s;
         } else {
-            self.scalar_coeffs.insert(vars, s);
+            self.scalar_factors.insert(e, s);
         }
     }
 }

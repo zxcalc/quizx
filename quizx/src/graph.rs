@@ -14,9 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::fscalar::*;
+use crate::params::Expr;
 use crate::phase::Phase;
 use crate::util::*;
+use crate::{fscalar::*, params::Parity};
 use derive_more::{Display, From};
 use num::rational::Rational64;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -48,7 +49,7 @@ pub enum VType {
 pub struct VData {
     pub ty: VType,
     pub phase: Phase,
-    pub vars: Vec<u16>,
+    pub vars: Parity,
     pub qubit: f64,
     pub row: f64,
 }
@@ -58,7 +59,7 @@ impl Default for VData {
         VData {
             ty: VType::B,
             phase: Phase::zero(),
-            vars: vec![],
+            vars: Parity::zero(),
             qubit: 0.0,
             row: 0.0,
         }
@@ -423,20 +424,38 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// Behaviour is undefined if there is no edge between s and t.
     fn remove_edge(&mut self, s: V, t: V);
 
+    /// Returns the phase and any boolean variables at a vertex
+    fn phase_and_vars(&self, v: V) -> (Phase, Parity) {
+        let vd = self.vertex_data(v);
+        (vd.phase, vd.vars.clone())
+    }
+
     /// Set the phase of a vertex
-    fn set_phase(&mut self, v: V, phase: impl Into<Phase>);
+    fn set_phase(&mut self, v: V, phase: impl Into<Phase>) {
+        self.vertex_data_mut(v).phase = phase.into();
+    }
 
     /// Returns the phase of vertex `v`
-    fn phase(&self, v: V) -> Phase;
+    fn phase(&self, v: V) -> Phase {
+        self.vertex_data(v).phase
+    }
 
     /// Adds a value to the phase of a vertex
     fn add_to_phase(&mut self, v: V, phase: impl Into<Phase>) {
-        self.set_phase(v, self.phase(v) + phase.into());
+        let vd = self.vertex_data_mut(v);
+        vd.phase = (vd.phase + phase.into()).normalize();
     }
 
-    fn set_vertex_type(&mut self, v: V, ty: VType);
-    fn vertex_type(&self, v: V) -> VType;
+    fn set_vertex_type(&mut self, v: V, ty: VType) {
+        self.vertex_data_mut(v).ty = ty;
+    }
+
+    fn vertex_type(&self, v: V) -> VType {
+        self.vertex_data(v).ty
+    }
+
     fn vertex_data(&self, v: V) -> &VData;
+    fn vertex_data_mut(&mut self, v: V) -> &mut VData;
     fn set_edge_type(&mut self, s: V, t: V, ety: EType);
     fn edge_type_opt(&self, s: V, t: V) -> Option<EType>;
     fn set_coord(&mut self, v: V, coord: impl Into<Coord>);
@@ -458,9 +477,9 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         F: Fn(V) -> bool;
     fn contains_vertex(&self, v: V) -> bool;
 
-    fn scalar_vars(&self) -> impl Iterator<Item = &Vec<u16>>;
-    fn get_scalar_coeff(&self, vars: &Vec<u16>) -> Option<FScalar>;
-    fn mul_scalar_coeff(&mut self, vars: Vec<u16>, s: FScalar);
+    fn scalar_factors(&self) -> impl Iterator<Item = (&Expr, &FScalar)>;
+    fn get_scalar_factor(&self, e: &Expr) -> Option<FScalar>;
+    fn mul_scalar_factor(&mut self, e: Expr, s: FScalar);
 
     fn add_edge(&mut self, s: V, t: V) {
         self.add_edge_with_type(s, t, EType::N);
