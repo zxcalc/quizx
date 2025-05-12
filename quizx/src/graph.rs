@@ -283,7 +283,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     }
 
     /// Sets the coordinate of a vertex
-    /// 
+    ///
     /// This method takes a Coord as an argument and sets the qubit of the vertex to `coord.y` and
     /// the row of the vertex to `coord.x`.
     fn set_coord(&mut self, v: V, coord: impl Into<Coord>) {
@@ -294,7 +294,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     }
 
     /// Returns the coordinate of a vertex
-    /// 
+    ///
     /// This method returns a Coord for a given vertex, where the qubit of the vertex is `coord.y` and
     /// the row of the vertex is `coord.x`.
     fn coord(&self, v: V) -> Coord {
@@ -303,7 +303,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     }
 
     /// Sets the qubit index of the given vertex
-    /// 
+    ///
     /// This is primarily used for visual layout of a vertex, hence `qubit` and `row` are allowed to take
     /// fractional values to allow arbitrary placements in 2D space.
     fn set_qubit(&mut self, v: V, qubit: f64) {
@@ -326,7 +326,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     }
 
     /// Sets the boolean variables that affect the phase of this vertex
-    /// 
+    ///
     /// This allows the phase to depend on an XOR of boolean variables, represented by a
     /// `Parity`. If the parity is even, the phase is considered to be `self.vertex_data(v).phase`,
     /// whereas if the parity is odd, the phase should be `self.vertex_data(v).phase + Phase::one()`,

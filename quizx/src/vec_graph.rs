@@ -301,7 +301,7 @@ impl GraphLike for Graph {
 
     fn neighbors(&self, v: V) -> impl Iterator<Item = usize> {
         if let Some(Some(nhd)) = self.edata.get(v) {
-            nhd.iter().map(|(u,_)| *u)
+            nhd.iter().map(|(u, _)| *u)
         } else {
             panic!("Vertex not found")
         }
