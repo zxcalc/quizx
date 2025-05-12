@@ -123,9 +123,9 @@ impl GraphLike for Graph {
         self.edata
             .iter()
             .enumerate()
-            .filter_map(|(u, t)| t.as_ref().map(|t1| (u, t1)))
-            .flat_map(|(u, t)| {
-                t.iter()
+            .filter_map(|(u, tab)| tab.as_ref().map(|tab1| (u, tab1)))
+            .flat_map(|(u, tab)| {
+                tab.iter()
                     .filter_map(move |&(v, t)| if u <= v { Some((u, v, t)) } else { None })
             })
     }
