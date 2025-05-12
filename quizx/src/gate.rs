@@ -251,6 +251,7 @@ impl Gate {
                 phase: phase.into(),
                 qubit: (qubit as f64),
                 row,
+                ..Default::default()
             });
             graph.add_edge_with_type(v0, v, et);
             qs[qubit] = Some(v);

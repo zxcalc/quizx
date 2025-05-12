@@ -28,9 +28,9 @@
 
 use crate::fscalar::*;
 use crate::graph::*;
+use crate::params::Expr;
 use crate::phase::Phase;
 use num::traits::Zero;
-use num::Rational64;
 use rustc_hash::FxHashSet;
 use std::iter::FromIterator;
 
@@ -127,6 +127,7 @@ pub fn spider_fusion_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     }
 
     g.add_to_phase(v0, g.phase(v1));
+    g.add_to_vars(v0, &g.vars(v1));
     g.remove_vertex(v1);
 }
 
@@ -208,6 +209,11 @@ pub fn pi_copy_unchecked(g: &mut impl GraphLike, v: V) {
     g.scalar_mut().mul_phase(phase);
     g.set_phase(v, -phase);
 
+    let vars = g.vars(v);
+    if !vars.is_empty() {
+        g.mul_scalar_factor(Expr::linear(vars), FScalar::minus_one());
+    }
+
     // Push a pi to all the surrounding nodes
     for neighbor in g.neighbor_vec(v) {
         g.add_to_phase(neighbor, 1);
@@ -220,7 +226,10 @@ checked_rule1!(check_pi_copy, pi_copy_unchecked, pi_copy);
 pub fn check_remove_id(g: &impl GraphLike, v: V) -> bool {
     let vt = g.vertex_type(v);
 
-    (vt == VType::Z || vt == VType::X) && g.phase(v).is_zero() && g.degree(v) == 2
+    (vt == VType::Z || vt == VType::X)
+        && g.phase(v).is_zero()
+        && g.degree(v) == 2
+        && g.vars(v).is_empty()
 }
 
 /// Remove an arity-2 spider with phase 0
@@ -282,11 +291,17 @@ pub fn check_local_comp(g: &impl GraphLike, v: V) -> bool {
 /// decomposition rule.
 pub fn local_comp_unchecked(g: &mut impl GraphLike, v: V) {
     let p = g.phase(v);
+    let vars = g.vars(v);
 
     // add a totally connected graph of the nhd of v
     let ns: Vec<V> = g.neighbors(v).collect();
     for i in 0..ns.len() {
         g.add_to_phase(ns[i], -p);
+
+        if !vars.is_empty() {
+            g.add_to_vars(ns[i], &vars);
+        }
+
         for j in (i + 1)..ns.len() {
             g.add_edge_smart(ns[i], ns[j], EType::H);
         }
@@ -295,8 +310,11 @@ pub fn local_comp_unchecked(g: &mut impl GraphLike, v: V) {
 
     let x = ns.len() as i32;
     g.scalar_mut().mul_sqrt2_pow(((x - 1) * (x - 2)) / 2);
-    g.scalar_mut()
-        .mul_phase(Rational64::new(*p.to_rational().numer(), 4));
+    g.scalar_mut().mul_phase(p / 2);
+
+    if !vars.is_empty() {
+        g.mul_scalar_factor(Expr::linear(vars), FScalar::from_phase(-p));
+    }
 }
 
 checked_rule1!(check_local_comp, local_comp_unchecked, local_comp);
@@ -323,8 +341,8 @@ pub fn check_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
 /// effectively a generalised version of the strong complementarity
 /// rule.
 pub fn pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
-    let p0 = g.phase(v0);
-    let p1 = g.phase(v1);
+    let (p0, vars0) = g.phase_and_vars(v0);
+    let (p1, vars1) = g.phase_and_vars(v1);
 
     // add a complete bipartite graph between the neighbors of v0
     // and the neighbors of v1
@@ -333,6 +351,7 @@ pub fn pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     // let mut z: i32 = 0; // the number of neighbors of v0 and v1
     for &n0 in &ns0 {
         g.add_to_phase(n0, p1);
+        g.add_to_vars(n0, &vars1);
         for &n1 in &ns1 {
             if n0 != v1 && n1 != v0 {
                 // unlike PyZX, add_edge_smart handles self-loops
@@ -343,6 +362,7 @@ pub fn pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 
     for &n1 in &ns1 {
         g.add_to_phase(n1, p0);
+        g.add_to_vars(n1, &vars0);
     }
 
     g.remove_vertex(v0);
@@ -353,7 +373,11 @@ pub fn pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     g.scalar_mut().mul_sqrt2_pow((x - 2) * (y - 2));
 
     if !p0.is_zero() && !p1.is_zero() {
-        g.scalar_mut().mul_phase(Rational64::new(1, 1));
+        *g.scalar_mut() *= FScalar::minus_one();
+    }
+
+    if !vars0.is_empty() && !vars1.is_empty() {
+        g.mul_scalar_factor(Expr::quadratic(vars0, vars1), FScalar::minus_one());
     }
 }
 
@@ -369,9 +393,9 @@ fn unfuse_boundary(g: &mut impl GraphLike, v: V, b: V) {
     }
     let vd = VData {
         ty: VType::Z,
-        phase: Phase::zero(),
         row: g.row(v),
         qubit: g.qubit(v),
+        ..Default::default()
     };
     let v1 = g.add_vertex_with_data(vd);
     g.add_edge_with_type(v, v1, EType::H);
@@ -388,9 +412,9 @@ fn unfuse_gadget(g: &mut impl GraphLike, v: V) {
     }
     let vd1 = VData {
         ty: VType::Z,
-        phase: Phase::zero(),
         row: g.row(v),
         qubit: -1.0,
+        ..Default::default()
     };
 
     let vd2 = VData {
@@ -398,10 +422,14 @@ fn unfuse_gadget(g: &mut impl GraphLike, v: V) {
         phase: g.phase(v),
         row: g.row(v),
         qubit: -2.0,
+        ..Default::default()
     };
     let v1 = g.add_vertex_with_data(vd1);
     let v2 = g.add_vertex_with_data(vd2);
     g.set_phase(v, Phase::zero());
+    // note if v has any boolean vars, we just leave them there, rather than moving
+    // them on to v1. This should be fine, since Paulis don't interfere with any
+    // of the Clifford simplifications.
     g.add_edge_with_type(v, v1, EType::H);
     g.add_edge_with_type(v1, v2, EType::H);
 }
@@ -499,6 +527,13 @@ pub fn check_gadget_fusion(g: &impl GraphLike, v0: V, v1: V) -> bool {
         return false;
     }
 
+    let (p0, vars0) = g.phase_and_vars(v0);
+    let (p1, vars1) = g.phase_and_vars(v1);
+
+    if !p0.is_zero() || !p1.is_zero() || !vars0.is_empty() || !vars1.is_empty() {
+        return false;
+    }
+
     let vs = [v0, v1];
     let mut nhd = [FxHashSet::default(), FxHashSet::default()];
 
@@ -540,6 +575,7 @@ pub fn gadget_fusion_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
         .find(|&n| g.degree(n) == 1)
         .expect("v1 isn't a gadget");
     g.add_to_phase(gphase0, g.phase(gphase1));
+    g.add_to_vars(gphase0, &g.vars(gphase1));
     g.remove_vertex(v1);
     g.remove_vertex(gphase1);
 
@@ -551,13 +587,21 @@ checked_rule2!(check_gadget_fusion, gadget_fusion_unchecked, gadget_fusion);
 
 pub fn check_remove_single(g: &impl GraphLike, v: V) -> bool {
     let t = g.vertex_type(v);
-    g.neighbors(v).len() == 0 && (t == VType::Z || t == VType::X)
+    g.degree(v) == 0 && (t == VType::Z || t == VType::X)
 }
 
 /// Remove an isolated Z or X vertex and add it as a global scalar
 pub fn remove_single_unchecked(g: &mut impl GraphLike, v: V) {
-    let p = g.phase(v);
-    g.scalar_mut().mul_one_plus_phase(p);
+    let (p, vars) = g.phase_and_vars(v);
+
+    if vars.is_empty() {
+        g.scalar_mut().mul_one_plus_phase(p);
+    } else {
+        let p1 = p + Phase::one();
+        g.mul_scalar_factor(Expr::linear(vars.negated()), FScalar::one_plus_phase(p));
+        g.mul_scalar_factor(Expr::linear(vars), FScalar::one_plus_phase(p1));
+    }
+
     g.remove_vertex(v);
 }
 
@@ -567,32 +611,72 @@ pub fn check_remove_pair(g: &impl GraphLike, v0: V, v1: V) -> bool {
     let t0 = g.vertex_type(v0);
     let t1 = g.vertex_type(v1);
 
-    g.neighbors(v0).len() == 1
-        && g.neighbors(v1).len() == 1
+    g.degree(v0) == 1
+        && g.degree(v1) == 1
         && (t0 == VType::Z || t0 == VType::X)
         && (t1 == VType::Z || t1 == VType::X)
         && g.connected(v0, v1)
 }
 
-/// Remove an isolated Z or X vertex and add it as a global scalar
+/// Remove a pair of connected Z or X vertices and add it as a global scalar
 pub fn remove_pair_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     let t0 = g.vertex_type(v0);
     let t1 = g.vertex_type(v1);
     let et = g.edge_type(v0, v1);
-    let p0 = g.phase(v0);
-    let p1 = g.phase(v1);
+    let (p0, vars0) = g.phase_and_vars(v0);
+    let (p1, vars1) = g.phase_and_vars(v1);
 
     // same color
     if (t0 == t1 && et == EType::N) || (t0 != t1 && et == EType::H) {
-        g.scalar_mut().mul_one_plus_phase(p0 + p1);
+        if vars0.is_empty() && vars1.is_empty() {
+            g.scalar_mut().mul_one_plus_phase(p0 + p1);
+        } else {
+            let vars = vars0 + vars1;
+            g.mul_scalar_factor(
+                Expr::linear(vars.negated()),
+                FScalar::one_plus_phase(p0 + p1),
+            );
+            g.mul_scalar_factor(
+                Expr::linear(vars),
+                FScalar::one_plus_phase(p0 + p1 + Phase::one()),
+            );
+        }
+
     // different colors
     } else {
-        let p2 = Phase::one() + p0 + p1;
-        *g.scalar_mut() *= FScalar::one()
-            + FScalar::from_phase(p0)
-            + FScalar::from_phase(p1)
-            + FScalar::from_phase(p2);
+        let (x0, x1, x2) = (
+            FScalar::from_phase(p0),
+            FScalar::from_phase(p1),
+            FScalar::from_phase(p0 + p1),
+        );
+
         g.scalar_mut().mul_sqrt2_pow(-1);
+
+        if vars0.is_empty() && vars1.is_empty() {
+            *g.scalar_mut() *= FScalar::one() + x0 + x1 - x2;
+        } else {
+            let s00 = FScalar::one() + x0 + x1 - x2;
+            let s01 = FScalar::one() + x0 - x1 + x2;
+            let s10 = FScalar::one() - x0 + x1 + x2;
+            let s11 = FScalar::one() - x0 - x1 - x2;
+
+            if s00 == s01 && s10 == s11 {
+                g.mul_scalar_factor(Expr::linear(vars1.negated()), s00);
+                g.mul_scalar_factor(Expr::linear(vars1), s11);
+            } else if s00 == s10 && s01 == s11 {
+                g.mul_scalar_factor(Expr::linear(vars0.negated()), s00);
+                g.mul_scalar_factor(Expr::linear(vars0), s11);
+            } else if s00 == s11 && s01 == s10 {
+                let vars = vars0 + vars1;
+                g.mul_scalar_factor(Expr::linear(vars.negated()), s00);
+                g.mul_scalar_factor(Expr::linear(vars), s11);
+            } else {
+                g.mul_scalar_factor(Expr::quadratic(vars0.negated(), vars1.negated()), s00);
+                g.mul_scalar_factor(Expr::quadratic(vars0.negated(), vars1.clone()), s01);
+                g.mul_scalar_factor(Expr::quadratic(vars0.clone(), vars1.negated()), s10);
+                g.mul_scalar_factor(Expr::quadratic(vars0, vars1), s11);
+            }
+        }
     }
 
     g.remove_vertex(v0);

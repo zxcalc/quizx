@@ -14,14 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::basic_rules::{boundary_pivot, remove_id};
 use crate::circuit::*;
 use crate::gate::*;
 use crate::graph::*;
-// use crate::tensor::*;
-use crate::basic_rules::{boundary_pivot, remove_id};
 use crate::linalg::*;
-use crate::phase::Phase;
-use num::{Rational64, Zero};
+use num::Rational64;
+use num::Zero;
 use rustc_hash::FxHashSet;
 use std::fmt;
 
@@ -273,7 +272,8 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
 
         for q in 0..self.g.outputs().len() {
             let o = self.g.outputs()[q];
-            if let Some((v, et)) = self.g.incident_edges(o).next() {
+            let inc = self.g.incident_edges(o).next();
+            if let Some((v, et)) = inc {
                 // replace a Hadamard edge from the output with a Hadamard gate
                 if et == EType::H {
                     c.push_front(Gate::new(HAD, vec![q]));
@@ -316,9 +316,9 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
                         if self.g.degree(v) > 2 {
                             let vd = VData {
                                 ty: VType::Z,
-                                phase: Phase::zero(),
                                 qubit: self.g.qubit(n),
                                 row: self.g.row(n) + 1.0,
+                                ..Default::default()
                             };
                             let n1 = self.g.add_vertex_with_data(vd);
                             self.g

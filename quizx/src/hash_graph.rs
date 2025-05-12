@@ -17,8 +17,7 @@
 use crate::fscalar::*;
 pub use crate::graph::*;
 use crate::json::JsonGraph;
-use crate::phase::Phase;
-use num::rational::Rational64;
+use crate::params::Expr;
 use rustc_hash::FxHashMap;
 use serde::de::Error as _;
 use serde::ser::Error as _;
@@ -36,6 +35,7 @@ pub struct Graph {
     nume: usize,
     freshv: V,
     scalar: FScalar,
+    scalar_factors: FxHashMap<Expr, FScalar>,
 }
 
 impl Graph {
@@ -58,6 +58,7 @@ impl GraphLike for Graph {
             nume: 0,
             freshv: 0,
             scalar: 1.into(),
+            scalar_factors: FxHashMap::default(),
         }
     }
 
@@ -73,12 +74,15 @@ impl GraphLike for Graph {
         self.nume
     }
 
-    fn vertices(&self) -> VIter {
-        VIter::Hash(self.vdata.keys())
+    fn vertices(&self) -> impl Iterator<Item = V> {
+        self.vdata.keys().cloned()
     }
 
-    fn edges(&self) -> EIter {
-        EIter::Hash(self.nume, self.edata.iter(), None)
+    fn edges(&self) -> impl Iterator<Item = (V, V, EType)> {
+        self.edata.iter().flat_map(|(&u, tab)| {
+            tab.iter()
+                .filter_map(move |(&v, &t)| if u <= v { Some((u, v, t)) } else { None })
+        })
     }
 
     fn inputs(&self) -> &Vec<V> {
@@ -103,9 +107,7 @@ impl GraphLike for Graph {
     fn add_vertex(&mut self, ty: VType) -> V {
         self.add_vertex_with_data(VData {
             ty,
-            phase: Rational64::new(0, 1).into(),
-            qubit: 0.0,
-            row: 0.0,
+            ..Default::default()
         })
     }
 
@@ -164,32 +166,12 @@ impl GraphLike for Graph {
         self.remove_half_edge(t, s);
     }
 
-    fn set_phase(&mut self, v: V, phase: impl Into<Phase>) {
-        self.vdata.get_mut(&v).expect("Vertex not found").phase = phase.into();
+    fn vertex_data(&self, v: V) -> &VData {
+        self.vdata.get(&v).expect("Vertex not found")
     }
 
-    fn phase(&self, v: V) -> Phase {
-        self.vdata.get(&v).expect("Vertex not found").phase
-    }
-
-    fn add_to_phase(&mut self, v: V, phase: impl Into<Phase>) {
-        if let Some(d) = self.vdata.get_mut(&v) {
-            d.phase = (d.phase + phase.into()).normalize();
-        } else {
-            panic!("Vertex not found");
-        }
-    }
-
-    fn set_vertex_type(&mut self, v: V, ty: VType) {
-        self.vdata.get_mut(&v).expect("Vertex not found").ty = ty;
-    }
-
-    fn vertex_data(&self, v: V) -> VData {
-        *self.vdata.get(&v).expect("Vertex not found")
-    }
-
-    fn vertex_type(&self, v: V) -> VType {
-        self.vdata.get(&v).expect("Vertex not found").ty
+    fn vertex_data_mut(&mut self, v: V) -> &mut VData {
+        self.vdata.get_mut(&v).expect("Vertex not found")
     }
 
     fn set_edge_type(&mut self, s: V, t: V, ety: EType) {
@@ -215,40 +197,20 @@ impl GraphLike for Graph {
             .copied()
     }
 
-    fn set_coord(&mut self, v: V, coord: impl Into<Coord>) {
-        let coord = coord.into();
-        let d = self.vdata.get_mut(&v).expect("Vertex not found");
-        d.qubit = coord.y;
-        d.row = coord.x;
+    fn neighbors(&self, v: V) -> impl Iterator<Item = usize> {
+        self.edata
+            .get(&v)
+            .expect("Vertex not found")
+            .keys()
+            .copied()
     }
 
-    fn coord(&self, v: V) -> Coord {
-        let d = self.vdata.get(&v).expect("Vertex not found");
-        Coord::new(d.row, d.qubit)
-    }
-
-    fn set_qubit(&mut self, v: V, qubit: f64) {
-        self.vdata.get_mut(&v).expect("Vertex not found").qubit = qubit;
-    }
-
-    fn qubit(&self, v: V) -> f64 {
-        self.vdata.get(&v).expect("Vertex not found").qubit
-    }
-
-    fn set_row(&mut self, v: V, row: f64) {
-        self.vdata.get_mut(&v).expect("Vertex not found").row = row;
-    }
-
-    fn row(&self, v: V) -> f64 {
-        self.vdata.get(&v).expect("Vertex not found").row
-    }
-
-    fn neighbors(&self, v: V) -> NeighborIter {
-        NeighborIter::Hash(self.edata.get(&v).expect("Vertex not found").keys())
-    }
-
-    fn incident_edges(&self, v: V) -> IncidentEdgeIter {
-        IncidentEdgeIter::Hash(self.edata.get(&v).expect("Vertex not found").iter())
+    fn incident_edges(&self, v: V) -> impl Iterator<Item = (usize, EType)> {
+        self.edata
+            .get(&v)
+            .expect("Vertex not found")
+            .iter()
+            .map(|(u, t)| (*u, *t))
     }
 
     fn degree(&self, v: V) -> usize {
@@ -286,6 +248,22 @@ impl GraphLike for Graph {
 
     fn contains_vertex(&self, v: V) -> bool {
         self.vdata.contains_key(&v)
+    }
+
+    fn scalar_factors(&self) -> impl Iterator<Item = (&Expr, &FScalar)> {
+        self.scalar_factors.iter()
+    }
+
+    fn get_scalar_factor(&self, e: &Expr) -> Option<FScalar> {
+        self.scalar_factors.get(e).copied()
+    }
+
+    fn mul_scalar_factor(&mut self, e: Expr, s: FScalar) {
+        if let Some(t) = self.scalar_factors.get_mut(&e) {
+            *t *= s;
+        } else {
+            self.scalar_factors.insert(e, s);
+        }
     }
 }
 

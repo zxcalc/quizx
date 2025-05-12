@@ -14,9 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::fscalar::*;
+use crate::params::Expr;
 use crate::phase::Phase;
 use crate::util::*;
+use crate::{fscalar::*, params::Parity};
 use derive_more::{Display, From};
 use num::rational::Rational64;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -44,19 +45,21 @@ pub enum VType {
     ZBox,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct VData {
     pub ty: VType,
     pub phase: Phase,
+    pub vars: Parity,
     pub qubit: f64,
     pub row: f64,
 }
 
-impl VData {
-    pub fn empty() -> Self {
+impl Default for VData {
+    fn default() -> Self {
         VData {
             ty: VType::B,
             phase: Phase::zero(),
+            vars: Parity::zero(),
             qubit: 0.0,
             row: 0.0,
         }
@@ -147,19 +150,6 @@ impl Coord {
         Coord { x, y }
     }
 
-    // /// Casts the coordinates to f64.
-    // pub fn to_f64(self) -> (f64, f64) {
-    //     (self.x as f64, self.y as f64)
-    // }
-
-    // /// Casts a pair of f64 to coordinates.
-    // pub fn from_f64((x, y): (f64, f64)) -> Self {
-    //     Coord {
-    //         x: x.round() as i32,
-    //         y: y.round() as i32,
-    //     }
-    // }
-
     /// Infer the qubit index from the y-coordinate.
     pub fn qubit(&self) -> f64 {
         self.y
@@ -170,191 +160,6 @@ impl Coord {
         self.x
     }
 }
-
-pub enum VIter<'a> {
-    Vec(
-        usize,
-        std::iter::Enumerate<std::slice::Iter<'a, Option<VData>>>,
-    ),
-    Hash(std::collections::hash_map::Keys<'a, V, VData>),
-}
-
-impl Iterator for VIter<'_> {
-    type Item = V;
-    fn next(&mut self) -> Option<V> {
-        match self {
-            VIter::Vec(_, inner) => {
-                let mut next = inner.next();
-
-                // skip over "holes", i.e. vertices that have been deleted
-                while next.is_some() && !next.unwrap().1.is_some() {
-                    next = inner.next();
-                }
-
-                match next {
-                    Some((v, Some(_))) => Some(v),
-                    Some((_, None)) => panic!("encountered deleted vertex in VIter"), // should never happen
-                    None => None,
-                }
-            }
-            VIter::Hash(inner) => inner.next().copied(),
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = match self {
-            VIter::Vec(sz, _) => *sz,
-            VIter::Hash(inner) => inner.len(),
-        };
-        (len, Some(len))
-    }
-}
-
-impl ExactSizeIterator for VIter<'_> {}
-
-#[allow(clippy::type_complexity)]
-pub enum EIter<'a> {
-    Vec(
-        usize,
-        std::iter::Enumerate<std::slice::Iter<'a, Option<Vec<(V, EType)>>>>,
-        Option<(V, std::slice::Iter<'a, (V, EType)>)>,
-    ),
-    Hash(
-        usize,
-        std::collections::hash_map::Iter<'a, V, rustc_hash::FxHashMap<V, EType>>,
-        Option<(V, std::collections::hash_map::Iter<'a, V, EType>)>,
-    ),
-}
-
-impl Iterator for EIter<'_> {
-    type Item = (V, V, EType);
-    fn next(&mut self) -> Option<(V, V, EType)> {
-        match self {
-            EIter::Vec(_, outer, inner) => {
-                loop {
-                    // "inner" iterates the neighborhood of a single vertex
-                    if let Some((v, iter)) = inner {
-                        let mut next = iter.next();
-
-                        // skip over edges with target id < source id to avoid double-counting
-                        while next.is_some() && next.unwrap().0 < *v {
-                            next = iter.next();
-                        }
-
-                        // got a new edge with v <= v1, so return it
-                        if let Some((v1, et)) = next {
-                            return Some((*v, *v1, *et));
-                        }
-                    }
-
-                    // if we get to here, either we are a brand new iterator or we've run out of
-                    // edges next to the current vertex, so we need to proceed to the next one
-                    let mut outer_next = outer.next();
-
-                    // skip over "holes", i.e. vertices that have been deleted
-                    while outer_next.is_some() && outer_next.unwrap().1.is_none() {
-                        outer_next = outer.next();
-                    }
-
-                    match outer_next {
-                        // proceed to the next vertex and loop
-                        Some((v, Some(tab))) => {
-                            *inner = Some((v, tab.iter()));
-                        }
-                        // should never happen
-                        Some((_, None)) => panic!("encountered deleted vertex in EIter"),
-                        // out of vertices, so terminate iteration
-                        None => {
-                            return None;
-                        }
-                    }
-                }
-            }
-            EIter::Hash(_, outer, inner) => match inner {
-                Some((v, inner1)) => match inner1.next() {
-                    Some((v1, et)) => {
-                        if *v <= *v1 {
-                            Some((*v, *v1, *et))
-                        } else {
-                            self.next()
-                        }
-                    }
-                    None => {
-                        *inner = None;
-                        self.next()
-                    }
-                },
-                None => match outer.next() {
-                    Some((v, tab)) => {
-                        *inner = Some((*v, tab.iter()));
-                        self.next()
-                    }
-                    None => None,
-                },
-            },
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = match self {
-            EIter::Vec(sz, ..) => *sz,
-            EIter::Hash(sz, ..) => *sz,
-        };
-        (len, Some(len))
-    }
-}
-
-impl ExactSizeIterator for EIter<'_> {}
-
-pub enum NeighborIter<'a> {
-    Vec(std::slice::Iter<'a, (V, EType)>),
-    Hash(std::collections::hash_map::Keys<'a, V, EType>),
-}
-
-impl Iterator for NeighborIter<'_> {
-    type Item = V;
-    fn next(&mut self) -> Option<V> {
-        match self {
-            NeighborIter::Vec(inner) => inner.next().map(|&(v, _)| v),
-            NeighborIter::Hash(inner) => inner.next().copied(),
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = match self {
-            NeighborIter::Vec(inner) => inner.len(),
-            NeighborIter::Hash(inner) => inner.len(),
-        };
-        (len, Some(len))
-    }
-}
-
-impl ExactSizeIterator for NeighborIter<'_> {}
-
-pub enum IncidentEdgeIter<'a> {
-    Vec(std::slice::Iter<'a, (V, EType)>),
-    Hash(std::collections::hash_map::Iter<'a, V, EType>),
-}
-
-impl Iterator for IncidentEdgeIter<'_> {
-    type Item = (V, EType);
-    fn next(&mut self) -> Option<(V, EType)> {
-        match self {
-            IncidentEdgeIter::Vec(inner) => inner.next().copied(),
-            IncidentEdgeIter::Hash(inner) => inner.next().map(|(&v, &et)| (v, et)),
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = match self {
-            IncidentEdgeIter::Vec(inner) => inner.len(),
-            IncidentEdgeIter::Hash(inner) => inner.len(),
-        };
-        (len, Some(len))
-    }
-}
-
-impl ExactSizeIterator for IncidentEdgeIter<'_> {}
 
 pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// Initialise a new empty graph
@@ -370,12 +175,12 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     fn num_edges(&self) -> usize;
 
     /// Get iterator over all vertices
-    fn vertices(&self) -> VIter;
+    fn vertices(&self) -> impl Iterator<Item = V>;
 
     /// Get iterator over all edges
     ///
     /// An "edge" is a triple (s, t, edge_type), where s <= t.
-    fn edges(&self) -> EIter;
+    fn edges(&self) -> impl Iterator<Item = (V, V, EType)>;
 
     /// List of boundary vertices which serve as inputs
     fn inputs(&self) -> &Vec<V>;
@@ -421,30 +226,15 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// Behaviour is undefined if there is no edge between s and t.
     fn remove_edge(&mut self, s: V, t: V);
 
-    /// Set the phase of a vertex
-    fn set_phase(&mut self, v: V, phase: impl Into<Phase>);
+    /// Get the data associated to the given vertex
+    fn vertex_data(&self, v: V) -> &VData;
 
-    /// Returns the phase of vertex `v`
-    fn phase(&self, v: V) -> Phase;
-
-    /// Adds a value to the phase of a vertex
-    fn add_to_phase(&mut self, v: V, phase: impl Into<Phase>) {
-        self.set_phase(v, self.phase(v) + phase.into());
-    }
-
-    fn set_vertex_type(&mut self, v: V, ty: VType);
-    fn vertex_type(&self, v: V) -> VType;
-    fn vertex_data(&self, v: V) -> VData;
+    /// Get a mutable ref to the data associated to the given vertex
+    fn vertex_data_mut(&mut self, v: V) -> &mut VData;
     fn set_edge_type(&mut self, s: V, t: V, ety: EType);
     fn edge_type_opt(&self, s: V, t: V) -> Option<EType>;
-    fn set_coord(&mut self, v: V, coord: impl Into<Coord>);
-    fn coord(&self, v: V) -> Coord;
-    fn set_qubit(&mut self, v: V, qubit: f64);
-    fn qubit(&self, v: V) -> f64;
-    fn set_row(&mut self, v: V, row: f64);
-    fn row(&self, v: V) -> f64;
-    fn neighbors(&self, v: V) -> NeighborIter;
-    fn incident_edges(&self, v: V) -> IncidentEdgeIter;
+    fn neighbors(&self, v: V) -> impl Iterator<Item = V>;
+    fn incident_edges(&self, v: V) -> impl Iterator<Item = (V, EType)>;
     fn degree(&self, v: V) -> usize;
     fn scalar(&self) -> &FScalar;
     fn scalar_mut(&mut self) -> &mut FScalar;
@@ -455,6 +245,106 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     where
         F: Fn(V) -> bool;
     fn contains_vertex(&self, v: V) -> bool;
+
+    fn scalar_factors(&self) -> impl Iterator<Item = (&Expr, &FScalar)>;
+    fn get_scalar_factor(&self, e: &Expr) -> Option<FScalar>;
+    fn mul_scalar_factor(&mut self, e: Expr, s: FScalar);
+
+    /// Returns the phase and any boolean variables at a vertex
+    fn phase_and_vars(&self, v: V) -> (Phase, Parity) {
+        let vd = self.vertex_data(v);
+        (vd.phase, vd.vars.clone())
+    }
+
+    /// Set the phase of a vertex
+    fn set_phase(&mut self, v: V, phase: impl Into<Phase>) {
+        self.vertex_data_mut(v).phase = phase.into();
+    }
+
+    /// Returns the phase of vertex `v`
+    fn phase(&self, v: V) -> Phase {
+        self.vertex_data(v).phase
+    }
+
+    /// Adds a value to the phase of a vertex
+    fn add_to_phase(&mut self, v: V, phase: impl Into<Phase>) {
+        let vd = self.vertex_data_mut(v);
+        vd.phase = (vd.phase + phase.into()).normalize();
+    }
+
+    /// Sets the type of a vertex
+    fn set_vertex_type(&mut self, v: V, ty: VType) {
+        self.vertex_data_mut(v).ty = ty;
+    }
+
+    /// Returns the type of a vertex
+    fn vertex_type(&self, v: V) -> VType {
+        self.vertex_data(v).ty
+    }
+
+    /// Sets the coordinate of a vertex
+    ///
+    /// This method takes a Coord as an argument and sets the qubit of the vertex to `coord.y` and
+    /// the row of the vertex to `coord.x`.
+    fn set_coord(&mut self, v: V, coord: impl Into<Coord>) {
+        let coord = coord.into();
+        let d = self.vertex_data_mut(v);
+        d.qubit = coord.y;
+        d.row = coord.x;
+    }
+
+    /// Returns the coordinate of a vertex
+    ///
+    /// This method returns a Coord for a given vertex, where the qubit of the vertex is `coord.y` and
+    /// the row of the vertex is `coord.x`.
+    fn coord(&self, v: V) -> Coord {
+        let d = self.vertex_data(v);
+        Coord::new(d.row, d.qubit)
+    }
+
+    /// Sets the qubit index of the given vertex
+    ///
+    /// This is primarily used for visual layout of a vertex, hence `qubit` and `row` are allowed to take
+    /// fractional values to allow arbitrary placements in 2D space.
+    fn set_qubit(&mut self, v: V, qubit: f64) {
+        self.vertex_data_mut(v).qubit = qubit;
+    }
+
+    /// Returns the qubit index of the given vertex
+    fn qubit(&self, v: V) -> f64 {
+        self.vertex_data(v).qubit
+    }
+
+    /// Sets the row of the given vertex
+    fn set_row(&mut self, v: V, row: f64) {
+        self.vertex_data_mut(v).row = row;
+    }
+
+    /// Returns the row of the given vertex
+    fn row(&self, v: V) -> f64 {
+        self.vertex_data(v).row
+    }
+
+    /// Sets the boolean variables that affect the phase of this vertex
+    ///
+    /// This allows the phase to depend on an XOR of boolean variables, represented by a
+    /// `Parity`. If the parity is even, the phase is considered to be `self.vertex_data(v).phase`,
+    /// whereas if the parity is odd, the phase should be `self.vertex_data(v).phase + Phase::one()`,
+    /// i.e. it gains a pi term.
+    fn set_vars(&mut self, v: V, vars: Parity) {
+        self.vertex_data_mut(v).vars = vars;
+    }
+
+    /// Returns the boolean variables that affect the phase of this vertex
+    fn vars(&self, v: V) -> Parity {
+        self.vertex_data(v).vars.clone()
+    }
+
+    /// Adds the given variables to the parity expression of the vertex
+    fn add_to_vars(&mut self, v: V, vars: &Parity) {
+        let vars1 = &self.vertex_data(v).vars + vars;
+        self.vertex_data_mut(v).vars = vars1;
+    }
 
     fn add_edge(&mut self, s: V, t: V) {
         self.add_edge_with_type(s, t, EType::N);
@@ -652,7 +542,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         let mut vmap = FxHashMap::default();
 
         for v in other.vertices() {
-            let v1 = self.add_vertex_with_data(other.vertex_data(v));
+            let v1 = self.add_vertex_with_data(other.vertex_data(v).clone());
             vmap.insert(v, v1);
         }
 
@@ -828,7 +718,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         let mut g = Self::new();
         let mut vert_map: FxHashMap<V, V> = FxHashMap::default();
         for v in verts {
-            let w = g.add_vertex_with_data(self.vertex_data(v));
+            let w = g.add_vertex_with_data(self.vertex_data(v).clone());
             vert_map.insert(v, w);
         }
 

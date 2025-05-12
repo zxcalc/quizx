@@ -151,6 +151,12 @@ impl FScalar {
     }
 }
 
+impl Default for FScalar {
+    fn default() -> Self {
+        Self::zero()
+    }
+}
+
 impl Sqrt2 for FScalar {
     fn sqrt2_pow(p: i32) -> Self {
         FScalar {

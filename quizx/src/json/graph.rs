@@ -210,6 +210,7 @@ impl JsonGraph {
                 qubit: coord.qubit(),
                 row: coord.row(),
                 phase,
+                ..Default::default()
             });
             names.insert(name.to_string(), v);
         }
@@ -226,7 +227,7 @@ impl JsonGraph {
                 ty: VType::B,
                 qubit: coord.qubit(),
                 row: coord.row(),
-                phase: Phase::zero(),
+                ..Default::default()
             });
             names.insert(name.to_string(), v);
             if let Some(input) = attrs.annotation.input {
@@ -257,7 +258,7 @@ impl JsonGraph {
                         ty: VType::Z,
                         qubit: new_coord.qubit(),
                         row: new_coord.row(),
-                        phase: Phase::zero(),
+                        ..Default::default()
                     });
                     let name = format!("v{}", graph.num_vertices());
                     names.insert(name, v);
