@@ -292,11 +292,17 @@ pub fn check_local_comp(g: &impl GraphLike, v: V) -> bool {
 /// decomposition rule.
 pub fn local_comp_unchecked(g: &mut impl GraphLike, v: V) {
     let p = g.phase(v);
+    let vars = g.vars(v);
 
     // add a totally connected graph of the nhd of v
     let ns: Vec<V> = g.neighbors(v).collect();
     for i in 0..ns.len() {
         g.add_to_phase(ns[i], -p);
+
+        if !vars.is_empty() {
+            g.add_to_vars(ns[i], &vars);
+        }
+
         for j in (i + 1)..ns.len() {
             g.add_edge_smart(ns[i], ns[j], EType::H);
         }
@@ -305,8 +311,11 @@ pub fn local_comp_unchecked(g: &mut impl GraphLike, v: V) {
 
     let x = ns.len() as i32;
     g.scalar_mut().mul_sqrt2_pow(((x - 1) * (x - 2)) / 2);
-    g.scalar_mut()
-        .mul_phase(Rational64::new(*p.to_rational().numer(), 4));
+    g.scalar_mut().mul_phase(p / 2);
+
+    if !vars.is_empty() {
+        g.mul_scalar_factor(Expr::linear(vars), FScalar::from_phase(-p));
+    }
 }
 
 checked_rule1!(check_local_comp, local_comp_unchecked, local_comp);
