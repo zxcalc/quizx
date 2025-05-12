@@ -272,14 +272,20 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         vd.phase = (vd.phase + phase.into()).normalize();
     }
 
+    /// Sets the type of a vertex
     fn set_vertex_type(&mut self, v: V, ty: VType) {
         self.vertex_data_mut(v).ty = ty;
     }
 
+    /// Returns the type of a vertex
     fn vertex_type(&self, v: V) -> VType {
         self.vertex_data(v).ty
     }
 
+    /// Sets the coordinate of a vertex
+    /// 
+    /// This method takes a Coord as an argument and sets the qubit of the vertex to `coord.y` and
+    /// the row of the vertex to `coord.x`.
     fn set_coord(&mut self, v: V, coord: impl Into<Coord>) {
         let coord = coord.into();
         let d = self.vertex_data_mut(v);
@@ -287,23 +293,34 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         d.row = coord.x;
     }
 
+    /// Returns the coordinate of a vertex
+    /// 
+    /// This method returns a Coord for a given vertex, where the qubit of the vertex is `coord.y` and
+    /// the row of the vertex is `coord.x`.
     fn coord(&self, v: V) -> Coord {
         let d = self.vertex_data(v);
         Coord::new(d.row, d.qubit)
     }
 
+    /// Sets the qubit index of the given vertex
+    /// 
+    /// This is primarily used for visual layout of a vertex, hence `qubit` and `row` are allowed to take
+    /// fractional values to allow arbitrary placements in 2D space.
     fn set_qubit(&mut self, v: V, qubit: f64) {
         self.vertex_data_mut(v).qubit = qubit;
     }
 
+    /// Returns the qubit index of the given vertex
     fn qubit(&self, v: V) -> f64 {
         self.vertex_data(v).qubit
     }
 
+    /// Sets the row of the given vertex
     fn set_row(&mut self, v: V, row: f64) {
         self.vertex_data_mut(v).row = row;
     }
 
+    /// Returns the row of the given vertex
     fn row(&self, v: V) -> f64 {
         self.vertex_data(v).row
     }
