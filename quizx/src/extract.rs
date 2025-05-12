@@ -272,7 +272,8 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
 
         for q in 0..self.g.outputs().len() {
             let o = self.g.outputs()[q];
-            if let Some((v, et)) = self.g.incident_edges(o).next() {
+            let inc = self.g.incident_edges(o).next();
+            if let Some((v, et)) = inc {
                 // replace a Hadamard edge from the output with a Hadamard gate
                 if et == EType::H {
                     c.push_front(Gate::new(HAD, vec![q]));

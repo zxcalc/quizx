@@ -197,12 +197,12 @@ impl GraphLike for Graph {
             .copied()
     }
 
-    fn neighbors(&self, v: V) -> NeighborIter {
-        NeighborIter::Hash(self.edata.get(&v).expect("Vertex not found").keys())
+    fn neighbors(&self, v: V) -> impl Iterator<Item = usize> {
+        self.edata.get(&v).expect("Vertex not found").keys().map(|u| *u)
     }
 
-    fn incident_edges(&self, v: V) -> IncidentEdgeIter {
-        IncidentEdgeIter::Hash(self.edata.get(&v).expect("Vertex not found").iter())
+    fn incident_edges(&self, v: V) -> impl Iterator<Item = (usize, EType)> {
+        self.edata.get(&v).expect("Vertex not found").iter().map(|(u,t)| (*u, *t))
     }
 
     fn degree(&self, v: V) -> usize {

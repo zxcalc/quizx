@@ -150,19 +150,6 @@ impl Coord {
         Coord { x, y }
     }
 
-    // /// Casts the coordinates to f64.
-    // pub fn to_f64(self) -> (f64, f64) {
-    //     (self.x as f64, self.y as f64)
-    // }
-
-    // /// Casts a pair of f64 to coordinates.
-    // pub fn from_f64((x, y): (f64, f64)) -> Self {
-    //     Coord {
-    //         x: x.round() as i32,
-    //         y: y.round() as i32,
-    //     }
-    // }
-
     /// Infer the qubit index from the y-coordinate.
     pub fn qubit(&self) -> f64 {
         self.y
@@ -173,56 +160,6 @@ impl Coord {
         self.x
     }
 }
-
-pub enum NeighborIter<'a> {
-    Vec(std::slice::Iter<'a, (V, EType)>),
-    Hash(std::collections::hash_map::Keys<'a, V, EType>),
-}
-
-impl Iterator for NeighborIter<'_> {
-    type Item = V;
-    fn next(&mut self) -> Option<V> {
-        match self {
-            NeighborIter::Vec(inner) => inner.next().map(|&(v, _)| v),
-            NeighborIter::Hash(inner) => inner.next().copied(),
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = match self {
-            NeighborIter::Vec(inner) => inner.len(),
-            NeighborIter::Hash(inner) => inner.len(),
-        };
-        (len, Some(len))
-    }
-}
-
-impl ExactSizeIterator for NeighborIter<'_> {}
-
-pub enum IncidentEdgeIter<'a> {
-    Vec(std::slice::Iter<'a, (V, EType)>),
-    Hash(std::collections::hash_map::Iter<'a, V, EType>),
-}
-
-impl Iterator for IncidentEdgeIter<'_> {
-    type Item = (V, EType);
-    fn next(&mut self) -> Option<(V, EType)> {
-        match self {
-            IncidentEdgeIter::Vec(inner) => inner.next().copied(),
-            IncidentEdgeIter::Hash(inner) => inner.next().map(|(&v, &et)| (v, et)),
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = match self {
-            IncidentEdgeIter::Vec(inner) => inner.len(),
-            IncidentEdgeIter::Hash(inner) => inner.len(),
-        };
-        (len, Some(len))
-    }
-}
-
-impl ExactSizeIterator for IncidentEdgeIter<'_> {}
 
 pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// Initialise a new empty graph
@@ -296,8 +233,8 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     fn vertex_data_mut(&mut self, v: V) -> &mut VData;
     fn set_edge_type(&mut self, s: V, t: V, ety: EType);
     fn edge_type_opt(&self, s: V, t: V) -> Option<EType>;
-    fn neighbors(&self, v: V) -> NeighborIter;
-    fn incident_edges(&self, v: V) -> IncidentEdgeIter;
+    fn neighbors(&self, v: V) -> impl Iterator<Item = V>;
+    fn incident_edges(&self, v: V) -> impl Iterator<Item = (V, EType)>;
     fn degree(&self, v: V) -> usize;
     fn scalar(&self) -> &FScalar;
     fn scalar_mut(&mut self) -> &mut FScalar;

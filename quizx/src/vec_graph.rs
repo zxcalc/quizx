@@ -299,17 +299,17 @@ impl GraphLike for Graph {
         self.vdata[v].as_ref().expect("Vertex not found").row
     }
 
-    fn neighbors(&self, v: V) -> NeighborIter {
+    fn neighbors(&self, v: V) -> impl Iterator<Item = usize> {
         if let Some(Some(nhd)) = self.edata.get(v) {
-            NeighborIter::Vec(nhd.iter())
+            nhd.iter().map(|(u,_)| *u)
         } else {
             panic!("Vertex not found")
         }
     }
 
-    fn incident_edges(&self, v: V) -> IncidentEdgeIter {
+    fn incident_edges(&self, v: V) -> impl Iterator<Item = (usize, EType)> {
         if let Some(Some(nhd)) = self.edata.get(v) {
-            IncidentEdgeIter::Vec(nhd.iter())
+            nhd.iter().cloned()
         } else {
             panic!("Vertex not found")
         }

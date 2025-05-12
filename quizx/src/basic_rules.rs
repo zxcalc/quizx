@@ -553,7 +553,7 @@ checked_rule2!(check_gadget_fusion, gadget_fusion_unchecked, gadget_fusion);
 
 pub fn check_remove_single(g: &impl GraphLike, v: V) -> bool {
     let t = g.vertex_type(v);
-    g.neighbors(v).len() == 0 && (t == VType::Z || t == VType::X)
+    g.degree(v) == 0 && (t == VType::Z || t == VType::X)
 }
 
 /// Remove an isolated Z or X vertex and add it as a global scalar
@@ -577,8 +577,8 @@ pub fn check_remove_pair(g: &impl GraphLike, v0: V, v1: V) -> bool {
     let t0 = g.vertex_type(v0);
     let t1 = g.vertex_type(v1);
 
-    g.neighbors(v0).len() == 1
-        && g.neighbors(v1).len() == 1
+    g.degree(v0) == 1
+        && g.degree(v1) == 1
         && (t0 == VType::Z || t0 == VType::X)
         && (t1 == VType::Z || t1 == VType::X)
         && g.connected(v0, v1)
