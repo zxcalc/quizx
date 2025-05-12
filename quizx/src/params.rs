@@ -85,17 +85,17 @@ impl From<Parity> for Vec<Var> {
 
 impl Zero for Parity {
     fn is_zero(&self) -> bool {
-        self.len() == 0
+        self.is_empty()
     }
 
     fn zero() -> Self {
         Parity(vec![])
     }
 }
-
 impl Add<&Parity> for &Parity {
     type Output = Parity;
 
+    #[allow(clippy::collapsible_else_if)]
     fn add(self, rhs: &Parity) -> Self::Output {
         let mut vars = Vec::with_capacity(self.len() + rhs.len());
 
@@ -159,8 +159,14 @@ impl Expr {
         }
     }
 
+    #[inline]
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 
     pub fn is_linear(&self) -> bool {

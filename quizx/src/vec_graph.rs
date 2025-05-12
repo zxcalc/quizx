@@ -369,7 +369,7 @@ impl GraphLike for Graph {
     }
 
     fn get_scalar_factor(&self, e: &Expr) -> Option<FScalar> {
-        self.scalar_factors.get(e).map(|s| *s)
+        self.scalar_factors.get(e).copied()
     }
 
     fn mul_scalar_factor(&mut self, e: Expr, s: FScalar) {

@@ -202,7 +202,7 @@ impl GraphLike for Graph {
             .get(&v)
             .expect("Vertex not found")
             .keys()
-            .map(|u| *u)
+            .copied()
     }
 
     fn incident_edges(&self, v: V) -> impl Iterator<Item = (usize, EType)> {
@@ -255,7 +255,7 @@ impl GraphLike for Graph {
     }
 
     fn get_scalar_factor(&self, e: &Expr) -> Option<FScalar> {
-        self.scalar_factors.get(e).map(|s| *s)
+        self.scalar_factors.get(e).copied()
     }
 
     fn mul_scalar_factor(&mut self, e: Expr, s: FScalar) {
