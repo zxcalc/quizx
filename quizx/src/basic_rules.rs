@@ -31,7 +31,6 @@ use crate::graph::*;
 use crate::params::Expr;
 use crate::phase::Phase;
 use num::traits::Zero;
-use num::Rational64;
 use rustc_hash::FxHashSet;
 use std::iter::FromIterator;
 
@@ -342,8 +341,8 @@ pub fn check_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
 /// effectively a generalised version of the strong complementarity
 /// rule.
 pub fn pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
-    let p0 = g.phase(v0);
-    let p1 = g.phase(v1);
+    let (p0, vars0) = g.phase_and_vars(v0);
+    let (p1, vars1) = g.phase_and_vars(v1);
 
     // add a complete bipartite graph between the neighbors of v0
     // and the neighbors of v1
@@ -352,6 +351,7 @@ pub fn pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     // let mut z: i32 = 0; // the number of neighbors of v0 and v1
     for &n0 in &ns0 {
         g.add_to_phase(n0, p1);
+        g.add_to_vars(n0, &vars1);
         for &n1 in &ns1 {
             if n0 != v1 && n1 != v0 {
                 // unlike PyZX, add_edge_smart handles self-loops
@@ -362,6 +362,7 @@ pub fn pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 
     for &n1 in &ns1 {
         g.add_to_phase(n1, p0);
+        g.add_to_vars(n1, &vars0);
     }
 
     g.remove_vertex(v0);
@@ -372,7 +373,11 @@ pub fn pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     g.scalar_mut().mul_sqrt2_pow((x - 2) * (y - 2));
 
     if !p0.is_zero() && !p1.is_zero() {
-        g.scalar_mut().mul_phase(Rational64::new(1, 1));
+        *g.scalar_mut() *= FScalar::minus_one();
+    }
+
+    if !vars0.is_empty() && !vars1.is_empty() {
+        g.mul_scalar_factor(Expr::quadratic(vars0, vars1), FScalar::minus_one());
     }
 }
 
@@ -422,6 +427,9 @@ fn unfuse_gadget(g: &mut impl GraphLike, v: V) {
     let v1 = g.add_vertex_with_data(vd1);
     let v2 = g.add_vertex_with_data(vd2);
     g.set_phase(v, Phase::zero());
+    // note if v has any boolean vars, we just leave them there, rather than moving
+    // them on to v1. This should be fine, since Paulis don't interfere with any
+    // of the Clifford simplifications.
     g.add_edge_with_type(v, v1, EType::H);
     g.add_edge_with_type(v1, v2, EType::H);
 }
@@ -519,6 +527,13 @@ pub fn check_gadget_fusion(g: &impl GraphLike, v0: V, v1: V) -> bool {
         return false;
     }
 
+    let (p0, vars0) = g.phase_and_vars(v0);
+    let (p1, vars1) = g.phase_and_vars(v1);
+
+    if !p0.is_zero() || !p1.is_zero() || !vars0.is_empty() || !vars1.is_empty() {
+        return false;
+    }
+
     let vs = [v0, v1];
     let mut nhd = [FxHashSet::default(), FxHashSet::default()];
 
@@ -560,6 +575,7 @@ pub fn gadget_fusion_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
         .find(|&n| g.degree(n) == 1)
         .expect("v1 isn't a gadget");
     g.add_to_phase(gphase0, g.phase(gphase1));
+    g.add_to_vars(gphase0, &g.vars(gphase1));
     g.remove_vertex(v1);
     g.remove_vertex(gphase1);
 
