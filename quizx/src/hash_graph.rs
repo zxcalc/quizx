@@ -78,7 +78,7 @@ impl GraphLike for Graph {
         self.vdata.keys().cloned()
     }
 
-    fn edges(&self) -> EIter {
+    fn edges(&self) -> impl Iterator<Item = (V, V, EType)> {
         EIter::Hash(self.nume, self.edata.iter(), None)
     }
 

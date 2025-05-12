@@ -337,7 +337,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// Get iterator over all edges
     ///
     /// An "edge" is a triple (s, t, edge_type), where s <= t.
-    fn edges(&self) -> EIter;
+    fn edges(&self) -> impl Iterator<Item = (V, V, EType)>;
 
     /// List of boundary vertices which serve as inputs
     fn inputs(&self) -> &Vec<V>;

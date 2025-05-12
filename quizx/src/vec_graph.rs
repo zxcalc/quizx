@@ -119,8 +119,15 @@ impl GraphLike for Graph {
         (0..self.vdata.len()).filter(|&i| self.vdata[i].is_some())
     }
 
-    fn edges(&self) -> EIter {
-        EIter::Vec(self.nume, self.edata.iter().enumerate(), None)
+    fn edges(&self) -> impl Iterator<Item = (V, V, EType)> {
+        self.edata
+            .iter()
+            .enumerate()
+            .filter_map(|(u, t)| t.as_ref().map(|t1| (u, t1)))
+            .flat_map(|(u, t)| {
+                t.iter()
+                    .filter_map(move |&(v, t)| if u <= v { Some((u, v, t)) } else { None })
+            })
     }
 
     fn inputs(&self) -> &Vec<V> {
