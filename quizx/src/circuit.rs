@@ -17,6 +17,7 @@
 use crate::gate::*;
 use crate::graph::*;
 use crate::linalg::RowOps;
+use crate::params::Var;
 use crate::phase::Phase;
 use num::{Rational64, Zero};
 use openqasm::{ast::Symbol, translate::Value, GenericError, ProgramVisitor};
@@ -266,8 +267,10 @@ impl Circuit {
 
         graph.set_inputs(inputs);
 
+        let mut fresh_var: Var = 1;
+
         for g in &self.gates {
-            g.add_to_graph(&mut graph, &mut qs, postselect);
+            g.add_to_graph(&mut fresh_var, &mut graph, &mut qs, postselect);
         }
 
         let last_row = qs

@@ -67,6 +67,10 @@ pub fn to_pyzx_circuit(py: Python<'_>, c: Circuit) -> PyResult<PyObject> {
             PostSelect => {
                 c1.call_method("add_gate", ("PostSelect", g.qs[0]), None)?;
             }
+            Measure => {
+                // TODO should "Measure" be treated differently?
+                c1.call_method("add_gate", ("PostSelect", g.qs[0]), None)?;
+            }
             UnknownGate => {}
         }
     }
