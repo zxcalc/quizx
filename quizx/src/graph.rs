@@ -325,6 +325,27 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         self.vertex_data(v).row
     }
 
+    /// Sets the boolean variables that affect the phase of this vertex
+    /// 
+    /// This allows the phase to depend on an XOR of boolean variables, represented by a
+    /// `Parity`. If the parity is even, the phase is considered to be `self.vertex_data(v).phase`,
+    /// whereas if the parity is odd, the phase should be `self.vertex_data(v).phase + Phase::one()`,
+    /// i.e. it gains a pi term.
+    fn set_vars(&mut self, v: V, vars: Parity) {
+        self.vertex_data_mut(v).vars = vars;
+    }
+
+    /// Returns the boolean variables that affect the phase of this vertex
+    fn vars(&self, v: V) -> Parity {
+        self.vertex_data(v).vars.clone()
+    }
+
+    /// Adds the given variables to the parity expression of the vertex
+    fn add_to_vars(&mut self, v: V, vars: &Parity) {
+        let vars1 = &self.vertex_data(v).vars + vars;
+        self.vertex_data_mut(v).vars = vars1;
+    }
+
     fn add_edge(&mut self, s: V, t: V) {
         self.add_edge_with_type(s, t, EType::N);
     }

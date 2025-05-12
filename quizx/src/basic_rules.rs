@@ -128,6 +128,7 @@ pub fn spider_fusion_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     }
 
     g.add_to_phase(v0, g.phase(v1));
+    g.add_to_vars(v0, &g.vars(v1));
     g.remove_vertex(v1);
 }
 
@@ -209,6 +210,11 @@ pub fn pi_copy_unchecked(g: &mut impl GraphLike, v: V) {
     g.scalar_mut().mul_phase(phase);
     g.set_phase(v, -phase);
 
+    let vars = g.vars(v);
+    if !vars.is_empty() {
+        g.mul_scalar_factor(Expr::linear(vars), FScalar::minus_one());
+    }
+
     // Push a pi to all the surrounding nodes
     for neighbor in g.neighbor_vec(v) {
         g.add_to_phase(neighbor, 1);
@@ -221,7 +227,7 @@ checked_rule1!(check_pi_copy, pi_copy_unchecked, pi_copy);
 pub fn check_remove_id(g: &impl GraphLike, v: V) -> bool {
     let vt = g.vertex_type(v);
 
-    (vt == VType::Z || vt == VType::X) && g.phase(v).is_zero() && g.degree(v) == 2
+    (vt == VType::Z || vt == VType::X) && g.phase(v).is_zero() && g.degree(v) == 2 && g.vars(v).is_empty()
 }
 
 /// Remove an arity-2 spider with phase 0
