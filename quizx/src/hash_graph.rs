@@ -79,7 +79,10 @@ impl GraphLike for Graph {
     }
 
     fn edges(&self) -> impl Iterator<Item = (V, V, EType)> {
-        EIter::Hash(self.nume, self.edata.iter(), None)
+        self.edata.iter().flat_map(|(&u, tab)| {
+            tab.iter()
+                .filter_map(move |(&v, &t)| if u <= v { Some((u, v, t)) } else { None })
+        })
     }
 
     fn inputs(&self) -> &Vec<V> {
