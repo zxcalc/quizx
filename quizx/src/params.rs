@@ -15,7 +15,10 @@
 // limitations under the License.
 
 use num::Zero;
-use std::ops::{Add, Index};
+use std::{
+    cmp::Ordering,
+    ops::{Add, Index},
+};
 
 pub type Var = u16;
 
@@ -105,15 +108,19 @@ impl Add<&Parity> for &Parity {
         loop {
             if i < self.len() {
                 if j < rhs.len() {
-                    if self[i] < rhs[j] {
-                        vars.push(self[i]);
-                        i += 1;
-                    } else if self[i] > rhs[j] {
-                        vars.push(rhs[j]);
-                        j += 1;
-                    } else {
-                        i += 1;
-                        j += 1;
+                    match self[i].cmp(&rhs[j]) {
+                        Ordering::Less => {
+                            vars.push(self[i]);
+                            i += 1;
+                        }
+                        Ordering::Greater => {
+                            vars.push(rhs[j]);
+                            j += 1;
+                        }
+                        Ordering::Equal => {
+                            i += 1;
+                            j += 1;
+                        }
                     }
                 } else {
                     vars.push(self[i]);
