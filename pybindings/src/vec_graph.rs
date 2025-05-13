@@ -197,8 +197,17 @@ impl VecGraph {
         self.g.set_vertex_type(vertex, ty);
     }
 
-    fn phase(&self, v: usize) -> Rational64 {
-        self.g.phase(v).to_rational()
+    fn phase(&self, py: Python<'_>, v: usize) -> PyResult<PyObject> {
+        let vars = self.g.vars(v);
+
+        let p;
+        if vars.is_empty() {
+            p = self.g.phase(v).to_rational().into_pyobject(py)?;
+        } else {
+            // TODO: build a Poly object here
+            p = self.g.phase(v).to_rational().into_pyobject(py)?;
+        }
+        Ok(p.unbind())
     }
 
     fn set_phase(&mut self, v: usize, phase: Rational64) {
@@ -281,12 +290,12 @@ impl VecGraph {
         false
     }
 
-    fn phases(&self) -> HashMap<V, Rational64> {
+    fn phases(&self, py: Python<'_>) -> PyResult<HashMap<V, PyObject>> {
         let mut m = HashMap::default();
         for v in self.g.vertices() {
-            m.insert(v, self.phase(v));
+            m.insert(v, self.phase(py, v)?);
         }
-        m
+        Ok(m)
     }
 
     fn types(&self) -> HashMap<V, u8> {
