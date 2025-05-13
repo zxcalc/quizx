@@ -18,6 +18,7 @@ use num::Zero;
 use std::{
     cmp::Ordering,
     ops::{Add, Index},
+    sync::Arc,
 };
 
 pub type Var = u16;
@@ -29,7 +30,7 @@ pub type Var = u16;
 ///
 /// Variables are kept sorted to ensure uniqueness.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
-pub struct Parity(Vec<Var>);
+pub struct Parity(Arc<[Var]>);
 
 /// A boolean expression, represented as a conjunction of XORs
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
@@ -37,7 +38,7 @@ pub struct Expr(Vec<Parity>);
 
 impl Parity {
     pub fn single(v: Var) -> Self {
-        Parity(vec![v])
+        Parity([v].into())
     }
 
     #[inline]
@@ -55,7 +56,7 @@ impl Parity {
     }
 
     pub fn one() -> Self {
-        Parity(vec![0])
+        Parity([0].into())
     }
 
     /// Returns of a copy of the parity negated
@@ -76,13 +77,7 @@ impl Index<usize> for Parity {
 impl From<Vec<Var>> for Parity {
     fn from(mut value: Vec<Var>) -> Self {
         value.sort();
-        Parity(value)
-    }
-}
-
-impl From<Parity> for Vec<Var> {
-    fn from(value: Parity) -> Self {
-        value.0
+        Parity(value.into())
     }
 }
 
@@ -92,9 +87,10 @@ impl Zero for Parity {
     }
 
     fn zero() -> Self {
-        Parity(vec![])
+        Parity([].into())
     }
 }
+
 impl Add<&Parity> for &Parity {
     type Output = Parity;
 
@@ -136,7 +132,7 @@ impl Add<&Parity> for &Parity {
             }
         }
 
-        Parity(vars)
+        Parity(vars.into())
     }
 }
 
