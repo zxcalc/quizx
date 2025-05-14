@@ -399,7 +399,6 @@ enum CircuitWriterError {
     UnitaryNotSupported,
     BarrierNotSupported,
     ResetNotSupported,
-    MeasureNotSupported,
     ConditionalNotSupported,
 }
 
@@ -411,7 +410,6 @@ impl std::fmt::Display for CircuitWriterError {
             }
             CircuitWriterError::BarrierNotSupported => write!(f, "barriers are not supported"),
             CircuitWriterError::ResetNotSupported => write!(f, "resets are not supported"),
-            CircuitWriterError::MeasureNotSupported => write!(f, "measurements are not supported"),
             CircuitWriterError::ConditionalNotSupported => {
                 write!(f, "conditionals are not supported")
             }
@@ -475,8 +473,9 @@ impl openqasm::GateWriter for &mut CircuitWriter {
         Err(CircuitWriterError::ResetNotSupported)
     }
 
-    fn write_measure(&mut self, _: usize, _: usize) -> Result<(), Self::Error> {
-        Err(CircuitWriterError::MeasureNotSupported)
+    fn write_measure(&mut self, from: usize, to: usize) -> Result<(), Self::Error> {
+        self.circuit.push(Gate::new(GType::Measure, vec![from, to]));
+        Ok(())
     }
 
     fn start_conditional(&mut self, _: usize, _: usize, _: u64) -> Result<(), Self::Error> {
