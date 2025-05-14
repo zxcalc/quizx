@@ -70,7 +70,7 @@ impl GType {
             "xcx" => XCX,
             "init_anc" => InitAncilla,
             "post_sel" => PostSelect,
-            "measure" => Measure,
+            "measure_d" => Measure,
             _ => UnknownGate,
         }
     }
@@ -96,7 +96,7 @@ impl GType {
             XCX => "xcx",
             InitAncilla => "init_anc",
             PostSelect => "post_sel",
-            Measure => "measure",
+            Measure => "measure_d",
             UnknownGate => "UNKNOWN",
         }
     }
@@ -120,6 +120,18 @@ pub struct Gate {
     pub t: GType,
     pub qs: Vec<usize>,
     pub phase: Phase,
+    pub vars: Parity,
+}
+
+impl Default for Gate {
+    fn default() -> Self {
+        Gate {
+            t: UnknownGate,
+            qs: vec![],
+            phase: Phase::zero(),
+            vars: Parity::zero(),
+        }
+    }
 }
 
 impl Gate {
@@ -128,6 +140,7 @@ impl Gate {
             t: GType::from_qasm_name(s),
             qs: vec![],
             phase: Phase::zero(),
+            vars: Parity::zero(),
         }
     }
 
@@ -168,7 +181,7 @@ impl Gate {
         Gate {
             t,
             qs,
-            phase: Phase::zero(),
+            ..Default::default()
         }
     }
 
@@ -177,6 +190,22 @@ impl Gate {
             t,
             qs,
             phase: phase.into(),
+            ..Default::default()
+        }
+    }
+
+    pub fn new_with_phase_and_vars(
+        t: GType,
+        qs: Vec<usize>,
+        phase: impl Into<Phase>,
+        vars: impl Into<Parity>,
+    ) -> Gate {
+        Gate {
+            t,
+            qs,
+            phase: phase.into(),
+            vars: vars.into(),
+            ..Default::default()
         }
     }
 
@@ -491,8 +520,12 @@ impl Gate {
                 if let Some(v) =
                     Gate::add_spider(graph, qs, self.qs[0], VType::X, EType::N, Phase::zero())
                 {
-                    graph.set_vars(v, Parity::single(*fresh_var));
-                    *fresh_var += 1;
+                    if !self.vars.is_empty() {
+                        graph.set_vars(v, self.vars.clone());
+                    } else {
+                        graph.set_vars(v, Parity::single(*fresh_var));
+                        *fresh_var += 1;
+                    }
                 }
                 graph.scalar_mut().mul_sqrt2_pow(-1);
 
