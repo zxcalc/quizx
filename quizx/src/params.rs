@@ -15,11 +15,9 @@
 // limitations under the License.
 
 use num::Zero;
-use std::{
-    cmp::Ordering,
-    ops::{Add, Index},
-    sync::Arc,
-};
+use std::cmp::Ordering;
+use std::ops::{Add, Index};
+use std::sync::Arc;
 
 pub type Var = u16;
 
@@ -62,6 +60,10 @@ impl Parity {
     /// Returns of a copy of the parity negated
     pub fn negated(&self) -> Self {
         &Parity::one() + self
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = Var> + use<'_> {
+        self.0.iter().copied()
     }
 }
 
