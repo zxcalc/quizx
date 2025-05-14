@@ -1,17 +1,14 @@
-use num::One;
-use pyo3::exceptions::*;
-use pyo3::prelude::*;
-use pyo3::types::PyList;
-
-use std::collections::HashMap;
-use std::collections::HashSet;
-
 use ::quizx::graph::*;
 use ::quizx::phase::*;
 use num::Rational64;
 use num::Zero;
+use pyo3::exceptions::*;
+use pyo3::prelude::*;
+use std::collections::HashMap;
+use std::collections::HashSet;
 
 use crate::scalar::Scalar;
+use crate::util::phase_and_vars_to_py;
 
 type E = (V, V);
 
@@ -200,33 +197,8 @@ impl VecGraph {
     }
 
     fn phase(&self, py: Python<'_>, v: usize) -> PyResult<PyObject> {
-        let vars = self.g.vars(v);
-
-        let p;
-        if vars.is_empty() {
-            p = self.g.phase(v).to_rational().into_pyobject(py)?;
-        } else {
-            let m = PyModule::import(py, "pyzx.symbolic")?;
-            let poly = m.getattr("Poly")?;
-            let term = m.getattr("Term")?;
-            let var = m.getattr("Var")?;
-            let mut ts = vec![(
-                self.g.phase(v).to_rational(),
-                term.call1((PyList::empty(py),))?,
-            )];
-
-            for v in vars.iter() {
-                // add a linear term to the Poly for each var
-                // py_v = (Var(f"b{v}", True), 1)
-                let py_v = (var.call1((format!("b{v}"), true))?, 1);
-                // ts.push((1, Term([py_v])))
-                ts.push((Rational64::one(), term.call1((PyList::new(py, [py_v])?,))?));
-            }
-
-            // p = Poly([(phase, Term([])), (1, Term([(Var("b1", True), 1)])), ...])
-            p = poly.call1((ts,))?;
-        }
-        Ok(p.unbind())
+        let (phase, vars) = self.g.phase_and_vars(v);
+        phase_and_vars_to_py(py, phase, vars)
     }
 
     fn set_phase(&mut self, v: usize, phase: Rational64) {

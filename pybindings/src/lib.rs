@@ -4,6 +4,7 @@
 
 pub mod circuit;
 pub mod scalar;
+pub mod util;
 pub mod vec_graph;
 
 use crate::circuit::to_pyzx_circuit;
