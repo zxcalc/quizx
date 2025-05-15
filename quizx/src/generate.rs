@@ -408,6 +408,29 @@ impl SurfaceCodeCircuitBuilder {
             c.push(Gate::new(GType::InitAncilla, vec![i]));
         }
 
+        #[inline]
+        fn data_q(d: usize, x: usize, y: usize) -> usize {
+            (x - 1) * d + (y - 1)
+        }
+
+        #[inline]
+        fn syn_q(d: usize, x: usize, y: usize) -> Option<usize> {
+            if y == 0 {
+                if x != d && x % 2 == 1 {
+                    Some(d * d + x)
+                } else {
+                    None
+                }
+            } else {
+                let offset = d * d + if d % 2 == 1 { (d - 1) / 2 } else { d / 2 };
+                if y == d {
+                    None
+                } else {
+                    None
+                }
+            }
+        }
+
         // TODO: more here...
 
         c
