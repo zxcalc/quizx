@@ -401,7 +401,8 @@ impl RandomPauliGadgetCircuitBuilder {
 
 impl SurfaceCodeCircuitBuilder {
     pub fn build(&self) -> Circuit {
-        let mut c = Circuit::new(2 * self.distance * self.distance - 1);
+        let d = self.distance;
+        let mut c = Circuit::new(2 * d * d - 1);
 
         for i in 0..c.num_qubits() {
             c.push(Gate::new(GType::InitAncilla, vec![i]));
