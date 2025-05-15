@@ -49,6 +49,11 @@ pub struct RandomPauliGadgetCircuitBuilder {
     pub phase_denom: usize,
 }
 
+pub struct SurfaceCodeCircuitBuilder {
+    pub distance: usize,
+    pub rounds: usize,
+}
+
 impl Circuit {
     pub fn random() -> RandomCircuitBuilder {
         RandomCircuitBuilder {
@@ -389,6 +394,20 @@ impl RandomPauliGadgetCircuitBuilder {
             lc.adjoint();
             c += &lc;
         }
+
+        c
+    }
+}
+
+impl SurfaceCodeCircuitBuilder {
+    pub fn build(&self) -> Circuit {
+        let mut c = Circuit::new(2 * self.distance * self.distance - 1);
+
+        for i in 0..c.num_qubits() {
+            c.push(Gate::new(GType::InitAncilla, vec![i]));
+        }
+
+        // TODO: more here...
 
         c
     }

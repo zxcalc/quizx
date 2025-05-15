@@ -1,5 +1,6 @@
 use ::quizx::circuit::Circuit;
 use ::quizx::gate::GType::*;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 
@@ -68,8 +69,12 @@ pub fn to_pyzx_circuit(py: Python<'_>, c: Circuit) -> PyResult<PyObject> {
                 c1.call_method("add_gate", ("PostSelect", g.qs[0]), None)?;
             }
             Measure => {
-                // TODO should "Measure" be treated differently?
-                c1.call_method("add_gate", ("PostSelect", g.qs[0]), None)?;
+                return Err(PyValueError::new_err("PyZX doesn't support gate: Measure"));
+            }
+            MeasureReset => {
+                return Err(PyValueError::new_err(
+                    "PyZX doesn't support gate: MeasureReset",
+                ));
             }
             UnknownGate => {}
         }

@@ -42,6 +42,7 @@ pub enum GType {
     InitAncilla,
     PostSelect,
     Measure,
+    MeasureReset,
     UnknownGate,
 }
 
@@ -71,6 +72,7 @@ impl GType {
             "init_anc" => InitAncilla,
             "post_sel" => PostSelect,
             "measure_d" => Measure,
+            "measure_r" => MeasureReset,
             _ => UnknownGate,
         }
     }
@@ -97,6 +99,7 @@ impl GType {
             InitAncilla => "init_anc",
             PostSelect => "post_sel",
             Measure => "measure_d",
+            MeasureReset => "measure_r",
             UnknownGate => "UNKNOWN",
         }
     }
@@ -526,11 +529,38 @@ impl Gate {
                         graph.set_vars(v, Parity::single(*fresh_var));
                         *fresh_var += 1;
                     }
-                }
-                graph.scalar_mut().mul_sqrt2_pow(-1);
 
-                // all later gates involving this qubit are quietly ignored
-                qs[self.qs[0]] = None;
+                    graph.scalar_mut().mul_sqrt2_pow(-1);
+
+                    // all later gates involving this qubit are quietly ignored
+                    qs[self.qs[0]] = None;
+                }
+            }
+            MeasureReset => {
+                // qubit is projected then re-initialised to |0>
+                if let Some(v) =
+                    Gate::add_spider(graph, qs, self.qs[0], VType::X, EType::N, Phase::zero())
+                {
+                    if !self.vars.is_empty() {
+                        graph.set_vars(v, self.vars.clone());
+                    } else {
+                        graph.set_vars(v, Parity::single(*fresh_var));
+                        *fresh_var += 1;
+                    }
+
+                    let coord = graph.coord(v);
+
+                    let v1 = graph.add_vertex_with_data(VData {
+                        qubit: coord.y,
+                        row: coord.x + 1.0,
+                        ty: VType::X,
+                        ..Default::default()
+                    });
+
+                    graph.scalar_mut().mul_sqrt2_pow(-2);
+
+                    qs[self.qs[0]] = Some(v1);
+                }
             }
             CCZ => {
                 if postselect {
