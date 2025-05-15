@@ -408,30 +408,54 @@ impl SurfaceCodeCircuitBuilder {
             c.push(Gate::new(GType::InitAncilla, vec![i]));
         }
 
+        // data qubits are numbered from 1 to d in each dimension. This function with apply the appropriately
+        // oriented CNOT between the given syndrome qubit `q` and the data qubit at grid position (x, y)
         #[inline]
-        fn data_q(d: usize, x: usize, y: usize) -> usize {
-            (x - 1) * d + (y - 1)
-        }
-
-        #[inline]
-        fn syn_q(d: usize, x: usize, y: usize) -> Option<usize> {
-            if y == 0 {
-                if x != d && x % 2 == 1 {
-                    Some(d * d + x)
-                } else {
-                    None
-                }
-            } else {
-                let offset = d * d + if d % 2 == 1 { (d - 1) / 2 } else { d / 2 };
-                if y == d {
-                    None
-                } else {
-                    None
-                }
+        fn cnot_data_q(c: &mut Circuit, d: usize, q: usize, x_type: bool, x: usize, y: usize) {
+            if x != 0 && y != 0 && x != d + 1 && y != d + 1 {
+                let r = (x - 1) * d + (y - 1);
+                c.push(Gate::new(
+                    GType::CNOT,
+                    if x_type { vec![q, r] } else { vec![r, q] },
+                ));
             }
         }
 
-        // TODO: more here...
+        for _ in 0..self.rounds {
+            // syndrome qubits are numbered from 0 to d in each dimension. The syndrome (x,y)
+            // lies inside the square of data qubits whose corners are (x,y) and (x+1, y+1)
+            let mut q;
+            for step in 0..7 {
+                q = d * d;
+                for x in 1..(d + 1) {
+                    for y in 1..(d + 1) {
+                        // never place a syndrome in the far corners
+                        if (x == 0 || x == d) && (y == 0 || y == d) {
+                            continue;
+                        }
+
+                        let z_type = y != 0 && y != d && (x + y) % 2 == 1;
+                        let x_type = x != 0 && x != d && (x + y) % 2 == 0;
+
+                        if !z_type && !x_type {
+                            continue;
+                        }
+
+                        match step {
+                            0 if x_type => c.push(Gate::new(GType::HAD, vec![q])),
+                            1 => cnot_data_q(&mut c, d, q, x_type, x + 1, y + 1),
+                            2 => cnot_data_q(&mut c, d, q, x_type, x, y + 1),
+                            3 => cnot_data_q(&mut c, d, q, x_type, x + 1, y),
+                            4 => cnot_data_q(&mut c, d, q, x_type, x, y),
+                            5 if x_type => c.push(Gate::new(GType::HAD, vec![q])),
+                            6 => c.push(Gate::new(GType::MeasureReset, vec![q])),
+                            _ => {}
+                        }
+                        q += 1;
+                    }
+                }
+            }
+        }
 
         c
     }
