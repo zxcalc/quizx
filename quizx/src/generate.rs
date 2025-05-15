@@ -56,6 +56,24 @@ pub struct SurfaceCodeCircuitBuilder {
 
 impl Circuit {
     pub fn random() -> RandomCircuitBuilder {
+        Default::default()
+    }
+
+    pub fn random_hidden_shift() -> RandomHiddenShiftCircuitBuilder {
+        Default::default()
+    }
+
+    pub fn random_pauli_gadget() -> RandomPauliGadgetCircuitBuilder {
+        Default::default()
+    }
+
+    pub fn surface_code() -> SurfaceCodeCircuitBuilder {
+        Default::default()
+    }
+}
+
+impl Default for RandomCircuitBuilder {
+    fn default() -> Self {
         RandomCircuitBuilder {
             rng: StdRng::from_entropy(),
             qubits: 0,
@@ -67,8 +85,10 @@ impl Circuit {
             p_t: 0.0,
         }
     }
+}
 
-    pub fn random_hidden_shift() -> RandomHiddenShiftCircuitBuilder {
+impl Default for RandomHiddenShiftCircuitBuilder {
+    fn default() -> Self {
         RandomHiddenShiftCircuitBuilder {
             rng: StdRng::from_entropy(),
             qubits: 40,
@@ -76,8 +96,10 @@ impl Circuit {
             n_ccz: 5,
         }
     }
+}
 
-    pub fn random_pauli_gadget() -> RandomPauliGadgetCircuitBuilder {
+impl Default for RandomPauliGadgetCircuitBuilder {
+    fn default() -> Self {
         RandomPauliGadgetCircuitBuilder {
             rng: StdRng::from_entropy(),
             qubits: 40,
@@ -85,6 +107,15 @@ impl Circuit {
             min_weight: 2,
             max_weight: 4,
             phase_denom: 4,
+        }
+    }
+}
+
+impl Default for SurfaceCodeCircuitBuilder {
+    fn default() -> Self {
+        SurfaceCodeCircuitBuilder {
+            distance: 3,
+            rounds: 3,
         }
     }
 }
@@ -400,6 +431,16 @@ impl RandomPauliGadgetCircuitBuilder {
 }
 
 impl SurfaceCodeCircuitBuilder {
+    pub fn distance(&mut self, distance: usize) -> &mut Self {
+        self.distance = distance;
+        self
+    }
+
+    pub fn rounds(&mut self, rounds: usize) -> &mut Self {
+        self.rounds = rounds;
+        self
+    }
+
     pub fn build(&self) -> Circuit {
         let d = self.distance;
         let mut c = Circuit::new(2 * d * d - 1);
