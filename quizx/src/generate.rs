@@ -498,6 +498,12 @@ impl SurfaceCodeCircuitBuilder {
             }
         }
 
+        // TODO: currently, this is finished up by doing a Z-measurement on all the qubits.
+        // We might want to do something different at some point.
+        for i in 0..c.num_qubits() {
+            c.push(Gate::new(GType::Measure, vec![i]));
+        }
+
         c
     }
 }

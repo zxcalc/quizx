@@ -18,7 +18,7 @@ use num::Zero;
 use std::cmp::Ordering;
 use std::ops::{Add, Index};
 
-pub type Var = u16;
+pub type Var = u32;
 
 /// A representation for an XOR of variables, represented as a list of unsigned
 /// integers followed by a boolean indicating the constant.
@@ -177,8 +177,13 @@ impl Expr {
         self.0.is_empty()
     }
 
+    #[inline]
     pub fn is_linear(&self) -> bool {
         self.len() == 1
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Parity> + use<'_> {
+        self.0.iter()
     }
 }
 
@@ -188,8 +193,6 @@ impl Index<usize> for Expr {
         &self.0[index]
     }
 }
-
-pub struct Factor {}
 
 #[cfg(test)]
 mod tests {
