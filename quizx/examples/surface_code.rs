@@ -42,17 +42,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut vars = FxHashSet::default();
 
+    let mut size = 0.0;
     for f in factors.iter() {
-        for v in (&f[0]).iter() {
+        size += f[0].len() as f64;
+        for v in f[0].iter() {
             vars.insert(v);
         }
     }
 
+    size /= factors.len() as f64;
+
     assert!(factors.iter().all(|e| e.is_linear()));
     println!(
-        "Result has {} linear constraints on {} vars.",
+        "Result has {} linear constraints on {} vars (avg size: {:.2} vars).",
         factors.len(),
-        vars.len()
+        vars.len(),
+        size,
     );
 
     Ok(())
