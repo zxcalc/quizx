@@ -452,7 +452,13 @@ impl Gate {
                 );
             }
             HAD => {
-                Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::H, Phase::zero());
+                if let Some(&i) = qs.get(&self.qs[0]) {
+                    let outp = graph.outputs()[i];
+                    let v_opt = graph.neighbors(outp).next();
+                    if let Some(v) = v_opt {
+                        graph.toggle_edge_type(outp, v);
+                    }
+                }
             }
             CNOT => {
                 if let (Some(v1), Some(v2)) = (
@@ -518,7 +524,8 @@ impl Gate {
                 }
             }
             InitAncilla => {
-                if let Some(&outp) = qs.get(&self.qs[0]) {
+                if let Some(&i) = qs.get(&self.qs[0]) {
+                    let outp = graph.outputs()[i];
                     let inp_opt = graph.neighbors(outp).next();
                     if let Some(inp) = inp_opt {
                         if graph.vertex_type(inp) == VType::B {

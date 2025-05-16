@@ -19,6 +19,7 @@ use crate::graph::*;
 use crate::phase::Phase;
 use num::{One, Zero};
 use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
 
 /// Repeatedly apply the given rule at any vertex
 /// that matches the check function
@@ -157,6 +158,26 @@ pub fn flow_simp(g: &mut impl GraphLike) -> bool {
     }
 
     got_match
+}
+
+pub fn clifford_simp_at(g: &mut impl GraphLike, vs: impl IntoIterator<Item = V>) {
+    let mut focus = FxHashSet::default();
+
+    for v in vs {
+        if g.vertex_type(v) == VType::X {
+            color_change(g, v);
+        }
+        focus.insert(v);
+        for (u, et) in g.incident_edge_vec(v) {
+            if et == EType::N && g.vertex_type(u) == VType::Z {
+                spider_fusion_unchecked(g, v, u)
+            } else if g.vertex_type(u) != VType::B {
+                focus.insert(u);
+            }
+        }
+    }
+
+    // TODO: this is WiP
 }
 
 pub fn interior_clifford_simp(g: &mut impl GraphLike) -> bool {

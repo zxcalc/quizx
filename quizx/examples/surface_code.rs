@@ -33,7 +33,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     interior_clifford_simp(&mut g);
     println!("Done in {:?}", time.elapsed());
 
-    println!("Result has {} vertices", g.num_vertices());
+    println!(
+        "Result has {} vertices, {} inputs, {} outputs",
+        g.num_vertices(),
+        g.inputs().len(),
+        g.outputs().len()
+    );
 
     let factors: Vec<Expr> = g
         .scalar_factors()
