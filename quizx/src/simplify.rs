@@ -66,7 +66,7 @@ pub fn edge_simp<G: GraphLike>(
         numv = g.num_vertices();
         new_matches = false;
         for (s, t, _) in g.edge_vec() {
-            if !g.contains_vertex(s) || !g.contains_vertex(t) || !check(g, s, t) {
+            if !check(g, s, t) {
                 continue;
             }
             rule(g, s, t);
