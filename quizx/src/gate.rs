@@ -459,11 +459,15 @@ impl Gate {
                     Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Phase::zero()),
                     Gate::add_spider(graph, qs, self.qs[1], VType::X, EType::N, Phase::zero()),
                 ) {
-                    let r1 = graph.row(v1);
-                    let r2 = graph.row(v2);
+                    let o1 = graph.outputs()[*qs.get(&self.qs[0]).unwrap()];
+                    let o2 = graph.outputs()[*qs.get(&self.qs[1]).unwrap()];
+                    let r1 = graph.row(o1);
+                    let r2 = graph.row(o2);
                     let row = if r1 < r2 { r2 } else { r1 };
-                    graph.set_row(v1, row);
-                    graph.set_row(v2, row);
+                    graph.set_row(v1, row - 1.0);
+                    graph.set_row(v2, row - 1.0);
+                    graph.set_row(o1, row);
+                    graph.set_row(o2, row);
 
                     graph.add_edge(v1, v2);
                     graph.scalar_mut().mul_sqrt2_pow(1);
@@ -474,11 +478,15 @@ impl Gate {
                     Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Phase::zero()),
                     Gate::add_spider(graph, qs, self.qs[1], VType::Z, EType::N, Phase::zero()),
                 ) {
-                    let r1 = graph.row(v1);
-                    let r2 = graph.row(v2);
+                    let o1 = graph.outputs()[*qs.get(&self.qs[0]).unwrap()];
+                    let o2 = graph.outputs()[*qs.get(&self.qs[1]).unwrap()];
+                    let r1 = graph.row(o1);
+                    let r2 = graph.row(o2);
                     let row = if r1 < r2 { r2 } else { r1 };
-                    graph.set_row(v1, row);
-                    graph.set_row(v2, row);
+                    graph.set_row(v1, row - 1.0);
+                    graph.set_row(v2, row - 1.0);
+                    graph.set_row(o1, row);
+                    graph.set_row(o2, row);
 
                     graph.add_edge_with_type(v1, v2, EType::H);
                     graph.scalar_mut().mul_sqrt2_pow(1);
@@ -489,11 +497,15 @@ impl Gate {
                     Gate::add_spider(graph, qs, self.qs[0], VType::X, EType::N, Phase::zero()),
                     Gate::add_spider(graph, qs, self.qs[1], VType::X, EType::N, Phase::zero()),
                 ) {
-                    let r1 = graph.row(v1);
-                    let r2 = graph.row(v2);
+                    let o1 = graph.outputs()[*qs.get(&self.qs[0]).unwrap()];
+                    let o2 = graph.outputs()[*qs.get(&self.qs[1]).unwrap()];
+                    let r1 = graph.row(o1);
+                    let r2 = graph.row(o2);
                     let row = if r1 < r2 { r2 } else { r1 };
-                    graph.set_row(v1, row);
-                    graph.set_row(v2, row);
+                    graph.set_row(v1, row - 1.0);
+                    graph.set_row(v2, row - 1.0);
+                    graph.set_row(o1, row);
+                    graph.set_row(o2, row);
 
                     graph.add_edge_with_type(v1, v2, EType::H);
                     graph.scalar_mut().mul_sqrt2_pow(1);
@@ -532,11 +544,11 @@ impl Gate {
 
                         // all later gates involving this qubit are quietly ignored
                         graph.outputs_mut().remove(i);
-                        qs.remove(&i);
+                        qs.remove(&self.qs[0]);
 
                         // adjust qubit indices to account for the missing output
-                        for (&k, v1) in qs.iter_mut() {
-                            if k > i {
+                        for (_, v1) in qs.iter_mut() {
+                            if *v1 > i {
                                 *v1 -= 1;
                             }
                         }
@@ -561,11 +573,11 @@ impl Gate {
 
                         // all later gates involving this qubit are quietly ignored
                         graph.outputs_mut().remove(i);
-                        qs.remove(&i);
+                        qs.remove(&self.qs[0]);
 
                         // adjust qubit indices to account for the missing output
-                        for (&k, v1) in qs.iter_mut() {
-                            if k > i {
+                        for (_, v1) in qs.iter_mut() {
+                            if *v1 > i {
                                 *v1 -= 1;
                             }
                         }
