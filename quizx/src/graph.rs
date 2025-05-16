@@ -791,10 +791,9 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
 
     /// This method can be called periodically to reduce wasted space in the graph representation
     ///
-    /// By default, this method is a no-op, but `VecGraph` overrides this behavior to remove "holes" left
+    /// This method can be a no-op, but `VecGraph` overrides this behavior to remove "holes" left
     /// by deleted vertices whenever the holes exceed a fixed ratio (or always when force=true).
-    #[inline]
-    fn pack(&mut self, _force: bool) {}
+    fn pack(&mut self, force: bool);
 }
 
 #[cfg(test)]

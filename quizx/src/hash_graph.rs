@@ -261,6 +261,8 @@ impl GraphLike for Graph {
             self.scalar_factors.insert(e, s);
         }
     }
+
+    fn pack(&mut self, force: bool) {}
 }
 
 impl serde::Serialize for Graph {

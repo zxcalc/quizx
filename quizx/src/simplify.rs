@@ -137,6 +137,7 @@ pub fn interior_clifford_simp(g: &mut impl GraphLike) -> bool {
         m = scalar_simp(g) || m;
         if m {
             got_match = true;
+            g.pack(false);
         }
     }
 
