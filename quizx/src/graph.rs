@@ -788,6 +788,13 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     fn depth(&self) -> f64 {
         pmax(self.vertices().map(|v| self.row(v))).unwrap_or(-1.0)
     }
+
+    /// This method can be called periodically to reduce wasted space in the graph representation
+    ///
+    /// By default, this method is a no-op, but `VecGraph` overrides this behavior to remove "holes" left
+    /// by deleted vertices whenever the holes exceed a fixed ratio (or always when force=true).
+    #[inline]
+    fn pack(&mut self, _force: bool) {}
 }
 
 #[cfg(test)]

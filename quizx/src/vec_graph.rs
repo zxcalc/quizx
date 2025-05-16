@@ -23,6 +23,10 @@ use std::mem;
 
 pub type VTab<T> = Vec<Option<T>>;
 
+/// When VecGraph::pack(false) is called, only do the packing if the number of holes * PACK_RATIO
+/// is greater than the number of allocated vertex indices.
+const PACK_RATIO: usize = 10;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Graph {
     vdata: VTab<VData>,
@@ -377,6 +381,33 @@ impl GraphLike for Graph {
             *t *= s;
         } else {
             self.scalar_factors.insert(e, s);
+        }
+    }
+
+    fn pack(&mut self, force: bool) {
+        if force || self.holes.len() * PACK_RATIO > self.vdata.len() {
+            let new_size = self.num_vertices();
+            let mut vtab = vec![0; self.vdata.len()];
+            let mut j = 0;
+            for i in 0..self.vdata.len() {
+                if self.vdata[i].is_some() {
+                    self.vdata[j] = self.vdata[i].take();
+                    self.edata[j] = self.edata[i].take();
+                    vtab[i] = j;
+                    j += 1;
+                }
+            }
+
+            self.vdata.truncate(new_size);
+            self.edata.truncate(new_size);
+            self.holes = vec![];
+
+            for et in self.edata.iter_mut() {
+                if let Some(tab) = et.as_mut() {
+                    tab.iter_mut()
+                        .for_each(|pair| *pair = (vtab[pair.0], pair.1));
+                }
+            }
         }
     }
 }
