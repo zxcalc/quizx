@@ -8,8 +8,8 @@ use quizx::simplify::interior_clifford_simp;
 use quizx::{graph::*, vec_graph::Graph};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let distance = 50;
-    let rounds = 50;
+    let distance = 60;
+    let rounds = 60;
     let time = Instant::now();
     println!(
         "Building surface code circuit with distance {} and {} rounds...",

@@ -262,6 +262,7 @@ impl GraphLike for Graph {
         }
     }
 
+    #[inline]
     fn pack(&mut self, _force: bool) {}
 }
 
