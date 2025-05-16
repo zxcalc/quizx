@@ -14,9 +14,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::circuit::Circuit;
+use crate::fscalar::FScalar;
 use crate::graph::*;
+use crate::params::{Parity, Var};
 use crate::phase::Phase;
-use crate::{circuit::Circuit, fscalar::FScalar};
 use num::{Rational64, Zero};
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
@@ -39,6 +41,8 @@ pub enum GType {
     CCZ,
     InitAncilla,
     PostSelect,
+    Measure,
+    MeasureReset,
     UnknownGate,
 }
 
@@ -67,6 +71,8 @@ impl GType {
             "xcx" => XCX,
             "init_anc" => InitAncilla,
             "post_sel" => PostSelect,
+            "measure_d" => Measure,
+            "measure_r" => MeasureReset,
             _ => UnknownGate,
         }
     }
@@ -92,6 +98,8 @@ impl GType {
             XCX => "xcx",
             InitAncilla => "init_anc",
             PostSelect => "post_sel",
+            Measure => "measure_d",
+            MeasureReset => "measure_r",
             UnknownGate => "UNKNOWN",
         }
     }
@@ -115,6 +123,18 @@ pub struct Gate {
     pub t: GType,
     pub qs: Vec<usize>,
     pub phase: Phase,
+    pub vars: Parity,
+}
+
+impl Default for Gate {
+    fn default() -> Self {
+        Gate {
+            t: UnknownGate,
+            qs: vec![],
+            phase: Phase::zero(),
+            vars: Parity::zero(),
+        }
+    }
 }
 
 impl Gate {
@@ -123,6 +143,7 @@ impl Gate {
             t: GType::from_qasm_name(s),
             qs: vec![],
             phase: Phase::zero(),
+            vars: Parity::zero(),
         }
     }
 
@@ -163,7 +184,7 @@ impl Gate {
         Gate {
             t,
             qs,
-            phase: Phase::zero(),
+            ..Default::default()
         }
     }
 
@@ -172,6 +193,21 @@ impl Gate {
             t,
             qs,
             phase: phase.into(),
+            ..Default::default()
+        }
+    }
+
+    pub fn new_with_phase_and_vars(
+        t: GType,
+        qs: Vec<usize>,
+        phase: impl Into<Phase>,
+        vars: impl Into<Parity>,
+    ) -> Gate {
+        Gate {
+            t,
+            qs,
+            phase: phase.into(),
+            vars: vars.into(),
         }
     }
 
@@ -327,6 +363,7 @@ impl Gate {
     /// number to the most recent vertex in that spot.
     pub fn add_to_graph(
         &self,
+        fresh_var: &mut Var,
         graph: &mut impl GraphLike,
         qs: &mut Vec<Option<usize>>,
         postselect: bool,
@@ -481,6 +518,49 @@ impl Gate {
                 // all later gates involving this qubit are quietly ignored
                 qs[self.qs[0]] = None;
             }
+            Measure => {
+                if let Some(v) =
+                    Gate::add_spider(graph, qs, self.qs[0], VType::X, EType::N, Phase::zero())
+                {
+                    if !self.vars.is_empty() {
+                        graph.set_vars(v, self.vars.clone());
+                    } else {
+                        graph.set_vars(v, Parity::single(*fresh_var));
+                        *fresh_var += 1;
+                    }
+
+                    graph.scalar_mut().mul_sqrt2_pow(-1);
+
+                    // all later gates involving this qubit are quietly ignored
+                    qs[self.qs[0]] = None;
+                }
+            }
+            MeasureReset => {
+                // qubit is projected then re-initialised to |0>
+                if let Some(v) =
+                    Gate::add_spider(graph, qs, self.qs[0], VType::X, EType::N, Phase::zero())
+                {
+                    if !self.vars.is_empty() {
+                        graph.set_vars(v, self.vars.clone());
+                    } else {
+                        graph.set_vars(v, Parity::single(*fresh_var));
+                        *fresh_var += 1;
+                    }
+
+                    let coord = graph.coord(v);
+
+                    let v1 = graph.add_vertex_with_data(VData {
+                        qubit: coord.y,
+                        row: coord.x + 1.0,
+                        ty: VType::X,
+                        ..Default::default()
+                    });
+
+                    graph.scalar_mut().mul_sqrt2_pow(-2);
+
+                    qs[self.qs[0]] = Some(v1);
+                }
+            }
             CCZ => {
                 if postselect {
                     Gate::add_ccz_postselected(graph, qs, &self.qs);
@@ -488,7 +568,7 @@ impl Gate {
                     let mut c = Circuit::new(0);
                     self.push_basic_gates(&mut c);
                     for g in c.gates {
-                        g.add_to_graph(graph, qs, postselect);
+                        g.add_to_graph(fresh_var, graph, qs, postselect);
                     }
                 }
             }
@@ -501,7 +581,7 @@ impl Gate {
                     let mut c = Circuit::new(0);
                     self.push_basic_gates(&mut c);
                     for g in c.gates {
-                        g.add_to_graph(graph, qs, postselect);
+                        g.add_to_graph(fresh_var, graph, qs, postselect);
                     }
                 }
             }
@@ -510,7 +590,7 @@ impl Gate {
                 let mut c = Circuit::new(0);
                 self.push_basic_gates(&mut c);
                 for g in c.gates {
-                    g.add_to_graph(graph, qs, postselect);
+                    g.add_to_graph(fresh_var, graph, qs, postselect);
                 }
             }
             UnknownGate => {}

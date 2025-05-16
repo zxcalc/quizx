@@ -26,84 +26,119 @@ use rustc_hash::FxHashMap;
 /// We assume the rule will at most delete the current
 /// vertex, and leave other vertices in place (although
 /// edges might change).
-pub fn vertex_simp<G: GraphLike>(
-    g: &mut G,
-    check: fn(&G, V) -> bool,
-    rule: fn(&mut G, V) -> (),
-    force_reduce: bool,
-) -> bool {
-    let mut got_match = false;
-    let mut new_matches = true;
-    let mut numv;
-    while new_matches {
-        numv = g.num_vertices();
-        new_matches = false;
-        for v in g.vertex_vec() {
-            if check(g, v) {
-                rule(g, v);
+macro_rules! vertex_simp {
+    ($g: ident, $check: ident, $rule: ident, $force_reduce: ident) => {{
+        let mut got_match = false;
+        let mut new_matches = true;
+        let mut numv;
+        while new_matches {
+            numv = $g.num_vertices();
+            new_matches = false;
+            for v in $g.vertex_vec() {
+                if $check($g, v) {
+                    $rule($g, v);
+                    new_matches = true;
+                    got_match = true;
+                }
+            }
+            if $force_reduce && numv >= $g.num_vertices() {
+                break;
+            }
+
+            $g.pack(false);
+        }
+
+        got_match
+    }};
+}
+
+macro_rules! edge_simp {
+    ($g: ident, $check: ident, $rule: ident, $force_reduce: ident) => {{
+        let mut got_match = false;
+        let mut new_matches = true;
+        let mut numv;
+        while new_matches {
+            numv = $g.num_vertices();
+            new_matches = false;
+            for (s, t, _) in $g.edge_vec() {
+                if !$check($g, s, t) {
+                    continue;
+                }
+                $rule($g, s, t);
                 new_matches = true;
                 got_match = true;
             }
-        }
-        if force_reduce && numv >= g.num_vertices() {
-            break;
-        }
-    }
-
-    got_match
-}
-
-pub fn edge_simp<G: GraphLike>(
-    g: &mut G,
-    check: fn(&G, V, V) -> bool,
-    rule: fn(&mut G, V, V) -> (),
-    force_reduce: bool,
-) -> bool {
-    let mut got_match = false;
-    let mut new_matches = true;
-    let mut numv;
-    while new_matches {
-        numv = g.num_vertices();
-        new_matches = false;
-        for (s, t, _) in g.edge_vec() {
-            if !g.contains_vertex(s) || !g.contains_vertex(t) || !check(g, s, t) {
-                continue;
+            if $force_reduce && numv >= $g.num_vertices() {
+                break;
             }
-            rule(g, s, t);
-            new_matches = true;
-            got_match = true;
-        }
-        if force_reduce && numv >= g.num_vertices() {
-            break;
-        }
-    }
 
-    got_match
+            $g.pack(false);
+        }
+
+        got_match
+    }};
 }
+
+/*
+
+AK: for some reason this performs *worse* than edge_simp, but I can't figure out why. :S
+
+macro_rules! edge_simp2 {
+    ( $g:ident, $check1:ident, $check2:ident, $rule:ident, $force_reduce:ident ) => {{
+        let mut got_match = false;
+        let mut new_matches = true;
+        let mut numv;
+        while new_matches {
+            numv = $g.num_vertices();
+            new_matches = false;
+            for s in $g.vertex_vec() {
+                if !$check1($g, s) {
+                    continue;
+                }
+
+                let t_opt = $g.neighbors(s).find(|&t| s >= t && $check2($g, s, t));
+                if let Some(t) = t_opt {
+                    new_matches = true;
+                    got_match = true;
+                    $rule($g, s, t);
+                }
+            }
+            if $force_reduce && numv >= $g.num_vertices() {
+                break;
+            }
+
+            $g.pack(false);
+        }
+
+        got_match
+    }};
+}
+*/
 
 pub fn id_simp(g: &mut impl GraphLike) -> bool {
-    vertex_simp(g, check_remove_id, remove_id_unchecked, false)
+    vertex_simp![g, check_remove_id, remove_id_unchecked, false]
 }
 
 pub fn local_comp_simp(g: &mut impl GraphLike) -> bool {
-    vertex_simp(g, check_local_comp, local_comp_unchecked, false)
+    vertex_simp![g, check_local_comp, local_comp_unchecked, false]
 }
 
 pub fn spider_simp(g: &mut impl GraphLike) -> bool {
-    edge_simp(g, check_spider_fusion, spider_fusion_unchecked, false)
+    edge_simp![g, check_spider_fusion, spider_fusion_unchecked, false]
 }
 
 pub fn pivot_simp(g: &mut impl GraphLike) -> bool {
-    edge_simp(g, check_pivot, pivot_unchecked, false)
+    // edge_simp2![g, check_pivot1, check_pivot2, pivot_unchecked, false]
+    edge_simp![g, check_pivot, pivot_unchecked, false]
 }
 
 pub fn gen_pivot_simp(g: &mut impl GraphLike) -> bool {
-    edge_simp(g, check_gen_pivot_reduce, gen_pivot_unchecked, false)
+    edge_simp![g, check_gen_pivot_reduce, gen_pivot_unchecked, false]
 }
 
 pub fn scalar_simp(g: &mut impl GraphLike) -> bool {
-    let mut m = vertex_simp(g, check_remove_single, remove_single_unchecked, false);
-    m = edge_simp(g, check_remove_pair, remove_pair_unchecked, false) || m;
+    let mut m = vertex_simp![g, check_remove_single, remove_single_unchecked, false];
+    m = edge_simp![g, check_remove_pair, remove_pair_unchecked, false] || m;
     m
 }
 

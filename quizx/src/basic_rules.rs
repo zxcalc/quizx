@@ -57,6 +57,7 @@ macro_rules! checked_rule2 {
         /// A checked implementation of the rule
         ///
         /// See e.g. [spider_fusion] for an example.
+        #[inline]
         pub fn $name(g: &mut impl GraphLike, v0: V, v1: V) -> bool {
             if $check(g, v0, v1) {
                 $unchecked(g, v0, v1);
@@ -87,6 +88,7 @@ macro_rules! checked_rule2 {
 /// assert!(check_spider_fusion(&g, v0, v1));
 /// assert!(!check_spider_fusion(&g, v1, v2));
 /// ```
+#[inline]
 pub fn check_spider_fusion(g: &impl GraphLike, v0: V, v1: V) -> bool {
     v0 != v1
         && g.edge_type_opt(v0, v1) == Some(EType::N)
@@ -119,6 +121,7 @@ pub fn check_spider_fusion(g: &impl GraphLike, v0: V, v1: V) -> bool {
 /// spider_fusion_unchecked(&mut g, v0, v2); // oops! Not a valid spider fusion
 /// assert_ne!(g.to_tensorf(), h.to_tensorf());
 /// ```
+#[inline]
 pub fn spider_fusion_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     for (v, et) in Vec::from_iter(g.incident_edges(v1)) {
         if v != v0 {
@@ -158,6 +161,7 @@ pub fn spider_fusion_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 /// assert!(!success);
 /// assert_eq!(g, h); // g is unchanged
 /// ```
+#[inline]
 pub fn spider_fusion(g: &mut impl GraphLike, v0: V, v1: V) -> bool {
     if check_spider_fusion(g, v0, v1) {
         spider_fusion_unchecked(g, v0, v1);
@@ -168,32 +172,36 @@ pub fn spider_fusion(g: &mut impl GraphLike, v0: V, v1: V) -> bool {
 }
 
 /// Check [pi_copy_unchecked] applies
+#[inline]
 pub fn check_pi_copy(g: &impl GraphLike, v: V) -> bool {
-    let vt = g.vertex_type(v);
-    // Find the opposite color of this spider, or fail
-    // if it is not a colored spider.
-    let ovt = match vt {
-        VType::Z => VType::X,
-        VType::X => VType::Z,
-        _ => return false,
-    };
+    if let Some(vt) = g.vertex_type_opt(v) {
+        // Find the opposite color of this spider, or fail
+        // if it is not a colored spider.
+        let ovt = match vt {
+            VType::Z => VType::X,
+            VType::X => VType::Z,
+            _ => return false,
+        };
 
-    // No pi-copy on empty spiders.
-    if g.degree(v) == 0 {
-        return false;
-    }
-
-    for neighbor in g.neighbors(v) {
-        // Every neighbor must be the same color and connected by
-        // a hadamard edge or the opposite color and connected by a normal edge.
-        match g.edge_type(v, neighbor) {
-            EType::N if g.vertex_type(neighbor) != ovt => return false,
-            EType::H if g.vertex_type(neighbor) != vt => return false,
-            _ => (),
+        // No pi-copy on empty spiders.
+        if g.degree(v) == 0 {
+            return false;
         }
-    }
 
-    true
+        for neighbor in g.neighbors(v) {
+            // Every neighbor must be the same color and connected by
+            // a hadamard edge or the opposite color and connected by a normal edge.
+            match g.edge_type(v, neighbor) {
+                EType::N if g.vertex_type(neighbor) != ovt => return false,
+                EType::H if g.vertex_type(neighbor) != vt => return false,
+                _ => (),
+            }
+        }
+
+        true
+    } else {
+        false
+    }
 }
 
 /// Apply a pi-copy
@@ -203,6 +211,7 @@ pub fn check_pi_copy(g: &impl GraphLike, v: V) -> bool {
 /// same color and connected by a Hadamard edge, or the opposite
 /// color and connected by a normal edge. In particular, this means
 /// that this rule can always be applied when the graph is in gh form.
+#[inline]
 pub fn pi_copy_unchecked(g: &mut impl GraphLike, v: V) {
     // Flip the phase of this node
     let phase = g.phase(v);
@@ -223,13 +232,16 @@ pub fn pi_copy_unchecked(g: &mut impl GraphLike, v: V) {
 checked_rule1!(check_pi_copy, pi_copy_unchecked, pi_copy);
 
 /// Check [remove_id_unchecked] applies
+#[inline]
 pub fn check_remove_id(g: &impl GraphLike, v: V) -> bool {
-    let vt = g.vertex_type(v);
-
-    (vt == VType::Z || vt == VType::X)
-        && g.phase(v).is_zero()
-        && g.degree(v) == 2
-        && g.vars(v).is_empty()
+    if let Some(vd) = g.vertex_data_opt(v) {
+        (vd.ty == VType::Z || vd.ty == VType::X)
+            && vd.phase.is_zero()
+            && g.degree(v) == 2
+            && vd.vars.is_empty()
+    } else {
+        false
+    }
 }
 
 /// Remove an arity-2 spider with phase 0
@@ -238,6 +250,7 @@ pub fn check_remove_id(g: &impl GraphLike, v: V) -> bool {
 /// of the resulting edge is the parity of the types of
 /// original 2 edges, namely: {N,N} -> N, {N,H} -> H, and
 /// {H, H} -> N.
+#[inline]
 pub fn remove_id_unchecked(g: &mut impl GraphLike, v: V) {
     let nhd: Vec<(V, EType)> = g.incident_edges(v).collect();
     let new_et = match (nhd[0].1, nhd[1].1) {
@@ -254,15 +267,17 @@ pub fn remove_id_unchecked(g: &mut impl GraphLike, v: V) {
 checked_rule1!(check_remove_id, remove_id_unchecked, remove_id);
 
 /// Check [color_change_unchecked] applies
+#[inline]
 pub fn check_color_change(g: &impl GraphLike, v: V) -> bool {
-    let vt = g.vertex_type(v);
-    vt == VType::X || vt == VType::Z
+    let vt = g.vertex_type_opt(v);
+    vt == Some(VType::X) || vt == Some(VType::Z)
 }
 
 /// Change the color of a Z or X spider
 ///
 /// All of the neighboring edge types are toggled, i.e. N -> H,
 /// H -> N.
+#[inline]
 pub fn color_change_unchecked(g: &mut impl GraphLike, v: V) {
     let vt = g.vertex_type(v);
     g.set_vertex_type(v, if vt == VType::X { VType::Z } else { VType::X });
@@ -277,11 +292,16 @@ checked_rule1!(check_color_change, color_change_unchecked, color_change);
 ///
 /// The vertex must be Z, have a phase pi/2 or -pi/2, and be
 /// surrounded by H-edges connected to other Z spiders.
+#[inline]
 pub fn check_local_comp(g: &impl GraphLike, v: V) -> bool {
-    g.vertex_type(v) == VType::Z
-        && g.phase(v).is_proper_clifford()
-        && g.incident_edges(v)
-            .all(|(v0, et)| g.vertex_type(v0) == VType::Z && et == EType::H)
+    if let Some(vd) = g.vertex_data_opt(v) {
+        vd.ty == VType::Z
+            && vd.phase.is_proper_clifford()
+            && g.incident_edges(v)
+                .all(|(v0, et)| g.vertex_type(v0) == VType::Z && et == EType::H)
+    } else {
+        false
+    }
 }
 
 /// Apply a local complementation
@@ -289,6 +309,7 @@ pub fn check_local_comp(g: &impl GraphLike, v: V) -> bool {
 /// This is the version that deletes the targeted vertex. In
 /// other words, it is an N-ary generalization of the Euler
 /// decomposition rule.
+#[inline]
 pub fn local_comp_unchecked(g: &mut impl GraphLike, v: V) {
     let p = g.phase(v);
     let vars = g.vars(v);
@@ -319,20 +340,43 @@ pub fn local_comp_unchecked(g: &mut impl GraphLike, v: V) {
 
 checked_rule1!(check_local_comp, local_comp_unchecked, local_comp);
 
+/// Check [pivot_unchecked] could potentially apply at v0
+///
+/// If this method returns false, this allows the simplifier to proceed to the next vertex
+/// without checking all of v0's neighborhood.
+#[inline]
+pub fn check_pivot1(g: &impl GraphLike, v0: V) -> bool {
+    if let Some(vd0) = g.vertex_data_opt(v0) {
+        vd0.ty == VType::Z
+            && vd0.phase.is_pauli()
+            && g.incident_edges(v0)
+                .all(|(w, et)| g.vertex_type(w) == VType::Z && et == EType::H)
+    } else {
+        false
+    }
+}
+
+/// Check [pivot_unchecked] applies at v0 -- v1 (assuming it has already been checked at v0)
+#[inline]
+pub fn check_pivot2(g: &impl GraphLike, v0: V, v1: V) -> bool {
+    if let Some(vd1) = g.vertex_data_opt(v1) {
+        vd1.ty == VType::Z
+            && vd1.phase.is_pauli()
+            && g.edge_type_opt(v0, v1) == Some(EType::H)
+            && g.incident_edges(v1)
+                .all(|(w, et)| g.vertex_type(w) == VType::Z && et == EType::H)
+    } else {
+        false
+    }
+}
+
 /// Check [pivot_unchecked] applies
 ///
 /// Both vertices must be Z, have a phase 0 or pi, and be
 /// surrounded by H-edges connected to other Z spiders.
+#[inline]
 pub fn check_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
-    g.vertex_type(v0) == VType::Z
-        && g.vertex_type(v1) == VType::Z
-        && g.edge_type_opt(v0, v1) == Some(EType::H)
-        && g.phase(v0).is_pauli()
-        && g.phase(v1).is_pauli()
-        && g.incident_edges(v0)
-            .all(|(w, et)| g.vertex_type(w) == VType::Z && et == EType::H)
-        && g.incident_edges(v1)
-            .all(|(w, et)| g.vertex_type(w) == VType::Z && et == EType::H)
+    check_pivot1(g, v0) && check_pivot2(g, v0, v1)
 }
 
 /// Apply pivoting to a pair of vertices
@@ -340,6 +384,7 @@ pub fn check_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
 /// This is the version that deletes both vertices, so it is
 /// effectively a generalised version of the strong complementarity
 /// rule.
+#[inline]
 pub fn pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     let (p0, vars0) = g.phase_and_vars(v0);
     let (p1, vars1) = g.phase_and_vars(v1);
@@ -387,6 +432,7 @@ checked_rule2!(check_pivot, pivot_unchecked, pivot);
 ///
 /// If b is not a boundary, this is a noop. The new vertex will be connected
 /// to v by a Hadamard edge.
+#[inline]
 fn unfuse_boundary(g: &mut impl GraphLike, v: V, b: V) {
     if g.vertex_type(b) != VType::B {
         return;
@@ -406,6 +452,7 @@ fn unfuse_boundary(g: &mut impl GraphLike, v: V, b: V) {
 /// Unfuse a non-Pauli phase as a degree-1 phase gadget
 ///
 /// If the vertex already has a Pauli phase, this is a noop.
+#[inline]
 fn unfuse_gadget(g: &mut impl GraphLike, v: V) {
     if g.phase(v).is_pauli() {
         return;
@@ -440,6 +487,7 @@ fn unfuse_gadget(g: &mut impl GraphLike, v: V) {
 /// by gadgetizing any non-Pauli phases and inserting identities to make
 /// both vertices interior. Note that repeatedly applying `gen_pivot` with
 /// this checker will not always terminate.
+#[inline]
 pub fn check_gen_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
     if v0 == v1 {
         return false;
@@ -465,6 +513,7 @@ pub fn check_gen_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
 
 // check that a vertex is interior, has phase 0 or pi, and is not
 // a phase gadget
+#[inline]
 fn is_interior_pauli(g: &impl GraphLike, v: V) -> bool {
     g.phase(v).is_pauli()
         && g.neighbors(v)
@@ -473,6 +522,7 @@ fn is_interior_pauli(g: &impl GraphLike, v: V) -> bool {
 
 // check that a vertex is interior, has phase 0 or pi, and is not
 // a phase gadget
+#[inline]
 fn is_boundary_pauli(g: &impl GraphLike, v: V) -> bool {
     g.phase(v).is_pauli() && g.neighbors(v).any(|n| g.vertex_type(n) == VType::B)
 }
@@ -482,10 +532,12 @@ fn is_boundary_pauli(g: &impl GraphLike, v: V) -> bool {
 /// Unlike `check_gen_pivot`, this guarantees applying `gen_pivot` will
 /// strictly decrease the number of interior Pauli vertices, hence it
 /// will terminate.
+#[inline]
 pub fn check_gen_pivot_reduce(g: &impl GraphLike, v0: V, v1: V) -> bool {
     check_gen_pivot(g, v0, v1) && (is_interior_pauli(g, v0) || is_interior_pauli(g, v1))
 }
 
+#[inline]
 pub fn check_boundary_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
     check_gen_pivot(g, v0, v1) && is_boundary_pauli(g, v0)
 }
@@ -497,6 +549,7 @@ pub fn check_boundary_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
 /// these situations, some spiders are first unfused, such that interior
 /// non-Pauli spiders produce phase gadgets and boundary non-Pauli spiders
 /// produce phase gates on inputs/outputs.
+#[inline]
 pub fn gen_pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     let nhd0 = g.neighbor_vec(v0);
     unfuse_gadget(g, v0);
@@ -522,49 +575,59 @@ pub fn gen_pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 checked_rule2!(check_gen_pivot, gen_pivot_unchecked, gen_pivot);
 checked_rule2!(check_boundary_pivot, gen_pivot_unchecked, boundary_pivot);
 
+#[inline]
 pub fn check_gadget_fusion(g: &impl GraphLike, v0: V, v1: V) -> bool {
     if v0 == v1 {
         return false;
     }
 
-    let (p0, vars0) = g.phase_and_vars(v0);
-    let (p1, vars1) = g.phase_and_vars(v1);
+    if let (Some(vd0), Some(vd1)) = (g.vertex_data_opt(v0), g.vertex_data_opt(v1)) {
+        // let (p0, vars0) = g.phase_and_vars(v0);
+        // let (p1, vars1) = g.phase_and_vars(v1);
 
-    if !p0.is_zero() || !p1.is_zero() || !vars0.is_empty() || !vars1.is_empty() {
-        return false;
-    }
-
-    let vs = [v0, v1];
-    let mut nhd = [FxHashSet::default(), FxHashSet::default()];
-
-    for i in 0..2 {
-        let mut found_gphase = false;
-        for (n, et) in g.incident_edges(vs[i]) {
-            if et != EType::H {
-                return false;
-            }
-            if g.vertex_type(n) != VType::Z {
-                return false;
-            }
-            if g.degree(n) == 1 {
-                if found_gphase {
-                    return false;
-                } else {
-                    found_gphase = true;
-                }
-            } else {
-                nhd[i].insert(n);
-            }
-        }
-
-        if !found_gphase {
+        if !vd0.phase.is_zero()
+            || !vd1.phase.is_zero()
+            || !vd0.vars.is_empty()
+            || !vd1.vars.is_empty()
+        {
             return false;
         }
-    }
 
-    nhd[0] == nhd[1]
+        let vs = [v0, v1];
+        let mut nhd = [FxHashSet::default(), FxHashSet::default()];
+
+        for i in 0..2 {
+            let mut found_gphase = false;
+            for (n, et) in g.incident_edges(vs[i]) {
+                if et != EType::H {
+                    return false;
+                }
+                if g.vertex_type(n) != VType::Z {
+                    return false;
+                }
+                if g.degree(n) == 1 {
+                    if found_gphase {
+                        return false;
+                    } else {
+                        found_gphase = true;
+                    }
+                } else {
+                    nhd[i].insert(n);
+                }
+            }
+
+            if !found_gphase {
+                return false;
+            }
+        }
+
+        nhd[0] == nhd[1]
+    } else {
+        false
+    }
 }
 
+#[inline]
 pub fn gadget_fusion_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     let gphase0 = g
         .neighbors(v0)
@@ -585,12 +648,17 @@ pub fn gadget_fusion_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 
 checked_rule2!(check_gadget_fusion, gadget_fusion_unchecked, gadget_fusion);
 
+#[inline]
 pub fn check_remove_single(g: &impl GraphLike, v: V) -> bool {
-    let t = g.vertex_type(v);
-    g.degree(v) == 0 && (t == VType::Z || t == VType::X)
+    if let Some(t) = g.vertex_type_opt(v) {
+        g.degree(v) == 0 && (t == VType::Z || t == VType::X)
+    } else {
+        false
+    }
 }
 
 /// Remove an isolated Z or X vertex and add it as a global scalar
+#[inline]
 pub fn remove_single_unchecked(g: &mut impl GraphLike, v: V) {
     let (p, vars) = g.phase_and_vars(v);
 
@@ -607,18 +675,21 @@ pub fn remove_single_unchecked(g: &mut impl GraphLike, v: V) {
 
 checked_rule1!(check_remove_single, remove_single_unchecked, remove_single);
 
+#[inline]
 pub fn check_remove_pair(g: &impl GraphLike, v0: V, v1: V) -> bool {
-    let t0 = g.vertex_type(v0);
-    let t1 = g.vertex_type(v1);
-
-    g.degree(v0) == 1
-        && g.degree(v1) == 1
-        && (t0 == VType::Z || t0 == VType::X)
-        && (t1 == VType::Z || t1 == VType::X)
-        && g.connected(v0, v1)
+    if let (Some(t0), Some(t1)) = (g.vertex_type_opt(v0), g.vertex_type_opt(v1)) {
+        g.degree(v0) == 1
+            && g.degree(v1) == 1
+            && (t0 == VType::Z || t0 == VType::X)
+            && (t1 == VType::Z || t1 == VType::X)
+            && g.connected(v0, v1)
+    } else {
+        false
+    }
 }
 
 /// Remove a pair of connected Z or X vertices and add it as a global scalar
+#[inline]
 pub fn remove_pair_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     let t0 = g.vertex_type(v0);
     let t1 = g.vertex_type(v1);

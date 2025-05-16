@@ -49,8 +49,31 @@ pub struct RandomPauliGadgetCircuitBuilder {
     pub phase_denom: usize,
 }
 
+pub struct SurfaceCodeCircuitBuilder {
+    pub distance: usize,
+    pub rounds: usize,
+}
+
 impl Circuit {
     pub fn random() -> RandomCircuitBuilder {
+        Default::default()
+    }
+
+    pub fn random_hidden_shift() -> RandomHiddenShiftCircuitBuilder {
+        Default::default()
+    }
+
+    pub fn random_pauli_gadget() -> RandomPauliGadgetCircuitBuilder {
+        Default::default()
+    }
+
+    pub fn surface_code() -> SurfaceCodeCircuitBuilder {
+        Default::default()
+    }
+}
+
+impl Default for RandomCircuitBuilder {
+    fn default() -> Self {
         RandomCircuitBuilder {
             rng: StdRng::from_entropy(),
             qubits: 0,
@@ -62,8 +85,10 @@ impl Circuit {
             p_t: 0.0,
         }
     }
+}
 
-    pub fn random_hidden_shift() -> RandomHiddenShiftCircuitBuilder {
+impl Default for RandomHiddenShiftCircuitBuilder {
+    fn default() -> Self {
         RandomHiddenShiftCircuitBuilder {
             rng: StdRng::from_entropy(),
             qubits: 40,
@@ -71,8 +96,10 @@ impl Circuit {
             n_ccz: 5,
         }
     }
+}
 
-    pub fn random_pauli_gadget() -> RandomPauliGadgetCircuitBuilder {
+impl Default for RandomPauliGadgetCircuitBuilder {
+    fn default() -> Self {
         RandomPauliGadgetCircuitBuilder {
             rng: StdRng::from_entropy(),
             qubits: 40,
@@ -80,6 +107,15 @@ impl Circuit {
             min_weight: 2,
             max_weight: 4,
             phase_denom: 4,
+        }
+    }
+}
+
+impl Default for SurfaceCodeCircuitBuilder {
+    fn default() -> Self {
+        SurfaceCodeCircuitBuilder {
+            distance: 3,
+            rounds: 3,
         }
     }
 }
@@ -388,6 +424,84 @@ impl RandomPauliGadgetCircuitBuilder {
             c.push(g);
             lc.adjoint();
             c += &lc;
+        }
+
+        c
+    }
+}
+
+impl SurfaceCodeCircuitBuilder {
+    pub fn distance(&mut self, distance: usize) -> &mut Self {
+        self.distance = distance;
+        self
+    }
+
+    pub fn rounds(&mut self, rounds: usize) -> &mut Self {
+        self.rounds = rounds;
+        self
+    }
+
+    pub fn build(&self) -> Circuit {
+        let d = self.distance;
+        let mut c = Circuit::new(2 * d * d - 1);
+
+        for i in 0..c.num_qubits() {
+            c.push(Gate::new(GType::InitAncilla, vec![i]));
+        }
+
+        // data qubits are numbered from 1 to d in each dimension. This function with apply the appropriately
+        // oriented CNOT between the given syndrome qubit `q` and the data qubit at grid position (x, y)
+        #[inline]
+        fn cnot_data_q(c: &mut Circuit, d: usize, q: usize, x_type: bool, x: usize, y: usize) {
+            if x != 0 && y != 0 && x != d + 1 && y != d + 1 {
+                let r = (x - 1) * d + (y - 1);
+                c.push(Gate::new(
+                    GType::CNOT,
+                    if x_type { vec![q, r] } else { vec![r, q] },
+                ));
+            }
+        }
+
+        for _ in 0..self.rounds {
+            // syndrome qubits are numbered from 0 to d in each dimension. The syndrome (x,y)
+            // lies inside the square of data qubits whose corners are (x,y) and (x+1, y+1)
+            let mut q;
+            for step in 0..7 {
+                q = d * d;
+                for x in 1..(d + 1) {
+                    for y in 1..(d + 1) {
+                        // never place a syndrome in the far corners
+                        if (x == 0 || x == d) && (y == 0 || y == d) {
+                            continue;
+                        }
+
+                        let z_type = y != 0 && y != d && (x + y) % 2 == 1;
+                        let x_type = x != 0 && x != d && (x + y) % 2 == 0;
+
+                        if !z_type && !x_type {
+                            continue;
+                        }
+
+                        match step {
+                            0 if x_type => c.push(Gate::new(GType::HAD, vec![q])),
+                            1 => cnot_data_q(&mut c, d, q, x_type, x + 1, y + 1),
+                            2 => cnot_data_q(&mut c, d, q, x_type, x, y + 1),
+                            3 => cnot_data_q(&mut c, d, q, x_type, x + 1, y),
+                            4 => cnot_data_q(&mut c, d, q, x_type, x, y),
+                            5 if x_type => c.push(Gate::new(GType::HAD, vec![q])),
+                            6 => c.push(Gate::new(GType::MeasureReset, vec![q])),
+                            _ => {}
+                        }
+                        q += 1;
+                    }
+                }
+            }
+        }
+
+        // TODO: currently, this is finished up by doing a Z-measurement on all the qubits.
+        // We might want to do something different at some point.
+        for i in 0..c.num_qubits() {
+            c.push(Gate::new(GType::Measure, vec![i]));
         }
 
         c

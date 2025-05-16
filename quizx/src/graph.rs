@@ -229,6 +229,9 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// Get the data associated to the given vertex
     fn vertex_data(&self, v: V) -> &VData;
 
+    /// Get the data associated to the given vertex, or None if it doesn't exist
+    fn vertex_data_opt(&self, v: V) -> Option<&VData>;
+
     /// Get a mutable ref to the data associated to the given vertex
     fn vertex_data_mut(&mut self, v: V) -> &mut VData;
 
@@ -309,6 +312,11 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// Returns the type of a vertex
     fn vertex_type(&self, v: V) -> VType {
         self.vertex_data(v).ty
+    }
+
+    /// Returns type of a vertex or None if the vertex doesn't exist
+    fn vertex_type_opt(&self, v: V) -> Option<VType> {
+        self.vertex_data_opt(v).map(|v| v.ty)
     }
 
     /// Sets the coordinate of a vertex
@@ -791,10 +799,9 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
 
     /// This method can be called periodically to reduce wasted space in the graph representation
     ///
-    /// By default, this method is a no-op, but `VecGraph` overrides this behavior to remove "holes" left
+    /// This method can be a no-op, but `VecGraph` overrides this behavior to remove "holes" left
     /// by deleted vertices whenever the holes exceed a fixed ratio (or always when force=true).
-    #[inline]
-    fn pack(&mut self, _force: bool) {}
+    fn pack(&mut self, force: bool);
 }
 
 #[cfg(test)]

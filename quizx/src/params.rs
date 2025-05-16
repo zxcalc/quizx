@@ -15,29 +15,35 @@
 // limitations under the License.
 
 use num::Zero;
-use std::{
-    cmp::Ordering,
-    ops::{Add, Index},
-};
+use std::cmp::Ordering;
+use std::iter::Copied;
+use std::ops::{Add, Index};
 
-pub type Var = u16;
+pub type Var = u32;
 
-/// A representation for an XOR of variables, represented as unsigned
-/// integers. The variable "0" is reserved to mean the constant "1".
+/// A representation for an XOR of variables, represented as a list of unsigned
+/// integers followed by a boolean indicating the constant.
 ///
-/// For example [0, 3, 4] means 1 ⊕ b3 ⊕ b4.
+/// For example ([0, 3, 4], true) means b1 ⊕ b3 ⊕ b4 ⊕ 1.
 ///
 /// Variables are kept sorted to ensure uniqueness.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
-pub struct Parity(Vec<Var>);
+pub struct Parity(Box<[Var]>, bool);
 
 /// A boolean expression, represented as a conjunction of XORs
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub struct Expr(Vec<Parity>);
 
+pub type ParityIter<'a> = Copied<std::slice::Iter<'a, Var>>;
+pub type ExprIter<'a> = std::slice::Iter<'a, Parity>;
+
 impl Parity {
+    pub fn new(p: impl Into<Box<[Var]>>, flip: impl Into<bool>) -> Self {
+        Parity(p.into(), flip.into())
+    }
+
     pub fn single(v: Var) -> Self {
-        Parity(vec![v])
+        Parity([v].into(), false)
     }
 
     #[inline]
@@ -55,12 +61,17 @@ impl Parity {
     }
 
     pub fn one() -> Self {
-        Parity(vec![0])
+        Parity([].into(), true)
     }
 
     /// Returns of a copy of the parity negated
     pub fn negated(&self) -> Self {
-        &Parity::one() + self
+        Parity(self.0.clone(), !self.1)
+    }
+
+    pub fn iter(&self) -> ParityIter {
+        let it = self.0.iter().copied();
+        it
     }
 }
 
@@ -76,25 +87,20 @@ impl Index<usize> for Parity {
 impl From<Vec<Var>> for Parity {
     fn from(mut value: Vec<Var>) -> Self {
         value.sort();
-        Parity(value)
-    }
-}
-
-impl From<Parity> for Vec<Var> {
-    fn from(value: Parity) -> Self {
-        value.0
+        Parity(value.into(), false)
     }
 }
 
 impl Zero for Parity {
     fn is_zero(&self) -> bool {
-        self.is_empty()
+        self.is_empty() && !self.1
     }
 
     fn zero() -> Self {
-        Parity(vec![])
+        Parity([].into(), false)
     }
 }
+
 impl Add<&Parity> for &Parity {
     type Output = Parity;
 
@@ -136,7 +142,7 @@ impl Add<&Parity> for &Parity {
             }
         }
 
-        Parity(vars)
+        Parity(vars.into(), self.1 ^ rhs.1)
     }
 }
 
@@ -176,8 +182,13 @@ impl Expr {
         self.0.is_empty()
     }
 
+    #[inline]
     pub fn is_linear(&self) -> bool {
         self.len() == 1
+    }
+
+    pub fn iter(&self) -> ExprIter {
+        self.0.iter()
     }
 }
 
@@ -188,20 +199,31 @@ impl Index<usize> for Expr {
     }
 }
 
-pub struct Factor {}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn parities() {
-        let p1: Parity = vec![1, 3, 6, 8].into();
+        let p1: Parity = vec![0, 3, 6, 8].into();
         let p2: Parity = vec![2, 4, 9].into();
-        let p3: Parity = vec![1, 2, 3, 4, 6, 8, 9].into();
+        let p3: Parity = vec![0, 2, 3, 4, 6, 8, 9].into();
         let p2a: Parity = vec![2, 3, 4, 9].into();
-        let p3a: Parity = vec![1, 2, 4, 6, 8, 9].into();
+        let p3a: Parity = vec![0, 2, 4, 6, 8, 9].into();
+        assert_eq!(&p1 + &p1, Parity::zero());
         assert_eq!(&p1 + &p2, p3);
         assert_eq!(&p1 + &p2a, p3a);
+    }
+
+    #[test]
+    fn negation() {
+        let p1 = Parity::new([0, 1, 3], false);
+        let p2 = Parity::new([2, 4, 9], true);
+        let p3 = Parity::new([0, 1, 2, 3, 4, 9], true);
+        let p4 = p2.negated();
+        assert_eq!(&p1 + &p2, p3);
+        assert_eq!(&p2 + &p2, Parity::zero());
+        assert_eq!(&p2 + &p4, Parity::new([], true));
+        assert_eq!(p3, p3.negated().negated());
     }
 }

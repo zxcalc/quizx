@@ -456,6 +456,12 @@ impl ToTensor for Circuit {
                 PostSelect => {
                     panic!("Unsupported gate: PostSelect")
                 }
+                Measure => {
+                    panic!("Unsupported gate: Measure")
+                }
+                MeasureReset => {
+                    panic!("Unsupported gate: MeasureReset")
+                }
                 UnknownGate => {} // unknown gates are quietly ignored
             }
         }

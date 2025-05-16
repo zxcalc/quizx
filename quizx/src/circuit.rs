@@ -17,6 +17,8 @@
 use crate::gate::*;
 use crate::graph::*;
 use crate::linalg::RowOps;
+use crate::params::Parity;
+use crate::params::Var;
 use crate::phase::Phase;
 use num::{Rational64, Zero};
 use openqasm::{ast::Symbol, translate::Value, GenericError, ProgramVisitor};
@@ -143,11 +145,22 @@ impl Circuit {
     }
 
     pub fn add_gate_with_phase(&mut self, name: &str, qs: Vec<usize>, phase: impl Into<Phase>) {
-        self.push(Gate {
-            t: GType::from_qasm_name(name),
+        self.push(Gate::new_with_phase(GType::from_qasm_name(name), qs, phase));
+    }
+
+    pub fn add_gate_with_phase_and_vars(
+        &mut self,
+        name: &str,
+        qs: Vec<usize>,
+        phase: impl Into<Phase>,
+        vars: impl Into<Parity>,
+    ) {
+        self.push(Gate::new_with_phase_and_vars(
+            GType::from_qasm_name(name),
             qs,
-            phase: phase.into(),
-        });
+            phase,
+            vars,
+        ));
     }
 
     pub fn add_gate(&mut self, name: &str, qs: Vec<usize>) {
@@ -199,6 +212,7 @@ impl Circuit {
             opaque xcx a, b;
             opaque init_anc a;
             opaque post_sel a;
+            opaque measure_d q;
         "
             .to_string(),
             None,
@@ -266,8 +280,15 @@ impl Circuit {
 
         graph.set_inputs(inputs);
 
+        let mut fresh_var: Var = self
+            .gates
+            .iter()
+            .filter_map(|g| g.vars.iter().max())
+            .max()
+            .map_or(0, |fr| fr + 1);
+
         for g in &self.gates {
-            g.add_to_graph(&mut graph, &mut qs, postselect);
+            g.add_to_graph(&mut fresh_var, &mut graph, &mut qs, postselect);
         }
 
         let last_row = qs
@@ -396,7 +417,6 @@ enum CircuitWriterError {
     UnitaryNotSupported,
     BarrierNotSupported,
     ResetNotSupported,
-    MeasureNotSupported,
     ConditionalNotSupported,
 }
 
@@ -408,7 +428,6 @@ impl std::fmt::Display for CircuitWriterError {
             }
             CircuitWriterError::BarrierNotSupported => write!(f, "barriers are not supported"),
             CircuitWriterError::ResetNotSupported => write!(f, "resets are not supported"),
-            CircuitWriterError::MeasureNotSupported => write!(f, "measurements are not supported"),
             CircuitWriterError::ConditionalNotSupported => {
                 write!(f, "conditionals are not supported")
             }
@@ -472,8 +491,14 @@ impl openqasm::GateWriter for &mut CircuitWriter {
         Err(CircuitWriterError::ResetNotSupported)
     }
 
-    fn write_measure(&mut self, _: usize, _: usize) -> Result<(), Self::Error> {
-        Err(CircuitWriterError::MeasureNotSupported)
+    fn write_measure(&mut self, from: usize, to: usize) -> Result<(), Self::Error> {
+        self.circuit.push(Gate::new_with_phase_and_vars(
+            GType::Measure,
+            vec![from],
+            Phase::zero(),
+            Parity::single(to as Var),
+        ));
+        Ok(())
     }
 
     fn start_conditional(&mut self, _: usize, _: usize, _: u64) -> Result<(), Self::Error> {

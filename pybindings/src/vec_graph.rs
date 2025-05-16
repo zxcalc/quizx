@@ -1,15 +1,14 @@
-use pyo3::exceptions::*;
-use pyo3::prelude::*;
-
-use std::collections::HashMap;
-use std::collections::HashSet;
-
 use ::quizx::graph::*;
 use ::quizx::phase::*;
 use num::Rational64;
 use num::Zero;
+use pyo3::exceptions::*;
+use pyo3::prelude::*;
+use std::collections::HashMap;
+use std::collections::HashSet;
 
 use crate::scalar::Scalar;
+use crate::util::phase_and_vars_to_py;
 
 type E = (V, V);
 
@@ -197,8 +196,9 @@ impl VecGraph {
         self.g.set_vertex_type(vertex, ty);
     }
 
-    fn phase(&self, v: usize) -> Rational64 {
-        self.g.phase(v).to_rational()
+    fn phase(&self, py: Python<'_>, v: usize) -> PyResult<PyObject> {
+        let (phase, vars) = self.g.phase_and_vars(v);
+        phase_and_vars_to_py(py, phase, vars)
     }
 
     fn set_phase(&mut self, v: usize, phase: Rational64) {
@@ -281,12 +281,12 @@ impl VecGraph {
         false
     }
 
-    fn phases(&self) -> HashMap<V, Rational64> {
+    fn phases(&self, py: Python<'_>) -> PyResult<HashMap<V, PyObject>> {
         let mut m = HashMap::default();
         for v in self.g.vertices() {
-            m.insert(v, self.phase(v));
+            m.insert(v, self.phase(py, v)?);
         }
-        m
+        Ok(m)
     }
 
     fn types(&self) -> HashMap<V, u8> {
