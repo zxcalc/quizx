@@ -235,6 +235,10 @@ impl GraphLike for Graph {
         self.vdata[v].as_ref().expect("Vertex not found")
     }
 
+    fn vertex_data_opt(&self, v: V) -> Option<&VData> {
+        self.vdata.get(v)?.as_ref()
+    }
+
     fn vertex_data_mut(&mut self, v: V) -> &mut VData {
         let vd = self.vdata.get_mut(v).expect("Vertex not found");
         vd.as_mut().expect("Vertex not found")

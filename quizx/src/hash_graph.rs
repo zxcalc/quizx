@@ -170,6 +170,10 @@ impl GraphLike for Graph {
         self.vdata.get(&v).expect("Vertex not found")
     }
 
+    fn vertex_data_opt(&self, v: V) -> Option<&VData> {
+        self.vdata.get(&v)
+    }
+
     fn vertex_data_mut(&mut self, v: V) -> &mut VData {
         self.vdata.get_mut(&v).expect("Vertex not found")
     }
