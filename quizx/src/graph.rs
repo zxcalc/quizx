@@ -231,23 +231,52 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
 
     /// Get a mutable ref to the data associated to the given vertex
     fn vertex_data_mut(&mut self, v: V) -> &mut VData;
+
+    /// Sets type of an edge
     fn set_edge_type(&mut self, s: V, t: V, ety: EType);
+
+    /// Returns type of an edge or None if the edge (or one of the vertices) doesn't exist
     fn edge_type_opt(&self, s: V, t: V) -> Option<EType>;
+
+    /// Returns an iterator over neighbors of a vertex
     fn neighbors(&self, v: V) -> impl Iterator<Item = V>;
+
+    /// Returns an iterator over pairs (v, t) for `v` the "other end" of an edge,
+    /// and `t` its type.
     fn incident_edges(&self, v: V) -> impl Iterator<Item = (V, EType)>;
+
+    /// Returns degree of a vertex
     fn degree(&self, v: V) -> usize;
+
+    /// Returns the scalar associated with a ZX diagram
     fn scalar(&self) -> &FScalar;
+
+    /// Returns a mutable ref to the scalar associated with a ZX diagram
     fn scalar_mut(&mut self) -> &mut FScalar;
+
+    /// Returns the first edge satisfying the given function, or None
     fn find_edge<F>(&self, f: F) -> Option<(V, V, EType)>
     where
         F: Fn(V, V, EType) -> bool;
+
+    /// Returns the first vertex satisfying the given function, or None
     fn find_vertex<F>(&self, f: F) -> Option<V>
     where
         F: Fn(V) -> bool;
     fn contains_vertex(&self, v: V) -> bool;
 
+    /// Returns an iterator over all of the parametrised scalar factors
+    ///
+    /// A parametrised scalar factor is a something of the form `s^e`, where `s` is a
+    /// scalar and `e` is a boolean expression. For a given assignment of variables, the
+    /// concrete scalar of a graph is the product of all scalar factors, as well as the
+    /// constant scalar factor stored in `g.scalar()`.
     fn scalar_factors(&self) -> impl Iterator<Item = (&Expr, &FScalar)>;
+
+    /// Get the scalar factor associated with a given boolean expression
     fn get_scalar_factor(&self, e: &Expr) -> Option<FScalar>;
+
+    /// Insert (i.e. multiply) a new scalar factor `s^e` into the overall scalar
     fn mul_scalar_factor(&mut self, e: Expr, s: FScalar);
 
     /// Returns the phase and any boolean variables at a vertex
@@ -346,31 +375,55 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         self.vertex_data_mut(v).vars = vars1;
     }
 
+    /// Add an edge to the graph
     fn add_edge(&mut self, s: V, t: V) {
         self.add_edge_with_type(s, t, EType::N);
     }
 
+    /// Returns the type of a given edge and panics if the edge doesn't exist
     fn edge_type(&self, s: V, t: V) -> EType {
         self.edge_type_opt(s, t).expect("Edge not found")
     }
 
+    /// Returns true if the given vertices are connected
+    ///
+    /// Note this simply returns false if one of the edges doesn't exist (rather than
+    /// panicking).
     fn connected(&self, v0: V, v1: V) -> bool {
         self.edge_type_opt(v0, v1).is_some()
     }
 
+    /// Turns H-edges into normal edges and vice-versa
     fn toggle_edge_type(&mut self, v0: V, v1: V) {
         self.set_edge_type(v0, v1, self.edge_type(v0, v1).opposite());
     }
 
+    /// Returns a vector of the vertices in the graph
+    ///
+    /// This is useful for loops which might mutate the graph, although extra care should be taken
+    /// to handle the fact that vertices might be deleted mid-loop.
     fn vertex_vec(&self) -> Vec<V> {
         self.vertices().collect()
     }
+
+    /// Returns a vector of the edges in the graph
+    ///
+    /// This is useful for loops which might mutate the graph, although extra care should be taken
+    /// to handle the fact that edges might be deleted mid-loop.
     fn edge_vec(&self) -> Vec<(V, V, EType)> {
         self.edges().collect()
     }
+
+    /// Returns a vector of the neighbours of a given vertex
+    ///
+    /// Useful for looping over the neighborhood while mutating the graph
     fn neighbor_vec(&self, v: V) -> Vec<V> {
         self.neighbors(v).collect()
     }
+
+    /// Returns a vector of the incident edges of a given vertex
+    ///
+    /// Useful for looping over the neighborhood while mutating the graph
     fn incident_edge_vec(&self, v: V) -> Vec<(V, EType)> {
         self.incident_edges(v).collect()
     }
@@ -735,6 +788,13 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     fn depth(&self) -> f64 {
         pmax(self.vertices().map(|v| self.row(v))).unwrap_or(-1.0)
     }
+
+    /// This method can be called periodically to reduce wasted space in the graph representation
+    ///
+    /// By default, this method is a no-op, but `VecGraph` overrides this behavior to remove "holes" left
+    /// by deleted vertices whenever the holes exceed a fixed ratio (or always when force=true).
+    #[inline]
+    fn pack(&mut self, _force: bool) {}
 }
 
 #[cfg(test)]
