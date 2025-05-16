@@ -208,7 +208,6 @@ impl Gate {
             qs,
             phase: phase.into(),
             vars: vars.into(),
-            ..Default::default()
         }
     }
 

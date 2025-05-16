@@ -3,9 +3,8 @@ use pyo3::{prelude::*, types::PyList};
 use quizx::{params::Parity, phase::Phase};
 
 pub fn phase_and_vars_to_py(py: Python<'_>, phase: Phase, vars: Parity) -> PyResult<PyObject> {
-    let p;
-    if vars.is_empty() {
-        p = phase.to_rational().into_pyobject(py)?;
+    let p = if vars.is_empty() {
+        phase.to_rational().into_pyobject(py)?
     } else {
         let m = PyModule::import(py, "pyzx.symbolic")?;
         let poly = m.getattr("Poly")?;
@@ -24,8 +23,8 @@ pub fn phase_and_vars_to_py(py: Python<'_>, phase: Phase, vars: Parity) -> PyRes
             ts.push((Rational64::one(), term.call1((PyList::new(py, [py_v])?,))?));
         }
 
-        p = poly.call1((ts,))?;
-    }
+        poly.call1((ts,))?
+    };
 
     Ok(p.unbind())
 }
