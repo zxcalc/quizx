@@ -522,4 +522,42 @@ mod tests {
         //     Vec::from_iter(h.edges()));
         assert_eq!(h.edge_type(vs[1], vs[2]), EType::H);
     }
+
+    #[test]
+    fn pack() {
+        let mut g = Graph::new();
+        g.add_vertex(VType::X);
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::Z);
+        g.add_vertex(VType::X);
+        g.add_vertex(VType::B);
+        g.add_edge(0, 1);
+        g.add_edge(0, 2);
+        g.add_edge(0, 4);
+
+        g.remove_vertex(1);
+        g.remove_vertex(3);
+        assert!(g.contains_vertex(0));
+        assert!(!g.contains_vertex(1));
+        assert!(g.contains_vertex(2));
+        assert!(!g.contains_vertex(3));
+        assert!(g.contains_vertex(4));
+        assert!(g.connected(0, 2));
+        assert!(g.connected(0, 4));
+        assert!(g.vertex_type(0) == VType::X);
+        assert!(g.vertex_type(2) == VType::Z);
+        assert!(g.vertex_type(4) == VType::B);
+
+        g.pack(true);
+        assert!(g.contains_vertex(0));
+        assert!(g.contains_vertex(1));
+        assert!(g.contains_vertex(2));
+        assert!(!g.contains_vertex(3));
+        assert!(!g.contains_vertex(4));
+        assert!(g.connected(0, 1));
+        assert!(g.connected(0, 2));
+        assert!(g.vertex_type(0) == VType::X);
+        assert!(g.vertex_type(1) == VType::Z);
+        assert!(g.vertex_type(2) == VType::B);
+    }
 }
