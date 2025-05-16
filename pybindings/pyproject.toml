@@ -1,7 +1,7 @@
 [project]
 name = "quizx"
 description = "Quantum Circuit Optimisation and Compilation using the ZX-calculus"
-version = "0.2.0"
+version = "0.3.0"
 requires-python = ">=3.9"
 license = "Apache-2.0"
 readme = "README.md"
