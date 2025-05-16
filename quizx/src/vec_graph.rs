@@ -23,6 +23,10 @@ use std::mem;
 
 pub type VTab<T> = Vec<Option<T>>;
 
+/// When VecGraph::pack(false) is called, only do the packing if the number of holes * PACK_RATIO
+/// is greater than the number of allocated vertex indices.
+const PACK_RATIO: usize = 10;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Graph {
     vdata: VTab<VData>,
@@ -379,6 +383,34 @@ impl GraphLike for Graph {
             self.scalar_factors.insert(e, s);
         }
     }
+
+    #[allow(clippy::needless_range_loop)]
+    fn pack(&mut self, force: bool) {
+        if force || self.holes.len() * PACK_RATIO > self.vdata.len() {
+            let new_size = self.num_vertices();
+            let mut vtab = vec![0; self.vdata.len()];
+            let mut j = 0;
+            for i in 0..self.vdata.len() {
+                if self.vdata[i].is_some() {
+                    self.vdata[j] = self.vdata[i].take();
+                    self.edata[j] = self.edata[i].take();
+                    vtab[i] = j;
+                    j += 1;
+                }
+            }
+
+            self.vdata.truncate(new_size);
+            self.edata.truncate(new_size);
+            self.holes = vec![];
+
+            for et in self.edata.iter_mut() {
+                if let Some(tab) = et.as_mut() {
+                    tab.iter_mut()
+                        .for_each(|pair| *pair = (vtab[pair.0], pair.1));
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -490,5 +522,43 @@ mod tests {
         //     "Wrong edges in HH test: {:?}",
         //     Vec::from_iter(h.edges()));
         assert_eq!(h.edge_type(vs[1], vs[2]), EType::H);
+    }
+
+    #[test]
+    fn pack() {
+        let mut g = Graph::new();
+        g.add_vertex(VType::X);
+        g.add_vertex(VType::B);
+        g.add_vertex(VType::Z);
+        g.add_vertex(VType::X);
+        g.add_vertex(VType::B);
+        g.add_edge(0, 1);
+        g.add_edge(0, 2);
+        g.add_edge(0, 4);
+
+        g.remove_vertex(1);
+        g.remove_vertex(3);
+        assert!(g.contains_vertex(0));
+        assert!(!g.contains_vertex(1));
+        assert!(g.contains_vertex(2));
+        assert!(!g.contains_vertex(3));
+        assert!(g.contains_vertex(4));
+        assert!(g.connected(0, 2));
+        assert!(g.connected(0, 4));
+        assert!(g.vertex_type(0) == VType::X);
+        assert!(g.vertex_type(2) == VType::Z);
+        assert!(g.vertex_type(4) == VType::B);
+
+        g.pack(true);
+        assert!(g.contains_vertex(0));
+        assert!(g.contains_vertex(1));
+        assert!(g.contains_vertex(2));
+        assert!(!g.contains_vertex(3));
+        assert!(!g.contains_vertex(4));
+        assert!(g.connected(0, 1));
+        assert!(g.connected(0, 2));
+        assert!(g.vertex_type(0) == VType::X);
+        assert!(g.vertex_type(1) == VType::Z);
+        assert!(g.vertex_type(2) == VType::B);
     }
 }

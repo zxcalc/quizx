@@ -190,11 +190,7 @@ impl GraphLike for Graph {
     }
 
     fn edge_type_opt(&self, s: V, t: V) -> Option<EType> {
-        self.edata
-            .get(&s)
-            .expect("Source vertex not found")
-            .get(&t)
-            .copied()
+        self.edata.get(&s)?.get(&t).copied()
     }
 
     fn neighbors(&self, v: V) -> impl Iterator<Item = usize> {
