@@ -413,6 +413,9 @@ impl GraphLike for Graph {
                         .for_each(|pair| *pair = (vtab[pair.0], pair.1));
                 }
             }
+
+            self.inputs = self.inputs.iter().map(|v| vtab[*v]).collect();
+            self.outputs = self.outputs.iter().map(|v| vtab[*v]).collect();
         }
     }
 }
