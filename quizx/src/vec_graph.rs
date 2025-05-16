@@ -384,6 +384,7 @@ impl GraphLike for Graph {
         }
     }
 
+    #[allow(clippy::needless_range_loop)]
     fn pack(&mut self, force: bool) {
         if force || self.holes.len() * PACK_RATIO > self.vdata.len() {
             let new_size = self.num_vertices();
