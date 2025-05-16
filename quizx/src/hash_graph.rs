@@ -262,7 +262,7 @@ impl GraphLike for Graph {
         }
     }
 
-    fn pack(&mut self, force: bool) {}
+    fn pack(&mut self, _force: bool) {}
 }
 
 impl serde::Serialize for Graph {
