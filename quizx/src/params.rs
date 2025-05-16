@@ -16,6 +16,7 @@
 
 use num::Zero;
 use std::cmp::Ordering;
+use std::iter::Copied;
 use std::ops::{Add, Index};
 
 pub type Var = u32;
@@ -32,6 +33,9 @@ pub struct Parity(Box<[Var]>, bool);
 /// A boolean expression, represented as a conjunction of XORs
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub struct Expr(Vec<Parity>);
+
+pub type ParityIter<'a> = Copied<std::slice::Iter<'a, Var>>;
+pub type ExprIter<'a> = std::slice::Iter<'a, Parity>;
 
 impl Parity {
     pub fn new(p: impl Into<Box<[Var]>>, flip: impl Into<bool>) -> Self {
@@ -65,8 +69,9 @@ impl Parity {
         Parity(self.0.clone(), !self.1)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = Var> + use<'_> {
-        self.0.iter().copied()
+    pub fn iter(&self) -> ParityIter {
+        let it = self.0.iter().copied();
+        it
     }
 }
 
@@ -182,7 +187,7 @@ impl Expr {
         self.len() == 1
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &Parity> + use<'_> {
+    pub fn iter(&self) -> ExprIter {
         self.0.iter()
     }
 }
