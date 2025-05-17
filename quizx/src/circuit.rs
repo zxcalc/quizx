@@ -20,6 +20,7 @@ use crate::linalg::RowOps;
 use crate::params::Parity;
 use crate::params::Var;
 use crate::phase::Phase;
+use crate::simplify::local_clifford_simp;
 use crate::util::pmax;
 use num::{Rational64, Zero};
 use openqasm::{ast::Symbol, translate::Value, GenericError, ProgramVisitor};
@@ -262,7 +263,7 @@ impl Circuit {
         c
     }
 
-    pub fn to_graph_with_options<G: GraphLike>(&self, postselect: bool) -> G {
+    pub fn to_graph_with_options<G: GraphLike>(&self, simplify: bool, postselect: bool) -> G {
         let mut graph = G::new();
         let mut qs = FxHashMap::default();
         let mut inputs = Vec::with_capacity(self.nqubits);
@@ -300,7 +301,11 @@ impl Circuit {
             .map_or(0, |fr| fr + 1);
 
         for g in &self.gates {
-            g.add_to_graph(&mut fresh_var, &mut graph, &mut qs, postselect);
+            let vs = g.add_to_graph(&mut fresh_var, &mut graph, &mut qs, postselect);
+
+            if simplify {
+                local_clifford_simp(&mut graph, vs);
+            }
         }
 
         let last_row = pmax(graph.outputs().iter().map(|&o| graph.row(o))).unwrap_or(2.0);
@@ -313,7 +318,7 @@ impl Circuit {
     }
 
     pub fn to_graph<G: GraphLike>(&self) -> G {
-        self.to_graph_with_options(false)
+        self.to_graph_with_options(false, false)
     }
 
     pub fn stats(&self) -> CircuitStats {
@@ -682,7 +687,7 @@ mod tests {
         "#,
         )
         .unwrap();
-        let g: Graph = c.to_graph_with_options(true);
+        let g: Graph = c.to_graph_with_options(false, true);
         assert_eq!(c.to_tensorf(), g.to_tensorf());
 
         let c = Circuit::from_qasm(
@@ -692,7 +697,7 @@ mod tests {
         "#,
         )
         .unwrap();
-        let g: Graph = c.to_graph_with_options(true);
+        let g: Graph = c.to_graph_with_options(false, true);
         assert_eq!(c.to_tensorf(), g.to_tensorf());
     }
 }

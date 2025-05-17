@@ -179,6 +179,7 @@ pub fn local_clifford_simp(g: &mut impl GraphLike, vs: impl IntoIterator<Item = 
         for u in g.neighbor_vec(v) {
             if spider_fusion(g, v, u)
                 || local_comp(g, u)
+                || pivot(g, v, u)
                 || boundary_pivot(g, v, u)
                 || boundary_local_comp(g, v, u)
             {
