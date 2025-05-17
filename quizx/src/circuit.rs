@@ -20,7 +20,7 @@ use crate::linalg::RowOps;
 use crate::params::Parity;
 use crate::params::Var;
 use crate::phase::Phase;
-use crate::simplify::local_clifford_simp;
+use crate::simplify::local_ap_simp;
 use crate::util::pmax;
 use num::{Rational64, Zero};
 use openqasm::{ast::Symbol, translate::Value, GenericError, ProgramVisitor};
@@ -304,7 +304,7 @@ impl Circuit {
             let vs = g.add_to_graph(&mut fresh_var, &mut graph, &mut qs, postselect);
 
             if simplify {
-                local_clifford_simp(&mut graph, vs);
+                local_ap_simp(&mut graph, vs);
             }
         }
 

@@ -527,6 +527,15 @@ fn is_boundary_pauli(g: &impl GraphLike, v: V) -> bool {
     g.phase(v).is_pauli() && g.neighbors(v).any(|n| g.vertex_type(n) == VType::B)
 }
 
+// check that a vertex is on a boundary, has phase 0 or pi, and is not
+// a phase gadget
+#[inline]
+fn is_boundary_pauli_with_h(g: &impl GraphLike, v: V) -> bool {
+    g.phase(v).is_pauli()
+        && g.incident_edges(v)
+            .any(|(n, et)| et == EType::H && g.vertex_type(n) == VType::B)
+}
+
 // check that a vertex is on a boundary, has phase -pi/2 or pi/2, and is not
 // a phase gadget
 #[inline]
@@ -547,6 +556,11 @@ pub fn check_gen_pivot_reduce(g: &impl GraphLike, v0: V, v1: V) -> bool {
 #[inline]
 pub fn check_boundary_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
     check_gen_pivot(g, v0, v1) && is_boundary_pauli(g, v0)
+}
+
+#[inline]
+pub fn check_h_boundary_pivot(g: &impl GraphLike, v0: V, v1: V) -> bool {
+    check_gen_pivot(g, v0, v1) && is_boundary_pauli_with_h(g, v0)
 }
 
 /// Generic version of the pivot rule
@@ -581,6 +595,11 @@ pub fn gen_pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 
 checked_rule2!(check_gen_pivot, gen_pivot_unchecked, gen_pivot);
 checked_rule2!(check_boundary_pivot, gen_pivot_unchecked, boundary_pivot);
+checked_rule2!(
+    check_h_boundary_pivot,
+    gen_pivot_unchecked,
+    h_boundary_pivot
+);
 
 #[inline]
 pub fn check_boundary_local_comp(g: &impl GraphLike, v0: V, v1: V) -> bool {
