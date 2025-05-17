@@ -520,11 +520,18 @@ fn is_interior_pauli(g: &impl GraphLike, v: V) -> bool {
             .all(|n| g.vertex_type(n) == VType::Z && g.degree(n) > 1)
 }
 
-// check that a vertex is interior, has phase 0 or pi, and is not
+// check that a vertex is on a boundary, has phase 0 or pi, and is not
 // a phase gadget
 #[inline]
 fn is_boundary_pauli(g: &impl GraphLike, v: V) -> bool {
     g.phase(v).is_pauli() && g.neighbors(v).any(|n| g.vertex_type(n) == VType::B)
+}
+
+// check that a vertex is on a boundary, has phase -pi/2 or pi/2, and is not
+// a phase gadget
+#[inline]
+fn is_boundary_proper_clifford(g: &impl GraphLike, v: V) -> bool {
+    g.phase(v).is_proper_clifford() && g.neighbors(v).any(|n| g.vertex_type(n) == VType::B)
 }
 
 /// Check gen_pivot applies and at least one vertex is interior Pauli
@@ -574,6 +581,30 @@ pub fn gen_pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 
 checked_rule2!(check_gen_pivot, gen_pivot_unchecked, gen_pivot);
 checked_rule2!(check_boundary_pivot, gen_pivot_unchecked, boundary_pivot);
+
+#[inline]
+pub fn check_boundary_local_comp(g: &impl GraphLike, v0: V, v1: V) -> bool {
+    v0 != v1
+        && g.edge_type_opt(v0, v1) != Some(EType::H)
+        && is_boundary_proper_clifford(g, v0)
+        && is_interior_pauli(g, v1)
+}
+
+#[inline]
+pub fn boundary_local_comp_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
+    for b in g.neighbor_vec(v0) {
+        unfuse_boundary(g, v0, b);
+    }
+
+    local_comp_unchecked(g, v0);
+    local_comp_unchecked(g, v1);
+}
+
+checked_rule2!(
+    check_boundary_local_comp,
+    boundary_local_comp_unchecked,
+    boundary_local_comp
+);
 
 #[inline]
 pub fn check_gadget_fusion(g: &impl GraphLike, v0: V, v1: V) -> bool {
