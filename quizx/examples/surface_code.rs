@@ -9,7 +9,7 @@ use quizx::{graph::*, vec_graph::Graph};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let distance = 50;
-    let rounds = 100;
+    let rounds = 50;
     let time = Instant::now();
     println!(
         "Building surface code circuit with distance {} and {} rounds...",
