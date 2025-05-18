@@ -6,7 +6,7 @@ default-members = ["quizx"]
 [workspace.package]
 authors = ["Aleks Kissinger <aleks0@gmail.com>"]
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.81"
 homepage = "https://github.com/zxcalc/quizx"
 license = "Apache-2.0"
 license-file = "LICENSE"
@@ -26,4 +26,3 @@ derive_more = "1.0.0"
 rstest = "0.23.0"
 serde = "1.0.218"
 serde_json = "1.0.139"
-criterion = { version = "0.6.0", features = ["html_reports"] }
