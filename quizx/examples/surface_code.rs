@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let time = Instant::now();
     println!("Converting to graph...");
-    let mut g: Graph = c.to_graph();
+    let mut g: Graph = c.to_graph_with_options(false, false);
     println!("Done in {:?}", time.elapsed());
 
     println!("Initial ZX diagram has {} vertices", g.num_vertices());
@@ -33,7 +33,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     interior_clifford_simp(&mut g);
     println!("Done in {:?}", time.elapsed());
 
-    println!("Result has {} vertices", g.num_vertices());
+    println!(
+        "Result has {} vertices, {} inputs, {} outputs",
+        g.num_vertices(),
+        g.inputs().len(),
+        g.outputs().len()
+    );
 
     let factors: Vec<Expr> = g
         .scalar_factors()

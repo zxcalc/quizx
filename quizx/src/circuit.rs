@@ -20,8 +20,11 @@ use crate::linalg::RowOps;
 use crate::params::Parity;
 use crate::params::Var;
 use crate::phase::Phase;
+use crate::simplify::local_ap_simp;
+use crate::util::pmax;
 use num::{Rational64, Zero};
 use openqasm::{ast::Symbol, translate::Value, GenericError, ProgramVisitor};
+use rustc_hash::FxHashMap;
 use std::collections::VecDeque;
 use std::fmt;
 use std::str;
@@ -260,25 +263,35 @@ impl Circuit {
         c
     }
 
-    pub fn to_graph_with_options<G: GraphLike>(&self, postselect: bool) -> G {
+    pub fn to_graph_with_options<G: GraphLike>(&self, simplify: bool, postselect: bool) -> G {
         let mut graph = G::new();
-        let mut qs = Vec::with_capacity(self.nqubits);
+        let mut qs = FxHashMap::default();
         let mut inputs = Vec::with_capacity(self.nqubits);
+        let mut outputs = Vec::with_capacity(self.nqubits);
 
         // we start counting rows from 1, to allow coordinate
         // (0,0) to mean "no coordinate"
         for i in 0..self.nqubits {
-            let v = graph.add_vertex_with_data(VData {
+            let inp = graph.add_vertex_with_data(VData {
                 ty: VType::B,
                 qubit: i as f64,
                 row: 1.0,
                 ..Default::default()
             });
-            qs.push(Some(v));
-            inputs.push(v);
+            let outp = graph.add_vertex_with_data(VData {
+                ty: VType::B,
+                qubit: i as f64,
+                row: 2.0,
+                ..Default::default()
+            });
+            graph.add_edge(inp, outp);
+            inputs.push(inp);
+            outputs.push(outp);
+            qs.insert(i, i);
         }
 
         graph.set_inputs(inputs);
+        graph.set_outputs(outputs);
 
         let mut fresh_var: Var = self
             .gates
@@ -288,39 +301,24 @@ impl Circuit {
             .map_or(0, |fr| fr + 1);
 
         for g in &self.gates {
-            g.add_to_graph(&mut fresh_var, &mut graph, &mut qs, postselect);
-        }
+            let vs = g.add_to_graph(&mut fresh_var, &mut graph, &mut qs, postselect);
 
-        let last_row = qs
-            .iter()
-            .fold(None, |r, &v| match (r, v.map(|v1| graph.row(v1))) {
-                (Some(r), Some(r1)) => Some(if r < r1 { r1 } else { r }),
-                (Some(r), None) => Some(r),
-                (None, Some(r1)) => Some(r1),
-                (None, None) => None,
-            })
-            .unwrap_or(0.0);
-
-        let mut outputs = Vec::with_capacity(self.nqubits);
-        for (i, &q) in qs.iter().enumerate() {
-            if let Some(v0) = q {
-                let v = graph.add_vertex_with_data(VData {
-                    ty: VType::B,
-                    qubit: i as f64,
-                    row: last_row + 1.0,
-                    ..Default::default()
-                });
-                graph.add_edge(v0, v);
-                outputs.push(v);
+            if simplify {
+                local_ap_simp(&mut graph, vs);
             }
         }
 
-        graph.set_outputs(outputs);
+        let last_row = pmax(graph.outputs().iter().map(|&o| graph.row(o))).unwrap_or(2.0);
+
+        for outp in graph.outputs().clone() {
+            graph.set_row(outp, last_row);
+        }
+
         graph
     }
 
     pub fn to_graph<G: GraphLike>(&self) -> G {
-        self.to_graph_with_options(false)
+        self.to_graph_with_options(false, false)
     }
 
     pub fn stats(&self) -> CircuitStats {
@@ -689,7 +687,7 @@ mod tests {
         "#,
         )
         .unwrap();
-        let g: Graph = c.to_graph_with_options(true);
+        let g: Graph = c.to_graph_with_options(false, true);
         assert_eq!(c.to_tensorf(), g.to_tensorf());
 
         let c = Circuit::from_qasm(
@@ -699,7 +697,7 @@ mod tests {
         "#,
         )
         .unwrap();
-        let g: Graph = c.to_graph_with_options(true);
+        let g: Graph = c.to_graph_with_options(false, true);
         assert_eq!(c.to_tensorf(), g.to_tensorf());
     }
 }

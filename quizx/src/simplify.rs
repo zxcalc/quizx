@@ -116,29 +116,29 @@ macro_rules! edge_simp2 {
 */
 
 pub fn id_simp(g: &mut impl GraphLike) -> bool {
-    vertex_simp![g, check_remove_id, remove_id_unchecked, false]
+    vertex_simp!(g, check_remove_id, remove_id_unchecked, false)
 }
 
 pub fn local_comp_simp(g: &mut impl GraphLike) -> bool {
-    vertex_simp![g, check_local_comp, local_comp_unchecked, false]
+    vertex_simp!(g, check_local_comp, local_comp_unchecked, false)
 }
 
 pub fn spider_simp(g: &mut impl GraphLike) -> bool {
-    edge_simp![g, check_spider_fusion, spider_fusion_unchecked, false]
+    edge_simp!(g, check_spider_fusion, spider_fusion_unchecked, false)
 }
 
 pub fn pivot_simp(g: &mut impl GraphLike) -> bool {
-    // edge_simp2![g, check_pivot1, check_pivot2, pivot_unchecked, false]
-    edge_simp![g, check_pivot, pivot_unchecked, false]
+    // edge_simp2!(g, check_pivot1, check_pivot2, pivot_unchecked, false)
+    edge_simp!(g, check_pivot, pivot_unchecked, false)
 }
 
 pub fn gen_pivot_simp(g: &mut impl GraphLike) -> bool {
-    edge_simp![g, check_gen_pivot_reduce, gen_pivot_unchecked, false]
+    edge_simp!(g, check_gen_pivot_reduce, gen_pivot_unchecked, false)
 }
 
 pub fn scalar_simp(g: &mut impl GraphLike) -> bool {
-    let mut m = vertex_simp![g, check_remove_single, remove_single_unchecked, false];
-    m = edge_simp![g, check_remove_pair, remove_pair_unchecked, false] || m;
+    let mut m = vertex_simp!(g, check_remove_single, remove_single_unchecked, false);
+    m = edge_simp!(g, check_remove_pair, remove_pair_unchecked, false) || m;
     m
 }
 
@@ -157,6 +157,65 @@ pub fn flow_simp(g: &mut impl GraphLike) -> bool {
     }
 
     got_match
+}
+
+/// This takes an iterable collection of vertices on the boundary and tries to apply Clifford
+/// simplifications locally to return to GSLC form
+pub fn local_gslc_simp(g: &mut impl GraphLike, vs: impl IntoIterator<Item = V>) {
+    let mut simp_v = vec![];
+    for v in vs {
+        if let Some(vt) = g.vertex_type_opt(v) {
+            if vt == VType::X {
+                color_change(g, v);
+            } else if vt != VType::Z {
+                continue;
+            }
+
+            simp_v.push(v);
+        }
+    }
+
+    for v in simp_v {
+        for u in g.neighbor_vec(v) {
+            if spider_fusion(g, v, u)
+                || local_comp(g, u)
+                || pivot(g, v, u)
+                || boundary_pivot(g, v, u)
+                || boundary_local_comp(g, v, u)
+            {
+                break;
+            }
+        }
+    }
+}
+
+/// This takes an iterable collection of vertices on the boundary and tries to apply Clifford
+/// simplifications locally to return to AP form
+pub fn local_ap_simp(g: &mut impl GraphLike, vs: impl IntoIterator<Item = V>) {
+    let mut simp_v = vec![];
+    for v in vs {
+        if let Some(vt) = g.vertex_type_opt(v) {
+            if vt == VType::X {
+                color_change(g, v);
+            } else if vt != VType::Z {
+                continue;
+            }
+
+            simp_v.push(v);
+        }
+    }
+
+    for v in simp_v {
+        for u in g.neighbor_vec(v) {
+            if spider_fusion(g, v, u)
+                || local_comp(g, u)
+                || pivot(g, v, u)
+                || h_boundary_pivot(g, v, u)
+            {
+                break;
+            }
+        }
+    }
 }
 
 pub fn interior_clifford_simp(g: &mut impl GraphLike) -> bool {

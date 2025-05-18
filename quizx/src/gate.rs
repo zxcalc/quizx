@@ -46,6 +46,7 @@ pub enum GType {
     UnknownGate,
 }
 
+use rustc_hash::FxHashMap;
 pub use GType::*;
 
 impl GType {
@@ -274,24 +275,36 @@ impl Gate {
 
     fn add_spider<G: GraphLike>(
         graph: &mut G,
-        qs: &mut [Option<usize>],
+        qs: &mut FxHashMap<usize, usize>,
         qubit: usize,
         ty: VType,
         et: EType,
         phase: impl Into<Phase>,
     ) -> Option<usize> {
-        if let Some(v0) = qs[qubit] {
-            let row = graph.row(v0) + 1.0;
-            let v = graph.add_vertex_with_data(VData {
-                ty,
-                phase: phase.into(),
-                qubit: (qubit as f64),
-                row,
+        if let Some(&i) = qs.get(&qubit) {
+            let v0 = graph.outputs()[i];
+            let qubit = graph.qubit(v0);
+            let row = graph.row(v0);
+            graph.set_vertex_type(v0, ty);
+            graph.set_phase(v0, phase.into());
+            let outp = graph.add_vertex_with_data(VData {
+                ty: VType::B,
+                qubit,
+                row: row + 1.0,
                 ..Default::default()
             });
-            graph.add_edge_with_type(v0, v, et);
-            qs[qubit] = Some(v);
-            Some(v)
+
+            graph.add_edge(v0, outp);
+            graph.outputs_mut()[i] = outp;
+
+            if et == EType::H {
+                let v1_opt = graph.neighbors(v0).next();
+                if let Some(v1) = v1_opt {
+                    graph.toggle_edge_type(v0, v1);
+                }
+            }
+
+            Some(v0)
         } else {
             None
         }
@@ -303,10 +316,13 @@ impl Gate {
     /// only for applications where the circuit doesn't need to be re-extracted (e.g. classical simulation).
     fn add_ccz_postselected<G: GraphLike>(
         graph: &mut G,
-        qs: &mut [Option<usize>],
+        qs: &mut FxHashMap<usize, usize>,
         qubits: &[usize],
     ) {
-        if qs[qubits[0]].is_some() && qs[qubits[1]].is_some() && qs[qubits[2]].is_some() {
+        if qs.get(&qubits[0]).is_some()
+            && qs.get(&qubits[1]).is_some()
+            && qs.get(&qubits[2]).is_some()
+        {
             let v0 =
                 Gate::add_spider(graph, qs, qubits[0], VType::Z, EType::N, Phase::zero()).unwrap();
             let v1 =
@@ -360,97 +376,110 @@ impl Gate {
     /// add the gate to the given graph using spiders
     ///
     /// This method takes mutable parameters for the graph being built, and a vec `qs` mapping qubit
-    /// number to the most recent vertex in that spot.
+    /// number to the corresponding index of graph.outputs(), which could be different if measurements
+    /// or post-selections have happened.
+    ///
+    /// For basic gates, this returns a set of vertices that have been modified, which can be used to
+    /// guide the simplifier. For compound gates, this returns an empty vec.
+    ///
+    /// TODO: return vertices modified for compound gates.
     pub fn add_to_graph(
         &self,
         fresh_var: &mut Var,
         graph: &mut impl GraphLike,
-        qs: &mut Vec<Option<usize>>,
+        qs: &mut FxHashMap<usize, usize>,
         postselect: bool,
-    ) {
+    ) -> Vec<V> {
         match self.t {
-            ZPhase => {
-                Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, self.phase);
-            }
-            Z => {
-                Gate::add_spider(
-                    graph,
-                    qs,
-                    self.qs[0],
-                    VType::Z,
-                    EType::N,
-                    Rational64::new(1, 1),
-                );
-            }
-            S => {
-                Gate::add_spider(
-                    graph,
-                    qs,
-                    self.qs[0],
-                    VType::Z,
-                    EType::N,
-                    Rational64::new(1, 2),
-                );
-            }
-            Sdg => {
-                Gate::add_spider(
-                    graph,
-                    qs,
-                    self.qs[0],
-                    VType::Z,
-                    EType::N,
-                    Rational64::new(-1, 2),
-                );
-            }
-            T => {
-                Gate::add_spider(
-                    graph,
-                    qs,
-                    self.qs[0],
-                    VType::Z,
-                    EType::N,
-                    Rational64::new(1, 4),
-                );
-            }
-            Tdg => {
-                Gate::add_spider(
-                    graph,
-                    qs,
-                    self.qs[0],
-                    VType::Z,
-                    EType::N,
-                    Rational64::new(-1, 4),
-                );
-            }
-            XPhase => {
-                Gate::add_spider(graph, qs, self.qs[0], VType::X, EType::N, self.phase);
-            }
-            NOT => {
-                Gate::add_spider(
-                    graph,
-                    qs,
-                    self.qs[0],
-                    VType::X,
-                    EType::N,
-                    Rational64::new(1, 1),
-                );
-            }
-            HAD => {
-                Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::H, Phase::zero());
-            }
+            ZPhase => Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, self.phase)
+                .into_iter()
+                .collect(),
+            Z => Gate::add_spider(
+                graph,
+                qs,
+                self.qs[0],
+                VType::Z,
+                EType::N,
+                Rational64::new(1, 1),
+            )
+            .into_iter()
+            .collect(),
+            S => Gate::add_spider(
+                graph,
+                qs,
+                self.qs[0],
+                VType::Z,
+                EType::N,
+                Rational64::new(1, 2),
+            )
+            .into_iter()
+            .collect(),
+            Sdg => Gate::add_spider(
+                graph,
+                qs,
+                self.qs[0],
+                VType::Z,
+                EType::N,
+                Rational64::new(-1, 2),
+            )
+            .into_iter()
+            .collect(),
+            T => Gate::add_spider(
+                graph,
+                qs,
+                self.qs[0],
+                VType::Z,
+                EType::N,
+                Rational64::new(1, 4),
+            )
+            .into_iter()
+            .collect(),
+            Tdg => Gate::add_spider(
+                graph,
+                qs,
+                self.qs[0],
+                VType::Z,
+                EType::N,
+                Rational64::new(-1, 4),
+            )
+            .into_iter()
+            .collect(),
+            XPhase => Gate::add_spider(graph, qs, self.qs[0], VType::X, EType::N, self.phase)
+                .into_iter()
+                .collect(),
+            NOT => Gate::add_spider(
+                graph,
+                qs,
+                self.qs[0],
+                VType::X,
+                EType::N,
+                Rational64::new(1, 1),
+            )
+            .into_iter()
+            .collect(),
+            HAD => Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::H, Phase::zero())
+                .into_iter()
+                .collect(),
             CNOT => {
                 if let (Some(v1), Some(v2)) = (
                     Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Phase::zero()),
                     Gate::add_spider(graph, qs, self.qs[1], VType::X, EType::N, Phase::zero()),
                 ) {
-                    let r1 = graph.row(v1);
-                    let r2 = graph.row(v2);
+                    let o1 = graph.outputs()[*qs.get(&self.qs[0]).unwrap()];
+                    let o2 = graph.outputs()[*qs.get(&self.qs[1]).unwrap()];
+                    let r1 = graph.row(o1);
+                    let r2 = graph.row(o2);
                     let row = if r1 < r2 { r2 } else { r1 };
-                    graph.set_row(v1, row);
-                    graph.set_row(v2, row);
+                    graph.set_row(v1, row - 1.0);
+                    graph.set_row(v2, row - 1.0);
+                    graph.set_row(o1, row);
+                    graph.set_row(o2, row);
 
                     graph.add_edge(v1, v2);
                     graph.scalar_mut().mul_sqrt2_pow(1);
+                    vec![v1, v2]
+                } else {
+                    vec![]
                 }
             }
             CZ => {
@@ -458,14 +487,21 @@ impl Gate {
                     Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Phase::zero()),
                     Gate::add_spider(graph, qs, self.qs[1], VType::Z, EType::N, Phase::zero()),
                 ) {
-                    let r1 = graph.row(v1);
-                    let r2 = graph.row(v2);
+                    let o1 = graph.outputs()[*qs.get(&self.qs[0]).unwrap()];
+                    let o2 = graph.outputs()[*qs.get(&self.qs[1]).unwrap()];
+                    let r1 = graph.row(o1);
+                    let r2 = graph.row(o2);
                     let row = if r1 < r2 { r2 } else { r1 };
-                    graph.set_row(v1, row);
-                    graph.set_row(v2, row);
+                    graph.set_row(v1, row - 1.0);
+                    graph.set_row(v2, row - 1.0);
+                    graph.set_row(o1, row);
+                    graph.set_row(o2, row);
 
                     graph.add_edge_with_type(v1, v2, EType::H);
                     graph.scalar_mut().mul_sqrt2_pow(1);
+                    vec![v1, v2]
+                } else {
+                    vec![]
                 }
             }
             XCX => {
@@ -473,93 +509,143 @@ impl Gate {
                     Gate::add_spider(graph, qs, self.qs[0], VType::X, EType::N, Phase::zero()),
                     Gate::add_spider(graph, qs, self.qs[1], VType::X, EType::N, Phase::zero()),
                 ) {
-                    let r1 = graph.row(v1);
-                    let r2 = graph.row(v2);
+                    let o1 = graph.outputs()[*qs.get(&self.qs[0]).unwrap()];
+                    let o2 = graph.outputs()[*qs.get(&self.qs[1]).unwrap()];
+                    let r1 = graph.row(o1);
+                    let r2 = graph.row(o2);
                     let row = if r1 < r2 { r2 } else { r1 };
-                    graph.set_row(v1, row);
-                    graph.set_row(v2, row);
+                    graph.set_row(v1, row - 1.0);
+                    graph.set_row(v2, row - 1.0);
+                    graph.set_row(o1, row);
+                    graph.set_row(o2, row);
 
                     graph.add_edge_with_type(v1, v2, EType::H);
                     graph.scalar_mut().mul_sqrt2_pow(1);
+                    vec![v1, v2]
+                } else {
+                    vec![]
                 }
             }
             SWAP => {
-                if let (Some(v1), Some(v2)) = (
-                    Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Phase::zero()),
-                    Gate::add_spider(graph, qs, self.qs[1], VType::Z, EType::N, Phase::zero()),
-                ) {
-                    let r1 = graph.row(v1);
-                    let r2 = graph.row(v2);
-                    let row = if r1 < r2 { r2 } else { r1 };
-                    graph.set_row(v1, row);
-                    graph.set_row(v2, row);
-
-                    qs.swap(self.qs[0], self.qs[1]);
-                    Gate::add_spider(graph, qs, self.qs[0], VType::Z, EType::N, Phase::zero());
-                    Gate::add_spider(graph, qs, self.qs[1], VType::Z, EType::N, Phase::zero());
+                if let (Some(&i0), Some(&i1)) = (qs.get(&self.qs[0]), qs.get(&self.qs[1])) {
+                    qs.insert(self.qs[0], i1);
+                    qs.insert(self.qs[1], i0);
                 }
+                vec![]
             }
             InitAncilla => {
-                if let Some(v) = qs[self.qs[0]] {
-                    // this is a noop if a gate has already been applied to this qubit
-                    if graph.vertex_type(v) == VType::B {
-                        let inp: Vec<_> =
-                            graph.inputs().iter().copied().filter(|&w| w != v).collect();
-                        graph.set_inputs(inp);
-                        graph.set_vertex_type(v, VType::X);
-                        graph.scalar_mut().mul_sqrt2_pow(-1);
+                if let Some(&i) = qs.get(&self.qs[0]) {
+                    let outp = graph.outputs()[i];
+                    let inp_opt = graph.neighbors(outp).next();
+                    if let Some(inp) = inp_opt {
+                        if graph.vertex_type(inp) == VType::B {
+                            // this is a noop if a gate has already been applied to this qubit
+                            let inputs: Vec<_> = graph
+                                .inputs()
+                                .iter()
+                                .copied()
+                                .filter(|&w| w != inp)
+                                .collect();
+                            graph.set_inputs(inputs);
+                            graph.set_vertex_type(inp, VType::X);
+                            graph.scalar_mut().mul_sqrt2_pow(-1);
+                            return vec![inp];
+                        }
                     }
                 }
+                vec![]
             }
             PostSelect => {
-                Gate::add_spider(graph, qs, self.qs[0], VType::X, EType::N, Phase::zero());
-                graph.scalar_mut().mul_sqrt2_pow(-1);
+                if let Some(&i) = qs.get(&self.qs[0]) {
+                    let outp = graph.outputs()[i];
+                    if graph.vertex_type(outp) == VType::B {
+                        graph.set_vertex_type(outp, VType::X);
 
-                // all later gates involving this qubit are quietly ignored
-                qs[self.qs[0]] = None;
+                        // all later gates involving this qubit are quietly ignored
+                        graph.outputs_mut().remove(i);
+                        qs.remove(&self.qs[0]);
+
+                        // adjust qubit indices to account for the missing output
+                        for (_, v1) in qs.iter_mut() {
+                            if *v1 > i {
+                                *v1 -= 1;
+                            }
+                        }
+                        graph.scalar_mut().mul_sqrt2_pow(-1);
+                        return vec![outp];
+                    }
+                }
+                vec![]
             }
             Measure => {
-                if let Some(v) =
-                    Gate::add_spider(graph, qs, self.qs[0], VType::X, EType::N, Phase::zero())
-                {
-                    if !self.vars.is_empty() {
-                        graph.set_vars(v, self.vars.clone());
-                    } else {
-                        graph.set_vars(v, Parity::single(*fresh_var));
-                        *fresh_var += 1;
+                if let Some(&i) = qs.get(&self.qs[0]) {
+                    let outp = graph.outputs()[i];
+                    if graph.vertex_type(outp) == VType::B {
+                        graph.set_vertex_type(outp, VType::X);
+
+                        if !self.vars.is_empty() {
+                            graph.set_vars(outp, self.vars.clone());
+                        } else {
+                            graph.set_vars(outp, Parity::single(*fresh_var));
+                            *fresh_var += 1;
+                        }
+
+                        graph.scalar_mut().mul_sqrt2_pow(-1);
+
+                        // all later gates involving this qubit are quietly ignored
+                        graph.outputs_mut().remove(i);
+                        qs.remove(&self.qs[0]);
+
+                        // adjust qubit indices to account for the missing output
+                        for (_, v1) in qs.iter_mut() {
+                            if *v1 > i {
+                                *v1 -= 1;
+                            }
+                        }
+
+                        return vec![outp];
                     }
-
-                    graph.scalar_mut().mul_sqrt2_pow(-1);
-
-                    // all later gates involving this qubit are quietly ignored
-                    qs[self.qs[0]] = None;
                 }
+                vec![]
             }
             MeasureReset => {
-                // qubit is projected then re-initialised to |0>
-                if let Some(v) =
-                    Gate::add_spider(graph, qs, self.qs[0], VType::X, EType::N, Phase::zero())
-                {
-                    if !self.vars.is_empty() {
-                        graph.set_vars(v, self.vars.clone());
-                    } else {
-                        graph.set_vars(v, Parity::single(*fresh_var));
-                        *fresh_var += 1;
+                if let Some(&i) = qs.get(&self.qs[0]) {
+                    let v = graph.outputs()[i];
+                    if graph.vertex_type(v) == VType::B {
+                        graph.set_vertex_type(v, VType::X);
+
+                        if !self.vars.is_empty() {
+                            graph.set_vars(v, self.vars.clone());
+                        } else {
+                            graph.set_vars(v, Parity::single(*fresh_var));
+                            *fresh_var += 1;
+                        }
+
+                        let qubit = graph.qubit(v);
+                        let row = graph.row(v);
+
+                        let v1 = graph.add_vertex_with_data(VData {
+                            ty: VType::X,
+                            qubit,
+                            row: row + 1.0,
+                            ..Default::default()
+                        });
+
+                        let outp = graph.add_vertex_with_data(VData {
+                            ty: VType::B,
+                            qubit,
+                            row: row + 2.0,
+                            ..Default::default()
+                        });
+
+                        graph.add_edge(v1, outp);
+                        graph.outputs_mut()[i] = outp;
+
+                        graph.scalar_mut().mul_sqrt2_pow(-2);
+                        return vec![v, v1];
                     }
-
-                    let coord = graph.coord(v);
-
-                    let v1 = graph.add_vertex_with_data(VData {
-                        qubit: coord.y,
-                        row: coord.x + 1.0,
-                        ty: VType::X,
-                        ..Default::default()
-                    });
-
-                    graph.scalar_mut().mul_sqrt2_pow(-2);
-
-                    qs[self.qs[0]] = Some(v1);
                 }
+                vec![]
             }
             CCZ => {
                 if postselect {
@@ -571,6 +657,7 @@ impl Gate {
                         g.add_to_graph(fresh_var, graph, qs, postselect);
                     }
                 }
+                vec![]
             }
             TOFF => {
                 if postselect {
@@ -584,6 +671,7 @@ impl Gate {
                         g.add_to_graph(fresh_var, graph, qs, postselect);
                     }
                 }
+                vec![]
             }
             ParityPhase => {
                 // TODO add directly as phase gadget?
@@ -592,8 +680,11 @@ impl Gate {
                 for g in c.gates {
                     g.add_to_graph(fresh_var, graph, qs, postselect);
                 }
+                vec![]
             }
-            UnknownGate => {}
-        };
+            UnknownGate => {
+                vec![]
+            }
+        }
     }
 }
