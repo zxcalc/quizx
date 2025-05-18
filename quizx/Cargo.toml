@@ -28,3 +28,8 @@ derive_more = { workspace = true, features = ["display", "error", "from"] }
 
 [dev-dependencies]
 rstest = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "simplifier"
+harness = false
