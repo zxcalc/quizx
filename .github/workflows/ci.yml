@@ -132,7 +132,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        rust: ['1.75', beta, nightly]
+        rust: ['1.81', beta, nightly]
     name: 🦀 Test quizx (Rust ${{ matrix.rust }})
     steps:
       - uses: actions/checkout@v4
