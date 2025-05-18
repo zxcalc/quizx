@@ -26,4 +26,3 @@ derive_more = "1.0.0"
 rstest = "0.23.0"
 serde = "1.0.218"
 serde_json = "1.0.139"
-criterion = { version = "0.6.0", features = ["html_reports"] }
