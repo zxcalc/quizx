@@ -149,4 +149,20 @@ mod tests {
         // c1 and c2 are verifiably equal
         assert!(equal_circuit_with_options(&c1, &c2, false).unwrap());
     }
+
+    #[test]
+    fn cx_with_ancilla_as_x() {
+        let mut c1 = Circuit::new(1);
+        c1.add_gate("x", vec![0]);
+
+        let mut c2 = Circuit::new(2);
+        c2.add_gate("init_anc", vec![1]); // initiualize ancilla: |0⟩
+        c2.add_gate("x", vec![1]); // flip ancilla: |1⟩
+        c2.add_gate("cx", vec![1, 0]); // CX controlling for ancilla now behaves like X
+        c2.add_gate("x", vec![1]); // flip ancilla back: |0⟩ (otherwise the tensor zeros out!)
+        c2.add_gate("post_sel", vec![1]); // remove ancilla
+
+        assert!(equal_circuit_tensor(&c1, &c2));
+        assert!(equal_circuit_with_options(&c1, &c2, true).unwrap());
+    }
 }
