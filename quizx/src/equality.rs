@@ -56,7 +56,7 @@ pub fn equal_graph_with_options(g1: &Graph, g2: &Graph, up_to_global_phase: bool
 
 /// Verifies the equality of two graphs up to global phase.
 pub fn equal_graph(g1: &Graph, g2: &Graph) -> Option<bool> {
-    equal_graph_with_options(&g1, &g2, true)
+    equal_graph_with_options(g1, g2, true)
 }
 
 /// Verifies the equality of two circuits.
