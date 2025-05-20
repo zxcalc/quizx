@@ -7,14 +7,40 @@ use crate::simplify::full_simp;
 use crate::tensor::ToTensor;
 use crate::vec_graph::Graph;
 
+/// Checks if two graphs have the same number of input qubits and output qubits respectively.
+/// This check is computationally inexpensive and suitable for any number of qubits.
+pub fn equal_graph_dim(g1: &Graph, g2: &Graph) -> bool {
+    if g1.inputs().len() != g2.inputs().len() {
+        // both graphs have an unequal number of input qubits
+        return false;
+    }
+    if g1.outputs().len() != g2.outputs().len() {
+        // both graphs have an unequal number of output qubits
+        return false;
+    }
+    true
+}
+
+/// Checks if two circuits have the same number of input qubits and output qubits respectively.
+/// This check is computationally inexpensive and suitable for any number of qubits.
+pub fn equal_circuit_dim(c1: &Circuit, c2: &Circuit) -> bool {
+    let g1: Graph = c1.to_graph();
+    let g2: Graph = c2.to_graph();
+    equal_graph_dim(&g1, &g2)
+}
+
 /// Checks the equality of two circuit graphs by comparing the linear maps they represent.
-/// This approach is only feasible for a small number of qubits. (up to 6)
+/// This approach is only feasible for a small number of qubits. (up to 7)
 pub fn equal_graph_tensor(g1: &Graph, g2: &Graph) -> bool {
+    // First, quickly check if both tensors have the same dimension
+    if !equal_graph_dim(g1, g2) {
+        return false;
+    }
     g1.to_tensorf() == g2.to_tensorf()
 }
 
 /// Checks the equality of two circuits by comparing the linear maps they represent.
-/// This approach is only feasible for a small number of qubits. (up to 6)
+/// This approach is only feasible for a small number of qubits. (up to 7)
 pub fn equal_circuit_tensor(c1: &Circuit, c2: &Circuit) -> bool {
     let g1: Graph = c1.to_graph();
     let g2: Graph = c2.to_graph();
@@ -33,8 +59,8 @@ pub fn equal_circuit_tensor(c1: &Circuit, c2: &Circuit) -> bool {
 ///
 /// This approach is feasible even for a high number of qubits.
 pub fn equal_graph_with_options(g1: &Graph, g2: &Graph, up_to_global_phase: bool) -> Option<bool> {
-    if g1.inputs().len() != g2.inputs().len() || g1.outputs().len() != g2.outputs().len() {
-        // both graphs are verifiably unequal due to an unequal number of (non-ancillae) qubits
+    if !equal_graph_dim(g1, g2) {
+        // both graphs are verifiably unequal due to an unequal number of input qubits or output qubits
         return Some(false);
     }
     let mut g = g1.to_adjoint();
@@ -94,6 +120,40 @@ mod tests {
         assert!(equal_circuit_with_options(&c1, &c2, false).unwrap());
     }
 
+    /// Inspired by `CloseButNotEqualConstruction` found in `test_equality.cpp` from mqt-qcec
+    #[test]
+    fn close_but_not_equal() {
+        let mut c1 = Circuit::new(1);
+        let mut c2 = Circuit::new(1);
+
+        c1.add_gate("x", vec![0]);
+        c2.add_gate("x", vec![0]);
+
+        // slightly change c2
+        c2.add_gate_with_phase("rz", vec![0], Rational64::new(1, 1024));
+
+        // c1 and c2 are unequal
+        assert!(!equal_circuit_tensor(&c1, &c2));
+        // c1 and c2 are not verifiably unequal with a simplification-based approach
+        assert!(equal_circuit_with_options(&c1, &c2, true).is_none());
+    }
+
+    #[test]
+    fn cx_with_ancilla_as_x() {
+        let mut c1 = Circuit::new(1);
+        c1.add_gate("x", vec![0]);
+
+        let mut c2 = Circuit::new(2);
+        c2.add_gate("init_anc", vec![1]); // initiualize ancilla: |0⟩
+        c2.add_gate("x", vec![1]); // flip ancilla: |1⟩
+        c2.add_gate("cx", vec![1, 0]); // CX controlling for ancilla now behaves like X
+        c2.add_gate("x", vec![1]); // flip ancilla back: |0⟩ (otherwise the tensor zeros out!)
+        c2.add_gate("post_sel", vec![1]); // remove ancilla
+
+        assert!(equal_circuit_tensor(&c1, &c2));
+        assert!(equal_circuit_with_options(&c1, &c2, true).unwrap());
+    }
+
     /// Inspired by `GlobalPhase` found in `test_equality.cpp` from mqt-qcec
     #[test]
     fn global_phase() {
@@ -116,24 +176,6 @@ mod tests {
         assert!(!equal_circuit_with_options(&c1, &c2, false).unwrap());
     }
 
-    /// Inspired by `CloseButNotEqualConstruction` found in `test_equality.cpp` from mqt-qcec
-    #[test]
-    fn close_but_not_equal() {
-        let mut c1 = Circuit::new(1);
-        let mut c2 = Circuit::new(1);
-
-        c1.add_gate("x", vec![0]);
-        c2.add_gate("x", vec![0]);
-
-        // slightly change c2
-        c2.add_gate_with_phase("rz", vec![0], Rational64::new(1, 1024));
-
-        // c1 and c2 are unequal
-        assert!(!equal_circuit_tensor(&c1, &c2));
-        // c1 and c2 are not verifiably unequal with a simplification-based approach
-        assert!(equal_circuit_with_options(&c1, &c2, true).is_none());
-    }
-
     /// Inspired by `SimulationMoreThan64Qubits` found in `test_equality.cpp` from mqt-qcec
     #[test]
     fn more_than_64_qubits() {
@@ -148,21 +190,5 @@ mod tests {
 
         // c1 and c2 are verifiably equal
         assert!(equal_circuit_with_options(&c1, &c2, false).unwrap());
-    }
-
-    #[test]
-    fn cx_with_ancilla_as_x() {
-        let mut c1 = Circuit::new(1);
-        c1.add_gate("x", vec![0]);
-
-        let mut c2 = Circuit::new(2);
-        c2.add_gate("init_anc", vec![1]); // initiualize ancilla: |0⟩
-        c2.add_gate("x", vec![1]); // flip ancilla: |1⟩
-        c2.add_gate("cx", vec![1, 0]); // CX controlling for ancilla now behaves like X
-        c2.add_gate("x", vec![1]); // flip ancilla back: |0⟩ (otherwise the tensor zeros out!)
-        c2.add_gate("post_sel", vec![1]); // remove ancilla
-
-        assert!(equal_circuit_tensor(&c1, &c2));
-        assert!(equal_circuit_with_options(&c1, &c2, true).unwrap());
     }
 }
