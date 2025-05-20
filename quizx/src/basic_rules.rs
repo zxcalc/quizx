@@ -806,6 +806,46 @@ pub fn remove_pair_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 
 checked_rule2!(check_remove_pair, remove_pair_unchecked, remove_pair);
 
+#[inline]
+pub fn check_remove_duplicate(g: &impl GraphLike, v0: V, v1: V) -> bool {
+    if let (Some(VType::Z), Some(VType::Z)) = (g.vertex_type_opt(v0), g.vertex_type_opt(v1)) {
+        if !g.phase(v1).is_pauli() {
+            return false;
+        }
+        let mut inc0 = g.incident_edge_vec(v0);
+        if inc0
+            .iter()
+            .all(|&(v, et)| g.vertex_type(v) == VType::Z && et == EType::H)
+        {
+            let mut inc1 = g.incident_edge_vec(v1);
+            inc0.sort();
+            inc1.sort();
+            inc0 == inc1
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+
+/// Remove a spider v0 if there is a Pauli spider v1 with the same nhd
+#[inline]
+pub fn remove_duplicate_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
+    g.add_to_phase(v0, g.phase(v1));
+
+    // TODO: check this gives the correct scalar
+    let d = g.degree(v0) as i32;
+    g.scalar_mut().mul_sqrt2_pow(d - 2);
+    remove_single_unchecked(g, v0);
+}
+
+checked_rule2!(
+    check_remove_duplicate,
+    remove_duplicate_unchecked,
+    remove_duplicate
+);
+
 // Tests {{{
 
 #[cfg(test)]
