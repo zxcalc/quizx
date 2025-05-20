@@ -1,6 +1,6 @@
 [package]
 name = "quizx"
-version = "0.2.0"
+version = "0.3.0"
 description = "Quantum Circuit Optimisation and Compilation using the ZX-calculus"
 keywords = ["Quantum", "ZX-calculus", "Optimisation", "Compilation"]
 categories = ["science"]
