@@ -700,4 +700,12 @@ mod tests {
         let g: Graph = c.to_graph_with_options(false, true);
         assert_eq!(c.to_tensorf(), g.to_tensorf());
     }
+
+    #[test]
+    fn tograph_simplify() {
+        let c = Circuit::surface_code().distance(2).rounds(1).build();
+        let g1 = c.to_graph::<Graph>();
+        let g2 = c.to_graph_with_options::<Graph>(true, false);
+        assert_eq!(g1.to_tensorf(), g2.to_tensorf());
+    }
 }
