@@ -315,6 +315,7 @@ impl<G: GraphLike + Clone> ToTensor for G {
         // H-boxes are not implemented yet
         for v in g.vertices() {
             let t = g.vertex_type(v);
+
             if t != VType::B && t != VType::Z {
                 panic!("Vertex type currently unsupported: {t:?}");
             }
