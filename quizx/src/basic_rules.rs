@@ -836,7 +836,7 @@ pub fn remove_duplicate_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 
     // TODO: check this gives the correct scalar
     let d = g.degree(v0) as i32;
-    g.scalar_mut().mul_sqrt2_pow(d - 2);
+    g.scalar_mut().mul_sqrt2_pow(-d);
     remove_single_unchecked(g, v0);
 }
 
