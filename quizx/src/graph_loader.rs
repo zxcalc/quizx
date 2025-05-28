@@ -123,16 +123,10 @@ pub fn load_graph(path: &str) -> Result<Graph, String> {
     let x_cood_map: HashMap<i64, usize> = x_list.iter().enumerate().map(|(n, &x)| (x, n)).collect();
     let y_cood_map: HashMap<i64, usize> = y_list.iter().enumerate().map(|(n, &y)| (y, n)).collect();
 
-    let x_cood_map_f64: HashMap<i64, f64> = x_list
-        .iter()
-        .enumerate()
-        .map(|(_n, &x)| (x, x as f64 / 1000.0))
-        .collect();
-    let y_cood_map_f64: HashMap<i64, f64> = y_list
-        .iter()
-        .enumerate()
-        .map(|(_n, &y)| (y, y as f64 / 1000.0))
-        .collect();
+    let x_cood_map_f64: HashMap<i64, f64> =
+        x_list.iter().map(|&x| (x, x as f64 / 1000.0)).collect();
+    let y_cood_map_f64: HashMap<i64, f64> =
+        y_list.iter().map(|&y| (y, y as f64 / 1000.0)).collect();
 
     // Boundary vertices
     for (node, dets) in data["wire_vertices"].as_object().unwrap() {
@@ -142,10 +136,10 @@ pub fn load_graph(path: &str) -> Result<Graph, String> {
         let v_val = dets["data"]["value"].as_f64().unwrap_or(0.0);
         let data: VData = VData {
             ty: VType::B,
-            vars: Parity::zero(),
             phase: Phase::from_f64(v_val),
-            qubit: qubit,
-            row: row,
+            vars: Parity::zero(),
+            qubit,
+            row,
         };
         let vid = graph.add_vertex_with_data(data);
         id_map.insert(node.clone(), vid);
