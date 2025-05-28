@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::linalg::Mat2;
 use crate::params::Expr;
 use crate::phase::Phase;
 use crate::util::*;
@@ -865,6 +866,31 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
                 }
             }
         }
+    }
+
+    /// Returns the adjacency matrix of the graph, optionally in the order of nodelist
+    /// (similar to nx's adjacency_matrix)
+    fn adjacency_matrix(&self, nodelist: Option<&[V]>) -> Mat2 {
+        // Get the nodes to use, either from nodelist or all vertices in the graph
+        let nodes: Vec<V> = match nodelist {
+            Some(list) => list.to_vec(),
+            None => self.vertices().collect(),
+        };
+        
+        let n = nodes.len();
+        let mut adj = Mat2::zeros(n, n);
+        
+        // Fill the adjacency matrix
+        for (i, &u) in nodes.iter().enumerate() {
+            for (j, &v) in nodes.iter().enumerate() {
+                // Check both directions since the graph is undirected
+                if self.connected(u, v) || self.connected(v, u) {
+                    adj[(i, j)] = 1;
+                }
+            }
+        }
+        
+        adj
     }
 }
 
