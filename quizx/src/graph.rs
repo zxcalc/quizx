@@ -802,6 +802,70 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// This method can be a no-op, but `VecGraph` overrides this behavior to remove "holes" left
     /// by deleted vertices whenever the holes exceed a fixed ratio (or always when force=true).
     fn pack(&mut self, force: bool);
+
+    /// Performs inplace rg-transformation of ZX graph by inserting opposite colored
+    /// spiders between same-colored neighbors
+    fn make_rg(&mut self) {
+        use crate::graph::VData;
+        use std::collections::HashSet;
+
+        let mut modified = true;
+        
+        while modified {
+            modified = false;
+            let mut visited = HashSet::new();
+            
+            // Collect all edges to process in this iteration
+            let edges: Vec<_> = self.edge_vec();
+            
+            for (node, neighbor, _) in edges {
+                // Get the types of the nodes
+                let node_type = self.vertex_type(node);
+                let neighbor_type = self.vertex_type(neighbor);
+                
+                // Skip if we've already processed this pair
+                let key = if node < neighbor {
+                    (node, neighbor)
+                } else {
+                    (neighbor, node)
+                };
+                
+                if visited.contains(&key) {
+                    continue;
+                }
+                visited.insert(key);
+                
+                // Check if the connected nodes are of the same type
+                if neighbor_type == node_type {
+                    // Insert new node in the middle for better visualization
+                    let row = (self.row(node) + self.row(neighbor)) / 2.0;
+                    let qubit = (self.qubit(node) + self.qubit(neighbor)) / 2.0;
+
+                    self.remove_edge(node, neighbor);
+
+                    let new_type = match node_type {
+                        VType::X => VType::Z,
+                        VType::Z => VType::X,
+                        _ => continue,
+                    };
+
+                    let new_vertex = self.add_vertex_with_data(VData {
+                        ty: new_type,
+                        phase: Phase::zero(),
+                        vars: Default::default(),
+                        row,
+                        qubit,
+                    });
+
+                    self.add_edge(node, new_vertex);
+                    self.add_edge(new_vertex, neighbor);
+                    
+                    // Mark that we made a modification in this iteration
+                    modified = true;
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -893,5 +957,66 @@ mod tests {
         g.add_edge(0, 3);
 
         assert_eq!(g.component_vertices().first().unwrap().len(), 4)
+    }
+    #[test]
+    fn test_make_rg() {
+        // Create a simple graph with two X nodes connected by an edge
+        let mut graph = Graph::new();
+        let v1 = graph.add_vertex(VType::X);
+        let v2 = graph.add_vertex(VType::X);
+        graph.add_edge(v1, v2);
+
+        // Debug output
+        println!(
+            "Original graph: {} vertices, {} edges",
+            graph.num_vertices(),
+            graph.num_edges()
+        );
+        // Apply RG transformation
+        graph.make_rg();
+        println!(
+            "Transformed graph: {} vertices, {} edges",
+            graph.num_vertices(),
+            graph.num_edges()
+        );
+
+        // In RG form, we expect:
+        // 1. Original edge v1-v2 is removed
+        // 2. A new Z node is added between them
+        // 3. The new Z node is connected to both original nodes
+        // Since this is a simple graph with just two connected nodes,
+        // we expect exactly 2 edges in the transformed graph
+        assert_eq!(
+            graph.num_vertices(),
+            3,
+            "Should have 3 vertices (2 original X nodes + 1 new Z node)"
+        );
+        assert_eq!(
+            graph.num_edges(),
+            2,
+            "Should have 2 edges (v1-new_node and v2-new_node)"
+        );
+
+        // Verify the new node is of type Z
+        let new_node = graph
+            .vertices()
+            .find(|&v| v != v1 && v != v2)
+            .expect("Should have a new node");
+
+        assert_eq!(
+            graph.vertex_type(new_node),
+            VType::Z,
+            "New node should be of type Z"
+        );
+
+        // Verify connections
+        assert!(
+            graph.connected(v1, new_node),
+            "v1 should be connected to new node"
+        );
+        assert!(
+            graph.connected(v2, new_node),
+            "v2 should be connected to new node"
+        );
     }
 }
