@@ -876,10 +876,10 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
             Some(list) => list.to_vec(),
             None => self.vertices().collect(),
         };
-        
+
         let n = nodes.len();
         let mut adj = Mat2::zeros(n, n);
-        
+
         // Fill the adjacency matrix
         for (i, &u) in nodes.iter().enumerate() {
             for (j, &v) in nodes.iter().enumerate() {
@@ -889,7 +889,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
                 }
             }
         }
-        
+
         adj
     }
 }

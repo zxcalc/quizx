@@ -1,12 +1,12 @@
+use crate::graph::{VData, VType};
 use crate::hash_graph::Graph;
-use crate::phase::Phase;
-use crate::graph::{VType, VData};
-use serde_json::Value;
 use crate::hash_graph::GraphLike;
+use crate::phase::Phase;
+use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 // The only reason we need fs here is because a graph loader is supposed to act on a file.
-use std::fs;
 use crate::{fscalar::*, params::Parity};
+use std::fs;
 
 pub fn load_graph(path: &str) -> Result<Graph, String> {
     // Load as JSON file
@@ -14,16 +14,22 @@ pub fn load_graph(path: &str) -> Result<Graph, String> {
         Ok(content) => content,
         Err(e) => return Err(format!("Failed to read file: {}", e)),
     };
-    
+
     let data: Value = match serde_json::from_str(&file_content) {
         Ok(json) => json,
         Err(e) => return Err(format!("Failed to parse JSON: {}", e)),
     };
 
     // Verify required JSON structure
-    let wire_vertices = data["wire_vertices"].as_object().ok_or("Missing or invalid wire_vertices")?;
-    let node_vertices = data["node_vertices"].as_object().ok_or("Missing or invalid node_vertices")?;
-    let _undir_edges = data["undir_edges"].as_object().ok_or("Missing or invalid undir_edges")?;
+    let wire_vertices = data["wire_vertices"]
+        .as_object()
+        .ok_or("Missing or invalid wire_vertices")?;
+    let node_vertices = data["node_vertices"]
+        .as_object()
+        .ok_or("Missing or invalid node_vertices")?;
+    let _undir_edges = data["undir_edges"]
+        .as_object()
+        .ok_or("Missing or invalid undir_edges")?;
 
     let mut xcods: HashSet<i64> = HashSet::new();
     let mut ycods: HashSet<i64> = HashSet::new();
@@ -34,24 +40,40 @@ pub fn load_graph(path: &str) -> Result<Graph, String> {
             Some(coord) => coord.as_array().ok_or("Invalid coordinate format")?,
             None => {
                 // Handle boundary vertices with boundary field
-                let boundary = dets["annotation"]["boundary"].as_bool().ok_or("Invalid boundary field")?;
+                let boundary = dets["annotation"]["boundary"]
+                    .as_bool()
+                    .ok_or("Invalid boundary field")?;
                 if !boundary {
                     return Err("Invalid boundary vertex format".to_string());
                 }
                 continue;
             }
         };
-        let x = (coord[0].as_f64().ok_or("Invalid x coordinate (not a number)")? * 1000.0) as i64;
-        let y = (coord[1].as_f64().ok_or("Invalid y coordinate (not a number)")? * 1000.0) as i64;
+        let x = (coord[0]
+            .as_f64()
+            .ok_or("Invalid x coordinate (not a number)")?
+            * 1000.0) as i64;
+        let y = (coord[1]
+            .as_f64()
+            .ok_or("Invalid y coordinate (not a number)")?
+            * 1000.0) as i64;
         xcods.insert(x);
         ycods.insert(y);
     }
 
     // Collect coordinates from node vertices
     for (_node, dets) in node_vertices {
-        let coord = dets["annotation"]["coord"].as_array().ok_or("Invalid coordinate format")?;
-        let x = (coord[0].as_f64().ok_or("Invalid x coordinate (not a number)")? * 1000.0) as i64;
-        let y = (coord[1].as_f64().ok_or("Invalid y coordinate (not a number)")? * 1000.0) as i64;
+        let coord = dets["annotation"]["coord"]
+            .as_array()
+            .ok_or("Invalid coordinate format")?;
+        let x = (coord[0]
+            .as_f64()
+            .ok_or("Invalid x coordinate (not a number)")?
+            * 1000.0) as i64;
+        let y = (coord[1]
+            .as_f64()
+            .ok_or("Invalid y coordinate (not a number)")?
+            * 1000.0) as i64;
         xcods.insert(x);
         ycods.insert(y);
     }
@@ -61,18 +83,34 @@ pub fn load_graph(path: &str) -> Result<Graph, String> {
 
     // Collect coordinates from wire vertices
     for (_node, dets) in wire_vertices {
-        let coord = dets["annotation"]["coord"].as_array().ok_or("Invalid coordinate format")?;
-        let x = (coord[0].as_f64().ok_or("Invalid x coordinate (not a number)")? * 1000.0) as i64;
-        let y = (coord[1].as_f64().ok_or("Invalid y coordinate (not a number)")? * 1000.0) as i64;
+        let coord = dets["annotation"]["coord"]
+            .as_array()
+            .ok_or("Invalid coordinate format")?;
+        let x = (coord[0]
+            .as_f64()
+            .ok_or("Invalid x coordinate (not a number)")?
+            * 1000.0) as i64;
+        let y = (coord[1]
+            .as_f64()
+            .ok_or("Invalid y coordinate (not a number)")?
+            * 1000.0) as i64;
         xcods.insert(x);
         ycods.insert(y);
     }
 
     // Collect coordinates from node vertices
     for (_node, dets) in node_vertices {
-        let coord = dets["annotation"]["coord"].as_array().ok_or("Invalid coordinate format")?;
-        let x = (coord[0].as_f64().ok_or("Invalid x coordinate (not a number)")? * 1000.0) as i64;
-        let y = (coord[1].as_f64().ok_or("Invalid y coordinate (not a number)")? * 1000.0) as i64;
+        let coord = dets["annotation"]["coord"]
+            .as_array()
+            .ok_or("Invalid coordinate format")?;
+        let x = (coord[0]
+            .as_f64()
+            .ok_or("Invalid x coordinate (not a number)")?
+            * 1000.0) as i64;
+        let y = (coord[1]
+            .as_f64()
+            .ok_or("Invalid y coordinate (not a number)")?
+            * 1000.0) as i64;
         xcods.insert(x);
         ycods.insert(y);
     }
@@ -85,8 +123,16 @@ pub fn load_graph(path: &str) -> Result<Graph, String> {
     let x_cood_map: HashMap<i64, usize> = x_list.iter().enumerate().map(|(n, &x)| (x, n)).collect();
     let y_cood_map: HashMap<i64, usize> = y_list.iter().enumerate().map(|(n, &y)| (y, n)).collect();
 
-    let x_cood_map_f64: HashMap<i64, f64> = x_list.iter().enumerate().map(|(_n, &x)| (x, x as f64 / 1000.0)).collect();
-    let y_cood_map_f64: HashMap<i64, f64> = y_list.iter().enumerate().map(|(_n, &y)| (y, y as f64 / 1000.0)).collect();
+    let x_cood_map_f64: HashMap<i64, f64> = x_list
+        .iter()
+        .enumerate()
+        .map(|(_n, &x)| (x, x as f64 / 1000.0))
+        .collect();
+    let y_cood_map_f64: HashMap<i64, f64> = y_list
+        .iter()
+        .enumerate()
+        .map(|(_n, &y)| (y, y as f64 / 1000.0))
+        .collect();
 
     // Boundary vertices
     for (node, dets) in data["wire_vertices"].as_object().unwrap() {
@@ -135,23 +181,23 @@ pub fn load_graph(path: &str) -> Result<Graph, String> {
         let tgt = dets["tgt"].as_str().unwrap();
         let src_id = id_map[src];
         let tgt_id = id_map[tgt];
-        graph.add_edge(src_id, tgt_id);//, ety); for now lets just do simple edges
+        graph.add_edge(src_id, tgt_id); //, ety); for now lets just do simple edges
     }
 
     Ok(graph)
-} 
+}
 
 // Tests
 #[cfg(test)]
 mod tests {
 
     use super::*;
-    use crate::phase::Phase;
-    use crate::graph::VType;
     use crate::graph::GraphLike;
+    use crate::graph::VType;
+    use crate::phase::Phase;
     use std::collections::HashSet;
-    use tempfile::tempdir;
     use std::fs;
+    use tempfile::tempdir;
 
     #[test]
     fn test_load_graph_vertices() {
@@ -208,7 +254,7 @@ mod tests {
 
         // Verify vertices
         assert_eq!(graph.num_vertices(), 4);
-        
+
         // Verify vertex types and phases
         for v in graph.vertices() {
             let data = graph.vertex_data(v);
@@ -276,7 +322,7 @@ mod tests {
                 assert!(coords.contains(&(0, 0)));
                 assert!(coords.contains(&(2, 0)));
                 assert!(coords.contains(&(1, 1)));
-            },
+            }
             Err(_) => panic!("Failed to load graph"),
         }
     }
@@ -322,7 +368,7 @@ mod tests {
 
         // Verify edges
         assert_eq!(graph.num_edges(), 2);
-        
+
         // Verify connectivity
         let mut edges = Vec::new();
         for (src, tgt, _) in graph.edge_vec() {
@@ -349,7 +395,7 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let temp_file = temp_dir.path().join("invalid.json");
         std::fs::write(&temp_file, invalid_json).unwrap();
-        
+
         load_graph(temp_file.to_str().unwrap()).unwrap();
     }
 
@@ -358,29 +404,30 @@ mod tests {
         use super::*;
 
         // Get the project root directory (where Cargo.toml is located)
-        let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
-            .expect("CARGO_MANIFEST_DIR should be set by Cargo");
-            
+        let manifest_dir =
+            std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR should be set by Cargo");
+
         // Navigate to the project root and then to test_files
         let path = std::path::Path::new(&manifest_dir)
-            .parent()  // Go up from quizx/src to quizx
+            .parent() // Go up from quizx/src to quizx
             .expect("Should have parent directory")
             .join("test_files")
             .join("xxx_final.zxg");
-            
+
         // Convert to string and verify the file exists
-        let path_str = path.to_str()
-            .expect("Path should be valid UTF-8");
-            
+        let path_str = path.to_str().expect("Path should be valid UTF-8");
+
         if !path.exists() {
             panic!("Test file not found at: {}", path.display());
         }
-        
+
         // Load the graph
-        let graph = load_graph(path_str)
-            .expect("Failed to load graph from file");
-            
+        let graph = load_graph(path_str).expect("Failed to load graph from file");
+
         // Basic validation
-        assert!(graph.num_vertices() > 0, "Loaded graph should have vertices");
+        assert!(
+            graph.num_vertices() > 0,
+            "Loaded graph should have vertices"
+        );
     }
 }

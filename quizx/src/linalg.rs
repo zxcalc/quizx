@@ -340,8 +340,8 @@ impl Mat2 {
         basis
     }
 
-     /// Vertically stacks this matrix with another matrix
-     pub fn vstack(&self, other: &Self) -> Self {
+    /// Vertically stacks this matrix with another matrix
+    pub fn vstack(&self, other: &Self) -> Self {
         assert_eq!(
             self.num_cols(),
             other.num_cols(),
@@ -351,7 +351,7 @@ impl Mat2 {
         for row in &other.d {
             result.push(row.clone());
         }
-        Mat2 {d:result}
+        Mat2 { d: result }
     }
 
     /// Horizontally stacks this matrix with another matrix
@@ -604,7 +604,7 @@ mod tests {
     fn test_hstack_panic() {
         let a = Mat2::new(vec![vec![1, 0]]);
         let b = Mat2::new(vec![vec![1], vec![0]]);
-        a.hstack(&b);  // Should panic due to different number of rows
+        a.hstack(&b); // Should panic due to different number of rows
     }
 
     #[test]
@@ -618,7 +618,7 @@ mod tests {
     #[test]
     fn test_vstack() {
         let a = Mat2::new(vec![vec![1, 0]]);
-        let b = Mat2::new(vec![vec![1,0]]);
+        let b = Mat2::new(vec![vec![1, 0]]);
         let c = a.vstack(&b);
         assert_eq!(c, Mat2::new(vec![vec![1, 0], vec![1, 0]]));
     }
