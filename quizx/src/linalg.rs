@@ -286,7 +286,7 @@ impl Mat2 {
     }
 
     /// Returns a basis of the nullspace of an F2 matrix
-    fn nullspace(&self) -> Vec<Self> {
+    pub fn nullspace(&self) -> Vec<Self> {
         let mut mat = self.clone();
         let rank = mat.gauss(true);
 
@@ -338,6 +338,35 @@ impl Mat2 {
         }
 
         basis
+    }
+
+     /// Vertically stacks this matrix with another matrix
+     pub fn vstack(&self, other: &Self) -> Self {
+        assert_eq!(
+            self.num_cols(),
+            other.num_cols(),
+            "Matrices must have the same number of columns for vertical stacking"
+        );
+        let mut result = self.d.clone();
+        for row in &other.d {
+            result.push(row.clone());
+        }
+        Mat2 {d:result}
+    }
+
+    /// Horizontally stacks this matrix with another matrix
+    pub fn hstack(&self, other: &Self) -> Self {
+        assert_eq!(
+            self.num_rows(),
+            other.num_rows(),
+            "Matrices must have the same number of rows for horizontal stacking"
+        );
+
+        let mut result = self.clone();
+        for (i, row) in other.d.iter().enumerate() {
+            result.d[i].extend(row);
+        }
+        result
     }
 }
 
@@ -562,13 +591,35 @@ mod tests {
     #[test]
     fn test_nullspace() {
         // Test with a simple matrix that has a non-trivial nullspace
-        let mat = Mat2::new(vec![
-            vec![1, 0, 1],
-            vec![0, 1, 1],
-        ]);
+        let mat = Mat2::new(vec![vec![1, 0, 1], vec![0, 1, 1]]);
 
         let nullspace = mat.nullspace();
         assert_eq!(nullspace.len(), 1);
         assert_eq!(nullspace[0].d, vec![vec![1, 1, 1]]);
+        println!("Matrix is \n{}", mat)
+    }
+
+    #[test]
+    #[should_panic(expected = "Matrices must have the same number of rows for horizontal stacking")]
+    fn test_hstack_panic() {
+        let a = Mat2::new(vec![vec![1, 0]]);
+        let b = Mat2::new(vec![vec![1], vec![0]]);
+        a.hstack(&b);  // Should panic due to different number of rows
+    }
+
+    #[test]
+    fn test_hstack() {
+        let a = Mat2::new(vec![vec![1], vec![0]]);
+        let b = Mat2::new(vec![vec![1], vec![0]]);
+        let c = a.hstack(&b);
+        assert_eq!(c, Mat2::new(vec![vec![1, 1], vec![0, 0]]));
+    }
+
+    #[test]
+    fn test_vstack() {
+        let a = Mat2::new(vec![vec![1, 0]]);
+        let b = Mat2::new(vec![vec![1,0]]);
+        let c = a.vstack(&b);
+        assert_eq!(c, Mat2::new(vec![vec![1, 0], vec![1, 0]]));
     }
 }

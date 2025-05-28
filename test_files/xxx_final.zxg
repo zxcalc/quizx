@@ -1,0 +1,787 @@
+{
+    "wire_vertices": {
+        "b0": {
+            "annotation": {
+                "boundary": true,
+                "coord": [
+                    66.5,
+                    -2
+                ],
+                "name": "b0"
+            }
+        },
+        "b1": {
+            "annotation": {
+                "boundary": true,
+                "coord": [
+                    66.5,
+                    -0.5
+                ],
+                "name": "b1"
+            }
+        },
+        "b2": {
+            "annotation": {
+                "boundary": true,
+                "coord": [
+                    66.5,
+                    -3.5
+                ],
+                "name": "b2"
+            }
+        },
+        "b3": {
+            "annotation": {
+                "boundary": true,
+                "coord": [
+                    51,
+                    -3.5
+                ],
+                "name": "b3"
+            }
+        },
+        "b4": {
+            "annotation": {
+                "boundary": true,
+                "coord": [
+                    51,
+                    -2
+                ],
+                "name": "b4"
+            }
+        },
+        "b5": {
+            "annotation": {
+                "boundary": true,
+                "coord": [
+                    51,
+                    -0.5
+                ],
+                "name": "b5"
+            }
+        }
+    },
+    "node_vertices": {
+        "v0": {
+            "annotation": {
+                "coord": [
+                    53,
+                    1
+                ],
+                "name": "v0"
+            },
+            "data": {
+                "type": "X"
+            }
+        },
+        "v1": {
+            "annotation": {
+                "coord": [
+                    56,
+                    -5
+                ],
+                "name": "v1"
+            },
+            "data": {
+                "type": "X"
+            }
+        },
+        "v2": {
+            "annotation": {
+                "coord": [
+                    54.5,
+                    -5
+                ],
+                "name": "v2"
+            },
+            "data": {
+                "type": "Z"
+            }
+        },
+        "v3": {
+            "annotation": {
+                "coord": [
+                    60.5,
+                    -2
+                ],
+                "name": "v3"
+            },
+            "data": {
+                "type": "Z"
+            }
+        },
+        "v4": {
+            "annotation": {
+                "coord": [
+                    63,
+                    -2.75
+                ],
+                "name": "v4"
+            },
+            "data": {
+                "type": "Z",
+                "value": "k_7"
+            }
+        },
+        "v5": {
+            "annotation": {
+                "coord": [
+                    53,
+                    -2
+                ],
+                "name": "v5"
+            },
+            "data": {
+                "type": "Z"
+            }
+        },
+        "v6": {
+            "annotation": {
+                "coord": [
+                    52,
+                    1
+                ],
+                "name": "v6"
+            },
+            "data": {
+                "type": "X"
+            }
+        },
+        "v7": {
+            "annotation": {
+                "coord": [
+                    54.5,
+                    -2
+                ],
+                "name": "v7"
+            },
+            "data": {
+                "type": "X"
+            }
+        },
+        "v8": {
+            "annotation": {
+                "coord": [
+                    64.5,
+                    1
+                ],
+                "name": "v8"
+            },
+            "data": {
+                "type": "X"
+            }
+        },
+        "v9": {
+            "annotation": {
+                "coord": [
+                    64.5,
+                    -2
+                ],
+                "name": "v9"
+            },
+            "data": {
+                "type": "Z"
+            }
+        },
+        "v10": {
+            "annotation": {
+                "coord": [
+                    58,
+                    -2.5
+                ],
+                "name": "v10"
+            },
+            "data": {
+                "type": "X",
+                "value": "k_4"
+            }
+        },
+        "v11": {
+            "annotation": {
+                "coord": [
+                    59.5,
+                    -0.5
+                ],
+                "name": "v11"
+            },
+            "data": {
+                "type": "Z"
+            }
+        },
+        "v12": {
+            "annotation": {
+                "coord": [
+                    55.5,
+                    -2
+                ],
+                "name": "v12"
+            },
+            "data": {
+                "type": "X"
+            }
+        },
+        "v13": {
+            "annotation": {
+                "coord": [
+                    65.5,
+                    1
+                ],
+                "name": "v13"
+            },
+            "data": {
+                "type": "X",
+                "value": "k_1"
+            }
+        },
+        "v14": {
+            "annotation": {
+                "coord": [
+                    63.5,
+                    -3.5
+                ],
+                "name": "v14"
+            },
+            "data": {
+                "type": "X"
+            }
+        },
+        "v15": {
+            "annotation": {
+                "coord": [
+                    59.5,
+                    -3.5
+                ],
+                "name": "v15"
+            },
+            "data": {
+                "type": "Z"
+            }
+        },
+        "v16": {
+            "annotation": {
+                "coord": [
+                    65.5,
+                    -5
+                ],
+                "name": "v16"
+            },
+            "data": {
+                "type": "X",
+                "value": "k_8"
+            }
+        },
+        "v17": {
+            "annotation": {
+                "coord": [
+                    57,
+                    -5
+                ],
+                "name": "v17"
+            },
+            "data": {
+                "type": "Z"
+            }
+        },
+        "v18": {
+            "annotation": {
+                "coord": [
+                    55.5,
+                    -3
+                ],
+                "name": "v18"
+            },
+            "data": {
+                "type": "Z",
+                "value": "k_6"
+            }
+        },
+        "v19": {
+            "annotation": {
+                "coord": [
+                    58,
+                    0.5
+                ],
+                "name": "v19"
+            },
+            "data": {
+                "type": "X",
+                "value": "k_2"
+            }
+        },
+        "v20": {
+            "annotation": {
+                "coord": [
+                    62,
+                    -2
+                ],
+                "name": "v20"
+            },
+            "data": {
+                "type": "X"
+            }
+        },
+        "v21": {
+            "annotation": {
+                "coord": [
+                    52,
+                    -5
+                ],
+                "name": "v21"
+            },
+            "data": {
+                "type": "Z"
+            }
+        },
+        "v22": {
+            "annotation": {
+                "coord": [
+                    64.5,
+                    -5
+                ],
+                "name": "v22"
+            },
+            "data": {
+                "type": "X"
+            }
+        },
+        "v23": {
+            "annotation": {
+                "coord": [
+                    62,
+                    -3.5
+                ],
+                "name": "v23"
+            },
+            "data": {
+                "type": "Z"
+            }
+        },
+        "v24": {
+            "annotation": {
+                "coord": [
+                    60.5,
+                    -0.5
+                ],
+                "name": "v24"
+            },
+            "data": {
+                "type": "X"
+            }
+        },
+        "v25": {
+            "annotation": {
+                "coord": [
+                    64.5,
+                    -3.5
+                ],
+                "name": "v25"
+            },
+            "data": {
+                "type": "Z"
+            }
+        },
+        "v26": {
+            "annotation": {
+                "coord": [
+                    57,
+                    -0.5
+                ],
+                "name": "v26"
+            },
+            "data": {
+                "type": "X"
+            }
+        },
+        "v27": {
+            "annotation": {
+                "coord": [
+                    58,
+                    -3.5
+                ],
+                "name": "v27"
+            },
+            "data": {
+                "type": "Z"
+            }
+        },
+        "v28": {
+            "annotation": {
+                "coord": [
+                    57,
+                    -2
+                ],
+                "name": "v28"
+            },
+            "data": {
+                "type": "Z"
+            }
+        },
+        "v29": {
+            "annotation": {
+                "coord": [
+                    58,
+                    -0.5
+                ],
+                "name": "v29"
+            },
+            "data": {
+                "type": "Z"
+            }
+        },
+        "v30": {
+            "annotation": {
+                "coord": [
+                    63,
+                    -2
+                ],
+                "name": "v30"
+            },
+            "data": {
+                "type": "X"
+            }
+        },
+        "v31": {
+            "annotation": {
+                "coord": [
+                    59.5,
+                    0.5
+                ],
+                "name": "v31"
+            },
+            "data": {
+                "type": "X",
+                "value": "k_3"
+            }
+        },
+        "v32": {
+            "annotation": {
+                "coord": [
+                    57,
+                    -3.5
+                ],
+                "name": "v32"
+            },
+            "data": {
+                "type": "X"
+            }
+        },
+        "v33": {
+            "annotation": {
+                "coord": [
+                    59.5,
+                    -2.5
+                ],
+                "name": "v33"
+            },
+            "data": {
+                "type": "X",
+                "value": "k_5"
+            }
+        },
+        "v34": {
+            "annotation": {
+                "coord": [
+                    55,
+                    -3
+                ],
+                "name": "v34"
+            },
+            "data": {
+                "type": "Z"
+            }
+        },
+        "v35": {
+            "annotation": {
+                "coord": [
+                    56,
+                    -3
+                ],
+                "name": "v35"
+            },
+            "data": {
+                "type": "Z"
+            }
+        },
+        "v36": {
+            "annotation": {
+                "coord": [
+                    56.5,
+                    -3
+                ],
+                "name": "v36"
+            },
+            "data": {
+                "type": "Z"
+            }
+        },
+        "v37": {
+            "annotation": {
+                "coord": [
+                    62.5,
+                    -2.75
+                ],
+                "name": "v37"
+            },
+            "data": {
+                "type": "Z"
+            }
+        },
+        "v38": {
+            "annotation": {
+                "coord": [
+                    63.5,
+                    -2.75
+                ],
+                "name": "v38"
+            },
+            "data": {
+                "type": "Z"
+            }
+        },
+        "v39": {
+            "annotation": {
+                "coord": [
+                    64,
+                    -2.75
+                ],
+                "name": "v39"
+            },
+            "data": {
+                "type": "Z"
+            }
+        },
+        "v40": {
+            "annotation": {
+                "coord": [
+                    60.75,
+                    -3.5
+                ]
+            },
+            "data": {
+                "type": "hadamard",
+                "is_edge": "true"
+            }
+        }
+    },
+    "undir_edges": {
+        "e0": {
+            "src": "v0",
+            "tgt": "v5"
+        },
+        "e1": {
+            "src": "v0",
+            "tgt": "v8"
+        },
+        "e2": {
+            "src": "v0",
+            "tgt": "v6"
+        },
+        "e3": {
+            "src": "v1",
+            "tgt": "v2"
+        },
+        "e4": {
+            "src": "v1",
+            "tgt": "v17"
+        },
+        "e5": {
+            "src": "v1",
+            "tgt": "v35"
+        },
+        "e6": {
+            "src": "v2",
+            "tgt": "v7"
+        },
+        "e7": {
+            "src": "v2",
+            "tgt": "v21"
+        },
+        "e8": {
+            "src": "v3",
+            "tgt": "v28"
+        },
+        "e9": {
+            "src": "v3",
+            "tgt": "v20"
+        },
+        "e10": {
+            "src": "v3",
+            "tgt": "v24"
+        },
+        "e11": {
+            "src": "v4",
+            "tgt": "v30"
+        },
+        "e12": {
+            "src": "v4",
+            "tgt": "v37"
+        },
+        "e13": {
+            "src": "v4",
+            "tgt": "v38"
+        },
+        "e14": {
+            "src": "v5",
+            "tgt": "v7"
+        },
+        "e15": {
+            "src": "v5",
+            "tgt": "b4"
+        },
+        "e16": {
+            "src": "v7",
+            "tgt": "v12"
+        },
+        "e17": {
+            "src": "v8",
+            "tgt": "v9"
+        },
+        "e18": {
+            "src": "v8",
+            "tgt": "v13"
+        },
+        "e19": {
+            "src": "v9",
+            "tgt": "b0"
+        },
+        "e20": {
+            "src": "v9",
+            "tgt": "v30"
+        },
+        "e21": {
+            "src": "v10",
+            "tgt": "v27"
+        },
+        "e22": {
+            "src": "v11",
+            "tgt": "v29"
+        },
+        "e23": {
+            "src": "v11",
+            "tgt": "v31"
+        },
+        "e24": {
+            "src": "v11",
+            "tgt": "v24"
+        },
+        "e25": {
+            "src": "v12",
+            "tgt": "v18"
+        },
+        "e26": {
+            "src": "v12",
+            "tgt": "v28"
+        },
+        "e27": {
+            "src": "v14",
+            "tgt": "v25"
+        },
+        "e28": {
+            "src": "v14",
+            "tgt": "v23"
+        },
+        "e29": {
+            "src": "v14",
+            "tgt": "v38"
+        },
+        "e30": {
+            "src": "v15",
+            "tgt": "v27"
+        },
+        "e31": {
+            "src": "v15",
+            "tgt": "v33"
+        },
+        "e32": {
+            "src": "v15",
+            "tgt": "v40"
+        },
+        "e33": {
+            "src": "v23",
+            "tgt": "v40"
+        },
+        "e34": {
+            "src": "v16",
+            "tgt": "v22"
+        },
+        "e35": {
+            "src": "v17",
+            "tgt": "v22"
+        },
+        "e36": {
+            "src": "v17",
+            "tgt": "v32"
+        },
+        "e37": {
+            "src": "v18",
+            "tgt": "v34"
+        },
+        "e38": {
+            "src": "v18",
+            "tgt": "v35"
+        },
+        "e39": {
+            "src": "v19",
+            "tgt": "v29"
+        },
+        "e40": {
+            "src": "v20",
+            "tgt": "v23"
+        },
+        "e41": {
+            "src": "v20",
+            "tgt": "v30"
+        },
+        "e42": {
+            "src": "v22",
+            "tgt": "v25"
+        },
+        "e43": {
+            "src": "v24",
+            "tgt": "b1"
+        },
+        "e44": {
+            "src": "v25",
+            "tgt": "b2"
+        },
+        "e45": {
+            "src": "v26",
+            "tgt": "b5"
+        },
+        "e46": {
+            "src": "v26",
+            "tgt": "v29"
+        },
+        "e47": {
+            "src": "v26",
+            "tgt": "v28"
+        },
+        "e48": {
+            "src": "v27",
+            "tgt": "v32"
+        },
+        "e49": {
+            "src": "v32",
+            "tgt": "b3"
+        },
+        "e50": {
+            "src": "v35",
+            "tgt": "v36"
+        },
+        "e51": {
+            "src": "v38",
+            "tgt": "v39"
+        }
+    },
+    "variable_types": {
+        "k_7": true,
+        "k_4": true,
+        "k_1": true,
+        "k_8": true,
+        "k_6": true,
+        "k_2": true,
+        "k_3": true,
+        "k_5": true
+    },
+    "scalar": "{\"power2\": 0, \"phase\": \"0\"}"
+}

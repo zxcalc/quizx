@@ -25,6 +25,7 @@ rstest = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 derive_more = { workspace = true, features = ["display", "error", "from"] }
+tempfile = "3.20.0"
 
 [dev-dependencies]
 rstest = { workspace = true }
