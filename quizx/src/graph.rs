@@ -810,31 +810,31 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         use std::collections::HashSet;
 
         let mut modified = true;
-        
+
         while modified {
             modified = false;
             let mut visited = HashSet::new();
-            
+
             // Collect all edges to process in this iteration
             let edges: Vec<_> = self.edge_vec();
-            
+
             for (node, neighbor, _) in edges {
                 // Get the types of the nodes
                 let node_type = self.vertex_type(node);
                 let neighbor_type = self.vertex_type(neighbor);
-                
+
                 // Skip if we've already processed this pair
                 let key = if node < neighbor {
                     (node, neighbor)
                 } else {
                     (neighbor, node)
                 };
-                
+
                 if visited.contains(&key) {
                     continue;
                 }
                 visited.insert(key);
-                
+
                 // Check if the connected nodes are of the same type
                 if neighbor_type == node_type {
                     // Insert new node in the middle for better visualization
@@ -859,7 +859,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
 
                     self.add_edge(node, new_vertex);
                     self.add_edge(new_vertex, neighbor);
-                    
+
                     // Mark that we made a modification in this iteration
                     modified = true;
                 }
