@@ -284,6 +284,61 @@ impl Mat2 {
             })
             .collect()
     }
+
+    /// Returns a basis of the nullspace of an F2 matrix
+    fn nullspace(&self) -> Vec<Self> {
+        let mut mat = self.clone();
+        let rank = mat.gauss(true);
+
+        let n = self.num_cols();
+        if rank == n {
+            return Vec::new();
+        }
+
+        // Find pivot columns
+        let mut pivot_cols = Vec::with_capacity(rank);
+        let mut current_rank = 0;
+        for col in 0..n {
+            if current_rank < rank && mat[current_rank][col] == 1 {
+                pivot_cols.push(col);
+                current_rank += 1;
+                if current_rank == rank {
+                    break;
+                }
+            }
+        }
+
+        // Find free variables
+        let mut free_vars = Vec::with_capacity(n - rank);
+        let mut pivot_iter = pivot_cols.iter().peekable();
+        for col in 0..n {
+            if let Some(&&pivot) = pivot_iter.peek() {
+                if pivot == col {
+                    pivot_iter.next();
+                    continue;
+                }
+            }
+            free_vars.push(col);
+        }
+
+        // Generate basis vectors for the nullspace
+        let mut basis = Vec::with_capacity(free_vars.len());
+        for &free_var in &free_vars {
+            let mut vec = Self::zeros(1, n);
+            vec[0][free_var] = 1;
+
+            // Back substitution
+            for (row, &pivot_col) in pivot_cols.iter().enumerate().rev() {
+                if free_var > pivot_col && mat[row][free_var] == 1 {
+                    vec[0][pivot_col] = 1;
+                }
+            }
+
+            basis.push(vec);
+        }
+
+        basis
+    }
 }
 
 impl RowOps for Mat2 {
@@ -502,5 +557,18 @@ mod tests {
 
         let vi_exp = Mat2::new(vec![vec![1, 1, 0], vec![0, 1, 1], vec![0, 0, 1]]);
         assert_eq!(vi_exp, vi);
+    }
+
+    #[test]
+    fn test_nullspace() {
+        // Test with a simple matrix that has a non-trivial nullspace
+        let mat = Mat2::new(vec![
+            vec![1, 0, 1],
+            vec![0, 1, 1],
+        ]);
+
+        let nullspace = mat.nullspace();
+        assert_eq!(nullspace.len(), 1);
+        assert_eq!(nullspace[0].d, vec![vec![1, 1, 1]]);
     }
 }
