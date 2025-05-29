@@ -120,6 +120,8 @@ jobs:
           toolchain: 'stable'
       - name: Configure default rust toolchain
         run: rustup override set ${{steps.toolchain.outputs.name}}
+      - name: Build QuiZX binary with no features
+        run: cargo build --verbose --workspace --no-default-features --bin quizx
       - name: Build with no features
         run: cargo test --verbose --workspace --no-default-features --no-run -p quizx
       - name: Tests with no features
@@ -143,6 +145,8 @@ jobs:
       - name: Configure default rust toolchain
         run: rustup override set ${{steps.toolchain.outputs.name}}
       - uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Build QuiZX binary with all features
+        run: cargo build --verbose --all-features --bin quizx
       - name: Build with all features
         run: cargo test --verbose --all-features --no-run -p quizx
       - name: Tests with all features
