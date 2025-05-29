@@ -128,7 +128,14 @@ pub fn get_pw(index_map: &HashMap<usize, usize>, v: &Mat2, g: &Graph) -> PauliWe
 }
 
 fn draw_mat(_name: &str, _mat: &Mat2) {
-    // log::debug!("Matrix {} ({}x{}):\n{}", _name, _mat.rows(), _mat.cols(), _mat);
+    let _ = env_logger::builder().is_test(true).try_init();
+    log::debug!(
+        "Matrix {} ({}x{}):\n{}",
+        _name,
+        _mat.num_rows(),
+        _mat.num_cols(),
+        _mat
+    );
 }
 
 /// Returns all detection webs of a quizx graph
@@ -137,25 +144,33 @@ fn draw_mat(_name: &str, _mat: &Mat2) {
 /// TODO: perhaps handle the input/output stuff, currently we break it and just assume thats not a set
 /// property
 pub fn get_detection_webs(g: &mut Graph) -> Vec<PauliWeb> {
+    let _ = env_logger::builder().is_test(true).try_init();
     // First convert to RG form
     g.make_rg();
 
     // Lets make the whole outputs thing native:
+    // Save old inputs and outputs
+    let old_inputs = g.inputs().clone();
+    let old_outputs = g.outputs().clone();
     let mut outputs = Vec::new();
     for v in g.vertices() {
         if g.vertex_type(v) == VType::B {
-            outputs.push(v);
+            for w in g.neighbors(v) {
+                outputs.push(w);
+            }
         }
     }
+    log::debug!("Outputs: {:?}", outputs);
     g.set_outputs(outputs);
+    g.set_inputs(vec![]);
 
     // Get number of inputs + outputs
     let outs = g.inputs().len() + g.outputs().len();
 
     // Get ordered nodes and index map
     let (nodelist, index_map) = ordered_nodes(g);
-    // log::debug!("Ordered nodes: {:?}", nodelist);
-    // log::debug!("outs: {}", outs);
+    log::debug!("Ordered nodes: {:?}", nodelist);
+    log::debug!("outs: {}", outs);
 
     // Get adjacency matrix in the specified node order
     let big_n = g.adjacency_matrix(Some(&nodelist));
@@ -200,12 +215,18 @@ pub fn get_detection_webs(g: &mut Graph) -> Vec<PauliWeb> {
         pws.push(pw);
     }
 
+    // Restore old inputs and outputs
+    g.set_outputs(old_outputs);
+    g.set_inputs(old_inputs);
+
     pws
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::graph_loader::load_graph;
+    use crate::graph_to_svg::graph_to_svg_with_pauliweb;
     #[test]
     fn test_detection_webs() {
         let mut g = Graph::new();
@@ -253,7 +274,10 @@ mod tests {
     #[test]
     fn test_edge_ordering() {
         let mut pw = PauliWeb::new();
+        pw.set_edge(1, 2, Pauli::X);
+        pw.set_edge(3, 4, Pauli::Z);
 
+        // Should still get the same operator regardless of edge order
         // Test that edge ordering doesn't matter for get/set
         pw.set_edge(2, 1, Pauli::X);
         assert_eq!(pw.get_edge(1, 2), Some(Pauli::X));
@@ -261,5 +285,34 @@ mod tests {
         // Test that updating with different order works
         pw.set_edge(1, 2, Pauli::Z);
         assert_eq!(pw.get_edge(2, 1), Some(Pauli::Z));
+    }
+    fn test_file(name: &str) -> String {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../")
+            .join("test_files")
+            .join(name)
+            .to_str()
+            .unwrap()
+            .to_string()
+    }
+    #[test]
+    fn test_visualize_xx_stab_webs() {
+        let mut g = load_graph(&test_file("xx_stab.zxg"));
+        let webs = get_detection_webs(&mut g);
+        for (i, web) in webs.iter().enumerate() {
+            let svg = graph_to_svg_with_pauliweb(&g, Some(web));
+            let filename = format!("xx_stab_web{}.svg", i);
+            std::fs::write(test_file(&filename), svg).unwrap();
+        }
+    }
+    #[test]
+    fn test_visualize_steane_style_steane_stabs() {
+        let mut g = load_graph(&test_file("steane_style_steane_2_rounds.zxg"));
+        let webs = get_detection_webs(&mut g);
+        for (i, web) in webs.iter().enumerate() {
+            let svg = graph_to_svg_with_pauliweb(&g, Some(web));
+            let filename = format!("steane_style_steane_2_rounds_web{}.svg", i);
+            std::fs::write(test_file(&filename), svg).unwrap();
+        }
     }
 }

@@ -669,7 +669,6 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         }
         n
     }
-
     /// Return a graphviz-friendly string representation of the graph
     fn to_dot(&self) -> String {
         let mut dot = String::from("graph {\n");
@@ -720,7 +719,6 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
 
         dot
     }
-
     /// Exchange inputs and outputs and reverse all phases
     fn adjoint(&mut self) {
         for v in self.vertex_vec() {
