@@ -36,15 +36,15 @@ impl PauliWeb {
     }
 
     /// Get the Pauli operator for an edge between two nodes
-    pub fn get_edge(&self, from: usize, to: usize) -> Option<Pauli> {
+    pub fn edge(&self, from: usize, to: usize) -> Option<Pauli> {
         self.edge_operators
             .get(&(from.min(to), from.max(to)))
             .copied()
     }
 
     /// Get the color to use when drawing an edge
-    pub fn get_edge_color(&self, from: usize, to: usize) -> Option<&'static str> {
-        self.get_edge(from, to).map(|pauli| match pauli {
+    pub fn edge_color(&self, from: usize, to: usize) -> Option<&'static str> {
+        self.edge(from, to).map(|pauli| match pauli {
             Pauli::X => "green", // Green for X operators
             Pauli::Y => "blue",  // Blue for Y operators
             Pauli::Z => "red",   // Red for Z operators
@@ -86,7 +86,7 @@ fn ordered_nodes(g: &Graph) -> (Vec<usize>, HashMap<usize, usize>) {
     (vertices, index_map)
 }
 
-pub fn get_pw(index_map: &HashMap<usize, usize>, v: &Mat2, g: &Graph) -> PauliWeb {
+pub fn pw(index_map: &HashMap<usize, usize>, v: &Mat2, g: &Graph) -> PauliWeb {
     let n_outs = g.inputs().len() + g.outputs().len();
     let mut red_edges = BTreeSet::new();
     let mut green_edges = BTreeSet::new();
@@ -139,14 +139,12 @@ fn draw_mat(_name: &str, _mat: &Mat2) {
 }
 
 /// Returns all detection webs of a quizx graph
-/// Will inplace convert the graph to rg form
-///
-/// TODO: perhaps handle the input/output stuff, currently we break it and just assume thats not a set
-/// property
-pub fn get_detection_webs(g: &mut Graph) -> Vec<PauliWeb> {
+/// Will inplace convert the graph to bipartite form
+
+pub fn detection_webs(g: &mut Graph) -> Vec<PauliWeb> {
     let _ = env_logger::builder().is_test(true).try_init();
-    // First convert to RG form
-    g.make_rg();
+    // First convert to bipartite form
+    g.make_bipartite();
 
     // Lets make the whole outputs thing native:
     // Save old inputs and outputs
@@ -211,7 +209,7 @@ pub fn get_detection_webs(g: &mut Graph) -> Vec<PauliWeb> {
     for basis in mdnons.into_iter() {
         // log::debug!("Basis vector: {}", basis);
         // Create and store the PauliWeb
-        let pw = get_pw(&index_map, &basis, g);
+        let pw = pw(&index_map, &basis, g);
         pws.push(pw);
     }
 
@@ -230,7 +228,7 @@ mod tests {
     #[test]
     fn test_detection_webs() {
         let mut g = Graph::new();
-        let webs = get_detection_webs(&mut g);
+        let webs = detection_webs(&mut g);
         assert_eq!(webs.len(), 0);
     }
     #[test]
@@ -245,15 +243,15 @@ mod tests {
 
         // Test setting and getting an edge
         pw.set_edge(1, 2, Pauli::X);
-        assert_eq!(pw.get_edge(1, 2), Some(Pauli::X));
-        assert_eq!(pw.get_edge(2, 1), Some(Pauli::X)); // Should work in both directions
+        assert_eq!(pw.edge(1, 2), Some(Pauli::X));
+        assert_eq!(pw.edge(2, 1), Some(Pauli::X)); // Should work in both directions
 
         // Test updating an edge
         pw.set_edge(1, 2, Pauli::Z);
-        assert_eq!(pw.get_edge(1, 2), Some(Pauli::Z));
+        assert_eq!(pw.edge(1, 2), Some(Pauli::Z));
 
         // Test non-existent edge
-        assert_eq!(pw.get_edge(1, 3), None);
+        assert_eq!(pw.edge(1, 3), None);
     }
 
     #[test]
@@ -265,10 +263,10 @@ mod tests {
         pw.set_edge(2, 3, Pauli::Y);
         pw.set_edge(3, 4, Pauli::Z);
 
-        assert_eq!(pw.get_edge_color(1, 2), Some("green"));
-        assert_eq!(pw.get_edge_color(2, 3), Some("blue"));
-        assert_eq!(pw.get_edge_color(3, 4), Some("red"));
-        assert_eq!(pw.get_edge_color(4, 5), None); // Non-existent edge
+        assert_eq!(pw.edge_color(1, 2), Some("green"));
+        assert_eq!(pw.edge_color(2, 3), Some("blue"));
+        assert_eq!(pw.edge_color(3, 4), Some("red"));
+        assert_eq!(pw.edge_color(4, 5), None); // Non-existent edge
     }
 
     #[test]
@@ -280,11 +278,11 @@ mod tests {
         // Should still get the same operator regardless of edge order
         // Test that edge ordering doesn't matter for get/set
         pw.set_edge(2, 1, Pauli::X);
-        assert_eq!(pw.get_edge(1, 2), Some(Pauli::X));
+        assert_eq!(pw.edge(1, 2), Some(Pauli::X));
 
         // Test that updating with different order works
         pw.set_edge(1, 2, Pauli::Z);
-        assert_eq!(pw.get_edge(2, 1), Some(Pauli::Z));
+        assert_eq!(pw.edge(2, 1), Some(Pauli::Z));
     }
     fn test_file(name: &str) -> String {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -298,21 +296,21 @@ mod tests {
     #[test]
     fn test_visualize_xx_stab_webs() {
         let mut g = load_graph(&test_file("xx_stab.zxg"));
-        let webs = get_detection_webs(&mut g);
-        for (i, web) in webs.iter().enumerate() {
+        let webs = detection_webs(&mut g);
+        for web in webs.iter() {
+            let tmpfile = tempfile::NamedTempFile::new().unwrap();
             let svg = graph_to_svg_with_pauliweb(&g, Some(web));
-            let filename = format!("xx_stab_web{}.svg", i);
-            std::fs::write(test_file(&filename), svg).unwrap();
+            std::fs::write(tmpfile, svg).unwrap();
         }
     }
     #[test]
     fn test_visualize_steane_style_steane_stabs() {
         let mut g = load_graph(&test_file("steane_style_steane_2_rounds.zxg"));
-        let webs = get_detection_webs(&mut g);
-        for (i, web) in webs.iter().enumerate() {
+        let webs = detection_webs(&mut g);
+        for web in webs.iter() {
+            let tmpfile = tempfile::NamedTempFile::new().unwrap();
             let svg = graph_to_svg_with_pauliweb(&g, Some(web));
-            let filename = format!("steane_style_steane_2_rounds_web{}.svg", i);
-            std::fs::write(test_file(&filename), svg).unwrap();
+            std::fs::write(tmpfile, svg).unwrap();
         }
     }
 }
