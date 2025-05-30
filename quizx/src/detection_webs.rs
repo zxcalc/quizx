@@ -140,7 +140,6 @@ fn draw_mat(_name: &str, _mat: &Mat2) {
 
 /// Returns all detection webs of a quizx graph
 /// Will inplace convert the graph to bipartite form
-
 pub fn detection_webs(g: &mut Graph) -> Vec<PauliWeb> {
     let _ = env_logger::builder().is_test(true).try_init();
     // First convert to bipartite form
