@@ -206,6 +206,10 @@ pub fn local_ap_simp(g: &mut impl GraphLike, vs: impl IntoIterator<Item = V>) {
     }
 
     for v in simp_v {
+        if !g.contains_vertex(v) {
+            continue;
+        }
+
         for u in g.neighbor_vec(v) {
             if spider_fusion(g, v, u)
                 || local_comp(g, u)
@@ -213,6 +217,15 @@ pub fn local_ap_simp(g: &mut impl GraphLike, vs: impl IntoIterator<Item = V>) {
                 || h_boundary_pivot(g, v, u)
             {
                 break;
+            }
+        }
+
+        if g.contains_vertex(v) {
+            let u_opt = g.neighbors(v).next();
+            if let Some(u) = u_opt {
+                g.neighbor_vec(u)
+                    .iter()
+                    .any(|u1| remove_duplicate(g, v, *u1));
             }
         }
     }

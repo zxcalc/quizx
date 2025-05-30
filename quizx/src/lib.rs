@@ -59,6 +59,7 @@
 pub mod annealer;
 pub mod basic_rules;
 pub mod circuit;
+pub mod cli;
 pub mod decompose;
 pub mod equality;
 pub mod extract;
