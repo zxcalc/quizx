@@ -802,9 +802,9 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// by deleted vertices whenever the holes exceed a fixed ratio (or always when force=true).
     fn pack(&mut self, force: bool);
 
-    /// Performs inplace rg-transformation of ZX graph by inserting opposite colored
+    /// Performs inplace bipartite transformation of ZX graph by inserting opposite colored
     /// spiders between same-colored neighbors
-    fn make_rg(&mut self) {
+    fn make_bipartite(&mut self) {
         use crate::graph::VData;
         use std::collections::HashSet;
 
@@ -997,7 +997,7 @@ mod tests {
             graph.num_edges()
         );
         // Apply RG transformation
-        graph.make_rg();
+        graph.make_bipartite();
         println!(
             "Transformed graph: {} vertices, {} edges",
             graph.num_vertices(),
