@@ -12,7 +12,6 @@ homepage = { workspace = true }
 license = { workspace = true }
 
 [dependencies]
-log = "0.4.20"  # Version 0.4.20 is a stable and widely used version
 num = { workspace = true }
 rustc-hash = { workspace = true }
 rayon = { workspace = true }
@@ -26,10 +25,11 @@ rstest = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 derive_more = { workspace = true, features = ["display", "error", "from"] }
-tempfile = "3.20.0"
-ordered-float = "5.0.0"
-env_logger = "0.11.8"
-num-rational = "0.4.2"
+tempfile = { workspace = true }
+ordered-float = { workspace = true }
+env_logger = { workspace = true }
+num-rational = { workspace = true }
+log = { workspace = true }
 
 [dev-dependencies]
 rstest = { workspace = true }
