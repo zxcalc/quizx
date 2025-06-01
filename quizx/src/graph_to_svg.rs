@@ -4,6 +4,8 @@ use crate::hash_graph::{Graph, VType};
 use num::{FromPrimitive, Rational64};
 use std::fmt::Write;
 
+/// Helper function
+/// Formats phase to string
 fn format_phase(phase: f64) -> Option<String> {
     let tol = 1e-6;
 
@@ -49,6 +51,7 @@ fn pauli_color(pauli: Pauli) -> &'static str {
 }
 
 /// Renders a quizx graph to SVG with optional overlayed translucent colored edges
+/// (The translucent colored edges are for pauliwebs)
 pub fn graph_to_svg(graph: &Graph, overlays: &[OverlayEdge]) -> String {
     let mut min_x = f64::INFINITY;
     let mut max_x = f64::NEG_INFINITY;

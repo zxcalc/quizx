@@ -27,7 +27,7 @@ pub fn load_graph(path: &str) -> Graph {
         let index = g.add_vertex_with_data(VData {
             ty: VType::B,
             qubit,
-            // We are currently not really handling the parity thing because i dont know what that is
+            // Currently the parity parameter is not handled
             vars: crate::params::Parity::new(*Box::new([]), false),
             row,
             phase: Phase::new(0),
@@ -56,7 +56,7 @@ pub fn load_graph(path: &str) -> Graph {
         let index = g.add_vertex_with_data(VData {
             ty: vtype,
             qubit,
-            // We are currently not really handling the parity thing because i dont know what that is
+            // currently parity is not handled
             vars: crate::params::Parity::new(*Box::new([]), false),
             row,
             phase,
