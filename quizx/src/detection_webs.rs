@@ -23,6 +23,7 @@ pub struct PauliWeb {
     pub edge_operators: HashMap<(usize, usize), Pauli>,
 }
 
+
 impl PauliWeb {
     /// Create a new empty PauliWeb
     pub fn new() -> Self {
@@ -52,6 +53,10 @@ impl PauliWeb {
     }
 }
 
+/// Helper function that returns ordered nodes with the "outputs" nodes, being the union
+/// of inputs AND outputs to the zx graph, as first nodes (important for the "MD" matrix in detection_webs())
+/// Takes: quizx graph
+/// Returns: Vector of indices and index map from new to old indices
 fn ordered_nodes(g: &Graph) -> (Vec<usize>, HashMap<usize, usize>) {
     // Get all vertices and sort them for consistent ordering
     let mut original: Vec<usize> = g.vertices().collect();
@@ -86,6 +91,10 @@ fn ordered_nodes(g: &Graph) -> (Vec<usize>, HashMap<usize, usize>) {
     (vertices, index_map)
 }
 
+/// Helper function to return actual pauliwebs from the firing vector obtained in detection_webs()
+/// index_map: needed to translate the obtained firing vector for original adjacency
+/// v: binary firing vector (a spider "fires" by introducing an opposite-colored pi spider on each adjacent edge)
+/// g: ZX graph on which to create the pauliweb
 pub fn pw(index_map: &HashMap<usize, usize>, v: &Mat2, g: &Graph) -> PauliWeb {
     let n_outs = g.inputs().len() + g.outputs().len();
     let mut red_edges = BTreeSet::new();
@@ -117,16 +126,24 @@ pub fn pw(index_map: &HashMap<usize, usize>, v: &Mat2, g: &Graph) -> PauliWeb {
     }
 
     // Add edges to PauliWeb
-    for e in red_edges {
+    for e in &red_edges {
+        if green_edges.contains(&e){
+            pw.set_edge(e.0,e.1, Pauli::Y)
+        }
+        else {
         pw.set_edge(e.0, e.1, Pauli::Z);
+        }
     }
     for e in green_edges {
+        if !red_edges.contains(&e){
         pw.set_edge(e.0, e.1, Pauli::X);
+        }
     }
 
     pw
 }
 
+/// Debugging helper functions, makes the log::debug!() blocks shorter
 fn draw_mat(_name: &str, _mat: &Mat2) {
     let _ = env_logger::builder().is_test(true).try_init();
     log::debug!(
@@ -138,7 +155,8 @@ fn draw_mat(_name: &str, _mat: &Mat2) {
     );
 }
 
-/// Returns all detection webs of a quizx graph
+/// Takes: quizx graph
+/// Returns: Vector of basis of all detection webs on a quizx graph
 /// Will inplace convert the graph to bipartite form
 pub fn detection_webs(g: &mut Graph) -> Vec<PauliWeb> {
     let _ = env_logger::builder().is_test(true).try_init();
