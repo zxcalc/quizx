@@ -802,6 +802,28 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// This method can be a no-op, but `VecGraph` overrides this behavior to remove "holes" left
     /// by deleted vertices whenever the holes exceed a fixed ratio (or always when force=true).
     fn pack(&mut self, force: bool);
+
+    /// Create a copy of the graph. If `adjoint` is set,
+    /// the adjoint of the graph will be returned (inputs and outputs flipped, phases reversed).
+    /// The copy will have consecutive vertex indices, even if the original graph did not.
+    fn copy(&self, adjoint: bool) -> Self {
+        let mut g = Self::new();
+        let mut vert_map: FxHashMap<V, V> = FxHashMap::default();
+        for v in self.vertices() {
+            let w = g.add_vertex_with_data(self.vertex_data(v).clone());
+            vert_map.insert(v, w);
+        }
+
+        for (s, t, ety) in self.edges() {
+            if vert_map.contains_key(&s) && vert_map.contains_key(&t) {
+                g.add_edge_with_type(vert_map[&s], vert_map[&t], ety);
+            }
+        }
+        if adjoint {
+            g.adjoint();
+        }
+        g
+    }
 }
 
 #[cfg(test)]
