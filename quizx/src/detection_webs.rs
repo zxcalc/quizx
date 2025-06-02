@@ -23,7 +23,6 @@ pub struct PauliWeb {
     pub edge_operators: HashMap<(usize, usize), Pauli>,
 }
 
-
 impl PauliWeb {
     /// Create a new empty PauliWeb
     pub fn new() -> Self {
@@ -127,16 +126,15 @@ pub fn pw(index_map: &HashMap<usize, usize>, v: &Mat2, g: &Graph) -> PauliWeb {
 
     // Add edges to PauliWeb
     for e in &red_edges {
-        if green_edges.contains(&e){
-            pw.set_edge(e.0,e.1, Pauli::Y)
-        }
-        else {
-        pw.set_edge(e.0, e.1, Pauli::Z);
+        if green_edges.contains(e) {
+            pw.set_edge(e.0, e.1, Pauli::Y);
+        } else {
+            pw.set_edge(e.0, e.1, Pauli::Z);
         }
     }
     for e in green_edges {
-        if !red_edges.contains(&e){
-        pw.set_edge(e.0, e.1, Pauli::X);
+        if !red_edges.contains(&e) {
+            pw.set_edge(e.0, e.1, Pauli::X);
         }
     }
 
