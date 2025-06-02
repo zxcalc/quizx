@@ -156,13 +156,18 @@ fn draw_mat(_name: &str, _mat: &Mat2) {
 /// Takes: quizx graph
 /// Returns: Vector of basis of all detection webs on a quizx graph
 /// Will inplace convert the graph to bipartite form
+/// Note: Currently only works for ZX diagrams restricted to k*PI phases
+/// Further reading: https://www.cs.ox.ac.uk/people/aleks.kissinger/papers/borghans-thesis.pdf
+/// Pages 32-37
 pub fn detection_webs(g: &mut Graph) -> Vec<PauliWeb> {
     let _ = env_logger::builder().is_test(true).try_init();
     // First convert to bipartite form
+    // This is necessary in order to binarize the problem
     g.make_bipartite();
 
-    // Lets make the whole outputs thing native:
     // Save old inputs and outputs
+    // This is to keep in line with the language of every boundary being an
+    // "output" in the sense of being non-internal
     let old_inputs = g.inputs().clone();
     let old_outputs = g.outputs().clone();
     let mut outputs = Vec::new();
@@ -174,11 +179,10 @@ pub fn detection_webs(g: &mut Graph) -> Vec<PauliWeb> {
         }
     }
     log::debug!("Outputs: {:?}", outputs);
+
+    let outs = outputs.len();
     g.set_outputs(outputs);
     g.set_inputs(vec![]);
-
-    // Get number of inputs + outputs
-    let outs = g.inputs().len() + g.outputs().len();
 
     // Get ordered nodes and index map
     let (nodelist, index_map) = ordered_nodes(g);
@@ -205,17 +209,22 @@ pub fn detection_webs(g: &mut Graph) -> Vec<PauliWeb> {
     let md = mdl.hstack(&big_n);
     draw_mat("md", &md);
 
-    // Create the no_output matrix that will be stacked below md
-    // This is [I_{2*outs} | 0] where I is identity and 0 is zero matrix
+    // Create the no_output matrix that will be stacked below md to ensure the pauliweb
+    // does not contain boundary edges
+    // So create [I_{2*outs} | 0] where I is identity and 0 is zero matrix
+
     let eye_part = Mat2::id(2 * outs);
     let zero_part = Mat2::zeros(2 * outs, md.num_cols() - 2 * outs);
     let no_output = eye_part.hstack(&zero_part);
 
-    // Vertically stack md and no_output
+    // Stacking this achieves that we only get internal webs, so detection webs
+    // since every row we add adds a constraint to the nullspace vectors we will get
     let md_no_output = md.vstack(&no_output);
     draw_mat("md_no_output", &md_no_output);
 
     // Compute nullspace
+    // The nullspace of this matrix are valid "firings" for phaseless diagrams
+    // (even number of neighbors firing)
     let mdnons = md_no_output.nullspace();
     // log::debug!("Number of basis vectors in nullspace: {}", mdnons.len());
 
