@@ -916,4 +916,78 @@ mod tests {
 
         assert_eq!(g.component_vertices().first().unwrap().len(), 4)
     }
+
+    #[test]
+    fn test_component_vertices() {
+        // Test 1: Empty graph has no components
+        let g_empty = Graph::new();
+        let comps_empty = g_empty.component_vertices();
+        assert_eq!(comps_empty.len(), 0);
+
+        // Test 2: Single vertex graph has one component
+        let mut g_single = Graph::new();
+        g_single.add_vertex(VType::Z);
+        let comps_single = g_single.component_vertices();
+        assert_eq!(comps_single.len(), 1);
+        assert_eq!(comps_single[0].len(), 1);
+        assert!(comps_single[0].contains(&0));
+
+        // Test 3: Three disconnected vertices have three components
+        let mut g_disc = Graph::new();
+        g_disc.add_vertex(VType::Z); // 0
+        g_disc.add_vertex(VType::X); // 1
+        g_disc.add_vertex(VType::Z); // 2
+        let comps_disc = g_disc.component_vertices();
+        assert_eq!(comps_disc.len(), 3);
+
+        // Test 4: Simple connected graph has one component
+        let mut g_conn = Graph::new();
+        g_conn.add_vertex(VType::Z); // 0
+        g_conn.add_vertex(VType::Z); // 1
+        g_conn.add_vertex(VType::X); // 2
+        g_conn.add_edge(0, 1);
+        g_conn.add_edge(1, 2);
+        let comps_conn = g_conn.component_vertices();
+        assert_eq!(comps_conn.len(), 1);
+        assert_eq!(comps_conn[0].len(), 3);
+
+        // Test 5: Two separate components
+        let mut g_multi = Graph::new();
+        g_multi.add_vertex(VType::Z); // 0
+        g_multi.add_vertex(VType::Z); // 1
+        g_multi.add_edge(0, 1);
+        g_multi.add_vertex(VType::X); // 2
+        g_multi.add_vertex(VType::X); // 3
+        g_multi.add_edge(2, 3);
+        let comps_multi = g_multi.component_vertices();
+        assert_eq!(comps_multi.len(), 2);
+
+        // Test 6: Components after edge removal
+        let mut g_split = Graph::new();
+        g_split.add_vertex(VType::Z); // 0
+        g_split.add_vertex(VType::Z); // 1
+        g_split.add_vertex(VType::Z); // 2
+        g_split.add_edge(0, 1);
+        g_split.add_edge(1, 2);
+
+        // Initially one component
+        assert_eq!(g_split.component_vertices().len(), 1);
+
+        // After removing an edge, should have two components
+        g_split.remove_edge(1, 2);
+        let split_comps = g_split.component_vertices();
+        assert_eq!(split_comps.len(), 2);
+
+        // Test 7: Mixed edge types form components correctly
+        let mut g_mixed = Graph::new();
+        g_mixed.add_vertex(VType::Z); // 0
+        g_mixed.add_vertex(VType::X); // 1
+        g_mixed.add_vertex(VType::Z); // 2
+        g_mixed.add_edge_with_type(0, 1, EType::H); // Hadamard edge
+        g_mixed.add_edge_with_type(1, 2, EType::N); // Normal edge
+
+        let mixed_comps = g_mixed.component_vertices();
+        assert_eq!(mixed_comps.len(), 1);
+        assert_eq!(mixed_comps[0].len(), 3);
+    }
 }
