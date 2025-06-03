@@ -428,7 +428,7 @@ pub fn pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 
 checked_rule2!(check_pivot, pivot_unchecked, pivot);
 
-/// Insert an identity spider so v is no longer adjancent to boundary b
+/// Insert an identity spider so v is no longer adjacent to boundary b
 ///
 /// If b is not a boundary, this is a noop. The new vertex will be connected
 /// to v by a Hadamard edge.
@@ -836,7 +836,7 @@ pub fn remove_duplicate_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 
     // TODO: check this gives the correct scalar
     let d = g.degree(v0) as i32;
-    g.scalar_mut().mul_sqrt2_pow(d - 2);
+    g.scalar_mut().mul_sqrt2_pow(-d);
     remove_single_unchecked(g, v0);
 }
 
@@ -1272,6 +1272,41 @@ mod tests {
         pi_copy(&mut g, vs[1]);
         assert_eq!(g.to_tensorf(), h.to_tensorf());
         pi_copy(&mut g, vs[4]);
+        assert_eq!(g.to_tensorf(), h.to_tensorf());
+    }
+
+    #[test]
+    fn remove_duplicate1() {
+        let mut g = Graph::new();
+
+        let b0 = g.add_vertex(VType::B);
+        let b1 = g.add_vertex(VType::B);
+        let b2 = g.add_vertex(VType::B);
+
+        let n0 = g.add_vertex(VType::Z);
+        let n1 = g.add_vertex(VType::Z);
+        let n2 = g.add_vertex(VType::Z);
+
+        let v0 = g.add_vertex_with_phase(VType::Z, Rational64::new(1, 4));
+        let v1 = g.add_vertex_with_phase(VType::Z, 1);
+
+        g.add_edge(b0, n0);
+        g.add_edge(b1, n1);
+        g.add_edge(b2, n2);
+
+        g.add_edge_with_type(n0, v0, EType::H);
+        g.add_edge_with_type(n1, v0, EType::H);
+        g.add_edge_with_type(n2, v0, EType::H);
+
+        g.add_edge_with_type(n0, v1, EType::H);
+        g.add_edge_with_type(n1, v1, EType::H);
+        g.add_edge_with_type(n2, v1, EType::H);
+
+        g.set_outputs(vec![b0, b1, b2]);
+
+        let h = g.clone();
+
+        assert!(remove_duplicate(&mut g, v0, v1));
         assert_eq!(g.to_tensorf(), h.to_tensorf());
     }
 }

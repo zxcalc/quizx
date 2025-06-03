@@ -25,10 +25,13 @@ rstest = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 derive_more = { workspace = true, features = ["display", "error", "from"] }
+clap = { version = "4.5.38", features = ["cargo", "derive"] }
 
 [dev-dependencies]
 rstest = { workspace = true }
 criterion = { version = "0.6.0", features = ["html_reports"] }
+assert_cmd = "2.0.17"
+predicates = "3.1.3"
 
 [[bench]]
 name = "simplifier"
