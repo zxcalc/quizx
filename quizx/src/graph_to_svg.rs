@@ -61,8 +61,8 @@ pub fn graph_to_svg(graph: &Graph, overlays: &[OverlayEdge]) -> String {
 
     for v in graph.vertices() {
         let d = graph.vertex_data(v);
-        let x = d.qubit * scale;
-        let y = d.row * scale;
+        let x = d.row * scale;
+        let y = d.qubit * scale;
         min_x = min_x.min(x);
         max_x = max_x.max(x);
         min_y = min_y.min(y);
@@ -91,11 +91,11 @@ pub fn graph_to_svg(graph: &Graph, overlays: &[OverlayEdge]) -> String {
     for edge in overlays {
         let (x1, y1) = {
             let d = graph.vertex_data(edge.from);
-            (d.qubit * scale + offset_x, d.row * scale + offset_y)
+            (d.row * scale + offset_x, d.qubit * scale + offset_y)
         };
         let (x2, y2) = {
             let d = graph.vertex_data(edge.to);
-            (d.qubit * scale + offset_x, d.row * scale + offset_y)
+            (d.row * scale + offset_x, d.qubit * scale + offset_y)
         };
         writeln!(
             &mut svg,
@@ -110,8 +110,8 @@ pub fn graph_to_svg(graph: &Graph, overlays: &[OverlayEdge]) -> String {
     for (a, b, _) in graph.edges() {
         let pa = graph.vertex_data(a);
         let pb = graph.vertex_data(b);
-        let (x1, y1) = (pa.qubit * scale + offset_x, pa.row * scale + offset_y);
-        let (x2, y2) = (pb.qubit * scale + offset_x, pb.row * scale + offset_y);
+        let (x1, y1) = (pa.row * scale + offset_x, pa.qubit * scale + offset_y);
+        let (x2, y2) = (pb.row * scale + offset_x, pb.qubit * scale + offset_y);
         writeln!(
             &mut svg,
             r#"<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="black" stroke-width="2"/>"#
@@ -122,7 +122,7 @@ pub fn graph_to_svg(graph: &Graph, overlays: &[OverlayEdge]) -> String {
     // Nodes
     for v in graph.vertices() {
         let data = graph.vertex_data(v);
-        let (x, y) = (data.qubit * scale + offset_x, data.row * scale + offset_y);
+        let (x, y) = (data.row * scale + offset_x, data.qubit * scale + offset_y);
         let color = match graph.vertex_type(v) {
             VType::Z => "green",
             VType::X => "red",

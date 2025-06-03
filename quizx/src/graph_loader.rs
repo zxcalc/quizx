@@ -22,8 +22,8 @@ pub fn load_graph(path: &str) -> Graph {
 
     for (id, obj) in wire_vertices {
         let coord = &obj["annotation"]["coord"];
-        let qubit = coord[0].as_f64().unwrap();
-        let row = coord[1].as_f64().unwrap();
+        let qubit = coord[1].as_f64().unwrap();
+        let row = coord[0].as_f64().unwrap();
         let index = g.add_vertex_with_data(VData {
             ty: VType::B,
             qubit,
@@ -37,8 +37,8 @@ pub fn load_graph(path: &str) -> Graph {
 
     for (id, obj) in node_vertices {
         let coord = &obj["annotation"]["coord"];
-        let qubit = coord[0].as_f64().unwrap();
-        let row = coord[1].as_f64().unwrap();
+        let qubit = coord[1].as_f64().unwrap();
+        let row = coord[0].as_f64().unwrap();
 
         let vtype = match obj["data"]["type"].as_str().unwrap() {
             "Z" => VType::Z,
