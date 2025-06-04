@@ -88,7 +88,7 @@ impl Default for SimMethod {
 impl SimMethod {
     fn build_decomposer(&self) -> Decomposer<Graph> {
         let driver: Driver = if self.cats {
-            Driver::BSSWithCats(true)
+            Driver::BssWithCats(true)
         } else {
             Driver::BssTOnly(true)
         };

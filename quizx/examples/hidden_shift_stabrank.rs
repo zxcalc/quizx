@@ -87,7 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // do the decomposition, with full_simp called eagerly
         d = Decomposer::new(&g);
-        d.with_driver(quizx::decompose::Driver::BSSWithCats(false));
+        d.with_driver(quizx::decompose::Driver::BssWithCats(false));
         d.with_full_simp();
         let d = d.decompose_parallel();
         terms += d.nterms;

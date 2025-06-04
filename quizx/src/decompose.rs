@@ -127,10 +127,10 @@ pub enum Decomp {
 }
 use Decomp::*;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, derive_more::Display)]
 pub enum Driver {
     BssTOnly(bool),
-    BSSWithCats(bool),
+    BssWithCats(bool),
 }
 use Driver::*;
 
@@ -145,7 +145,7 @@ impl Driver {
                 };
                 TDecomp(ts)
             }
-            BSSWithCats(random_t) => {
+            BssWithCats(random_t) => {
                 let cat_nodes = cat_ts(g);
                 if cat_nodes.len() > 3 {
                     // println!("using cat!");
@@ -576,7 +576,7 @@ impl<G: GraphLike> Decomposer<G> {
         self
     }
 
-    pub fn save(&mut self, b: bool) -> &mut Self {
+    pub fn with_save(&mut self, b: bool) -> &mut Self {
         self.save = b;
         self
     }
@@ -599,7 +599,7 @@ impl<G: GraphLike> Decomposer<G> {
     #[deprecated = "This function is outdated and may not work as expected, please use with_driver instead"]
     pub fn use_cats(&mut self, b: bool) -> &mut Self {
         if b {
-            self.driver = BSSWithCats(false);
+            self.driver = BssWithCats(false);
         } else {
             self.driver = BssTOnly(false);
         }
@@ -1061,8 +1061,8 @@ mod tests {
         let drivers = vec![
             BssTOnly(false),
             BssTOnly(true),
-            BSSWithCats(false),
-            BSSWithCats(true),
+            BssWithCats(false),
+            BssWithCats(true),
         ];
         let split_components = vec![false, true];
         let parallel_modes = vec![false, true];
@@ -1111,7 +1111,7 @@ mod tests {
 
             let mut d = Decomposer::new(&g);
             d.with_full_simp()
-                .with_driver(BSSWithCats(false))
+                .with_driver(BssWithCats(false))
                 .decompose();
 
             assert_eq!(
@@ -1145,7 +1145,7 @@ mod tests {
         // Test with cat-aware driver
         let mut d = Decomposer::new(&g);
         d.with_full_simp()
-            .with_driver(BSSWithCats(false))
+            .with_driver(BssWithCats(false))
             .decompose();
 
         assert_eq!(expected_scalar, d.scalar());
@@ -1232,7 +1232,7 @@ mod tests {
         let expected_scalar = g.to_tensorf()[[]];
 
         let mut d = Decomposer::new(&g);
-        d.with_driver(BSSWithCats(false)).decompose();
+        d.with_driver(BssWithCats(false)).decompose();
 
         assert_eq!(expected_scalar, d.scalar());
     }
@@ -1381,7 +1381,7 @@ mod tests {
         let mut d = Decomposer::new(&g);
         d.with_full_simp()
             .with_driver(Driver::BssTOnly(false))
-            .save(true)
+            .with_save(true)
             .decompose();
         assert_eq!(d.done.len(), 7 * 2 * 2);
     }
@@ -1404,8 +1404,8 @@ mod tests {
 
         let mut d = Decomposer::new(&g);
         d.with_full_simp()
-            .with_driver(Driver::BSSWithCats(false))
-            .save(true)
+            .with_driver(Driver::BssWithCats(false))
+            .with_save(true)
             .decompose();
         assert_eq!(d.done.len(), 2);
     }
@@ -1428,8 +1428,8 @@ mod tests {
 
         let mut d = Decomposer::new(&g);
         d.with_full_simp()
-            .with_driver(Driver::BSSWithCats(false))
-            .save(true)
+            .with_driver(Driver::BssWithCats(false))
+            .with_save(true)
             .decompose();
 
         assert_eq!(d.done.len(), 3);
