@@ -4,11 +4,11 @@ pub use num::traits::identities::{One, Zero};
 use num::{Float, Rational64, ToPrimitive};
 use std::f64::consts::{PI, SQRT_2};
 use std::fmt;
+use std::iter::{Product, Sum};
 use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 
 use crate::phase::Phase;
 pub use crate::scalar_traits::{FromPhase, Sqrt2};
-
 /// This is the main representation of scalars used in QuiZX. It is a wrapper around
 /// four `f64` values, used to represent the coefficients in a complex number of
 /// the form:
@@ -243,6 +243,14 @@ impl Add<&FScalar> for &FScalar {
     }
 }
 
+impl Sum<FScalar> for FScalar {
+    fn sum<I: Iterator<Item = FScalar>>(iter: I) -> Self {
+        iter.fold(FScalar::zero(), |accumulator, current_fscalar| {
+            accumulator + current_fscalar // Uses FScalar + FScalar
+        })
+    }
+}
+
 // These 3 variations take ownership of one or both args
 impl Add<FScalar> for FScalar {
     type Output = FScalar;
@@ -385,6 +393,14 @@ impl MulAssign<FScalar> for FScalar {
 impl MulAssign<&FScalar> for FScalar {
     fn mul_assign(&mut self, rhs: &FScalar) {
         *self = *self * rhs;
+    }
+}
+
+impl Product<FScalar> for FScalar {
+    fn product<I: Iterator<Item = FScalar>>(iter: I) -> Self {
+        iter.fold(FScalar::one(), |accumulator, current_fscalar| {
+            accumulator * current_fscalar // Uses FScalar * FScalar
+        })
     }
 }
 

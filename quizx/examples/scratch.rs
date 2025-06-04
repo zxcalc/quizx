@@ -41,13 +41,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let time = Instant::now();
     let mut d = Decomposer::new(&g);
-    d.random_t(true).with_full_simp();
+    d.with_full_simp()
+        .with_driver(quizx::decompose::Driver::BssTOnly(true));
     let mut max = d.max_terms();
     let mut best_d = d.clone();
 
     for _ in 0..100 {
         let mut d1 = d.clone();
-        d1.decomp_top().random_t(false).decomp_until_depth(3);
+        d1.decomp_until_depth(1)
+            .with_driver(quizx::decompose::Driver::BssTOnly(false))
+            .decomp_until_depth(3);
         if d1.max_terms() < max {
             max = d1.max_terms();
             println!("lower max: {}", max);
@@ -56,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     d = best_d;
-    d.decomp_all();
+    d.decompose();
     println!("Finished in {:.2?}", time.elapsed());
     println!(
         "got {} terms for T-count {} (naive {} terms)",

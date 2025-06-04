@@ -106,10 +106,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut d = Decomposer::new(&h);
             d.with_full_simp();
 
-            let d = d.decomp_parallel(3);
+            let d = d.decompose_parallel();
 
             // compute <h|h> by stabiliser decomposition
-            prob = d.scalar;
+            prob = d.scalar();
             // println!("\nprob = {}", prob);
             // if debug { println!("{} / {}", prob, renorm); }
 

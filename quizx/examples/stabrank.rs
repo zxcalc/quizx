@@ -76,7 +76,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // if g.tcount() > 100 { continue; }
     println!("Decomposing g...");
-    let d = d.decomp_parallel(3);
+    let d = d.decompose_parallel();
     // d.decomp_all();
     println!("Finished in {:.2?}", time.elapsed());
 
@@ -86,7 +86,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         g.tcount(),
         max
     );
-    println!("{:?}", d.scalar);
+    println!("{:?}", d.scalar());
 
     Ok(())
 }
