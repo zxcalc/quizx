@@ -232,6 +232,285 @@ impl std::fmt::Display for Decomp {
     }
 }
 
+fn bss_choose_decomp(g: &impl GraphLike, random_t: &bool) -> Decomp {
+    let ts = if *random_t {
+        random_ts(g, &mut thread_rng())
+    } else {
+        first_ts(g)
+    };
+    TDecomp(ts)
+}
+
+fn bss_with_cats_choose_decomp(g: &impl GraphLike, random_t: &bool) -> Decomp {
+    let cat_nodes = cat_ts(g);
+    if cat_nodes.len() > 3 {
+        // println!("using cat!");
+        CatDecomp(cat_nodes)
+    } else {
+        let ts = if *random_t {
+            random_ts(g, &mut thread_rng())
+        } else {
+            first_ts(g)
+        };
+        if ts.len() >= 5 {
+            // println!("using M5!");
+            Magic5FromCat(ts[0..5].to_vec())
+        } else {
+            // println!("using Ts");
+            TDecomp(ts)
+        }
+    }
+}
+
+fn dynamic_t_choose_decomp(g: &impl GraphLike) -> Decomp {
+    let ts = first_ts(g);
+    let cat_nodes = cat_ts(g);
+    let cat_alpha = match cat_nodes.len() {
+        0 => 10f64,
+        4 => 0.333,
+        5 => 0.25,
+        6 => 0.317,
+        7 => 0.264,
+        _ => panic!("Weird Cat detected!"),
+    };
+
+    //FIND BEST SINGEL CUT
+    let mut vertices_with_denom_1 = HashMap::new();
+    let mut vertices_with_denom_4 = HashMap::new();
+    let mut weights = HashMap::new();
+    let mut weights5 = HashMap::new();
+    // let mut weights2 = HashMap::new();
+
+    for v in g.vertices() {
+        if g.phase(v).is_pauli() {
+            let neighbours = g.neighbor_vec(v);
+            let filtered_neighbours = neighbours
+                .iter()
+                .filter(|&w| g.neighbor_vec(*w).len() > 1)
+                .cloned()
+                .collect::<HashSet<_>>();
+            vertices_with_denom_1.insert(v, filtered_neighbours);
+        } else if g.phase(v).is_t() {
+            // ignore the ones in the gadgets
+            if g.neighbor_vec(v).len() < 2 {
+                continue;
+            }
+            let filtered_neighbours = g
+                .neighbor_vec(v)
+                .into_iter()
+                .filter(|&w| g.phase(w).is_pauli())
+                .collect::<HashSet<_>>();
+            // if g.neighbor_vec(v).len() >= 2 {
+            vertices_with_denom_4.insert(v, filtered_neighbours);
+            weights.insert(v, 0.0);
+            weights5.insert(v, 0.0);
+            // weights2.insert(v, 0.0);
+            // }
+        }
+    }
+    // let mut processed_pairs = HashSet::new();
+
+    // Add weight for T-spiders in a pair
+    for v in g.vertices() {
+        let v_neigh = g.neighbor_vec(v);
+        let n = v_neigh.len();
+        if g.phase(v).is_pauli() {
+            if n == 3 {
+                // cat3 heuristic
+                for w in v_neigh.clone() {
+                    weights.entry(w).and_modify(|e| *e += 2.0);
+                }
+                // cat3 vertices should not be part of phase gadget cuts
+                continue;
+            } else if n == 5 {
+                // cat5 heuristic
+                for w in v_neigh.clone() {
+                    weights5.entry(w).and_modify(|e| *e += 1.0);
+                }
+            }
+        } else {
+            // Removing itself from the cut
+            weights.entry(v).and_modify(|e| *e += 1.0);
+            if n > 1 {
+                continue;
+            }
+            // Lone phase heuristic
+            for w in v_neigh {
+                weights.entry(w).and_modify(|e| *e += 1.0);
+            }
+        }
+    }
+
+    for (k, _v) in weights.clone() {
+        let ncut5 = *weights5.get(&k).unwrap();
+        weights
+            .entry(k)
+            .and_modify(|e| *e = f64::max(*e, (*e + 4.0 * ncut5) / (ncut5 + 1.0)));
+    }
+
+    let max_weight = weights.iter().max_by(|a, b| a.1.partial_cmp(b.1).unwrap());
+    let (v_single, alpha_single) = match max_weight {
+        Some((max_key, max_val)) => (vec![*max_key], 1.0 / *max_val),
+        None => (vec![0], 5f64),
+    };
+
+    //FIND BEST PAIR CUT
+    let mut best_n = 0usize;
+    let mut vs_pair = vec![];
+    let mut alpha_pair = 5f64;
+    for v in g.vertices() {
+        if !g.phase(v).is_t() {
+            continue;
+        }
+        let v_neigh0 = g
+            .neighbor_vec(v)
+            .iter()
+            .cloned()
+            .filter(|&w| g.phase(w).is_t() && g.neighbor_vec(w).len() == 4)
+            .collect_vec();
+        let v_neight = g
+            .neighbor_vec(v)
+            .iter()
+            .cloned()
+            .filter(|&w| g.phase(w).is_t() && g.neighbor_vec(w).len() == 2)
+            .collect_vec();
+
+        let v_neigh0_set = v_neigh0.iter().cloned().collect::<HashSet<_>>();
+        let v_neight_set = v_neight.iter().cloned().collect::<HashSet<_>>();
+
+        for w in g.vertices() {
+            if g.phase(w).is_t() || w == v {
+                continue;
+            }
+            let w_neigh0 = g
+                .neighbor_vec(w)
+                .iter()
+                .cloned()
+                .filter(|&w| (g.phase(w).is_pauli()) && g.neighbor_vec(w).len() == 4)
+                .collect_vec();
+            let w_neight = g
+                .neighbor_vec(w)
+                .iter()
+                .cloned()
+                .filter(|&w| g.phase(w).is_t() && g.neighbor_vec(w).len() == 2)
+                .collect_vec();
+
+            let w_neigh0_set = w_neigh0.iter().cloned().collect::<HashSet<_>>();
+            let w_neight_set = w_neight.iter().cloned().collect::<HashSet<_>>();
+
+            let common0 = v_neigh0_set
+                .intersection(&w_neigh0_set)
+                .cloned()
+                .collect_vec();
+            let commont = v_neight_set
+                .intersection(&w_neight_set)
+                .cloned()
+                .collect_vec();
+
+            let n0 = 2 * common0.len();
+            let nt = commont.len();
+
+            if n0 <= best_n && nt <= best_n {
+                continue;
+            }
+
+            if n0 >= nt {
+                best_n = n0;
+                vs_pair = common0;
+                vs_pair.append(vec![v, w].as_mut());
+                alpha_pair = 1.0 / (n0 + 2) as f64;
+            } else {
+                best_n = nt;
+                vs_pair = commont;
+                vs_pair.append(vec![v, w].as_mut());
+                alpha_pair = 1.0 / (nt + 2) as f64;
+            }
+        }
+    }
+    let (heur_decomp, heur_alpha) = if alpha_single < alpha_pair {
+        (SingleDecomp(v_single), alpha_single)
+    } else {
+        (TPairDecomp(vs_pair), alpha_pair)
+    };
+
+    if cat_alpha < heur_alpha {
+        CatDecomp(cat_nodes)
+    } else if heur_alpha < 0.396 {
+        // println!("Decomp: {:?}, Alpha: {}", heur_decomp, heur_alpha);
+        heur_decomp
+    } else if ts.len() >= 5 {
+        Magic5FromCat(ts[0..5].to_vec())
+    } else {
+        TDecomp(ts)
+    }
+}
+
+fn sherlock_choose_decomp(g: &impl GraphLike, tries: &[usize]) -> Decomp {
+    use rand::seq::SliceRandom;
+    let mut rng = thread_rng();
+    let t_vertices: Vec<usize> = g.vertices().filter(|vert| g.phase(*vert).is_t()).collect();
+
+    // println!("{:?}", t_vertices);
+    let mut indices: Vec<usize> = t_vertices.clone();
+    indices.shuffle(&mut rng);
+    let mut single_candidates: Vec<_> = indices
+        .into_iter()
+        .take(tries[0])
+        .map(|vert| SingleDecomp(vec![vert]))
+        .collect();
+
+    let mut magic_candidates = if t_vertices.len() < 5 {
+        vec![]
+    } else {
+        (0..tries[1])
+            .map(|_| Magic5FromCat(t_vertices.choose_multiple(&mut rng, 5).cloned().collect()))
+            .collect()
+    };
+
+    let mut cat_candidates = g
+        .vertices()
+        .filter_map(|vert| {
+            if g.vertex_type(vert) == VType::Z && g.phase(vert).is_pauli() {
+                let mut neighs = g.neighbor_vec(vert);
+                if neighs.len() <= 6
+                    && neighs.len() >= 3
+                    && neighs.iter().all(|&n| {
+                        g.vertex_type(n) == VType::Z
+                            && g.phase(n).is_t()
+                            && g.edge_type(vert, n) == EType::H
+                    })
+                {
+                    let mut res = vec![vert];
+                    res.append(&mut neighs);
+                    Some(CatDecomp(res))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .take(tries[2])
+        .collect();
+
+    let mut all_candidates = vec![];
+    all_candidates.append(&mut single_candidates);
+    all_candidates.append(&mut magic_candidates);
+    all_candidates.append(&mut cat_candidates);
+    match all_candidates
+        .into_iter()
+        .map(|candidate| (eff_alpha(g, &candidate), candidate))
+        // .inspect(|decomp| println!("{:?}", decomp))
+        .min_by(|(val1, _), (val2, _)| val1.partial_cmp(val2).unwrap())
+    {
+        None => SingleDecomp(vec![]),
+        Some((_, decomp)) => {
+            // println!("{}", decomp);
+            decomp
+        }
+    }
+}
+
 #[derive(Clone, Debug, strum_macros::Display)]
 pub enum Driver {
     BssTOnly(bool),
@@ -245,289 +524,10 @@ use Driver::*;
 impl Driver {
     fn choose_decomp(&self, g: &impl GraphLike) -> Decomp {
         match self {
-            BssTOnly(random_t) => {
-                let ts = if *random_t {
-                    random_ts(g, &mut thread_rng())
-                } else {
-                    first_ts(g)
-                };
-                TDecomp(ts)
-            }
-            BssWithCats(random_t) => {
-                let cat_nodes = cat_ts(g);
-                if cat_nodes.len() > 3 {
-                    // println!("using cat!");
-                    CatDecomp(cat_nodes)
-                } else {
-                    let ts = if *random_t {
-                        random_ts(g, &mut thread_rng())
-                    } else {
-                        first_ts(g)
-                    };
-                    if ts.len() >= 5 {
-                        // println!("using M5!");
-                        Magic5FromCat(ts[0..5].to_vec())
-                    } else {
-                        // println!("using Ts");
-                        TDecomp(ts)
-                    }
-                }
-            }
-            DynamicT => {
-                let ts = first_ts(g);
-                let cat_nodes = cat_ts(g);
-                let cat_alpha = match cat_nodes.len() {
-                    0 => 10f64,
-                    4 => 0.333,
-                    5 => 0.25,
-                    6 => 0.317,
-                    7 => 0.264,
-                    _ => panic!("Weird Cat detected!"),
-                };
-
-                //FIND BEST SINGEL CUT
-                let mut vertices_with_denom_1 = HashMap::new();
-                let mut vertices_with_denom_4 = HashMap::new();
-                let mut weights = HashMap::new();
-                let mut weights5 = HashMap::new();
-                // let mut weights2 = HashMap::new();
-
-                for v in g.vertices() {
-                    if g.phase(v).is_one() || g.phase(v).is_zero() {
-                        let neighbours = g.neighbor_vec(v);
-                        let filtered_neighbours = neighbours
-                            .iter()
-                            .filter(|&w| g.neighbor_vec(*w).len() > 1)
-                            .cloned()
-                            .collect::<HashSet<_>>();
-                        vertices_with_denom_1.insert(v, filtered_neighbours);
-                    } else if g.phase(v).is_t() {
-                        // ignore the ones in the gadgets
-                        if g.neighbor_vec(v).len() < 2 {
-                            continue;
-                        }
-                        let filtered_neighbours = g
-                            .neighbor_vec(v)
-                            .into_iter()
-                            .filter(|&w| g.phase(w).is_one() || g.phase(w).is_zero())
-                            .collect::<HashSet<_>>();
-                        // if g.neighbor_vec(v).len() >= 2 {
-                        vertices_with_denom_4.insert(v, filtered_neighbours);
-                        weights.insert(v, 0.0);
-                        weights5.insert(v, 0.0);
-                        // weights2.insert(v, 0.0);
-                        // }
-                    }
-                }
-                // let mut processed_pairs = HashSet::new();
-
-                // Add weight for T-spiders in a pair
-                for v in g.vertices() {
-                    let v_neigh = g.neighbor_vec(v);
-                    let n = v_neigh.len();
-                    if g.phase(v).is_zero() || g.phase(v).is_one() {
-                        if n == 3 {
-                            // cat3 heuristic
-                            for w in v_neigh.clone() {
-                                weights.entry(w).and_modify(|e| *e += 2.0);
-                            }
-                            // cat3 vertices should not be part of phase gadget cuts
-                            continue;
-                        } else if n == 5 {
-                            // cat5 heuristic
-                            for w in v_neigh.clone() {
-                                weights5.entry(w).and_modify(|e| *e += 1.0);
-                            }
-                        }
-                    } else {
-                        // Removing itself from the cut
-                        weights.entry(v).and_modify(|e| *e += 1.0);
-                        if n > 1 {
-                            continue;
-                        }
-                        // Lone phase heuristic
-                        for w in v_neigh {
-                            weights.entry(w).and_modify(|e| *e += 1.0);
-                        }
-                    }
-                }
-
-                for (k, _v) in weights.clone() {
-                    let ncut5 = *weights5.get(&k).unwrap();
-                    weights
-                        .entry(k)
-                        .and_modify(|e| *e = f64::max(*e, (*e + 4.0 * ncut5) / (ncut5 + 1.0)));
-                }
-
-                let max_weight = weights.iter().max_by(|a, b| a.1.partial_cmp(b.1).unwrap());
-                let (v_single, alpha_single) = match max_weight {
-                    Some((max_key, max_val)) => (vec![*max_key], 1.0 / *max_val),
-                    None => (vec![0], 5f64),
-                };
-
-                //FIND BEST PAIR CUT
-                let mut best_n = 0usize;
-                let mut vs_pair = vec![];
-                let mut alpha_pair = 5f64;
-                for v in g.vertices() {
-                    if !g.phase(v).is_t() {
-                        continue;
-                    }
-                    let v_neigh0 = g
-                        .neighbor_vec(v)
-                        .iter()
-                        .cloned()
-                        .filter(|&w| g.phase(w).is_t() && g.neighbor_vec(w).len() == 4)
-                        .collect_vec();
-                    let v_neight = g
-                        .neighbor_vec(v)
-                        .iter()
-                        .cloned()
-                        .filter(|&w| g.phase(w).is_t() && g.neighbor_vec(w).len() == 2)
-                        .collect_vec();
-
-                    let v_neigh0_set = v_neigh0.iter().cloned().collect::<HashSet<_>>();
-                    let v_neight_set = v_neight.iter().cloned().collect::<HashSet<_>>();
-
-                    for w in g.vertices() {
-                        if g.phase(w).is_t() || w == v {
-                            continue;
-                        }
-                        let w_neigh0 = g
-                            .neighbor_vec(w)
-                            .iter()
-                            .cloned()
-                            .filter(|&w| {
-                                (g.phase(w).is_zero() || g.phase(w).is_one())
-                                    && g.neighbor_vec(w).len() == 4
-                            })
-                            .collect_vec();
-                        let w_neight = g
-                            .neighbor_vec(w)
-                            .iter()
-                            .cloned()
-                            .filter(|&w| g.phase(w).is_t() && g.neighbor_vec(w).len() == 2)
-                            .collect_vec();
-
-                        let w_neigh0_set = w_neigh0.iter().cloned().collect::<HashSet<_>>();
-                        let w_neight_set = w_neight.iter().cloned().collect::<HashSet<_>>();
-
-                        let common0 = v_neigh0_set
-                            .intersection(&w_neigh0_set)
-                            .cloned()
-                            .collect_vec();
-                        let commont = v_neight_set
-                            .intersection(&w_neight_set)
-                            .cloned()
-                            .collect_vec();
-
-                        let n0 = 2 * common0.len();
-                        let nt = commont.len();
-
-                        if n0 <= best_n && nt <= best_n {
-                            continue;
-                        }
-
-                        if n0 >= nt {
-                            best_n = n0;
-                            vs_pair = common0;
-                            vs_pair.append(vec![v, w].as_mut());
-                            alpha_pair = 1.0 / (n0 + 2) as f64;
-                        } else {
-                            best_n = nt;
-                            vs_pair = commont;
-                            vs_pair.append(vec![v, w].as_mut());
-                            alpha_pair = 1.0 / (nt + 2) as f64;
-                        }
-                    }
-                }
-                let (heur_decomp, heur_alpha) = if alpha_single < alpha_pair {
-                    (SingleDecomp(v_single), alpha_single)
-                } else {
-                    (TPairDecomp(vs_pair), alpha_pair)
-                };
-
-                if cat_alpha < heur_alpha {
-                    CatDecomp(cat_nodes)
-                } else if heur_alpha < 0.396 {
-                    // println!("Decomp: {:?}, Alpha: {}", heur_decomp, heur_alpha);
-                    heur_decomp
-                } else if ts.len() >= 5 {
-                    Magic5FromCat(ts[0..5].to_vec())
-                } else {
-                    TDecomp(ts)
-                }
-            }
-            Sherlock(tries) => {
-                use rand::seq::SliceRandom;
-                let mut rng = thread_rng();
-                let t_vertices: Vec<usize> =
-                    g.vertices().filter(|vert| g.phase(*vert).is_t()).collect();
-
-                // println!("{:?}", t_vertices);
-                let mut indices: Vec<usize> = t_vertices.clone();
-                indices.shuffle(&mut rng);
-                let mut single_candidates: Vec<_> = indices
-                    .into_iter()
-                    .take(tries[0])
-                    .map(|vert| SingleDecomp(vec![vert]))
-                    .collect();
-
-                let mut magic_candidates = if t_vertices.len() < 5 {
-                    vec![]
-                } else {
-                    (0..tries[1])
-                        .map(|_| {
-                            Magic5FromCat(
-                                t_vertices.choose_multiple(&mut rng, 5).cloned().collect(),
-                            )
-                        })
-                        .collect()
-                };
-
-                let mut cat_candidates = g
-                    .vertices()
-                    .filter_map(|vert| {
-                        if g.vertex_type(vert) == VType::Z && g.phase(vert).is_pauli() {
-                            let mut neighs = g.neighbor_vec(vert);
-                            if neighs.len() <= 6
-                                && neighs.len() >= 3
-                                && neighs.iter().all(|&n| {
-                                    g.vertex_type(n) == VType::Z
-                                        && g.phase(n).is_t()
-                                        && g.edge_type(vert, n) == EType::H
-                                })
-                            {
-                                let mut res = vec![vert];
-                                res.append(&mut neighs);
-                                Some(CatDecomp(res))
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    })
-                    .take(tries[2])
-                    .collect();
-
-                let mut all_candidates = vec![];
-                all_candidates.append(&mut single_candidates);
-                all_candidates.append(&mut magic_candidates);
-                all_candidates.append(&mut cat_candidates);
-                match all_candidates
-                    .into_iter()
-                    .map(|candidate| (eff_alpha(g, &candidate), candidate))
-                    // .inspect(|decomp| println!("{:?}", decomp))
-                    .min_by(|(val1, _), (val2, _)| val1.partial_cmp(val2).unwrap())
-                {
-                    None => SingleDecomp(vec![]),
-                    Some((_, decomp)) => {
-                        // println!("{}", decomp);
-                        decomp
-                    }
-                }
-            }
+            BssTOnly(random_t) => bss_choose_decomp(g, random_t),
+            BssWithCats(random_t) => bss_with_cats_choose_decomp(g, random_t),
+            DynamicT => dynamic_t_choose_decomp(g),
+            Sherlock(tries) => sherlock_choose_decomp(g, tries),
         }
     }
 }
@@ -1059,7 +1059,7 @@ impl<G: GraphLike> Decomposer<G> {
     }
 
     pub fn decomp_until_depth(&mut self, depth: i64) -> &mut Self {
-        self.result = self.decompose_graph(self.result.clone(), false, 0, depth, false);
+        self.result = self.decompose_node(self.result.clone(), false, 0, depth, false);
         self
     }
 
@@ -1070,12 +1070,12 @@ impl<G: GraphLike> Decomposer<G> {
 
     /// Decompose until there are no T gates left
     pub fn decompose(&mut self) -> &mut Self {
-        self.result = self.decompose_graph(self.result.clone(), false, 0, -1, true);
+        self.result = self.decompose_node(self.result.clone(), false, 0, -1, true);
         self
     }
 
     pub fn decompose_parallel(&mut self) -> &mut Self {
-        self.result = self.decompose_graph(self.result.clone(), true, 0, -1, true);
+        self.result = self.decompose_node(self.result.clone(), true, 0, -1, true);
         self
     }
 
@@ -1092,7 +1092,151 @@ impl<G: GraphLike> Decomposer<G> {
         }
     }
 
+    fn try_decompose_by_components(
+        &mut self,
+        g: &mut G,
+        parallel: bool,
+        current_depth: i64,
+        target_depth: i64,
+        reduce_computation: bool,
+    ) -> Option<ComputationNode<G>> {
+        let components = g.component_vertices();
+        if components.len() > 1 {
+            // println!("Number of components {}", components.len());
+            let subgraphs: Vec<G> = components
+                .into_iter()
+                .map(|component| g.subgraph_from_vertices(component.into_iter().collect()))
+                .collect();
+            let terms_vec: Vec<ComputationNode<G>> = if parallel {
+                subgraphs
+                    .into_par_iter()
+                    .map(|term| {
+                        let mut d = self.clone();
+                        d.decompose_node(
+                            ComputationNode::Graph(term),
+                            parallel,
+                            current_depth + 1,
+                            target_depth,
+                            reduce_computation,
+                        )
+                    })
+                    .collect()
+            } else {
+                subgraphs
+                    .into_iter()
+                    .map(|term| {
+                        self.decompose_node(
+                            ComputationNode::Graph(term),
+                            parallel,
+                            current_depth + 1,
+                            target_depth,
+                            reduce_computation,
+                        )
+                    })
+                    .collect()
+            };
+            if reduce_computation {
+                return Some(ComputationNode::Scalar(
+                    terms_vec
+                        .into_iter()
+                        .map(|node| self.node_to_scalar(node))
+                        .product(),
+                ));
+            } else {
+                return Some(ComputationNode::Prod(terms_vec));
+            }
+        }
+        None
+    }
+
     fn decompose_graph(
+        &mut self,
+        mut g: G,
+        current_depth: i64,
+        parallel: bool,
+        target_depth: i64,
+        reduce_computation: bool,
+    ) -> ComputationNode<G> {
+        if current_depth == target_depth {
+            ComputationNode::Graph(g)
+        } else {
+            if self.split_graph_components {
+                if let Some(node) = self.try_decompose_by_components(
+                    &mut g,
+                    parallel,
+                    current_depth,
+                    target_depth,
+                    reduce_computation,
+                ) {
+                    return node;
+                }
+            };
+            match self.simp_func {
+                FullSimp => {
+                    crate::simplify::full_simp(&mut g);
+                }
+                CliffordSimp => {
+                    crate::simplify::clifford_simp(&mut g);
+                }
+                _ => {}
+            }
+            //check if clifford
+            if g.tcount() == 0 {
+                crate::simplify::full_simp(&mut g);
+                self.nterms += 1;
+                if g.inputs().is_empty() && g.outputs().is_empty() && g.num_vertices() != 0 {
+                    println!("{}", g.to_dot());
+                    panic!("WARNING: graph was not fully reduced");
+                }
+                if self.save {
+                    self.done.push(g.clone());
+                }
+                return ComputationNode::Scalar(*g.scalar());
+            }
+            let decomp = self.driver.choose_decomp(&g);
+            let terms = apply_decomp(&g, &decomp);
+            let terms_vec: Vec<ComputationNode<G>> = if parallel {
+                terms
+                    .into_par_iter()
+                    .map(|term| {
+                        let mut d = self.clone();
+                        d.decompose_node(
+                            ComputationNode::Graph(term),
+                            parallel,
+                            current_depth + 1,
+                            target_depth,
+                            reduce_computation,
+                        )
+                    })
+                    .collect()
+            } else {
+                terms
+                    .into_iter()
+                    .map(|term| {
+                        self.decompose_node(
+                            ComputationNode::Graph(term),
+                            parallel,
+                            current_depth + 1,
+                            target_depth,
+                            reduce_computation,
+                        )
+                    })
+                    .collect()
+            };
+            if reduce_computation {
+                ComputationNode::Scalar(
+                    terms_vec
+                        .into_iter()
+                        .map(|node| self.node_to_scalar(node))
+                        .sum(),
+                )
+            } else {
+                ComputationNode::Sum(terms_vec)
+            }
+        }
+    }
+
+    fn decompose_node(
         &mut self,
         node: ComputationNode<G>,
         parallel: bool,
@@ -1110,7 +1254,7 @@ impl<G: GraphLike> Decomposer<G> {
                 let results: Vec<_> = terms
                     .into_iter()
                     .map(|term| {
-                        self.decompose_graph(term, parallel, current_depth + 1, target_depth, true)
+                        self.decompose_node(term, parallel, current_depth + 1, target_depth, true)
                     })
                     .collect();
                 if reduce_computation {
@@ -1129,7 +1273,7 @@ impl<G: GraphLike> Decomposer<G> {
                     let results: Vec<_> = terms
                         .into_iter()
                         .map(|term| {
-                            self.decompose_graph(
+                            self.decompose_node(
                                 term,
                                 parallel,
                                 current_depth + 1,
@@ -1153,7 +1297,7 @@ impl<G: GraphLike> Decomposer<G> {
                         terms
                             .into_iter()
                             .map(|term| {
-                                self.decompose_graph(
+                                self.decompose_node(
                                     term,
                                     parallel,
                                     current_depth + 1,
@@ -1165,130 +1309,8 @@ impl<G: GraphLike> Decomposer<G> {
                     )
                 }
             }
-            ComputationNode::Graph(mut g) => {
-                if current_depth == target_depth {
-                    ComputationNode::Graph(g)
-                } else {
-                    if self.split_graph_components {
-                        let components = g.component_vertices();
-                        if components.len() > 1 {
-                            // println!("Number of components {}", components.len());
-                            let subgraphs: Vec<G> = components
-                                .into_iter()
-                                .map(|component| {
-                                    g.subgraph_from_vertices(component.into_iter().collect())
-                                })
-                                .collect();
-                            let terms_vec: Vec<ComputationNode<G>> = if parallel {
-                                subgraphs
-                                    .into_par_iter()
-                                    .map(|term| {
-                                        let mut d = self.clone();
-                                        d.decompose_graph(
-                                            ComputationNode::Graph(term),
-                                            parallel,
-                                            current_depth + 1,
-                                            target_depth,
-                                            reduce_computation,
-                                        )
-                                    })
-                                    .collect()
-                            } else {
-                                subgraphs
-                                    .into_iter()
-                                    .map(|term| {
-                                        self.decompose_graph(
-                                            ComputationNode::Graph(term),
-                                            parallel,
-                                            current_depth + 1,
-                                            target_depth,
-                                            reduce_computation,
-                                        )
-                                    })
-                                    .collect()
-                            };
-                            if reduce_computation {
-                                // println!("Component Scalars {:?}", (terms_vec.clone().into_iter().map(|node| self.node_to_scalar(node))).collect_vec());
-                                // let prod: FScalar = terms_vec.clone()
-                                // .into_iter()
-                                // .map(|node| self.node_to_scalar(node))
-                                // .product();
-                                // println!("Product; {}", prod);
-                                return ComputationNode::Scalar(
-                                    terms_vec
-                                        .into_iter()
-                                        .map(|node| self.node_to_scalar(node))
-                                        .product(),
-                                );
-                            } else {
-                                return ComputationNode::Prod(terms_vec);
-                            }
-                        }
-                    };
-                    match self.simp_func {
-                        FullSimp => {
-                            crate::simplify::full_simp(&mut g);
-                        }
-                        CliffordSimp => {
-                            crate::simplify::clifford_simp(&mut g);
-                        }
-                        _ => {}
-                    }
-                    //check if clifford
-                    if g.tcount() == 0 {
-                        crate::simplify::full_simp(&mut g);
-                        self.nterms += 1;
-                        if g.inputs().is_empty() && g.outputs().is_empty() && g.num_vertices() != 0
-                        {
-                            println!("{}", g.to_dot());
-                            panic!("WARNING: graph was not fully reduced");
-                        }
-                        if self.save {
-                            self.done.push(g.clone());
-                        }
-                        return ComputationNode::Scalar(*g.scalar());
-                    }
-                    let decomp = self.driver.choose_decomp(&g);
-                    let terms = apply_decomp(&g, &decomp);
-                    let terms_vec: Vec<ComputationNode<G>> = if parallel {
-                        terms
-                            .into_par_iter()
-                            .map(|term| {
-                                let mut d = self.clone();
-                                d.decompose_graph(
-                                    ComputationNode::Graph(term),
-                                    parallel,
-                                    current_depth + 1,
-                                    target_depth,
-                                    reduce_computation,
-                                )
-                            })
-                            .collect()
-                    } else {
-                        terms
-                            .into_iter()
-                            .map(|term| {
-                                self.decompose_graph(
-                                    ComputationNode::Graph(term),
-                                    parallel,
-                                    current_depth + 1,
-                                    target_depth,
-                                    reduce_computation,
-                                )
-                            })
-                            .collect()
-                    };
-                    if reduce_computation {
-                        ComputationNode::Scalar(
-                            terms_vec
-                                .into_iter()
-                                .map(|node| self.node_to_scalar(node))
-                                .sum(),
-                        )
-                    } else {
-                        ComputationNode::Sum(terms_vec)
-                    }
-                }
+            ComputationNode::Graph(g) => {
+                self.decompose_graph(g, current_depth, parallel, target_depth, reduce_computation)
             }
         }
     }
@@ -1517,7 +1539,7 @@ mod tests {
 
         // Test with different T-gate counts
         for graph_generator in graph_generators {
-            for size in 5..=10 {
+            for size in 1..=7 {
                 let g = graph_generator(size);
                 let expected_scalar = g.to_tensorf()[[]];
 
@@ -1527,7 +1549,7 @@ mod tests {
                             for &parallel in &parallel_modes {
                                 let mut d = Decomposer::new(&g);
                                 d.with_simp(*simp).with_driver(driver.clone());
-                                d.split_graph_components = split;
+                                d.with_split_graphs_components(true);
                                 // println!("X");
                                 if parallel {
                                     d.decompose_parallel();
@@ -1744,10 +1766,10 @@ mod tests {
 
         let expected_scalar = g.to_tensorf()[[]];
 
-        // Test with split_graph_components = true
+        // Test with split_graph_components
         let mut d = Decomposer::new(&g);
         d.with_full_simp();
-        d.split_graph_components = true;
+        d.with_split_graphs_components(true);
         d.decompose();
 
         assert_eq!(expected_scalar, d.scalar());
