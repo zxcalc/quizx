@@ -58,13 +58,21 @@ impl Decomposer {
         self.d.with_save(b);
     }
 
-    fn with_driver(&mut self, driver_type: &str, random_t: bool) {
+    #[pyo3(signature = (driver_type, random_t = false, sherlock_tries = Vec::new()))]
+    fn with_driver(&mut self, driver_type: &str, random_t: bool, sherlock_tries: Vec<usize>) {
+        println!("{:?}", sherlock_tries);
         match driver_type {
             "BssTOnly" => {
                 self.d.with_driver(Driver::BssTOnly(random_t));
             }
             "BssWithCats" => {
                 self.d.with_driver(Driver::BssWithCats(random_t));
+            }
+            "DynamicT" => {
+                self.d.with_driver(Driver::DynamicT);
+            }
+            "Sherlock" => {
+                self.d.with_driver(Driver::Sherlock(sherlock_tries));
             }
             _ => {
                 println!("Driver Not Supported!");

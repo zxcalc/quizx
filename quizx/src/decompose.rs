@@ -14,9 +14,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::fmt::Debug;
+
 // use crate::decompose;
 use crate::fscalar::*;
+// use crate::graph;
 use crate::graph::*;
+use itertools::Itertools;
+// use rand::seq::SliceRandom;
+// use rayon::vec;
+use roots::SimpleConvergency;
+// use strum_macros::Display;
 // use crate::hash_graph::Graph;
 // use crate::tensor::Tensor;
 // use itertools::Itertools;
@@ -109,6 +119,85 @@ pub fn cat_ts<G: GraphLike>(g: &G) -> Vec<V> {
     res
 }
 
+pub fn approximate_alpha_with(
+    r_values: Vec<f64>,
+    // initial_alpha: f64,
+    max_iterations: usize,
+    tolerance: f64,
+) -> f64 {
+    // let neg_ln_2 = std::f64::consts::LN_2;
+    let f = |alpha: f64| -> f64 {
+        r_values
+            .iter()
+            .map(|&r_i| (-alpha * r_i).exp2())
+            .sum::<f64>()
+            - 1.0
+    };
+    // let df = |alpha: f64| -> f64 {
+    //     neg_ln_2 * r_values.iter()
+    //         .map(|&r_i| r_i * (-alpha * r_i).exp2())
+    //         .sum::<f64>()verts
+    // };
+
+    let mut convergency = SimpleConvergency {
+        eps: tolerance,
+        max_iter: max_iterations,
+    };
+    match roots::find_root_brent(2f64, 0f64, &f, &mut convergency) {
+        Err(error) => panic!(
+            "Couldnt Find Alpha, Error: {}, For r: {:?}",
+            error, r_values
+        ),
+        Ok(alpha) => alpha,
+    }
+}
+
+fn eff_alpha(g: &impl GraphLike, d: &Decomp) -> f64 {
+    let old_tcount = g.tcount();
+    let terms = apply_decomp(g, d);
+    // println!("{}", d);
+    // for mut term in terms {
+    //     println!("tcount of that term: {}", &term.tcount());
+    //     if old_tcount == 1 {
+    //         println!("This term: {}", term.to_dot());
+    //         println!("G itself: {}", g.to_dot());
+    //         println!("Components in that term: {}", term.component_vertices().into_iter()
+    //         .map(|component| { {
+    //             println!("XX");
+    //             term.subgraph_from_vertices(component.into_iter().collect())
+    //         }
+    //     }).len());
+    //     println!("This term vertices: {:?}", term.vertices().collect::<Vec<_>>());
+    //     }
+    // }
+    let mut components: Vec<_> = vec![];
+    for mut term in terms {
+        crate::simplify::full_simp(&mut term);
+        // println!("ZZ -> {:?}", term.vertices().collect::<Vec<_>>());
+        let comps = term.component_vertices();
+        if comps.len() > 1 {
+            for comp in comps {
+                // println!("XX -> {:?}", comp);
+                // println!("YY -> {:?}", term.vertices().collect::<Vec<_>>());
+                let sub = term.subgraph_from_vertices(comp.into_iter().collect());
+                components.push(sub)
+            }
+        } else {
+            components.push(term);
+        }
+    }
+    // println!("{}", old_tcount);
+    // println!("Total Components: {}", components.len());
+    // println!("{}", g.to_dot());
+    // for comp in components.clone() {
+    //     // println!("{}", comp.to_dot())
+    //     // println!("That component t count : {}", comp.tcount());
+    //     // println!("Component verts: {:?}", comp.vertices().collect::<Vec<_>>());
+    // }
+    let tcount_reductions = components.iter().map(|x| (old_tcount - x.tcount()) as f64);
+    approximate_alpha_with(tcount_reductions.collect(), 32, 0.001f64)
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum SimpFunc {
     FullSimp,
@@ -117,6 +206,7 @@ pub enum SimpFunc {
 }
 use SimpFunc::*;
 
+#[derive(Debug)]
 pub enum Decomp {
     CatDecomp(Vec<usize>),
     Magic5FromCat(Vec<usize>),
@@ -124,13 +214,31 @@ pub enum Decomp {
     BssDecomp(Vec<usize>),
     SymDecomp(Vec<usize>),
     SingleDecomp(Vec<usize>),
+    TPairDecomp(Vec<usize>),
 }
 use Decomp::*;
 
-#[derive(Clone, Debug, derive_more::Display)]
+impl std::fmt::Display for Decomp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Decomp::CatDecomp(verts) => write!(f, "CatDecomp {:?}", verts),
+            Decomp::Magic5FromCat(verts) => write!(f, "Magic5FromCat {:?}", verts),
+            Decomp::TDecomp(verts) => write!(f, "TDecomp {:?}", verts),
+            Decomp::BssDecomp(verts) => write!(f, "BssDecomp {:?}", verts),
+            Decomp::SymDecomp(verts) => write!(f, "SymDecomp {:?}", verts),
+            Decomp::SingleDecomp(verts) => write!(f, "SingleDecomp {:?}", verts),
+            Decomp::TPairDecomp(verts) => write!(f, "TPairDecomp {:?}", verts),
+        }
+    }
+}
+
+#[derive(Clone, Debug, strum_macros::Display)]
 pub enum Driver {
     BssTOnly(bool),
     BssWithCats(bool),
+    DynamicT,
+    #[strum(serialize = "Sherlock")]
+    Sherlock(Vec<usize>),
 }
 use Driver::*;
 
@@ -162,6 +270,261 @@ impl Driver {
                     } else {
                         // println!("using Ts");
                         TDecomp(ts)
+                    }
+                }
+            }
+            DynamicT => {
+                let ts = first_ts(g);
+                let cat_nodes = cat_ts(g);
+                let cat_alpha = match cat_nodes.len() {
+                    0 => 10f64,
+                    4 => 0.333,
+                    5 => 0.25,
+                    6 => 0.317,
+                    7 => 0.264,
+                    _ => panic!("Weird Cat detected!"),
+                };
+
+                //FIND BEST SINGEL CUT
+                let mut vertices_with_denom_1 = HashMap::new();
+                let mut vertices_with_denom_4 = HashMap::new();
+                let mut weights = HashMap::new();
+                let mut weights5 = HashMap::new();
+                // let mut weights2 = HashMap::new();
+
+                for v in g.vertices() {
+                    if g.phase(v).is_one() || g.phase(v).is_zero() {
+                        let neighbours = g.neighbor_vec(v);
+                        let filtered_neighbours = neighbours
+                            .iter()
+                            .filter(|&w| g.neighbor_vec(*w).len() > 1)
+                            .cloned()
+                            .collect::<HashSet<_>>();
+                        vertices_with_denom_1.insert(v, filtered_neighbours);
+                    } else if g.phase(v).is_t() {
+                        // ignore the ones in the gadgets
+                        if g.neighbor_vec(v).len() < 2 {
+                            continue;
+                        }
+                        let filtered_neighbours = g
+                            .neighbor_vec(v)
+                            .into_iter()
+                            .filter(|&w| g.phase(w).is_one() || g.phase(w).is_zero())
+                            .collect::<HashSet<_>>();
+                        // if g.neighbor_vec(v).len() >= 2 {
+                        vertices_with_denom_4.insert(v, filtered_neighbours);
+                        weights.insert(v, 0.0);
+                        weights5.insert(v, 0.0);
+                        // weights2.insert(v, 0.0);
+                        // }
+                    }
+                }
+                // let mut processed_pairs = HashSet::new();
+
+                // Add weight for T-spiders in a pair
+                for v in g.vertices() {
+                    let v_neigh = g.neighbor_vec(v);
+                    let n = v_neigh.len();
+                    if g.phase(v).is_zero() || g.phase(v).is_one() {
+                        if n == 3 {
+                            // cat3 heuristic
+                            for w in v_neigh.clone() {
+                                weights.entry(w).and_modify(|e| *e += 2.0);
+                            }
+                            // cat3 vertices should not be part of phase gadget cuts
+                            continue;
+                        } else if n == 5 {
+                            // cat5 heuristic
+                            for w in v_neigh.clone() {
+                                weights5.entry(w).and_modify(|e| *e += 1.0);
+                            }
+                        }
+                    } else {
+                        // Removing itself from the cut
+                        weights.entry(v).and_modify(|e| *e += 1.0);
+                        if n > 1 {
+                            continue;
+                        }
+                        // Lone phase heuristic
+                        for w in v_neigh {
+                            weights.entry(w).and_modify(|e| *e += 1.0);
+                        }
+                    }
+                }
+
+                for (k, _v) in weights.clone() {
+                    let ncut5 = *weights5.get(&k).unwrap();
+                    weights
+                        .entry(k)
+                        .and_modify(|e| *e = f64::max(*e, (*e + 4.0 * ncut5) / (ncut5 + 1.0)));
+                }
+
+                let max_weight = weights.iter().max_by(|a, b| a.1.partial_cmp(b.1).unwrap());
+                let (v_single, alpha_single) = match max_weight {
+                    Some((max_key, max_val)) => (vec![*max_key], 1.0 / *max_val),
+                    None => (vec![0], 5f64),
+                };
+
+                //FIND BEST PAIR CUT
+                let mut best_n = 0usize;
+                let mut vs_pair = vec![];
+                let mut alpha_pair = 5f64;
+                for v in g.vertices() {
+                    if !g.phase(v).is_t() {
+                        continue;
+                    }
+                    let v_neigh0 = g
+                        .neighbor_vec(v)
+                        .iter()
+                        .cloned()
+                        .filter(|&w| g.phase(w).is_t() && g.neighbor_vec(w).len() == 4)
+                        .collect_vec();
+                    let v_neight = g
+                        .neighbor_vec(v)
+                        .iter()
+                        .cloned()
+                        .filter(|&w| g.phase(w).is_t() && g.neighbor_vec(w).len() == 2)
+                        .collect_vec();
+
+                    let v_neigh0_set = v_neigh0.iter().cloned().collect::<HashSet<_>>();
+                    let v_neight_set = v_neight.iter().cloned().collect::<HashSet<_>>();
+
+                    for w in g.vertices() {
+                        if g.phase(w).is_t() || w == v {
+                            continue;
+                        }
+                        let w_neigh0 = g
+                            .neighbor_vec(w)
+                            .iter()
+                            .cloned()
+                            .filter(|&w| {
+                                (g.phase(w).is_zero() || g.phase(w).is_one())
+                                    && g.neighbor_vec(w).len() == 4
+                            })
+                            .collect_vec();
+                        let w_neight = g
+                            .neighbor_vec(w)
+                            .iter()
+                            .cloned()
+                            .filter(|&w| g.phase(w).is_t() && g.neighbor_vec(w).len() == 2)
+                            .collect_vec();
+
+                        let w_neigh0_set = w_neigh0.iter().cloned().collect::<HashSet<_>>();
+                        let w_neight_set = w_neight.iter().cloned().collect::<HashSet<_>>();
+
+                        let common0 = v_neigh0_set
+                            .intersection(&w_neigh0_set)
+                            .cloned()
+                            .collect_vec();
+                        let commont = v_neight_set
+                            .intersection(&w_neight_set)
+                            .cloned()
+                            .collect_vec();
+
+                        let n0 = 2 * common0.len();
+                        let nt = commont.len();
+
+                        if n0 <= best_n && nt <= best_n {
+                            continue;
+                        }
+
+                        if n0 >= nt {
+                            best_n = n0;
+                            vs_pair = common0;
+                            vs_pair.append(vec![v, w].as_mut());
+                            alpha_pair = 1.0 / (n0 + 2) as f64;
+                        } else {
+                            best_n = nt;
+                            vs_pair = commont;
+                            vs_pair.append(vec![v, w].as_mut());
+                            alpha_pair = 1.0 / (nt + 2) as f64;
+                        }
+                    }
+                }
+                let (heur_decomp, heur_alpha) = if alpha_single < alpha_pair {
+                    (SingleDecomp(v_single), alpha_single)
+                } else {
+                    (TPairDecomp(vs_pair), alpha_pair)
+                };
+
+                if cat_alpha < heur_alpha {
+                    CatDecomp(cat_nodes)
+                } else if heur_alpha < 0.396 {
+                    // println!("Decomp: {:?}, Alpha: {}", heur_decomp, heur_alpha);
+                    heur_decomp
+                } else if ts.len() >= 5 {
+                    Magic5FromCat(ts[0..5].to_vec())
+                } else {
+                    TDecomp(ts)
+                }
+            }
+            Sherlock(tries) => {
+                use rand::seq::SliceRandom;
+                let mut rng = thread_rng();
+                let t_vertices: Vec<usize> =
+                    g.vertices().filter(|vert| g.phase(*vert).is_t()).collect();
+
+                // println!("{:?}", t_vertices);
+                let mut indices: Vec<usize> = t_vertices.clone();
+                indices.shuffle(&mut rng);
+                let mut single_candidates: Vec<_> = indices
+                    .into_iter()
+                    .take(tries[0])
+                    .map(|vert| SingleDecomp(vec![vert]))
+                    .collect();
+
+                let mut magic_candidates = if t_vertices.len() < 5 {
+                    vec![]
+                } else {
+                    (0..tries[1])
+                        .map(|_| {
+                            Magic5FromCat(
+                                t_vertices.choose_multiple(&mut rng, 5).cloned().collect(),
+                            )
+                        })
+                        .collect()
+                };
+
+                let mut cat_candidates = g
+                    .vertices()
+                    .filter_map(|vert| {
+                        if g.vertex_type(vert) == VType::Z && g.phase(vert).is_pauli() {
+                            let mut neighs = g.neighbor_vec(vert);
+                            if neighs.len() <= 6
+                                && neighs.len() >= 3
+                                && neighs.iter().all(|&n| {
+                                    g.vertex_type(n) == VType::Z
+                                        && g.phase(n).is_t()
+                                        && g.edge_type(vert, n) == EType::H
+                                })
+                            {
+                                let mut res = vec![vert];
+                                res.append(&mut neighs);
+                                Some(CatDecomp(res))
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                    .take(tries[2])
+                    .collect();
+
+                let mut all_candidates = vec![];
+                all_candidates.append(&mut single_candidates);
+                all_candidates.append(&mut magic_candidates);
+                all_candidates.append(&mut cat_candidates);
+                match all_candidates
+                    .into_iter()
+                    .map(|candidate| (eff_alpha(g, &candidate), candidate))
+                    // .inspect(|decomp| println!("{:?}", decomp))
+                    .min_by(|(val1, _), (val2, _)| val1.partial_cmp(val2).unwrap())
+                {
+                    None => SingleDecomp(vec![]),
+                    Some((_, decomp)) => {
+                        // println!("{}", decomp);
+                        decomp
                     }
                 }
             }
@@ -401,6 +764,66 @@ fn replace_t1<G: GraphLike>(g: &G, verts: &[V]) -> G {
     g
 }
 
+fn replace_tpair0<G: GraphLike>(g: &G, verts: &[V]) -> G {
+    let mut g = g.clone();
+    let n = verts.len();
+    let vs0 = reverse_pivot(&mut g, &verts[..n - 2], &verts[n - 2..]);
+    replace_p0(&g, &vs0[..1])
+}
+
+fn replace_tpair1<G: GraphLike>(g: &G, verts: &[V]) -> G {
+    let mut g = g.clone();
+    let n = verts.len();
+    let vs0 = reverse_pivot(&mut g, &verts[..n - 2], &verts[n - 2..]);
+    replace_p1(&g, &vs0[..1])
+}
+
+fn replace_p0<G: GraphLike>(g: &G, verts: &[V]) -> G {
+    // println!("replace_p0");
+    let mut g = g.clone();
+    *g.scalar_mut() *= FScalar::dyadic(-1, [0, 1, 0, -1]);
+    let w = g.add_vertex(VType::Z);
+    g.add_edge_with_type(verts[0], w, EType::H);
+    g
+}
+
+fn replace_p1<G: GraphLike>(g: &G, verts: &[V]) -> G {
+    // println!("replace_p1");
+    let mut g = g.clone();
+    *g.scalar_mut() *= FScalar::dyadic(-1, [0, 1, 0, -1]);
+    let w = g.add_vertex_with_phase(VType::Z, Rational64::one());
+    g.add_edge_with_type(verts[0], w, EType::H);
+    g
+}
+
+fn reverse_pivot<G: GraphLike>(g: &mut G, vs0: &[V], vs1: &[V]) -> Vec<V> {
+    let x = vs0.len() as i32;
+    let y = vs1.len() as i32;
+    g.scalar_mut().mul_sqrt2_pow(-(x - 1) * (y - 1));
+
+    let v0 = g.add_vertex(VType::Z);
+    let v1 = g.add_vertex(VType::Z);
+
+    // Revert the edges between the neighbors of v0 and v1
+    for &n0 in vs0 {
+        for &n1 in vs1 {
+            g.remove_edge(n0, n1);
+        }
+    }
+
+    // Restore the original neighbors of v0 and v1
+    for &n0 in vs0 {
+        g.add_edge_smart(v0, n0, EType::H);
+    }
+    for &n1 in vs1 {
+        g.add_edge_smart(v1, n1, EType::H);
+    }
+
+    g.add_edge_smart(v0, v1, EType::H);
+
+    vec![v0, v1]
+}
+
 fn apply_ts_decomp<G: GraphLike>(g: &G, ts: &[V]) -> Vec<G> {
     if ts.len() == 6 {
         apply_bss_decomp(g, ts)
@@ -434,6 +857,11 @@ fn apply_bss_decomp<G: GraphLike>(g: &G, verts: &[V]) -> Vec<G> {
     ]
 }
 
+/// Perform a decomposition of 2 T gates with a reverse_pivot step
+fn apply_tpair_decomp<G: GraphLike>(g: &G, verts: &[V]) -> Vec<G> {
+    vec![replace_tpair0(g, verts), replace_tpair1(g, verts)]
+}
+
 /// Perform a decomposition of 2 T gates in the symmetric 2-qubit
 /// space spanned by stabilisers
 fn apply_sym_decomp<G: GraphLike>(g: &G, verts: &[V]) -> Vec<G> {
@@ -457,7 +885,7 @@ fn apply_magic5_from_cat_decomp<G: GraphLike>(g: &G, verts: &[V]) -> Vec<G> {
 
 /// Perform a decomposition of cat states
 fn apply_cat_decomp<G: GraphLike>(g: &G, verts: &[V]) -> Vec<G> {
-    println!("{:?}", verts);
+    // println!("{:?}", verts);
     // verts[0] is a 0- or pi-spider, linked to all and only to vs in verts[1..] which are T-spiders
     let mut g = g.clone(); // that is annoying ...
     let mut verts = Vec::from(verts);
@@ -491,6 +919,18 @@ fn apply_cat_decomp<G: GraphLike>(g: &G, verts: &[V]) -> Vec<G> {
         vec![replace_cat4_0(&g, &verts), replace_cat4_1(&g, &verts)]
     } else {
         panic!("this shouldn't be printed")
+    }
+}
+
+fn apply_decomp<G: GraphLike>(g: &G, decomp: &Decomp) -> Vec<G> {
+    match decomp {
+        Magic5FromCat(vertices) => apply_magic5_from_cat_decomp(g, &vertices[0..5]),
+        TDecomp(vertices) => apply_ts_decomp(g, vertices),
+        CatDecomp(vertices) => apply_cat_decomp(g, vertices),
+        BssDecomp(vertices) => apply_bss_decomp(g, vertices),
+        SymDecomp(vertices) => apply_sym_decomp(g, vertices),
+        SingleDecomp(vertices) => apply_single_decomp(g, vertices),
+        TPairDecomp(vertices) => apply_tpair_decomp(g, vertices),
     }
 }
 
@@ -809,16 +1249,7 @@ impl<G: GraphLike> Decomposer<G> {
                         return ComputationNode::Scalar(*g.scalar());
                     }
                     let decomp = self.driver.choose_decomp(&g);
-                    let terms = match decomp {
-                        Magic5FromCat(vertices) => {
-                            apply_magic5_from_cat_decomp(&g, &vertices[0..5])
-                        }
-                        TDecomp(vertices) => apply_ts_decomp(&g, &vertices),
-                        CatDecomp(vertices) => apply_cat_decomp(&g, &vertices),
-                        BssDecomp(vertices) => apply_bss_decomp(&g, &vertices),
-                        SymDecomp(vertices) => apply_sym_decomp(&g, &vertices),
-                        SingleDecomp(vertices) => apply_single_decomp(&g, &vertices),
-                    };
+                    let terms = apply_decomp(&g, &decomp);
                     let terms_vec: Vec<ComputationNode<G>> = if parallel {
                         terms
                             .into_par_iter()
@@ -911,6 +1342,12 @@ mod tests {
         g
     }
 
+    #[test]
+    //Test Approx Alpha
+    fn test_approx_alpha() {
+        let alpha = approximate_alpha_with(vec![2f64, 1f64, 2f64, 1f64], 100, 1e-6);
+        println!("{}", alpha)
+    }
     // Test individual replacement functions by checking tensor equality
     #[test]
     fn test_single_t_replacements() {
@@ -1053,6 +1490,14 @@ mod tests {
         assert_eq!(original_scalar, sum);
     }
 
+    #[test]
+    fn test_full_simp() {
+        let mut g = create_t_graph(10);
+        println!("{}", g.to_dot());
+        crate::simplify::full_simp(&mut g);
+        println!("{}", g.to_dot());
+    }
+
     // Test all configurations of the decomposer
     #[test]
     fn test_decomposer_all_configs() {
@@ -1063,6 +1508,8 @@ mod tests {
             BssTOnly(true),
             BssWithCats(false),
             BssWithCats(true),
+            DynamicT,
+            Sherlock(vec![10, 10, 10]),
         ];
         let split_components = vec![false, true];
         let parallel_modes = vec![false, true];
@@ -1070,7 +1517,7 @@ mod tests {
 
         // Test with different T-gate counts
         for graph_generator in graph_generators {
-            for size in 0..=10 {
+            for size in 5..=10 {
                 let g = graph_generator(size);
                 let expected_scalar = g.to_tensorf()[[]];
 

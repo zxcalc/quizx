@@ -24,8 +24,11 @@ fn benchmark_graph_scalar(c: &mut Criterion) {
                 || vec_graph.clone(), // Clone the graph before timing
                 |g| {
                     let mut decomposer = Decomposer::new(g);
-                    decomposer.decomp_all();
-                    let scalar = decomposer.scalar;
+                    decomposer
+                        .with_full_simp()
+                        .with_driver(quizx::decompose::Driver::DynamicT)
+                        .decompose();
+                    let scalar = decomposer.scalar();
                     std::hint::black_box(scalar); // Prevent optimization
                 },
                 BatchSize::SmallInput,
@@ -38,8 +41,8 @@ fn benchmark_graph_scalar(c: &mut Criterion) {
                 || hash_graph.clone(), // Clone the graph before timing
                 |g| {
                     let mut decomposer = Decomposer::new(g);
-                    decomposer.decomp_all();
-                    let scalar = decomposer.scalar;
+                    decomposer.with_full_simp().decompose();
+                    let scalar = decomposer.scalar();
                     std::hint::black_box(scalar); // Prevent optimization
                 },
                 BatchSize::SmallInput,
