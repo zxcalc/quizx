@@ -3,14 +3,14 @@
 use clap::{Args, Parser};
 use itertools::Itertools;
 use num::rational::Ratio;
-use num::Zero;
+// use num::Zero;
 use rand::{thread_rng, Rng};
 use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
 
 use crate::circuit::Circuit;
-use crate::decompose::Decomposer;
+use crate::decompose::{Decomposer, Driver};
 use crate::fscalar::FScalar;
 use crate::graph::{BasisElem, GraphLike, VType};
 use crate::simplify;
@@ -45,8 +45,7 @@ impl SimArgs {
     /// Run the `sim` command using the provided arguments.
     pub fn run(self) -> Result<(), CliError> {
         let circ = Circuit::from_file(self.input.to_str().unwrap())?;
-        let mut d = Decomposer::empty();
-        self.method.unwrap_or_default().configure_decomposer(&mut d);
+        let mut d = self.method.unwrap_or_default().build_decomposer();
         let result = self
             .task
             .unwrap_or_default()
@@ -87,9 +86,15 @@ impl Default for SimMethod {
 }
 
 impl SimMethod {
-    fn configure_decomposer(&self, decomposer: &mut Decomposer<Graph>) {
-        decomposer.with_full_simp();
-        decomposer.use_cats(self.cats);
+    fn build_decomposer(&self) -> Decomposer<Graph> {
+        let driver: Driver = if self.cats {
+            Driver::BssWithCats(true)
+        } else {
+            Driver::BssTOnly(true)
+        };
+        let mut decomposer = Decomposer::empty();
+        decomposer.with_full_simp().with_driver(driver);
+        decomposer
     }
 }
 
@@ -318,12 +323,11 @@ fn decomp_graph(
     parallel: Option<usize>,
 ) -> FScalar {
     simplify::full_simp(&mut g);
-    decomposer.stack.push_back((0, g));
-    decomposer.scalar = FScalar::zero();
-    if let Some(depth) = parallel {
-        decomposer.clone().decomp_parallel(depth).scalar
+    decomposer.set_target(g);
+    if let Some(_depth) = parallel {
+        decomposer.decompose_parallel().scalar()
     } else {
-        decomposer.decomp_all().scalar
+        decomposer.decompose().scalar()
     }
 }
 

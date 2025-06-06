@@ -87,14 +87,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // do the decomposition, with full_simp called eagerly
         d = Decomposer::new(&g);
-        d.use_cats(true);
+        d.with_driver(quizx::decompose::Driver::BssWithCats(false));
         d.with_full_simp();
-        let d = d.decomp_parallel(3);
+        let d = d.decompose_parallel();
         terms += d.nterms;
 
         // record the measurement outcome. Since hidden shift is deterministic, we
         // only need to check if the marginal P(q_i = 1) is zero for each i.
-        let outcome = if d.scalar.is_zero() { 0 } else { 1 };
+        let outcome = if d.scalar().is_zero() { 0 } else { 1 };
         shift_m.push(outcome);
 
         if debug {
