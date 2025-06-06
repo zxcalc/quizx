@@ -744,23 +744,51 @@ fn replace_epr<G: GraphLike>(g: &G, verts: &[V]) -> G {
     g
 }
 
-fn replace_t0<G: GraphLike>(g: &G, verts: &[V]) -> G {
-    // println!("replace_t0");
+// fn replace_t0<G: GraphLike>(g: &G, verts: &[V]) -> G {
+//     // println!("replace_t0");
+//     let mut g = g.clone();
+//     *g.scalar_mut() *= FScalar::dyadic(-1, [0, 1, 0, -1]);
+//     let w = g.add_vertex(VType::Z);
+//     g.add_edge_with_type(verts[0], w, EType::H);
+//     g.add_to_phase(verts[0], Rational64::new(-1, 4));
+//     g
+// }
+
+// fn replace_t1<G: GraphLike>(g: &G, verts: &[V]) -> G {
+//     // println!("replace_t1");
+//     let mut g = g.clone();
+//     *g.scalar_mut() *= FScalar::dyadic(-1, [1, 0, 1, 0]);
+//     let w = g.add_vertex_with_phase(VType::Z, Rational64::one());
+//     g.add_edge_with_type(verts[0], w, EType::H);
+//     g.add_to_phase(verts[0], Rational64::new(-1, 4));
+//     g
+// }
+
+// The single decomposition unfuses the phase of the spider and decomposes this new spider into the corresponding opposite basis
+// This immidiatly allows for a followup application of a copy rule to remove the original spider
+fn replace_single0<G: GraphLike>(g: &G, verts: &[V]) -> G {
     let mut g = g.clone();
-    *g.scalar_mut() *= FScalar::dyadic(-1, [0, 1, 0, -1]);
-    let w = g.add_vertex(VType::Z);
-    g.add_edge_with_type(verts[0], w, EType::H);
-    g.add_to_phase(verts[0], Rational64::new(-1, 4));
+    let w = g.add_vertex(VType::X);
+    g.add_edge_with_type(verts[0], w, EType::N);
+
+    *g.scalar_mut() *= FScalar::sqrt2_pow(-1);
+
+    g.set_phase(verts[0], 0);
     g
 }
 
-fn replace_t1<G: GraphLike>(g: &G, verts: &[V]) -> G {
-    // println!("replace_t1");
+fn replace_single1<G: GraphLike>(g: &G, verts: &[V]) -> G {
     let mut g = g.clone();
-    *g.scalar_mut() *= FScalar::dyadic(-1, [1, 0, 1, 0]);
-    let w = g.add_vertex_with_phase(VType::Z, Rational64::one());
-    g.add_edge_with_type(verts[0], w, EType::H);
-    g.add_to_phase(verts[0], Rational64::new(-1, 4));
+    let w = g.add_vertex_with_phase(VType::X, Rational64::one());
+    g.add_edge_with_type(verts[0], w, EType::N);
+
+    let phase = g.phase(verts[0]);
+    if 4 % phase.to_rational().denom() != 0 {
+        panic!("Currently only phases with denominator 1,2,4 supported")
+    }
+    *g.scalar_mut() *= FScalar::from_phase(phase) * FScalar::sqrt2_pow(-1);
+
+    g.set_phase(verts[0], 0);
     g
 }
 
@@ -870,7 +898,7 @@ fn apply_sym_decomp<G: GraphLike>(g: &G, verts: &[V]) -> Vec<G> {
 
 /// Replace a single T gate with its decomposition
 fn apply_single_decomp<G: GraphLike>(g: &G, verts: &[V]) -> Vec<G> {
-    vec![replace_t0(g, verts), replace_t1(g, verts)]
+    vec![replace_single0(g, verts), replace_single1(g, verts)]
 }
 
 /// Perform a decomposition of 5 T-spiders, with one remaining
@@ -1371,22 +1399,41 @@ mod tests {
         println!("{}", alpha)
     }
     // Test individual replacement functions by checking tensor equality
+    // #[test]
+    // fn test_single_t_replacements() {
+    //     let mut g = Graph::new();
+    //     let v = g.add_vertex_with_phase(VType::Z, Rational64::new(1, 4));
+    //     let original_scalar = g.to_tensorf()[[]];
+
+    //     // Test replace_t0
+    //     let g0 = replace_t0(&g, &[v]);
+    //     let s0 = g0.to_tensorf()[[]];
+
+    //     // Test replace_t1
+    //     let g1 = replace_t1(&g, &[v]);
+    //     let s1 = g1.to_tensorf()[[]];
+
+    //     // The sum should equal the original
+    //     assert_eq!(original_scalar, s0 + s1);
+    // }
     #[test]
-    fn test_single_t_replacements() {
-        let mut g = Graph::new();
-        let v = g.add_vertex_with_phase(VType::Z, Rational64::new(1, 4));
-        let original_scalar = g.to_tensorf()[[]];
+    fn test_single_cut_decomp() {
+        for numer in 0..4 {
+            let mut g = Graph::new();
+            let v = g.add_vertex_with_phase(VType::Z, Rational64::new(numer, 4));
+            let original_scalar = g.to_tensorf()[[]];
 
-        // Test replace_t0
-        let g0 = replace_t0(&g, &[v]);
-        let s0 = g0.to_tensorf()[[]];
+            // Test replace_t0
+            let g0 = replace_single0(&g, &[v]);
+            let s0 = g0.to_tensorf()[[]];
 
-        // Test replace_t1
-        let g1 = replace_t1(&g, &[v]);
-        let s1 = g1.to_tensorf()[[]];
+            // Test replace_t1
+            let g1 = replace_single1(&g, &[v]);
+            let s1 = g1.to_tensorf()[[]];
 
-        // The sum should equal the original
-        assert_eq!(original_scalar, s0 + s1);
+            // The sum should equal the original
+            assert_eq!(original_scalar, s0 + s1);
+        }
     }
 
     #[test]
