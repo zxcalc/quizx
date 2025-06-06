@@ -15,7 +15,8 @@ fn benchmark_loading_saving_cloning(c: &mut Criterion) {
     for file in get_test_files() {
         let file_name = file.split('/').next_back().unwrap_or("unknown_file");
         let qasm = std::fs::read_to_string(&file)
-            .unwrap_or_else(|_| panic!("Failed to read QASM file: {}", file));
+            .unwrap_or_else(|_| panic!("Failed to read QASM file: {}", file))
+            .replace("\r\n", "\n");
 
         c.bench_function(&format!("loading_saving_circuit_{}", file_name), |b| {
             b.iter(|| {
