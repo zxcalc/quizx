@@ -122,8 +122,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let mut d = Decomposer::new(&h);
                 d.with_full_simp();
 
-                let d = d.decomp_parallel(3);
-                mean += d.scalar * d.scalar.conj();
+                let d = d.decompose_parallel();
+                mean += d.scalar() * d.scalar().conj();
                 terms_single += d.nterms;
             }
 
