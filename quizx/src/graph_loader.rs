@@ -2,13 +2,14 @@ use crate::graph::{VData, VType};
 use crate::hash_graph::Graph;
 use crate::hash_graph::GraphLike;
 use crate::phase::Phase;
-use num_rational::Rational64;
+use num::Rational64;
 
 fn parse_phase(s: &str) -> Phase {
     let rat: Rational64 = s.parse().unwrap(); // panics on malformed input
     Phase::new(rat)
 }
 
+/// Loads a quizx graph from a .zxg file (such as from zxlive)
 pub fn load_graph(path: &str) -> Graph {
     let file_content = std::fs::read_to_string(path).unwrap();
     let data: serde_json::Value = serde_json::from_str(&file_content).unwrap();

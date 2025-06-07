@@ -27,9 +27,7 @@ serde_json = { workspace = true }
 derive_more = { workspace = true, features = ["display", "error", "from"] }
 clap = { version = "4.5.38", features = ["cargo", "derive"] }
 tempfile = { workspace = true }
-ordered-float = { workspace = true }
 env_logger = { workspace = true }
-num-rational = { workspace = true }
 log = { workspace = true }
 
 [dev-dependencies]

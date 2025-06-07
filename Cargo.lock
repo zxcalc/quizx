@@ -943,15 +943,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ordered-float"
-version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2c1f9f56e534ac6a9b8a4600bdf0f530fb393b5f393e7b4d03489c3cf0c3f01"
-dependencies = [
- "num-traits",
-]
-
-[[package]]
 name = "parking_lot"
 version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1190,9 +1181,7 @@ dependencies = [
  "log",
  "ndarray",
  "num",
- "num-rational",
  "openqasm",
- "ordered-float",
  "predicates",
  "rand",
  "rayon",
