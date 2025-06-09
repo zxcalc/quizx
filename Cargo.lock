@@ -1111,6 +1111,7 @@ dependencies = [
  "num",
  "pyo3",
  "quizx",
+ "rand",
  "serde",
  "serde_json",
 ]
