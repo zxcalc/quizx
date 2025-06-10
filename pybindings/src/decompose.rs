@@ -5,6 +5,7 @@ use crate::Scalar;
 // use num::integer;
 use pyo3::prelude::*;
 use quizx::decompose::Driver;
+use quizx::fscalar::FScalar;
 
 #[pyclass]
 #[derive(Clone, Debug)]
@@ -79,10 +80,6 @@ impl Decomposer {
         Ok(gs)
     }
 
-    pub fn scalar(&self) -> Scalar {
-        self.d.scalar().into()
-    }
-
     fn with_simp(&mut self, simp: SimpFunc) {
         self.d.with_simp(simp.into());
     }
@@ -99,7 +96,7 @@ impl Decomposer {
         self.d.with_split_graphs_components(b);
     }
 
-    fn save(&mut self, b: bool) {
+    fn with_save(&mut self, b: bool) {
         self.d.with_save(b);
     }
 
@@ -125,12 +122,28 @@ impl Decomposer {
         self.d.decompose();
     }
 
+    #[pyo3(signature = (/, *, allow_threads=true))]
+    fn decompose_parallel(&mut self, allow_threads: bool) {
+        if allow_threads {
+            // Release the GIL for potentially long-running parallel computation
+            pyo3::Python::with_gil(|py| {
+                py.allow_threads(|| {
+                    self.d = self.d.clone().decompose_parallel().clone();
+                });
+            });
+        }
+    }
+
     fn decompose_until_depth(&mut self, depth: i64) {
         self.d.decomp_until_depth(depth);
     }
 
     fn get_nterms(&self) -> usize {
         self.d.nterms
+    }
+
+    fn get_scalar(&self) -> Scalar {
+        self.d.scalar().into()
     }
 
     fn __repr__(&self) -> String {
