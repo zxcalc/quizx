@@ -1,11 +1,7 @@
-// use std::string;
-// use crate::scalar::Scalar;
 use crate::vec_graph::VecGraph;
 use crate::Scalar;
-// use num::integer;
 use pyo3::prelude::*;
 use quizx::decompose::Driver;
-use quizx::fscalar::FScalar;
 
 #[pyclass]
 #[derive(Clone, Debug)]
