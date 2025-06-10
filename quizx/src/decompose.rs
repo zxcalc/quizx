@@ -765,12 +765,15 @@ impl<G: GraphLike> Decomposer<G> {
                         let components = g.component_vertices();
                         if components.len() > 1 {
                             // println!("Number of components {}", components.len());
-                            let subgraphs: Vec<G> = components
+                            let mut subgraphs: Vec<G> = components
                                 .into_iter()
                                 .map(|component| {
                                     g.subgraph_from_vertices(component.into_iter().collect())
                                 })
                                 .collect();
+                            if subgraphs.len() > 0 {
+                                *subgraphs[0].scalar_mut() = g.scalar().clone();
+                            }
                             let terms_vec: Vec<ComputationNode<G>> = if parallel {
                                 subgraphs
                                     .into_par_iter()
