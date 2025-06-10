@@ -771,8 +771,8 @@ impl<G: GraphLike> Decomposer<G> {
                                     g.subgraph_from_vertices(component.into_iter().collect())
                                 })
                                 .collect();
-                            if subgraphs.len() > 0 {
-                                *subgraphs[0].scalar_mut() = g.scalar().clone();
+                            if !subgraphs.is_empty() {
+                                *subgraphs[0].scalar_mut() = *g.scalar();
                             }
                             let terms_vec: Vec<ComputationNode<G>> = if parallel {
                                 subgraphs
