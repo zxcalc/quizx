@@ -445,11 +445,9 @@ impl VecGraph {
                 "Copy to other backends not implemented on backend: quizx-vec",
             ))
         } else {
-            let mut g = self.clone();
-            if adjoint {
-                g.adjoint();
-            }
-            Ok(g)
+            Ok(VecGraph {
+                g: self.g.copy(adjoint),
+            })
         }
     }
 

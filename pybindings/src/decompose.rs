@@ -1,6 +1,9 @@
-use crate::scalar::Scalar;
-use crate::vec_graph::VecGraph;
+// use std::string;
 
+// use crate::scalar::Scalar;
+use crate::vec_graph::VecGraph;
+use crate::Scalar;
+// use num::integer;
 use pyo3::prelude::*;
 use quizx::vec_graph::Graph;
 
@@ -21,6 +24,7 @@ impl From<SimpFunc> for ::quizx::decompose::SimpFunc {
         }
     }
 }
+use quizx::decompose::Driver;
 
 #[pyclass]
 pub struct Decomposer {
@@ -66,24 +70,6 @@ impl Decomposer {
         Decomposer { d }
     }
 
-    #[getter]
-    fn get_scalar(&self) -> Scalar {
-        self.d.scalar.into()
-    }
-
-    #[setter]
-    fn set_scalar(&mut self, scalar: Scalar) {
-        self.d.scalar = scalar.into();
-    }
-
-    fn graphs(&self) -> PyResult<Vec<VecGraph>> {
-        let mut gs = vec![];
-        for (_a, g) in &self.d.stack {
-            gs.push(VecGraph { g: g.clone() });
-        }
-        Ok(gs)
-    }
-
     fn done(&self) -> PyResult<Vec<VecGraph>> {
         let mut gs = vec![];
         for g in &self.d.done {
@@ -92,16 +78,68 @@ impl Decomposer {
         Ok(gs)
     }
 
-    fn save(&mut self, b: bool) {
-        self.d.save(b);
+    pub fn scalar(&self) -> Scalar {
+        self.d.scalar().into()
     }
 
-    fn apply_optimizations(&mut self, b: bool) {
-        if b {
-            self.d.with_simp(::quizx::decompose::SimpFunc::FullSimp);
-        } else {
-            self.d.with_simp(::quizx::decompose::SimpFunc::NoSimp);
-        }
+    fn with_simp(&mut self, simp: SimpFunc) {
+        self.d.with_simp(simp.into());
+    }
+
+    fn with_full_simp(&mut self) {
+        self.d.with_full_simp();
+    }
+
+    fn with_clifford_simp(&mut self) {
+        self.d.with_clifford_simp();
+    }
+
+    fn random_t(&mut self, b: bool) {
+        self.d.random_t(b);
+    }
+
+    fn with_split_graph_components(&mut self, b: bool) {
+        self.d.with_split_graphs_components(b);
+    }
+
+    fn save(&mut self, b: bool) {
+        self.d.with_save(b);
+    }
+
+    fn with_driver(&mut self, driver_type: &str, random_t: bool) {
+        match driver_type {
+            "BssTOnly" => {
+                self.d.with_driver(Driver::BssTOnly(random_t));
+            }
+            "BssWithCats" => {
+                self.d.with_driver(Driver::BssWithCats(random_t));
+            }
+            _ => {
+                println!("Driver Not Supported!");
+            }
+        };
+    }
+
+    fn with_split_graph_components(&mut self, b: bool) {
+        self.d.with_split_graphs_components(b);
+    }
+
+    fn save(&mut self, b: bool) {
+        self.d.with_save(b);
+    }
+
+    fn with_driver(&mut self, driver_type: &str, random_t: bool) {
+        match driver_type {
+            "BssTOnly" => {
+                self.d.with_driver(Driver::BssTOnly(random_t));
+            }
+            "BssWithCats" => {
+                self.d.with_driver(Driver::BssWithCats(random_t));
+            }
+            _ => {
+                println!("Driver Not Supported!");
+            }
+        };
     }
 
     fn with_simp(&mut self, simp: SimpFunc) {
@@ -124,74 +162,25 @@ impl Decomposer {
         self.d.max_terms()
     }
 
+    fn decompose(&mut self) {
+        self.d.decompose();
+
     fn decomp_top(&mut self) {
         self.d.decomp_top();
     }
-
     fn decomp_all(&mut self) {
         self.d.decomp_all();
     }
 
-    fn decomp_until_depth(&mut self, depth: usize) {
+
+    fn decompose_until_depth(&mut self, depth: i64) {
         self.d.decomp_until_depth(depth);
-    }
-
-    #[pyo3(signature = (depth, /, *, allow_threads=true))]
-    fn decomp_parallel(&mut self, depth: usize, allow_threads: bool) {
-        if allow_threads {
-            // Release the GIL for potentially long-running parallel computation
-            pyo3::Python::with_gil(|py| {
-                py.allow_threads(|| {
-                    self.d = self.d.clone().decomp_parallel(depth);
-                });
-            });
-        } else {
-            self.d = self.d.clone().decomp_parallel(depth);
-        }
-    }
-
-    fn decomp_ts(
-        &mut self,
-        depth: usize,
-        g: &VecGraph,
-        ts: &Bound<pyo3::types::PyList>,
-    ) -> PyResult<()> {
-        let res: Vec<usize> = ts.extract()?;
-        let rs_ts: &[usize] = &res;
-        self.d.decomp_ts(depth, g.g.clone(), rs_ts);
-        Ok(())
-    }
-
-    #[staticmethod]
-    fn first_ts(g: &VecGraph) -> Vec<usize> {
-        ::quizx::decompose::Decomposer::<Graph>::first_ts(&g.g)
-    }
-
-    #[staticmethod]
-    #[pyo3(signature = (g, seed=None))]
-    fn random_ts(g: &VecGraph, seed: Option<u64>) -> Vec<usize> {
-        use rand::rngs::StdRng;
-        use rand::SeedableRng;
-
-        let mut rng = match seed {
-            Some(s) => StdRng::seed_from_u64(s),
-            None => StdRng::from_entropy(),
-        };
-
-        ::quizx::decompose::Decomposer::<Graph>::random_ts(&g.g, &mut rng)
-    }
-
-    #[staticmethod]
-    fn cat_ts(g: &VecGraph) -> Vec<usize> {
-        ::quizx::decompose::Decomposer::<Graph>::cat_ts(&g.g)
     }
 
     fn use_cats(&mut self, b: bool) {
         self.d.use_cats(b);
     }
-
-    #[getter]
-    fn nterms(&self) -> usize {
+    fn get_nterms(&self) -> usize {
         self.d.nterms
     }
 
