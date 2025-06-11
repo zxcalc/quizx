@@ -1,0 +1,167 @@
+{
+    "wire_vertices": {
+        "b0": {
+            "annotation": {
+                "boundary": true,
+                "coord": [
+                    -6.0,
+                    -0.0
+                ],
+                "name": "b0"
+            }
+        },
+        "b1": {
+            "annotation": {
+                "boundary": true,
+                "coord": [
+                    -6.0,
+                    2.0
+                ],
+                "name": "b1"
+            }
+        },
+        "b2": {
+            "annotation": {
+                "boundary": true,
+                "coord": [
+                    0.0,
+                    2.0
+                ],
+                "name": "b2"
+            }
+        },
+        "b3": {
+            "annotation": {
+                "boundary": true,
+                "coord": [
+                    0.0,
+                    -0.0
+                ],
+                "name": "b3"
+            }
+        }
+    },
+    "node_vertices": {
+        "v4": {
+            "annotation": {
+                "coord": [
+                    -4,
+                    0
+                ],
+                "name": "v4"
+            },
+            "data": {
+                "type": "X"
+            }
+        },
+        "v5": {
+            "annotation": {
+                "coord": [
+                    -4,
+                    2
+                ],
+                "name": "v5"
+            },
+            "data": {
+                "type": "X"
+            }
+        },
+        "v6": {
+            "annotation": {
+                "coord": [
+                    -2.0,
+                    2.0
+                ],
+                "name": "v6"
+            },
+            "data": {
+                "type": "X"
+            }
+        },
+        "v7": {
+            "annotation": {
+                "coord": [
+                    -2.0,
+                    -0.0
+                ],
+                "name": "v7"
+            },
+            "data": {
+                "type": "X"
+            }
+        },
+        "v8": {
+            "annotation": {
+                "coord": [
+                    -3.25,
+                    1
+                ],
+                "name": "v8"
+            },
+            "data": {
+                "type": "Z",
+                "value": "k_1"
+            }
+        },
+        "v10": {
+            "annotation": {
+                "coord": [
+                    -1.25,
+                    1.0
+                ],
+                "name": "v10"
+            },
+            "data": {
+                "type": "Z",
+                "value": "k_2"
+            }
+        }
+    },
+    "undir_edges": {
+        "e0": {
+            "src": "v4",
+            "tgt": "v8"
+        },
+        "e1": {
+            "src": "v4",
+            "tgt": "v7"
+        },
+        "e2": {
+            "src": "v4",
+            "tgt": "b0"
+        },
+        "e3": {
+            "src": "v5",
+            "tgt": "v8"
+        },
+        "e4": {
+            "src": "v5",
+            "tgt": "v6"
+        },
+        "e5": {
+            "src": "v5",
+            "tgt": "b1"
+        },
+        "e6": {
+            "src": "v6",
+            "tgt": "v10"
+        },
+        "e7": {
+            "src": "v6",
+            "tgt": "b2"
+        },
+        "e8": {
+            "src": "v7",
+            "tgt": "v10"
+        },
+        "e9": {
+            "src": "v7",
+            "tgt": "b3"
+        }
+    },
+    "variable_types": {
+        "k_1": false,
+        "k_2": false
+    },
+    "scalar": "{\"power2\": 0, \"phase\": \"0\"}"
+}

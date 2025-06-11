@@ -214,6 +214,7 @@ pub enum Decomp {
     BssDecomp(Vec<usize>),
     SymDecomp(Vec<usize>),
     SingleDecomp(Vec<usize>),
+    SpiderCuttingDecomp(Vec<usize>),
     TPairDecomp(Vec<usize>),
 }
 use Decomp::*;
@@ -228,6 +229,7 @@ impl std::fmt::Display for Decomp {
             Decomp::SymDecomp(verts) => write!(f, "SymDecomp {:?}", verts),
             Decomp::SingleDecomp(verts) => write!(f, "SingleDecomp {:?}", verts),
             Decomp::TPairDecomp(verts) => write!(f, "TPairDecomp {:?}", verts),
+            Decomp::SpiderCuttingDecomp(verts) => write!(f, "SpiderCuttingDecomp {:?}", verts),
         }
     }
 }
@@ -518,6 +520,7 @@ pub enum Driver {
     DynamicT,
     #[strum(serialize = "Sherlock")]
     Sherlock(Vec<usize>),
+    SpiderCutting,
 }
 use Driver::*;
 
@@ -528,6 +531,13 @@ impl Driver {
             BssWithCats(random_t) => bss_with_cats_choose_decomp(g, random_t),
             DynamicT => dynamic_t_choose_decomp(g),
             Sherlock(tries) => sherlock_choose_decomp(g, tries),
+            SpiderCutting => {
+                let next_non_clifford = g
+                    .vertices()
+                    .find(|&v| !g.vertex_data(v).phase.is_clifford())
+                    .expect("The graph contains no non-Clifford spider");
+                SpiderCuttingDecomp(vec![next_non_clifford])
+            }
         }
     }
 }
@@ -824,6 +834,22 @@ fn replace_p1<G: GraphLike>(g: &G, verts: &[V]) -> G {
     g
 }
 
+fn cut_spider<G: GraphLike>(g: &G, verts: &[V], with_phase: bool) -> G {
+    let mut g = g.clone();
+    let v = verts[0];
+    let k = g.neighbors(v).count() as i32;
+    g.scalar_mut().mul_sqrt2_pow(-k);
+    if with_phase {
+        let alpha = g.vertex_data(v).phase;
+        g.scalar_mut().mul_phase(alpha);
+        for n in g.neighbor_vec(v) {
+            g.vertex_data_mut(n).phase += 1.into();
+        }
+    }
+    g.remove_vertex(v);
+    g
+}
+
 fn reverse_pivot<G: GraphLike>(g: &mut G, vs0: &[V], vs1: &[V]) -> Vec<V> {
     let x = vs0.len() as i32;
     let y = vs1.len() as i32;
@@ -950,6 +976,13 @@ fn apply_cat_decomp<G: GraphLike>(g: &G, verts: &[V]) -> Vec<G> {
     }
 }
 
+/// Perform graph cutting by removing a n-legged Z-spider and changing the phases of its neighbors.
+/// (equivalent to replacing with n one-legged X-spiders + simplification)
+/// See section 3 of https://arxiv.org/abs/2403.10964v2
+fn apply_spider_cutting_decomp<G: GraphLike>(g: &G, verts: &[V]) -> Vec<G> {
+    vec![cut_spider(g, verts, false), cut_spider(g, verts, true)]
+}
+
 fn apply_decomp<G: GraphLike>(g: &G, decomp: &Decomp) -> Vec<G> {
     match decomp {
         Magic5FromCat(vertices) => apply_magic5_from_cat_decomp(g, &vertices[0..5]),
@@ -959,6 +992,7 @@ fn apply_decomp<G: GraphLike>(g: &G, decomp: &Decomp) -> Vec<G> {
         SymDecomp(vertices) => apply_sym_decomp(g, vertices),
         SingleDecomp(vertices) => apply_single_decomp(g, vertices),
         TPairDecomp(vertices) => apply_tpair_decomp(g, vertices),
+        SpiderCuttingDecomp(vertices) => apply_spider_cutting_decomp(g, vertices),
     }
 }
 
@@ -1131,10 +1165,11 @@ impl<G: GraphLike> Decomposer<G> {
         let components = g.component_vertices();
         if components.len() > 1 {
             // println!("Number of components {}", components.len());
-            let subgraphs: Vec<G> = components
+            let mut subgraphs: Vec<G> = components
                 .into_iter()
                 .map(|component| g.subgraph_from_vertices(component.into_iter().collect()))
                 .collect();
+            *subgraphs[0].scalar_mut() = *g.scalar();
             let terms_vec: Vec<ComputationNode<G>> = if parallel {
                 subgraphs
                     .into_par_iter()
@@ -1347,6 +1382,7 @@ impl<G: GraphLike> Decomposer<G> {
 mod tests {
     // use num::rational::Ratio;
 
+    use approx::abs_diff_eq;
     use rand::rngs::StdRng;
     use rand::SeedableRng;
 
@@ -1378,6 +1414,24 @@ mod tests {
                 }
             }
         }
+        g
+    }
+
+    // Create a circuit with Z spiders with phase random multiple of pi/8,
+    // randomly connected by Hadamard edges and no external edges
+    fn create_non_t_graph(n: usize, seed: u64) -> Graph {
+        let mut g = Graph::new();
+        let mut rng = StdRng::seed_from_u64(seed);
+        for i in 0..n {
+            let phase = Rational64::new(rng.gen_range(0..8), 8);
+            let v = g.add_vertex_with_phase(VType::Z, phase);
+            for j in 0..i {
+                if rng.gen_bool(0.5) {
+                    g.add_edge_with_type(v, j, EType::H);
+                }
+            }
+        }
+
         g
     }
 
@@ -1560,6 +1614,24 @@ mod tests {
     }
 
     #[test]
+    fn test_spider_cutting_decomp() {
+        for size in 2..8 {
+            for seed in [42, 5518] {
+                let g = create_non_t_graph(size, seed);
+                for v in g.vertices() {
+                    let original_scalar = g.to_tensorf()[[]];
+
+                    let sum_of_new_scalars: FScalar = apply_spider_cutting_decomp(&g, &[v])
+                        .iter()
+                        .map(|new_g| new_g.to_tensorf()[[]])
+                        .sum();
+                    _ = abs_diff_eq!(original_scalar, sum_of_new_scalars);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn test_full_simp() {
         let mut g = create_t_graph(10);
         println!("{}", g.to_dot());
@@ -1579,6 +1651,7 @@ mod tests {
             BssWithCats(true),
             DynamicT,
             Sherlock(vec![10, 10, 10]),
+            SpiderCutting,
         ];
         let split_components = vec![false, true];
         let parallel_modes = vec![false, true];

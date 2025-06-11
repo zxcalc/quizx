@@ -1,11 +1,25 @@
-// use std::string;
-
-// use crate::scalar::Scalar;
 use crate::vec_graph::VecGraph;
 use crate::Scalar;
-// use num::integer;
 use pyo3::prelude::*;
 use quizx::decompose::Driver;
+
+#[pyclass]
+#[derive(Clone, Debug)]
+pub enum SimpFunc {
+    FullSimp,
+    CliffordSimp,
+    NoSimp,
+}
+
+impl From<SimpFunc> for ::quizx::decompose::SimpFunc {
+    fn from(s: SimpFunc) -> Self {
+        match s {
+            SimpFunc::FullSimp => ::quizx::decompose::SimpFunc::FullSimp,
+            SimpFunc::CliffordSimp => ::quizx::decompose::SimpFunc::CliffordSimp,
+            SimpFunc::NoSimp => ::quizx::decompose::SimpFunc::NoSimp,
+        }
+    }
+}
 
 #[pyclass]
 pub struct Decomposer {
@@ -22,10 +36,36 @@ impl Decomposer {
     }
 
     #[new]
-    fn new(g: &VecGraph) -> Decomposer {
-        Decomposer {
-            d: ::quizx::decompose::Decomposer::new(&g.g),
+    #[pyo3(signature = (g, *, use_driver=None, save=None, simp=None))]
+    fn new(
+        g: &VecGraph,
+        use_driver: Option<&str>,
+        save: Option<bool>,
+        simp: Option<SimpFunc>,
+    ) -> Decomposer {
+        let mut d = ::quizx::decompose::Decomposer::new(&g.g);
+
+        if let Some(driver_str) = use_driver {
+            match driver_str {
+                "BssTOnly" => {
+                    d.with_driver(Driver::BssTOnly(false));
+                }
+                "BssWithCats" => {
+                    d.with_driver(Driver::BssWithCats(false));
+                }
+                _ => {}
+            }
         }
+
+        if let Some(save) = save {
+            d.with_save(save);
+        }
+
+        if let Some(simp) = simp {
+            d.with_simp(simp.into());
+        }
+
+        Decomposer { d }
     }
 
     fn done(&self) -> PyResult<Vec<VecGraph>> {
@@ -36,25 +76,23 @@ impl Decomposer {
         Ok(gs)
     }
 
-    pub fn scalar(&self) -> Scalar {
-        self.d.scalar().into()
+    fn with_simp(&mut self, simp: SimpFunc) {
+        self.d.with_simp(simp.into());
     }
 
-    fn with_simp(&mut self, b: bool, clifford_only: bool) {
-        if b && clifford_only {
-            self.d.with_simp(::quizx::decompose::SimpFunc::CliffordSimp);
-        } else if b {
-            self.d.with_simp(::quizx::decompose::SimpFunc::FullSimp);
-        } else {
-            self.d.with_simp(::quizx::decompose::SimpFunc::NoSimp);
-        }
+    fn with_full_simp(&mut self) {
+        self.d.with_full_simp();
+    }
+
+    fn with_clifford_simp(&mut self) {
+        self.d.with_clifford_simp();
     }
 
     fn with_split_graph_components(&mut self, b: bool) {
         self.d.with_split_graphs_components(b);
     }
 
-    fn save(&mut self, b: bool) {
+    fn with_save(&mut self, b: bool) {
         self.d.with_save(b);
     }
 
@@ -87,8 +125,16 @@ impl Decomposer {
         self.d.decompose();
     }
 
-    fn decompose_parallel(&mut self) {
-        self.d.decompose_parallel();
+    #[pyo3(signature = (/, *, allow_threads=true))]
+    fn decompose_parallel(&mut self, allow_threads: bool) {
+        if allow_threads {
+            // Release the GIL for potentially long-running parallel computation
+            pyo3::Python::with_gil(|py| {
+                py.allow_threads(|| {
+                    self.d = self.d.clone().decompose_parallel().clone();
+                });
+            });
+        }
     }
 
     fn decompose_until_depth(&mut self, depth: i64) {
@@ -97,5 +143,17 @@ impl Decomposer {
 
     fn get_nterms(&self) -> usize {
         self.d.nterms
+    }
+
+    fn get_scalar(&self) -> Scalar {
+        self.d.scalar().into()
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "Decomposer(nterms={}, done_size={})",
+            self.d.nterms,
+            self.d.done.len()
+        )
     }
 }

@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::linalg::Mat2;
 use crate::params::Expr;
 use crate::phase::Phase;
 use crate::util::*;
@@ -668,7 +669,6 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         }
         n
     }
-
     /// Return a graphviz-friendly string representation of the graph
     fn to_dot(&self) -> String {
         let mut dot = String::from("graph {\n");
@@ -719,7 +719,6 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
 
         dot
     }
-
     /// Exchange inputs and outputs and reverse all phases
     fn adjoint(&mut self) {
         for v in self.vertex_vec() {
@@ -823,6 +822,95 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
             g.adjoint();
         }
         g
+    }
+
+    /// Performs inplace bipartite transformation of ZX graph by inserting opposite colored
+    /// spiders between same-colored neighbors
+    fn make_bipartite(&mut self) {
+        use crate::graph::VData;
+        use std::collections::HashSet;
+
+        let mut modified = true;
+
+        while modified {
+            modified = false;
+            let mut visited = HashSet::new();
+
+            // Collect all edges to process in this iteration
+            let edges: Vec<_> = self.edge_vec();
+
+            for (node, neighbor, _) in edges {
+                // Get the types of the nodes
+                let node_type = self.vertex_type(node);
+                let neighbor_type = self.vertex_type(neighbor);
+
+                // Skip if we've already processed this pair
+                let key = if node < neighbor {
+                    (node, neighbor)
+                } else {
+                    (neighbor, node)
+                };
+
+                if visited.contains(&key) {
+                    continue;
+                }
+                visited.insert(key);
+
+                // Check if the connected nodes are of the same type
+                if neighbor_type == node_type {
+                    // Insert new node in the middle for better visualization
+                    let row = (self.row(node) + self.row(neighbor)) / 2.0;
+                    let qubit = (self.qubit(node) + self.qubit(neighbor)) / 2.0;
+
+                    self.remove_edge(node, neighbor);
+
+                    let new_type = match node_type {
+                        VType::X => VType::Z,
+                        VType::Z => VType::X,
+                        _ => continue,
+                    };
+
+                    let new_vertex = self.add_vertex_with_data(VData {
+                        ty: new_type,
+                        phase: Phase::zero(),
+                        vars: Default::default(),
+                        row,
+                        qubit,
+                    });
+
+                    self.add_edge(node, new_vertex);
+                    self.add_edge(new_vertex, neighbor);
+
+                    // Mark that we made a modification in this iteration
+                    modified = true;
+                }
+            }
+        }
+    }
+
+    /// Returns the adjacency matrix of the graph, optionally in the order of nodelist
+    /// (similar to nx's adjacency_matrix)
+    fn adjacency_matrix(&self, nodelist: Option<&[V]>) -> Mat2 {
+        // Get the nodes to use, either from nodelist or all vertices in the graph
+        let nodes: Vec<V> = match nodelist {
+            Some(list) => list.to_vec(),
+            None => self.vertices().collect(),
+        };
+
+        let n = nodes.len();
+        let mut adj = Mat2::zeros(n, n);
+
+        // Fill the adjacency matrix
+        for (i, &u) in nodes.iter().enumerate() {
+            for (j, &v) in nodes.iter().enumerate() {
+                // Check both directions since the graph is undirected
+                if self.connected(u, v) || self.connected(v, u) {
+                    adj[(i, j)] = 1;
+                }
+            }
+        }
+
+        adj
     }
 }
 
@@ -989,5 +1077,66 @@ mod tests {
         let mixed_comps = g_mixed.component_vertices();
         assert_eq!(mixed_comps.len(), 1);
         assert_eq!(mixed_comps[0].len(), 3);
+    }
+    #[test]
+    fn test_make_rg() {
+        // Create a simple graph with two X nodes connected by an edge
+        let mut graph = Graph::new();
+        let v1 = graph.add_vertex(VType::X);
+        let v2 = graph.add_vertex(VType::X);
+        graph.add_edge(v1, v2);
+
+        // Debug output
+        println!(
+            "Original graph: {} vertices, {} edges",
+            graph.num_vertices(),
+            graph.num_edges()
+        );
+        // Apply RG transformation
+        graph.make_bipartite();
+        println!(
+            "Transformed graph: {} vertices, {} edges",
+            graph.num_vertices(),
+            graph.num_edges()
+        );
+
+        // In RG form, we expect:
+        // 1. Original edge v1-v2 is removed
+        // 2. A new Z node is added between them
+        // 3. The new Z node is connected to both original nodes
+        // Since this is a simple graph with just two connected nodes,
+        // we expect exactly 2 edges in the transformed graph
+        assert_eq!(
+            graph.num_vertices(),
+            3,
+            "Should have 3 vertices (2 original X nodes + 1 new Z node)"
+        );
+        assert_eq!(
+            graph.num_edges(),
+            2,
+            "Should have 2 edges (v1-new_node and v2-new_node)"
+        );
+
+        // Verify the new node is of type Z
+        let new_node = graph
+            .vertices()
+            .find(|&v| v != v1 && v != v2)
+            .expect("Should have a new node");
+
+        assert_eq!(
+            graph.vertex_type(new_node),
+            VType::Z,
+            "New node should be of type Z"
+        );
+
+        // Verify connections
+        assert!(
+            graph.connected(v1, new_node),
+            "v1 should be connected to new node"
+        );
+        assert!(
+            graph.connected(v2, new_node),
+            "v2 should be connected to new node"
+        );
     }
 }
