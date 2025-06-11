@@ -1188,17 +1188,6 @@ impl<G: GraphLike> Decomposer<G> {
         if current_depth == target_depth {
             ComputationNode::Graph(g)
         } else {
-            if self.split_graph_components {
-                if let Some(node) = self.try_decompose_by_components(
-                    &mut g,
-                    parallel,
-                    current_depth,
-                    target_depth,
-                    reduce_computation,
-                ) {
-                    return node;
-                }
-            };
             match self.simp_func {
                 FullSimp => {
                     crate::simplify::full_simp(&mut g);
@@ -1221,6 +1210,17 @@ impl<G: GraphLike> Decomposer<G> {
                 }
                 return ComputationNode::Scalar(*g.scalar());
             }
+            if self.split_graph_components {
+                if let Some(node) = self.try_decompose_by_components(
+                    &mut g,
+                    parallel,
+                    current_depth,
+                    target_depth,
+                    reduce_computation,
+                ) {
+                    return node;
+                }
+            };
             let decomp = self.driver.choose_decomp(&g);
             let terms = apply_decomp(&g, &decomp);
             let terms_vec: Vec<ComputationNode<G>> = if parallel {

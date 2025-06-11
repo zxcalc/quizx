@@ -60,7 +60,6 @@ impl Decomposer {
 
     #[pyo3(signature = (driver_type, random_t = false, sherlock_tries = Vec::new()))]
     fn with_driver(&mut self, driver_type: &str, random_t: bool, sherlock_tries: Vec<usize>) {
-        println!("{:?}", sherlock_tries);
         match driver_type {
             "BssTOnly" => {
                 self.d.with_driver(Driver::BssTOnly(random_t));
