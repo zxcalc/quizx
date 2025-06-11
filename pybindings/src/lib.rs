@@ -9,7 +9,7 @@ pub mod util;
 pub mod vec_graph;
 
 use crate::circuit::to_pyzx_circuit;
-use crate::decompose::Decomposer;
+use crate::decompose::{Decomposer, SimpFunc};
 use crate::scalar::Scalar;
 use crate::vec_graph::VecGraph;
 
@@ -29,6 +29,7 @@ fn quizx(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(qasm, m)?)?;
     m.add_class::<VecGraph>()?;
     m.add_class::<Decomposer>()?;
+    m.add_class::<SimpFunc>()?;
     m.add_class::<Scalar>()?;
     Ok(())
 }
