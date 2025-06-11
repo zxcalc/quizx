@@ -26,6 +26,9 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 derive_more = { workspace = true, features = ["display", "error", "from"] }
 clap = { version = "4.5.39", features = ["cargo", "derive"] }
+tempfile = { workspace = true }
+env_logger = { workspace = true }
+log = { workspace = true }
 
 [dev-dependencies]
 rstest = { workspace = true }
