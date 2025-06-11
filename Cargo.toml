@@ -8,6 +8,7 @@ authors = ["Aleks Kissinger <aleks0@gmail.com>"]
 edition = "2021"
 rust-version = "1.81"
 homepage = "https://github.com/zxcalc/quizx"
+repository = "https://github.com/zxcalc/quizx"
 license = "Apache-2.0"
 license-file = "LICENSE"
 
