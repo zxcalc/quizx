@@ -157,7 +157,7 @@ fn draw_mat(_name: &str, _mat: &Mat2) {
 /// Returns: Vector of basis of all detection webs on a quizx graph
 /// Will inplace convert the graph to bipartite form
 /// Note: Currently only works for ZX diagrams restricted to k*PI phases
-/// Further reading: https://www.cs.ox.ac.uk/people/aleks.kissinger/papers/borghans-thesis.pdf
+/// Further reading: <https://www.cs.ox.ac.uk/people/aleks.kissinger/papers/borghans-thesis.pdf>
 /// Pages 32-37
 pub fn detection_webs(g: &mut Graph) -> Vec<PauliWeb> {
     let _ = env_logger::builder().is_test(true).try_init();
