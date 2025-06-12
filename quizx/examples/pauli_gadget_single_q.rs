@@ -103,7 +103,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut d = Decomposer::new(&h);
             d.with_full_simp();
 
-            let d = d.decompose_parallel();
+            let d = d.decompose_standard();
 
             // compute <h|h> by stabiliser decomposition
             prob = d.scalar();

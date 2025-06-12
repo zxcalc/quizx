@@ -29,6 +29,9 @@ clap = { version = "4.5.39", features = ["cargo", "derive"] }
 tempfile = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
+strum_macros = "0.25"
+strum = "0.25"
+roots = "0.0.8"
 
 [dev-dependencies]
 rstest = { workspace = true }

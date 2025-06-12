@@ -76,7 +76,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // if g.tcount() > 100 { continue; }
     println!("Decomposing g...");
-    let d = d.decompose_parallel();
+    let d = d.decompose_standard();
     // d.decomp_all();
     println!("Finished in {:.2?}", time.elapsed());
 

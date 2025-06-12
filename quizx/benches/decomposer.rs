@@ -12,8 +12,7 @@ fn benchmark_graph_scalar(c: &mut Criterion) {
     for file in get_test_files() {
         let file_name = file.split('/').next_back().unwrap_or("unknown_file");
         let qasm = std::fs::read_to_string(&file)
-            .unwrap_or_else(|_| panic!("Failed to read QASM file: {}", file))
-            .replace("\r\n", "\n");
+            .unwrap_or_else(|_| panic!("Failed to read QASM file: {}", file));
         // Path to the graph file
         let circ = Circuit::from_qasm(&qasm).expect("Failed to create circuit from QASM");
         let vec_graph: VecGraph = circ.to_graph();
@@ -25,7 +24,7 @@ fn benchmark_graph_scalar(c: &mut Criterion) {
                 || vec_graph.clone(), // Clone the graph before timing
                 |g| {
                     let mut decomposer = Decomposer::new(g);
-                    decomposer.decompose();
+                    decomposer.with_full_simp().decompose_standard();
                     let scalar = decomposer.scalar();
                     std::hint::black_box(scalar); // Prevent optimization
                 },
@@ -39,7 +38,7 @@ fn benchmark_graph_scalar(c: &mut Criterion) {
                 || hash_graph.clone(), // Clone the graph before timing
                 |g| {
                     let mut decomposer = Decomposer::new(g);
-                    decomposer.decompose();
+                    decomposer.with_full_simp().decompose_standard();
                     let scalar = decomposer.scalar();
                     std::hint::black_box(scalar); // Prevent optimization
                 },

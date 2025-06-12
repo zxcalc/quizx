@@ -16,6 +16,7 @@
 
 use itertools::Itertools;
 use quizx::circuit::*;
+use quizx::decompose::BssWithCatsDriver;
 use quizx::decompose::Decomposer;
 use quizx::fscalar::*;
 use quizx::graph::*;
@@ -87,9 +88,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // do the decomposition, with full_simp called eagerly
         d = Decomposer::new(&g);
-        d.with_driver(quizx::decompose::Driver::BssWithCats(false));
         d.with_full_simp();
-        let d = d.decompose_parallel();
+        let d = d.decompose_parallel(&BssWithCatsDriver { random_t: false });
         terms += d.nterms;
 
         // record the measurement outcome. Since hidden shift is deterministic, we

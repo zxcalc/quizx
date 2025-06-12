@@ -15,6 +15,7 @@
 // limitations under the License.
 
 use quizx::circuit::*;
+use quizx::decompose::BssTOnlyDriver;
 use quizx::graph::*;
 use std::time::Instant;
 // use quizx::tensor::*;
@@ -41,16 +42,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let time = Instant::now();
     let mut d = Decomposer::new(&g);
-    d.with_full_simp()
-        .with_driver(quizx::decompose::Driver::BssTOnly(true));
+    let mut driver = BssTOnlyDriver { random_t: true };
+    d.with_full_simp();
     let mut max = d.max_terms();
     let mut best_d = d.clone();
 
     for _ in 0..100 {
         let mut d1 = d.clone();
-        d1.decomp_until_depth(1)
-            .with_driver(quizx::decompose::Driver::BssTOnly(false))
-            .decomp_until_depth(3);
+        d1.decompose_until_depth(1, &driver);
+        driver.random_t = false;
+        d1.decompose_until_depth(3, &driver);
         if d1.max_terms() < max {
             max = d1.max_terms();
             println!("lower max: {}", max);
@@ -59,7 +60,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     d = best_d;
-    d.decompose();
+    d.decompose(&driver);
     println!("Finished in {:.2?}", time.elapsed());
     println!(
         "got {} terms for T-count {} (naive {} terms)",
