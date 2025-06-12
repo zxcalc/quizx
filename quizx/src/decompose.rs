@@ -457,7 +457,7 @@ fn apply_magic5_from_cat_decomp<G: GraphLike>(g: &G, verts: &[V]) -> Vec<G> {
 
 /// Perform a decomposition of cat states
 fn apply_cat_decomp<G: GraphLike>(g: &G, verts: &[V]) -> Vec<G> {
-    println!("{:?}", verts);
+    // println!("{:?}", verts);
     // verts[0] is a 0- or pi-spider, linked to all and only to vs in verts[1..] which are T-spiders
     let mut g = g.clone(); // that is annoying ...
     let mut verts = Vec::from(verts);
