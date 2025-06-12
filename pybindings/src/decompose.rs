@@ -1,7 +1,6 @@
 use crate::vec_graph::VecGraph;
 use crate::Scalar;
 use pyo3::prelude::*;
-use quizx::decompose::Driver;
 
 #[pyclass]
 #[derive(Clone, Debug)]
@@ -36,26 +35,9 @@ impl Decomposer {
     }
 
     #[new]
-    #[pyo3(signature = (g, *, use_driver=None, save=None, simp=None))]
-    fn new(
-        g: &VecGraph,
-        use_driver: Option<&str>,
-        save: Option<bool>,
-        simp: Option<SimpFunc>,
-    ) -> Decomposer {
+    #[pyo3(signature = (g, *, save=None, simp=None))]
+    fn new(g: &VecGraph, save: Option<bool>, simp: Option<SimpFunc>) -> Decomposer {
         let mut d = ::quizx::decompose::Decomposer::new(&g.g);
-
-        if let Some(driver_str) = use_driver {
-            match driver_str {
-                "BssTOnly" => {
-                    d.with_driver(Driver::BssTOnly(false));
-                }
-                "BssWithCats" => {
-                    d.with_driver(Driver::BssWithCats(false));
-                }
-                _ => {}
-            }
-        }
 
         if let Some(save) = save {
             d.with_save(save);
@@ -96,20 +78,31 @@ impl Decomposer {
         self.d.with_save(b);
     }
 
-    #[pyo3(signature = (driver_type, random_t = false, sherlock_tries = Vec::new()))]
-    fn with_driver(&mut self, driver_type: &str, random_t: bool, sherlock_tries: Vec<usize>) {
+    fn max_terms(&self) -> f64 {
+        self.d.max_terms()
+    }
+
+    #[pyo3(signature = (driver_type = "BssWithCats", random_t = false, sherlock_tries = Vec::new()))]
+    fn decompose(&mut self, driver_type: &str, random_t: bool, sherlock_tries: Vec<usize>) {
         match driver_type {
             "BssTOnly" => {
-                self.d.with_driver(Driver::BssTOnly(random_t));
+                self.d
+                    .decompose(&quizx::decompose::BssTOnlyDriver { random_t });
             }
             "BssWithCats" => {
-                self.d.with_driver(Driver::BssWithCats(random_t));
+                self.d
+                    .decompose(&quizx::decompose::BssWithCatsDriver { random_t });
             }
             "DynamicT" => {
-                self.d.with_driver(Driver::DynamicT);
+                self.d.decompose(&quizx::decompose::DynamicTDriver);
             }
             "Sherlock" => {
-                self.d.with_driver(Driver::Sherlock(sherlock_tries));
+                self.d.decompose(&quizx::decompose::SherlockDriver {
+                    tries: sherlock_tries,
+                });
+            }
+            "SpiderCutting" => {
+                self.d.decompose(&quizx::decompose::SpiderCuttingDriver);
             }
             _ => {
                 println!("Driver Not Supported!");
@@ -117,28 +110,90 @@ impl Decomposer {
         };
     }
 
-    fn max_terms(&self) -> f64 {
-        self.d.max_terms()
-    }
-
-    fn decompose(&mut self) {
-        self.d.decompose();
-    }
-
-    #[pyo3(signature = (/, *, allow_threads=true))]
-    fn decompose_parallel(&mut self, allow_threads: bool) {
+    #[pyo3(signature = (/, *, allow_threads=true, driver_type, random_t = false, sherlock_tries = Vec::new()))]
+    fn decompose_parallel(
+        &mut self,
+        allow_threads: bool,
+        driver_type: &str,
+        random_t: bool,
+        sherlock_tries: Vec<usize>,
+    ) {
         if allow_threads {
             // Release the GIL for potentially long-running parallel computation
             pyo3::Python::with_gil(|py| {
                 py.allow_threads(|| {
-                    self.d = self.d.clone().decompose_parallel().clone();
+                    match driver_type {
+                        "BssTOnly" => {
+                            self.d
+                                .decompose_parallel(&quizx::decompose::BssTOnlyDriver { random_t });
+                        }
+                        "BssWithCats" => {
+                            self.d
+                                .decompose_parallel(&quizx::decompose::BssWithCatsDriver {
+                                    random_t,
+                                });
+                        }
+                        "DynamicT" => {
+                            self.d.decompose_parallel(&quizx::decompose::DynamicTDriver);
+                        }
+                        "Sherlock" => {
+                            self.d
+                                .decompose_parallel(&quizx::decompose::SherlockDriver {
+                                    tries: sherlock_tries,
+                                });
+                        }
+                        "SpiderCutting" => {
+                            self.d
+                                .decompose_parallel(&quizx::decompose::SpiderCuttingDriver);
+                        }
+                        _ => {
+                            println!("Driver Not Supported!");
+                        }
+                    };
                 });
             });
         }
     }
 
-    fn decompose_until_depth(&mut self, depth: i64) {
-        self.d.decomp_until_depth(depth);
+    #[pyo3(signature = (depth, driver_type, random_t = false, sherlock_tries = Vec::new()))]
+    fn decompose_until_depth(
+        &mut self,
+        depth: i64,
+        driver_type: &str,
+        random_t: bool,
+        sherlock_tries: Vec<usize>,
+    ) {
+        match driver_type {
+            "BssTOnly" => {
+                self.d
+                    .decompose_until_depth(depth, &quizx::decompose::BssTOnlyDriver { random_t });
+            }
+            "BssWithCats" => {
+                self.d.decompose_until_depth(
+                    depth,
+                    &quizx::decompose::BssWithCatsDriver { random_t },
+                );
+            }
+            "DynamicT" => {
+                self.d
+                    .decompose_until_depth(depth, &quizx::decompose::DynamicTDriver);
+            }
+            "Sherlock" => {
+                self.d.decompose_until_depth(
+                    depth,
+                    &quizx::decompose::SherlockDriver {
+                        tries: sherlock_tries,
+                    },
+                );
+            }
+            "SpiderCutting" => {
+                self.d
+                    .decompose_until_depth(depth, &quizx::decompose::SpiderCuttingDriver);
+            }
+            _ => {
+                println!("Driver Not Supported!");
+            }
+        };
     }
 
     fn get_nterms(&self) -> usize {
