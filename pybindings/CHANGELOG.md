@@ -5,6 +5,23 @@
 ## Added
 - `add_edge` method to `VecGraph` class.
 
+## [0.3.0](https://github.com/zxcalc/quizx/compare/quizx-py-v0.2.0...quizx-py-v0.3.0) (2025-06-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* New Drivers in the driver enum
+* Added rand as dependency
+* The decomposer works different now. I replaced the stack with a recursive approach
+* 
+
+### Features
+
+* Advanced drivers and some refactoring ([#149](https://github.com/zxcalc/quizx/issues/149)) ([96e5eb9](https://github.com/zxcalc/quizx/commit/96e5eb9a1b7fceb9aff2c6c2e3f90e0dbcc95c4d))
+* Generator for surface code circuits ([#128](https://github.com/zxcalc/quizx/issues/128)) ([4da7be4](https://github.com/zxcalc/quizx/commit/4da7be4c4e0becbb7f11f345eebb425890369f7c))
+* Improve Python bindings for the Decomposer ([#151](https://github.com/zxcalc/quizx/issues/151)) ([a53273f](https://github.com/zxcalc/quizx/commit/a53273f5508e0148dbdc031bc66e51c7154a94bb))
+* Rework of Decomposer to allow for speperation of disconnected components and exchange the driving decomposition selector ([#147](https://github.com/zxcalc/quizx/issues/147)) ([efe19c5](https://github.com/zxcalc/quizx/commit/efe19c51efb6d7406dd1c696c1464ae65fbaa7c8))
+
 ## [0.2.0](https://github.com/zxcalc/quizx/compare/quizx-py-v0.1.1...quizx-py-v0.2.0) (2025-05-13)
 
 
