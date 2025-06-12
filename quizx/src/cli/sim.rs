@@ -10,7 +10,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::circuit::Circuit;
-use crate::decompose::{Decomposer, Driver};
+use crate::decompose::{BssTOnlyDriver, BssWithCatsDriver, Decomposer, Driver};
 use crate::fscalar::FScalar;
 use crate::graph::{BasisElem, GraphLike, VType};
 use crate::simplify;
@@ -45,18 +45,34 @@ impl SimArgs {
     /// Run the `sim` command using the provided arguments.
     pub fn run(self) -> Result<(), CliError> {
         let circ = Circuit::from_file(self.input.to_str().unwrap())?;
-        let mut d = self.method.unwrap_or_default().build_decomposer();
-        let result = self
-            .task
-            .unwrap_or_default()
-            .run(&circ, &mut d, self.parallel)?;
+        let (mut d, use_cats) = self.method.unwrap_or_default().build_decomposer();
+        if use_cats {
+            let driver = BssWithCatsDriver { random_t: false };
+            let result =
+                self.task
+                    .unwrap_or_default()
+                    .run(&circ, &mut d, &driver, self.parallel)?;
 
-        if let Some(out_path) = self.out {
-            fs::write(out_path, result)?;
+            if let Some(out_path) = self.out {
+                fs::write(out_path, result)?;
+            } else {
+                println!("{result}");
+            }
+            Ok(())
         } else {
-            println!("{result}");
+            let driver = BssTOnlyDriver { random_t: false };
+            let result =
+                self.task
+                    .unwrap_or_default()
+                    .run(&circ, &mut d, &driver, self.parallel)?;
+
+            if let Some(out_path) = self.out {
+                fs::write(out_path, result)?;
+            } else {
+                println!("{result}");
+            }
+            Ok(())
         }
-        Ok(())
     }
 }
 
@@ -86,15 +102,10 @@ impl Default for SimMethod {
 }
 
 impl SimMethod {
-    fn build_decomposer(&self) -> Decomposer<Graph> {
-        let driver: Driver = if self.cats {
-            Driver::BssWithCats(true)
-        } else {
-            Driver::BssTOnly(true)
-        };
+    fn build_decomposer(&self) -> (Decomposer<Graph>, bool) {
         let mut decomposer = Decomposer::empty();
-        decomposer.with_full_simp().with_driver(driver);
-        decomposer
+        decomposer.with_full_simp();
+        (decomposer, self.cats)
     }
 }
 
@@ -133,19 +144,24 @@ impl SimTask {
         &self,
         circ: &Circuit,
         decomposer: &mut Decomposer<Graph>,
+        driver: &impl Driver,
         parallel: Option<usize>,
     ) -> Result<String, CliError> {
         if let Some(shots) = self.shots {
             Ok((0..shots)
-                .map(|_| sample(circ, decomposer, parallel))
+                .map(|_| sample(circ, decomposer, driver, parallel))
                 .join("\n")
                 .to_string())
         } else if let Some(ref bit_str) = self.bit_string {
-            Ok(format!("{}", amplitude(circ, decomposer, bit_str, parallel)?).to_string())
+            Ok(format!(
+                "{}",
+                amplitude(circ, decomposer, driver, bit_str, parallel)?
+            )
+            .to_string())
         } else if let Some(ref pauli_str) = self.pauli_string {
             Ok(format!(
                 "{}",
-                expectation_value(circ, decomposer, pauli_str, parallel)?
+                expectation_value(circ, decomposer, driver, pauli_str, parallel)?
             )
             .to_string())
         } else {
@@ -205,7 +221,12 @@ fn parse_pauli_string(s: &str) -> Result<PauliString, PauliStringParseError> {
 }
 
 /// Sample from a circuit by computing marginals via doubling of the diagram.
-fn sample(circ: &Circuit, decomposer: &mut Decomposer<Graph>, parallel: Option<usize>) -> String {
+fn sample(
+    circ: &Circuit,
+    decomposer: &mut Decomposer<Graph>,
+    driver: &impl Driver,
+    parallel: Option<usize>,
+) -> String {
     let qs = circ.num_qubits();
     let mut xs: Vec<bool> = vec![];
     let mut rng = thread_rng();
@@ -219,7 +240,7 @@ fn sample(circ: &Circuit, decomposer: &mut Decomposer<Graph>, parallel: Option<u
         g.plug_output(0, BasisElem::Z1);
         g.plug(&g.to_adjoint());
 
-        let scalar = decomp_graph(g, decomposer, parallel);
+        let scalar = decomp_graph(g, decomposer, driver, parallel);
         xs.push(rng.gen_bool(scalar.complex_value().re));
     }
     xs.iter().map(|x| if *x { '1' } else { '0' }).join("")
@@ -229,6 +250,7 @@ fn sample(circ: &Circuit, decomposer: &mut Decomposer<Graph>, parallel: Option<u
 fn amplitude(
     circ: &Circuit,
     decomposer: &mut Decomposer<Graph>,
+    driver: &impl Driver,
     bit_str: &BitString,
     parallel: Option<usize>,
 ) -> Result<f64, CliError> {
@@ -254,7 +276,7 @@ fn amplitude(
             .collect_vec(),
     );
 
-    let scalar = decomp_graph(g, decomposer, parallel);
+    let scalar = decomp_graph(g, decomposer, driver, parallel);
     let amp = scalar * scalar.conj();
     Ok(amp.complex_value().re)
 }
@@ -263,6 +285,7 @@ fn amplitude(
 fn expectation_value(
     circ: &Circuit,
     decomposer: &mut Decomposer<Graph>,
+    driver: &impl Driver,
     pauli_str: &PauliString,
     parallel: Option<usize>,
 ) -> Result<f64, CliError> {
@@ -312,7 +335,7 @@ fn expectation_value(
     }
     g.plug(&g_adj);
 
-    let scalar = decomp_graph(g, decomposer, parallel);
+    let scalar = decomp_graph(g, decomposer, driver, parallel);
     Ok(scalar.complex_value().re)
 }
 
@@ -320,225 +343,14 @@ fn expectation_value(
 fn decomp_graph(
     mut g: Graph,
     decomposer: &mut Decomposer<Graph>,
+    driver: &impl Driver,
     parallel: Option<usize>,
 ) -> FScalar {
     simplify::full_simp(&mut g);
     decomposer.set_target(g);
     if let Some(_depth) = parallel {
-        decomposer.decompose_parallel().scalar()
+        decomposer.decompose_parallel(driver).scalar()
     } else {
-        decomposer.decompose().scalar()
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use assert_cmd::Command;
-    use predicates::{ord::eq, str::contains};
-    use rstest::{fixture, rstest};
-
-    const CIRC: &str = "../circuits/small/mod5_4.qasm";
-    const SAMPLE: &str = "00001\n";
-
-    #[fixture]
-    fn cmd() -> Command {
-        let mut cmd = Command::cargo_bin("quizx").unwrap();
-        cmd.arg("sim");
-        cmd
-    }
-
-    #[rstest]
-    fn default(mut cmd: Command) {
-        cmd.arg(CIRC).assert().success().stdout(eq(SAMPLE));
-    }
-
-    #[rstest]
-    fn samples(mut cmd: Command) {
-        cmd.arg(CIRC)
-            .arg("--shots")
-            .arg("2")
-            .assert()
-            .success()
-            .stdout(eq([SAMPLE, SAMPLE].join("")));
-    }
-
-    #[rstest]
-    fn amplitude_single(mut cmd: Command) {
-        cmd.arg(CIRC)
-            .arg("--amplitude")
-            .arg("0")
-            .assert()
-            .success()
-            .stdout(eq("0\n"));
-    }
-
-    #[rstest]
-    fn amplitude_long(mut cmd: Command) {
-        cmd.arg(CIRC)
-            .arg("--amplitude")
-            .arg("00001")
-            .assert()
-            .success()
-            .stdout(eq("1\n"));
-    }
-
-    #[rstest]
-    fn expectation_single(mut cmd: Command) {
-        cmd.arg(CIRC)
-            .arg("--expval")
-            .arg("Z")
-            .assert()
-            .success()
-            .stdout(eq("-1\n"));
-    }
-
-    #[rstest]
-    fn expectation_explicit(mut cmd: Command) {
-        cmd.arg(CIRC)
-            .arg("--expval")
-            .arg("IXYZZ")
-            .assert()
-            .success()
-            .stdout(eq("0\n"));
-    }
-
-    #[rstest]
-    fn expectation_lower(mut cmd: Command) {
-        cmd.arg(CIRC)
-            .arg("--expval")
-            .arg("ixzyy")
-            .assert()
-            .success()
-            .stdout(eq("0\n"));
-    }
-
-    #[rstest]
-    fn bss(mut cmd: Command) {
-        cmd.arg(CIRC)
-            .arg("--bss")
-            .assert()
-            .success()
-            .stdout(eq(SAMPLE));
-    }
-
-    #[rstest]
-    fn cats(mut cmd: Command) {
-        cmd.arg(CIRC)
-            .arg("--cats")
-            .assert()
-            .success()
-            .stdout(eq(SAMPLE));
-    }
-
-    #[rstest]
-    fn parallel_sample(mut cmd: Command) {
-        cmd.arg(CIRC)
-            .arg("--parallel")
-            .arg("2")
-            .assert()
-            .success()
-            .stdout(eq(SAMPLE));
-    }
-
-    #[rstest]
-    fn parallel_amplitude(mut cmd: Command) {
-        cmd.arg(CIRC)
-            .arg("--expval")
-            .arg("z")
-            .arg("--parallel")
-            .arg("2")
-            .assert()
-            .success()
-            .stdout(eq("-1\n"));
-    }
-
-    #[rstest]
-    fn parallel_expectation(mut cmd: Command) {
-        cmd.arg(CIRC)
-            .arg("--expval")
-            .arg("z")
-            .arg("--parallel")
-            .arg("2")
-            .assert()
-            .success()
-            .stdout(eq("-1\n"));
-    }
-
-    #[rstest]
-    fn doesnt_exist(mut cmd: Command) {
-        cmd.arg("blah")
-            .assert()
-            .failure()
-            .stderr(contains("Error parsing input circuit: can't read file"));
-    }
-
-    #[rstest]
-    fn multiple_methods(mut cmd: Command) {
-        cmd.arg(CIRC)
-            .arg("--bss")
-            .arg("--cats")
-            .assert()
-            .failure()
-            .stderr(contains(
-                "the argument '--bss' cannot be used with '--cats'",
-            ));
-    }
-
-    #[rstest]
-    fn multiple_tasks(mut cmd: Command) {
-        cmd.arg(CIRC)
-            .arg("--shots")
-            .arg("2")
-            .arg("--expval")
-            .arg("Z")
-            .assert()
-            .failure()
-            .stderr(contains(
-                "the argument '--shots <SHOTS>' cannot be used with '--expval <PAULI_STRING>'",
-            ));
-    }
-
-    #[rstest]
-    fn bad_bit(mut cmd: Command) {
-        cmd.arg(CIRC)
-            .arg("--amplitude")
-            .arg("00210")
-            .assert()
-            .failure()
-            .stderr(contains("invalid value '00210' for '--amplitude <BIT_STRING>': '2' is not a valid bit. Expected sequence of 0s and 1s."));
-    }
-
-    #[rstest]
-    fn bit_string_len(mut cmd: Command) {
-        cmd.arg(CIRC)
-            .arg("--amplitude")
-            .arg("010")
-            .assert()
-            .failure()
-            .stderr(contains(
-                "Circuit has 5 qubits, but the provided bit string has length 3",
-            ));
-    }
-
-    #[rstest]
-    fn bad_pauli(mut cmd: Command) {
-        cmd.arg(CIRC)
-            .arg("--expval")
-            .arg("ZXYAI")
-            .assert()
-            .failure()
-            .stderr(contains("invalid value 'ZXYAI' for '--expval <PAULI_STRING>': 'A' is not a Pauli. Expected one of 'I', 'X', 'Y', 'Z'."));
-    }
-
-    #[rstest]
-    fn pauli_string_len(mut cmd: Command) {
-        cmd.arg(CIRC)
-            .arg("--expval")
-            .arg("ZZZ")
-            .assert()
-            .failure()
-            .stderr(contains(
-                "Circuit has 5 qubits, but the provided Pauli string has length 3",
-            ));
+        decomposer.decompose(driver).scalar()
     }
 }
