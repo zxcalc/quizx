@@ -14,7 +14,7 @@ name = "libquizx"
 crate-type = ["cdylib"]
 
 [dependencies]
-quizx = { version = "0.2.0", path = "../quizx" }
+quizx = { version = "0.3.0", path = "../quizx" }
 num = { workspace = true }
 pyo3 = { workspace = true, features = [
     "extension-module",
