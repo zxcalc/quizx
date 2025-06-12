@@ -17,7 +17,7 @@ QuiZX is a command line tool and [Rust](https://www.rust-lang.org/) library for 
 
 ## Getting started
 
-The main entry points for QuiZX are its command-line interface, it's Rust API, and it's Python bindings. Install the command line tool by running:
+There are three ways to use QuiZX: as a command-line tool, a Rust library, or via its Python bindings. Install the command line tool by running:
 
 ```bash
 cargo install quizx
@@ -35,12 +35,12 @@ To run the classical simulator for 16 shots, run:
 quizx opt circuit.qasm -s 16
 ```
 
-Then run `quizx help` to get an overview of the available commands then `quizx COMMAND --help` for command-specific help.
+Run `quizx help` to get an overview of the available commands then `quizx COMMAND --help` for command-specific help.
 
 
 ## Rust and Python API
 
-To use QuiZX from your Rust code, added it in the usual way to `Cargo.toml`. See the [docs](https://docs.rs/quizx/latest/quizx/) for an overview of the Rust API, as well as mixed bag of examples in the [examples](https://github.com/zxcalc/quizx/tree/master/quizx/examples) folder.
+To use QuiZX from your Rust code, add it in the usual way to `Cargo.toml`. See the [docs](https://docs.rs/quizx/latest/quizx/) for an overview of the Rust API, as well as mixed bag of examples in the [examples](https://github.com/zxcalc/quizx/tree/master/quizx/examples) folder.
 
 To use QuiZX via Python bindings, simply `pip install quizx`. You may wish to also run `pip install pyzx` to use various functions from PyZX on QuiZX graphs, most notably drawing functions. See [getting_started.ipynb](https://github.com/zxcalc/quizx/blob/master/demos/getting_started.ipynb) for basic usage. QuiZX graphs expose the same public methods as PyZX graphs, so any function in PyZX that expects a `pyzx.graph.BaseGraph` should also work fine (in theory) on QuiZX graphs. This is not thoroughly tested, so if you run into problems, please file an issue.
 
