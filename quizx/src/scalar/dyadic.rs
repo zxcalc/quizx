@@ -1,17 +1,18 @@
 use approx::AbsDiffEq;
+use num::{Float, Zero};
 use std::cmp::Ordering;
 use std::fmt;
 use std::ops::{Add, Mul, Neg, Sub};
 
-pub type Mantissa = u32;
-pub type DoubleMantissa = u64;
+// use type aliases to make it easy to change the precision
+pub type Mantissa = u64;
+pub type SignedMantissa = i64;
+pub type DoubleMantissa = u128;
 pub type Exponent = i32;
-pub type SignedVal = i32;
 
 const SIGN: u8 = 0x01;
 const SIGN_OFF: u8 = 0xff ^ SIGN;
 const APPROX: u8 = 0x02;
-// const APPROX_OFF: u8 = 0xff ^ APPROX;
 
 // A dyadic is essentially a floating point number, but we have more control over precision
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -22,7 +23,7 @@ pub struct Dyadic {
 }
 
 impl Dyadic {
-    pub fn new(val: SignedVal, exp: Exponent) -> Self {
+    pub fn new(val: SignedMantissa, exp: Exponent) -> Self {
         let mut d = if val.is_negative() {
             Dyadic {
                 flags: SIGN,
@@ -51,9 +52,9 @@ impl Dyadic {
     }
 
     #[inline]
-    pub fn val_and_exp(&self) -> (SignedVal, Exponent) {
+    pub fn val_and_exp(&self) -> (SignedMantissa, Exponent) {
         let shift = self.val.trailing_zeros();
-        let v = self.val.wrapping_shr(shift) as SignedVal;
+        let v = self.val.wrapping_shr(shift) as SignedMantissa;
         if self.sign() {
             (-v, self.exp + (shift as Exponent))
         } else {
@@ -85,9 +86,9 @@ impl fmt::Display for Dyadic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let (mut v, mut e) = self.val_and_exp();
 
-        let bnd: SignedVal = 1024;
+        let bnd: SignedMantissa = 1024;
         if v > -bnd && v < bnd && e.is_positive() && e < 10 {
-            v = v * (2 as SignedVal).pow(e as u32);
+            v = v * (2 as SignedMantissa).pow(e as u32);
             e = 0;
         }
 
@@ -262,6 +263,33 @@ impl Mul for Dyadic {
     }
 }
 
+impl Zero for Dyadic {
+    fn is_zero(&self) -> bool {
+        self.val == 0
+    }
+
+    fn zero() -> Self {
+        Dyadic {
+            flags: 0,
+            exp: 0,
+            val: 0,
+        }
+    }
+}
+
+impl From<f64> for Dyadic {
+    fn from(value: f64) -> Self {
+        let (m, e, s) = value.integer_decode();
+        let mut d = Dyadic {
+            flags: if s == -1 { SIGN } else { 0 } | APPROX,
+            exp: e as Exponent,
+            val: m as Mantissa,
+        };
+        d.normalize();
+        d
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -284,7 +312,7 @@ mod test {
     #[case(Dyadic::new(3, 12), (3, 12))]
     #[case(Dyadic::new(12, 10), (3, 12))]
     #[case(Dyadic::new(-3, 4), (-3, 4))]
-    fn repr(#[case] d: Dyadic, #[case] p: (i32, i32)) {
+    fn repr(#[case] d: Dyadic, #[case] p: (SignedMantissa, Exponent)) {
         assert_eq!(d.val_and_exp(), p);
     }
 

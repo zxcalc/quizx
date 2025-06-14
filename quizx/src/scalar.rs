@@ -15,3 +15,5 @@
 // limitations under the License.
 
 pub mod dyadic;
+
+pub struct Scalar4([dyadic::Dyadic; 4]);
