@@ -1,4 +1,5 @@
 use approx::AbsDiffEq;
+use derive_more::derive::{Display, Error};
 use num::{Float, Zero};
 use std::cmp::Ordering;
 use std::fmt;
@@ -10,9 +11,14 @@ pub type SignedMantissa = i64;
 pub type DoubleMantissa = u128;
 pub type Exponent = i32;
 
+#[derive(Default, Debug, Display, Error, PartialEq, Eq)]
+#[display("exponent is too small or large for destination type")]
+pub struct DyadicExponentOverflowError;
+
 const SIGN: u8 = 0x01;
 const SIGN_OFF: u8 = 0xff ^ SIGN;
 const APPROX: u8 = 0x02;
+const APPROX_OFF: u8 = 0xff ^ APPROX;
 
 // A dyadic is essentially a floating point number, but we have more control over precision
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -49,6 +55,15 @@ impl Dyadic {
     #[inline]
     pub fn approx(&self) -> bool {
         self.flags & APPROX == APPROX
+    }
+
+    #[inline]
+    pub fn set_approx(&mut self, approx: bool) {
+        if approx {
+            self.flags |= APPROX;
+        } else {
+            self.flags &= APPROX_OFF;
+        }
     }
 
     #[inline]
@@ -345,10 +360,15 @@ impl From<f64> for Dyadic {
     }
 }
 
-impl From<Dyadic> for f64 {
-    fn from(value: Dyadic) -> Self {
-        let (v, e) = value.val_and_exp();
-        (v as f64) * 2.0f64.powi(e)
+impl TryFrom<Dyadic> for f64 {
+    type Error = DyadicExponentOverflowError;
+    fn try_from(value: Dyadic) -> Result<Self, Self::Error> {
+        if value.exp >= f64::MIN_EXP && value.exp <= f64::MAX_EXP {
+            let (v, e) = value.val_and_exp();
+            Ok((v as f64) * 2.0f64.powi(e))
+        } else {
+            Err(DyadicExponentOverflowError)
+        }
     }
 }
 
@@ -423,5 +443,35 @@ mod test {
 
         assert_abs_diff_eq!(d1, d2);
         assert_abs_diff_eq!(d2, d3);
+    }
+
+    #[rstest]
+    #[case(Dyadic::new(1, 0))]
+    #[case(Dyadic::new(0, 0))]
+    #[case(Dyadic::new(32, 0))]
+    #[case(Dyadic::new(-5, 10))]
+    #[case(Dyadic::new(53, 100))]
+    fn roundtrip1(#[case] s: Dyadic) {
+        let mut s1 = Dyadic::from(f64::try_from(s).unwrap());
+        s1.set_approx(false);
+        assert_eq!(s, s1);
+    }
+
+    #[rstest]
+    #[case(0.0)]
+    #[case(1.0)]
+    #[case(5.0)]
+    #[case(0.3)]
+    #[case(13e-60)]
+    #[case(-55.13)]
+    fn roundtrip2(#[case] f: f64) {
+        let f1 = f64::try_from(Dyadic::from(f));
+        assert_eq!(Ok(f), f1);
+    }
+
+    #[rstest]
+    #[case(Dyadic::new(1, 1_000_000))]
+    fn float_fail(#[case] s: Dyadic) {
+        assert!(f64::try_from(s).is_err());
     }
 }

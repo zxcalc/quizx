@@ -93,6 +93,14 @@ impl Scalar4 {
         self.into()
     }
 
+    pub fn approx(&self) -> bool {
+        self.0.iter().any(|c| c.approx())
+    }
+
+    pub fn set_approx(&mut self, approx: bool) {
+        self.0.iter_mut().for_each(|c| c.set_approx(approx));
+    }
+
     /// The number of non-zero coefficients
     fn num_coeffs(&self) -> usize {
         self.0
@@ -448,8 +456,10 @@ impl From<Complex<f64>> for Scalar4 {
 impl From<&Scalar4> for Complex<f64> {
     fn from(value: &Scalar4) -> Self {
         Complex {
-            re: f64::from(value.0[0]) + f64::from(value.0[1] - value.0[3]) * 0.5 * SQRT_2,
-            im: f64::from(value.0[2]) + f64::from(value.0[1] + value.0[3]) * 0.5 * SQRT_2,
+            re: f64::try_from(value.0[0]).unwrap()
+                + f64::try_from(value.0[1] - value.0[3]).unwrap() * 0.5 * SQRT_2,
+            im: f64::try_from(value.0[2]).unwrap()
+                + f64::try_from(value.0[1] + value.0[3]).unwrap() * 0.5 * SQRT_2,
         }
     }
 }
@@ -457,8 +467,10 @@ impl From<&Scalar4> for Complex<f64> {
 impl From<Scalar4> for Complex<f64> {
     fn from(value: Scalar4) -> Self {
         Complex {
-            re: f64::from(value.0[0]) + f64::from(value.0[1] - value.0[3]) * 0.5 * SQRT_2,
-            im: f64::from(value.0[2]) + f64::from(value.0[1] + value.0[3]) * 0.5 * SQRT_2,
+            re: f64::try_from(value.0[0]).unwrap()
+                + f64::try_from(value.0[1] - value.0[3]).unwrap() * 0.5 * SQRT_2,
+            im: f64::try_from(value.0[2]).unwrap()
+                + f64::try_from(value.0[1] + value.0[3]).unwrap() * 0.5 * SQRT_2,
         }
     }
 }
