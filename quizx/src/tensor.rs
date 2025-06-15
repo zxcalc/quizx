@@ -16,9 +16,9 @@
 
 // use crate::scalar::*;
 use crate::circuit::*;
-use crate::fscalar::*;
 use crate::graph::*;
 use crate::phase::Phase;
+use crate::scalar::*;
 use ndarray::parallel::prelude::*;
 use ndarray::prelude::*;
 use ndarray::*;
@@ -32,7 +32,7 @@ use std::iter::FromIterator;
 pub type Tensor<A> = Array<A, IxDyn>;
 
 /// Shorthand for tensors over FScalar
-pub type TensorF = Tensor<FScalar>;
+pub type TensorF = Tensor<Scalar4>;
 
 /// Shorthand for tensors over floating point complex numbers
 pub type Tensor64 = Tensor<Complex<f64>>;
@@ -70,7 +70,7 @@ pub trait TensorElem:
     + One
     + Sqrt2
     + FromPhase
-    + From<FScalar>
+    + From<Scalar4>
     + ScalarOperand
     + std::ops::MulAssign
     + std::fmt::Debug
@@ -85,7 +85,7 @@ impl<T> TensorElem for T where
         + One
         + Sqrt2
         + FromPhase
-        + From<FScalar>
+        + From<Scalar4>
         + ScalarOperand
         + std::ops::MulAssign
         + std::fmt::Debug
@@ -482,7 +482,7 @@ mod tests {
         g.add_vertex(VType::Z);
         g.add_vertex(VType::Z);
         g.add_edge(0, 1);
-        let t: Tensor<FScalar> = g.to_tensor();
+        let t: Tensor<Scalar4> = g.to_tensor();
         println!("{t}");
     }
 
@@ -494,7 +494,7 @@ mod tests {
         g.add_edge(0, 1);
         g.set_inputs(vec![0]);
         g.set_outputs(vec![1]);
-        let t: Tensor<FScalar> = g.to_tensor();
+        let t: Tensor<Scalar4> = g.to_tensor();
         assert_eq!(t, Tensor::ident(1));
 
         let mut g = Graph::new();
@@ -505,7 +505,7 @@ mod tests {
         g.add_edge(2, 1);
         g.set_inputs(vec![0]);
         g.set_outputs(vec![1]);
-        let t: Tensor<FScalar> = g.to_tensor();
+        let t: Tensor<Scalar4> = g.to_tensor();
         assert_eq!(t, Tensor::ident(1));
     }
 
@@ -554,10 +554,10 @@ mod tests {
 
     #[test]
     fn had_at() {
-        let mut arr: Tensor<FScalar> = Tensor::ident(1);
+        let mut arr: Tensor<Scalar4> = Tensor::ident(1);
         arr.hadamard_at(0);
         assert_eq!(arr, Tensor::hadamard());
-        let mut arr: Tensor<FScalar> = Tensor::ident(2);
+        let mut arr: Tensor<Scalar4> = Tensor::ident(2);
         arr.hadamard_at(0);
         arr.hadamard_at(1);
         arr.hadamard_at(0);

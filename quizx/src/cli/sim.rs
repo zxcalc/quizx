@@ -11,8 +11,8 @@ use std::path::PathBuf;
 
 use crate::circuit::Circuit;
 use crate::decompose::{BssTOnlyDriver, BssWithCatsDriver, Decomposer, Driver};
-use crate::fscalar::FScalar;
 use crate::graph::{BasisElem, GraphLike, VType};
+use crate::scalar::Scalar4;
 use crate::simplify;
 use crate::vec_graph::Graph;
 
@@ -345,7 +345,7 @@ fn decomp_graph(
     decomposer: &mut Decomposer<Graph>,
     driver: &impl Driver,
     parallel: Option<usize>,
-) -> FScalar {
+) -> Scalar4 {
     simplify::full_simp(&mut g);
     decomposer.set_target(g);
     if let Some(_depth) = parallel {

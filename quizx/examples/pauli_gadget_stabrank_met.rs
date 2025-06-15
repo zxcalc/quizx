@@ -18,8 +18,8 @@ use itertools::Itertools;
 use num::Complex;
 use quizx::circuit::*;
 use quizx::decompose::{terms_for_tcount, Decomposer};
-use quizx::fscalar::*;
 use quizx::graph::*;
+use quizx::scalar::*;
 use quizx::tensor::*;
 use quizx::vec_graph::Graph;
 use rand::rngs::StdRng;
@@ -94,7 +94,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         g.plug_inputs(&vec![BasisElem::X0; qs]);
         quizx::simplify::full_simp(&mut g);
 
-        let mut prob = FScalar::zero();
+        let mut prob = Scalar4::zero();
 
         // let time_single = Instant::now();
         // let mut terms_single = 0;

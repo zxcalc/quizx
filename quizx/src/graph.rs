@@ -18,7 +18,7 @@ use crate::linalg::Mat2;
 use crate::params::Expr;
 use crate::phase::Phase;
 use crate::util::*;
-use crate::{fscalar::*, params::Parity};
+use crate::{params::Parity, scalar::*};
 use derive_more::{Display, From};
 use num::rational::Rational64;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -253,10 +253,10 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     fn degree(&self, v: V) -> usize;
 
     /// Returns the scalar associated with a ZX diagram
-    fn scalar(&self) -> &FScalar;
+    fn scalar(&self) -> &Scalar4;
 
     /// Returns a mutable ref to the scalar associated with a ZX diagram
-    fn scalar_mut(&mut self) -> &mut FScalar;
+    fn scalar_mut(&mut self) -> &mut Scalar4;
 
     /// Returns the first edge satisfying the given function, or None
     fn find_edge<F>(&self, f: F) -> Option<(V, V, EType)>
@@ -275,13 +275,13 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// scalar and `e` is a boolean expression. For a given assignment of variables, the
     /// concrete scalar of a graph is the product of all scalar factors, as well as the
     /// constant scalar factor stored in `g.scalar()`.
-    fn scalar_factors(&self) -> impl Iterator<Item = (&Expr, &FScalar)>;
+    fn scalar_factors(&self) -> impl Iterator<Item = (&Expr, &Scalar4)>;
 
     /// Get the scalar factor associated with a given boolean expression
-    fn get_scalar_factor(&self, e: &Expr) -> Option<FScalar>;
+    fn get_scalar_factor(&self, e: &Expr) -> Option<Scalar4>;
 
     /// Insert (i.e. multiply) a new scalar factor `s^e` into the overall scalar
-    fn mul_scalar_factor(&mut self, e: Expr, s: FScalar);
+    fn mul_scalar_factor(&mut self, e: Expr, s: Scalar4);
 
     /// Returns the phase and any boolean variables at a vertex
     fn phase_and_vars(&self, v: V) -> (Phase, Parity) {

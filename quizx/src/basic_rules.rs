@@ -26,10 +26,10 @@
 //! Note calling `X_unchecked` is allowed to make unsound ZX-diagram
 //! transformations, or even panic, if `check_X` doesn't return true.
 
-use crate::fscalar::*;
 use crate::graph::*;
 use crate::params::Expr;
 use crate::phase::Phase;
+use crate::scalar::*;
 use num::traits::Zero;
 use rustc_hash::FxHashSet;
 use std::iter::FromIterator;
@@ -220,7 +220,7 @@ pub fn pi_copy_unchecked(g: &mut impl GraphLike, v: V) {
 
     let vars = g.vars(v);
     if !vars.is_empty() {
-        g.mul_scalar_factor(Expr::linear(vars), FScalar::minus_one());
+        g.mul_scalar_factor(Expr::linear(vars), Scalar4::minus_one());
     }
 
     // Push a pi to all the surrounding nodes
@@ -334,7 +334,7 @@ pub fn local_comp_unchecked(g: &mut impl GraphLike, v: V) {
     g.scalar_mut().mul_phase(p / 2);
 
     if !vars.is_empty() {
-        g.mul_scalar_factor(Expr::linear(vars), FScalar::from_phase(-p));
+        g.mul_scalar_factor(Expr::linear(vars), Scalar4::from_phase(-p));
     }
 }
 
@@ -418,11 +418,11 @@ pub fn pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     g.scalar_mut().mul_sqrt2_pow((x - 2) * (y - 2));
 
     if !p0.is_zero() && !p1.is_zero() {
-        *g.scalar_mut() *= FScalar::minus_one();
+        *g.scalar_mut() *= Scalar4::minus_one();
     }
 
     if !vars0.is_empty() && !vars1.is_empty() {
-        g.mul_scalar_factor(Expr::quadratic(vars0, vars1), FScalar::minus_one());
+        g.mul_scalar_factor(Expr::quadratic(vars0, vars1), Scalar4::minus_one());
     }
 }
 
@@ -716,8 +716,8 @@ pub fn remove_single_unchecked(g: &mut impl GraphLike, v: V) {
         g.scalar_mut().mul_one_plus_phase(p);
     } else {
         let p1 = p + Phase::one();
-        g.mul_scalar_factor(Expr::linear(vars.negated()), FScalar::one_plus_phase(p));
-        g.mul_scalar_factor(Expr::linear(vars), FScalar::one_plus_phase(p1));
+        g.mul_scalar_factor(Expr::linear(vars.negated()), Scalar4::one_plus_phase(p));
+        g.mul_scalar_factor(Expr::linear(vars), Scalar4::one_plus_phase(p1));
     }
 
     g.remove_vertex(v);
@@ -755,31 +755,31 @@ pub fn remove_pair_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
             let vars = vars0 + vars1;
             g.mul_scalar_factor(
                 Expr::linear(vars.negated()),
-                FScalar::one_plus_phase(p0 + p1),
+                Scalar4::one_plus_phase(p0 + p1),
             );
             g.mul_scalar_factor(
                 Expr::linear(vars),
-                FScalar::one_plus_phase(p0 + p1 + Phase::one()),
+                Scalar4::one_plus_phase(p0 + p1 + Phase::one()),
             );
         }
 
     // different colors
     } else {
         let (x0, x1, x2) = (
-            FScalar::from_phase(p0),
-            FScalar::from_phase(p1),
-            FScalar::from_phase(p0 + p1),
+            Scalar4::from_phase(p0),
+            Scalar4::from_phase(p1),
+            Scalar4::from_phase(p0 + p1),
         );
 
         g.scalar_mut().mul_sqrt2_pow(-1);
 
         if vars0.is_empty() && vars1.is_empty() {
-            *g.scalar_mut() *= FScalar::one() + x0 + x1 - x2;
+            *g.scalar_mut() *= Scalar4::one() + x0 + x1 - x2;
         } else {
-            let s00 = FScalar::one() + x0 + x1 - x2;
-            let s01 = FScalar::one() + x0 - x1 + x2;
-            let s10 = FScalar::one() - x0 + x1 + x2;
-            let s11 = FScalar::one() - x0 - x1 - x2;
+            let s00 = Scalar4::one() + x0 + x1 - x2;
+            let s01 = Scalar4::one() + x0 - x1 + x2;
+            let s10 = Scalar4::one() - x0 + x1 + x2;
+            let s11 = Scalar4::one() - x0 - x1 - x2;
 
             if s00 == s01 && s10 == s11 {
                 g.mul_scalar_factor(Expr::linear(vars1.negated()), s00);
@@ -939,7 +939,7 @@ mod tests {
         assert_eq!(g.num_edges(), 4);
         assert_eq!(g.degree(vs[2]), 3);
         assert_eq!(g.degree(vs[4]), 1);
-        assert_eq!(*g.scalar(), FScalar::sqrt2_pow(-2));
+        assert_eq!(*g.scalar(), Scalar4::sqrt2_pow(-2));
 
         let tg = g.to_tensorf();
         let th = h.to_tensorf();
@@ -997,7 +997,7 @@ mod tests {
 
         assert_eq!(
             *g.scalar(),
-            FScalar::sqrt2_pow((4 - 1) * (4 - 2) / 2) * FScalar::from_phase(Rational64::new(1, 4))
+            Scalar4::sqrt2_pow((4 - 1) * (4 - 2) / 2) * Scalar4::from_phase(Rational64::new(1, 4))
         );
 
         let h = g.clone();
