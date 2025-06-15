@@ -137,7 +137,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             terms += d.nterms;
 
             if debug {
-                let prob1_c: Complex<f64> = prob1.into();
+                let prob1_c: Complex<f64> = prob1.complex_value();
                 println!(
                     "{} (P = {}, re(P) ~ {})",
                     meas_str(&effect1),

@@ -24,6 +24,7 @@ use std::iter::{Product, Sum};
 use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 
 use crate::phase::Phase;
+use crate::scalar::dyadic::DyadicExponentOverflowError;
 pub use crate::scalar_traits::{FromPhase, Sqrt2};
 pub mod dyadic;
 pub use dyadic::Dyadic;
@@ -90,7 +91,7 @@ impl Scalar4 {
 
     /// Converts `Scalar4` into a `Complex<f64>`
     pub fn complex_value(&self) -> Complex<f64> {
-        self.into()
+        self.try_into().unwrap()
     }
 
     pub fn approx(&self) -> bool {
@@ -417,8 +418,8 @@ impl AbsDiffEq<Scalar4> for Scalar4 {
     }
 
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        let c1: Complex<f64> = self.into();
-        let c2: Complex<f64> = other.into();
+        let c1: Complex<f64> = self.try_into().unwrap();
+        let c2: Complex<f64> = other.try_into().unwrap();
         f64::abs_diff_eq(&c1.re, &c2.re, epsilon) && f64::abs_diff_eq(&c1.im, &c2.im, epsilon)
     }
 }
@@ -453,25 +454,23 @@ impl From<Complex<f64>> for Scalar4 {
     }
 }
 
-impl From<&Scalar4> for Complex<f64> {
-    fn from(value: &Scalar4) -> Self {
-        Complex {
-            re: f64::try_from(value.0[0]).unwrap()
-                + f64::try_from(value.0[1] - value.0[3]).unwrap() * 0.5 * SQRT_2,
-            im: f64::try_from(value.0[2]).unwrap()
-                + f64::try_from(value.0[1] + value.0[3]).unwrap() * 0.5 * SQRT_2,
-        }
+impl TryFrom<&Scalar4> for Complex<f64> {
+    type Error = DyadicExponentOverflowError;
+    fn try_from(value: &Scalar4) -> Result<Self, Self::Error> {
+        Ok(Complex {
+            re: f64::try_from(value.0[0])? + f64::try_from(value.0[1] - value.0[3])? * 0.5 * SQRT_2,
+            im: f64::try_from(value.0[2])? + f64::try_from(value.0[1] + value.0[3])? * 0.5 * SQRT_2,
+        })
     }
 }
 
-impl From<Scalar4> for Complex<f64> {
-    fn from(value: Scalar4) -> Self {
-        Complex {
-            re: f64::try_from(value.0[0]).unwrap()
-                + f64::try_from(value.0[1] - value.0[3]).unwrap() * 0.5 * SQRT_2,
-            im: f64::try_from(value.0[2]).unwrap()
-                + f64::try_from(value.0[1] + value.0[3]).unwrap() * 0.5 * SQRT_2,
-        }
+impl TryFrom<Scalar4> for Complex<f64> {
+    type Error = DyadicExponentOverflowError;
+    fn try_from(value: Scalar4) -> Result<Self, Self::Error> {
+        Ok(Complex {
+            re: f64::try_from(value.0[0])? + f64::try_from(value.0[1] - value.0[3])? * 0.5 * SQRT_2,
+            im: f64::try_from(value.0[2])? + f64::try_from(value.0[1] + value.0[3])? * 0.5 * SQRT_2,
+        })
     }
 }
 
@@ -571,11 +570,11 @@ mod test {
         assert_eq!((one + i) * (one + i).conj(), one + one);
         assert_eq!(om + om.conj(), sqrt2);
 
-        let c1: Complex<f64> = (one + i + i).into();
+        let c1: Complex<f64> = (one + i + i).complex_value();
         let c2: Complex<f64> = Complex::new(1.0, 2.0);
         assert_eq!(c1, c2);
 
-        let c1: Complex<f64> = (Scalar4::sqrt2_pow(3) + i * sqrt2).into();
+        let c1: Complex<f64> = (Scalar4::sqrt2_pow(3) + i * sqrt2).complex_value();
         let c2: Complex<f64> = Complex::new(2.0 * SQRT_2, SQRT_2);
         assert_abs_diff_eq!(c1.re, c2.re);
         assert_abs_diff_eq!(c1.im, c2.im);
@@ -586,12 +585,12 @@ mod test {
         // n.b. exact equality in the sqrt2_pow tests. This may break if conversion to Complex is
         // implemented differently.
         let sqrt2 = Scalar4::sqrt2_pow(1);
-        let sqrt2_c: Complex<f64> = sqrt2.into();
+        let sqrt2_c: Complex<f64> = sqrt2.complex_value();
         assert_eq!(sqrt2_c.re, SQRT_2);
         assert_eq!(sqrt2_c.im, 0.0);
 
         let sqrt2_pow = Scalar4::sqrt2_pow(7);
-        let sqrt2_pow_c: Complex<f64> = sqrt2_pow.into();
+        let sqrt2_pow_c: Complex<f64> = sqrt2_pow.complex_value();
         assert_eq!(sqrt2_pow_c.re, 2.0 * 2.0 * 2.0 * SQRT_2);
         assert_eq!(sqrt2_pow_c.im, 0.0);
 

@@ -29,7 +29,7 @@ impl From<&Scalar4> for JsonScalar {
                 ..Default::default()
             },
             None => {
-                let complex: Complex<f64> = value.into();
+                let complex: Complex<f64> = value.complex_value();
                 let (r, theta) = complex.to_polar();
                 JsonScalar {
                     power2: 0,

@@ -70,7 +70,7 @@ pub trait TensorElem:
     + One
     + Sqrt2
     + FromPhase
-    + From<Scalar4>
+    + TryFrom<Scalar4, Error: std::fmt::Debug>
     + ScalarOperand
     + std::ops::MulAssign
     + std::fmt::Debug
@@ -85,7 +85,7 @@ impl<T> TensorElem for T where
         + One
         + Sqrt2
         + FromPhase
-        + From<Scalar4>
+        + TryFrom<Scalar4, Error: std::fmt::Debug>
         + ScalarOperand
         + std::ops::MulAssign
         + std::fmt::Debug
@@ -393,7 +393,7 @@ impl<G: GraphLike + Clone> ToTensor for G {
             seenv.insert(v, deg_v);
         }
 
-        let s = A::from(*g.scalar()); // * A::sqrt2_pow(-num_had);
+        let s = A::try_from(*g.scalar()).unwrap(); // * A::sqrt2_pow(-num_had);
         a * s
     }
 }
