@@ -22,7 +22,7 @@ impl From<&Scalar4> for JsonScalar {
 
         match value.exact_phase_and_sqrt2_pow() {
             Some((phase, pow)) => JsonScalar {
-                power2: pow as i32,
+                power2: pow,
                 phase: JsonPhase::from_phase(phase, phase_options),
                 floatfactor: 1.0,
                 is_zero: false,

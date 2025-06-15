@@ -108,7 +108,7 @@ impl Dyadic {
             self.flags &= SIGN_OFF;
         } else {
             let head = self.val.leading_zeros();
-            self.exp = self.exp - (head as Exponent);
+            self.exp -= head as Exponent;
             self.val = self.val.wrapping_shl(head);
         }
     }
@@ -137,7 +137,7 @@ impl fmt::Display for Dyadic {
 
         let bnd: SignedMantissa = 1024;
         if v > -bnd && v < bnd && e.is_positive() && e < 10 {
-            v = v * (2 as SignedMantissa).pow(e as u32);
+            v *= (2 as SignedMantissa).pow(e as u32);
             e = 0;
         }
 
@@ -152,6 +152,12 @@ impl fmt::Display for Dyadic {
 
 impl PartialOrd for Dyadic {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Dyadic {
+    fn cmp(&self, other: &Self) -> Ordering {
         // first compute the order as if "self" was positive
         let ord = if self.sign() != other.sign() {
             Ordering::Greater
@@ -162,13 +168,11 @@ impl PartialOrd for Dyadic {
         };
 
         // if "self" is actually negative, flip the order
-        Some(if self.sign() { ord.reverse() } else { ord })
-    }
-}
-
-impl Ord for Dyadic {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
+        if self.sign() {
+            ord.reverse()
+        } else {
+            ord
+        }
     }
 }
 
@@ -233,8 +237,8 @@ impl Add for Dyadic {
 
         if self.sign() != rhs.sign() {
             if self.val > rhs.val {
-                self.val = self.val - rhs.val;
-                self.flags = self.flags | (rhs.flags & APPROX);
+                self.val -= rhs.val;
+                self.flags |= rhs.flags & APPROX;
                 self.normalize();
             } else if self.val < rhs.val {
                 self.val = rhs.val - self.val;
@@ -262,11 +266,11 @@ impl Add for Dyadic {
 
                 self.val = self.val.wrapping_shr(1);
                 rhs.val = rhs.val.wrapping_shr(1);
-                self.val = self.val + rhs.val;
-                self.exp = self.exp + 1;
+                self.val += rhs.val;
+                self.exp += 1;
             }
 
-            self.flags = self.flags | (rhs.flags & APPROX);
+            self.flags |= rhs.flags & APPROX;
         };
 
         self
@@ -285,7 +289,7 @@ impl Sub for Dyadic {
 
     #[inline]
     fn sub(self, rhs: Self) -> Self::Output {
-        self + rhs.neg()
+        self + -rhs
     }
 }
 
@@ -306,7 +310,7 @@ impl Mul for Dyadic {
             return rhs;
         }
 
-        self.exp = self.exp + rhs.exp;
+        self.exp += rhs.exp;
         self.flags |= rhs.flags & APPROX;
         self.flags ^= rhs.flags & SIGN;
 
@@ -318,7 +322,7 @@ impl Mul for Dyadic {
                 self.flags |= APPROX;
             }
             v = v.wrapping_shr(shift);
-            self.exp = self.exp + (shift as Exponent);
+            self.exp += shift as Exponent;
         }
 
         self.val = v as Mantissa;

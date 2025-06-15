@@ -497,6 +497,7 @@ impl From<Phase> for Scalar4 {
 mod test {
     use super::*;
     use approx::assert_abs_diff_eq;
+    use rstest::rstest;
 
     #[test]
     fn display() {
@@ -669,5 +670,25 @@ mod test {
         let c = Complex::new(0.0, PI * r.to_f64().unwrap()).exp();
         let s2: Scalar4 = c.into();
         assert_eq!(s1, s2);
+    }
+
+    #[rstest]
+    #[case(Scalar4::zero())]
+    #[case(Scalar4::one())]
+    #[case(Scalar4::from_phase(1))]
+    #[case(Scalar4::from_phase((1,2)))]
+    #[case(Scalar4::from_phase((-1,2)))]
+    #[case(Scalar4::real(2.0))]
+    #[case(Scalar4::complex(1.0, 1.0))]
+    #[case(Scalar4::new([0, 1, 0, -1], 3))]
+    #[case(Scalar4::new([0, 7, 0, 7], -2))]
+    #[case(Scalar4::new([-2, 0, -2, 0], 0))]
+    #[case(Scalar4::new([2, 0, -2, 0], 30))]
+    #[case(Scalar4::new([2, 0, 0, 0], -10))]
+    fn scalar4_roundtrip(#[case] scalar: Scalar4) {
+        let complex = scalar.complex_value();
+        println!("complex value = {}", complex);
+        let scalar1 = Scalar4::from(complex);
+        assert_abs_diff_eq!(scalar, scalar1);
     }
 }

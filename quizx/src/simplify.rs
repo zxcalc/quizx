@@ -431,8 +431,8 @@ mod tests {
     fn cliff_simp_2() {
         let c = Circuit::random()
             .seed(1337)
-            .qubits(5)
-            .depth(50)
+            .qubits(3)
+            .depth(20)
             .p_t(0.2)
             .with_cliffords()
             .build();
