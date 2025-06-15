@@ -2,7 +2,7 @@ use approx::AbsDiffEq;
 use num::{Float, Zero};
 use std::cmp::Ordering;
 use std::fmt;
-use std::ops::{Add, Mul, Neg, Sub};
+use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 // use type aliases to make it easy to change the precision
 pub type Mantissa = u64;
@@ -60,6 +60,22 @@ impl Dyadic {
         } else {
             (v, self.exp + (shift as Exponent))
         }
+    }
+
+    #[inline]
+    pub fn val(&self) -> SignedMantissa {
+        let shift = self.val.trailing_zeros();
+        let v = self.val.wrapping_shr(shift) as SignedMantissa;
+        if self.sign() {
+            -v
+        } else {
+            v
+        }
+    }
+
+    #[inline]
+    pub fn exp(&self) -> Exponent {
+        self.exp + (self.val.trailing_zeros() as Exponent)
     }
 
     #[inline]
@@ -146,7 +162,7 @@ impl Neg for Dyadic {
     }
 }
 
-impl Add<Dyadic> for Dyadic {
+impl Add for Dyadic {
     type Output = Dyadic;
 
     fn add(mut self, mut rhs: Dyadic) -> Self::Output {
@@ -224,12 +240,26 @@ impl Add<Dyadic> for Dyadic {
     }
 }
 
+impl AddAssign for Dyadic {
+    #[inline]
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs
+    }
+}
+
 impl Sub for Dyadic {
     type Output = Dyadic;
 
     #[inline]
     fn sub(self, rhs: Self) -> Self::Output {
         self + rhs.neg()
+    }
+}
+
+impl SubAssign for Dyadic {
+    #[inline]
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = *self - rhs
     }
 }
 
@@ -263,6 +293,13 @@ impl Mul for Dyadic {
     }
 }
 
+impl MulAssign for Dyadic {
+    #[inline]
+    fn mul_assign(&mut self, rhs: Self) {
+        *self = *self * rhs
+    }
+}
+
 impl Zero for Dyadic {
     fn is_zero(&self) -> bool {
         self.val == 0
@@ -287,6 +324,19 @@ impl From<f64> for Dyadic {
         };
         d.normalize();
         d
+    }
+}
+
+impl From<Dyadic> for f64 {
+    fn from(value: Dyadic) -> Self {
+        let (v, e) = value.val_and_exp();
+        (v as f64) * 2.0f64.powi(e)
+    }
+}
+
+impl From<SignedMantissa> for Dyadic {
+    fn from(value: SignedMantissa) -> Self {
+        Dyadic::new(value, 0)
     }
 }
 
