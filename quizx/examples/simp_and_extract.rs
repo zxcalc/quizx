@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match g.to_circuit() {
         Ok(c1) => {
             println!("extracted ok");
-            if TensorF::scalar_compare(&c, &c1) {
+            if Tensor4::scalar_compare(&c, &c1) {
                 println!("Tensors match!");
                 println!("After:\n{}", c1.stats());
             } else {

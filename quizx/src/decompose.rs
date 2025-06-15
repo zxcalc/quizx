@@ -1491,15 +1491,15 @@ mod tests {
         for numer in 0..4 {
             let mut g = Graph::new();
             let v = g.add_vertex_with_phase(VType::Z, Rational64::new(numer, 4));
-            let original_scalar = g.to_tensorf()[[]];
+            let original_scalar = g.to_tensor4()[[]];
 
             // Test replace_t0
             let g0 = replace_single0(&g, &[v]);
-            let s0 = g0.to_tensorf()[[]];
+            let s0 = g0.to_tensor4()[[]];
 
             // Test replace_t1
             let g1 = replace_single1(&g, &[v]);
-            let s1 = g1.to_tensorf()[[]];
+            let s1 = g1.to_tensor4()[[]];
 
             // The sum should equal the original
             assert_eq!(original_scalar, s0 + s1);
@@ -1509,13 +1509,13 @@ mod tests {
     #[test]
     fn test_symmetric_decomp() {
         let g = create_t_graph(2);
-        let original_scalar = g.to_tensorf()[[]];
+        let original_scalar = g.to_tensor4()[[]];
         let ts: Vec<_> = g.vertices().filter(|&v| g.phase(v).is_t()).collect();
 
         let decomp = apply_sym_decomp(&g, &ts[0..2]);
         assert_eq!(decomp.len(), 2);
 
-        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensorf()[[]]).sum();
+        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensor4()[[]]).sum();
 
         assert_eq!(original_scalar, sum);
     }
@@ -1523,13 +1523,13 @@ mod tests {
     #[test]
     fn test_bss_decomp() {
         let g = create_t_graph(6);
-        let original_scalar = g.to_tensorf()[[]];
+        let original_scalar = g.to_tensor4()[[]];
         let ts: Vec<_> = g.vertices().filter(|&v| g.phase(v).is_t()).collect();
 
         let decomp = apply_bss_decomp(&g, &ts[0..6]);
         assert_eq!(decomp.len(), 7);
 
-        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensorf()[[]]).sum();
+        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensor4()[[]]).sum();
 
         assert_eq!(original_scalar, sum);
     }
@@ -1537,7 +1537,7 @@ mod tests {
     #[test]
     fn test_cat3_decomp() {
         let g = create_cat_graph(3, Rational64::new(1, 1));
-        let original_scalar = g.to_tensorf()[[]];
+        let original_scalar = g.to_tensor4()[[]];
         let verts = cat_ts(&g);
 
         assert_eq!(verts.len(), 4); // 1 Pauli + 3 T
@@ -1545,14 +1545,14 @@ mod tests {
         let decomp = apply_cat_decomp(&g, &verts);
         assert_eq!(decomp.len(), 2);
 
-        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensorf()[[]]).sum();
+        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensor4()[[]]).sum();
 
         assert_eq!(original_scalar, sum);
     }
     #[test]
     fn test_cat4_decomp() {
         let g = create_cat_graph(4, Rational64::new(1, 1));
-        let original_scalar = g.to_tensorf()[[]];
+        let original_scalar = g.to_tensor4()[[]];
         let verts = cat_ts(&g);
 
         assert_eq!(verts.len(), 5); // 1 Pauli + 4 T
@@ -1560,7 +1560,7 @@ mod tests {
         let decomp = apply_cat_decomp(&g, &verts);
         assert_eq!(decomp.len(), 2);
 
-        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensorf()[[]]).sum();
+        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensor4()[[]]).sum();
 
         assert_eq!(original_scalar, sum);
     }
@@ -1568,7 +1568,7 @@ mod tests {
     #[test]
     fn test_cat5_decomp() {
         let g = create_cat_graph(5, Rational64::new(1, 1));
-        let original_scalar = g.to_tensorf()[[]];
+        let original_scalar = g.to_tensor4()[[]];
         let verts = cat_ts(&g);
 
         assert_eq!(verts.len(), 6); // 1 Pauli + 5 T
@@ -1576,7 +1576,7 @@ mod tests {
         let decomp = apply_cat_decomp(&g, &verts);
         assert_eq!(decomp.len(), 3);
 
-        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensorf()[[]]).sum();
+        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensor4()[[]]).sum();
 
         assert_eq!(original_scalar, sum);
     }
@@ -1584,7 +1584,7 @@ mod tests {
     #[test]
     fn test_cat6_decomp() {
         let g = create_cat_graph(6, Rational64::new(1, 1));
-        let original_scalar = g.to_tensorf()[[]];
+        let original_scalar = g.to_tensor4()[[]];
         let verts = cat_ts(&g);
 
         assert_eq!(verts.len(), 7); // 1 Pauli + 6 T
@@ -1592,7 +1592,7 @@ mod tests {
         let decomp = apply_cat_decomp(&g, &verts);
         assert_eq!(decomp.len(), 3);
 
-        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensorf()[[]]).sum();
+        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensor4()[[]]).sum();
 
         assert_eq!(original_scalar, sum);
     }
@@ -1618,13 +1618,13 @@ mod tests {
     #[test]
     fn test_magic5_decomp() {
         let g = create_t_graph(5);
-        let original_scalar = g.to_tensorf()[[]];
+        let original_scalar = g.to_tensor4()[[]];
         let ts: Vec<_> = g.vertices().filter(|&v| g.phase(v).is_t()).collect();
 
         let decomp = apply_magic5_from_cat_decomp(&g, &ts[0..5]);
         assert_eq!(decomp.len(), 3);
 
-        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensorf()[[]]).sum();
+        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensor4()[[]]).sum();
 
         assert_eq!(original_scalar, sum);
     }
@@ -1635,11 +1635,11 @@ mod tests {
             for seed in [42, 5518] {
                 let g = create_non_t_graph(size, seed);
                 for v in g.vertices() {
-                    let original_scalar = g.to_tensorf()[[]];
+                    let original_scalar = g.to_tensor4()[[]];
 
                     let sum_of_new_scalars: Scalar4 = apply_spider_cutting_decomp(&g, &[v])
                         .iter()
-                        .map(|new_g| new_g.to_tensorf()[[]])
+                        .map(|new_g| new_g.to_tensor4()[[]])
                         .sum();
                     _ = abs_diff_eq!(original_scalar, sum_of_new_scalars);
                 }
@@ -1668,7 +1668,7 @@ mod tests {
         for graph_generator in graph_generators {
             for size in 1..=7 {
                 let g = graph_generator(size);
-                let expected_scalar = g.to_tensorf()[[]];
+                let expected_scalar = g.to_tensor4()[[]];
 
                 for simp in &simp_funcs {
                     for &split in &split_components {
@@ -1777,7 +1777,7 @@ mod tests {
     fn test_decomposer_with_cats() {
         for cat_size in [3, 4, 5, 6] {
             let g = create_cat_graph(cat_size, Rational64::new(0, 1));
-            let expected_scalar = g.to_tensorf()[[]];
+            let expected_scalar = g.to_tensor4()[[]];
 
             let mut d = Decomposer::new(&g);
             d.with_full_simp()
@@ -1809,7 +1809,7 @@ mod tests {
             g.add_edge_with_type(z, t, EType::H);
         }
 
-        let expected_scalar = g.to_tensorf()[[]];
+        let expected_scalar = g.to_tensor4()[[]];
 
         // Test with cat-aware driver
         let mut d = Decomposer::new(&g);
@@ -1839,7 +1839,7 @@ mod tests {
         g.add_edge_with_type(v2, v3, EType::H);
         g.add_edge_with_type(v1, v3, EType::H);
 
-        let expected_scalar = g.to_tensorf()[[]];
+        let expected_scalar = g.to_tensor4()[[]];
 
         let mut d = Decomposer::new(&g);
         d.with_simp(CliffordSimp)
@@ -1895,7 +1895,7 @@ mod tests {
     #[test]
     fn test_cat_with_pi_phase() {
         let g = create_cat_graph(4, Rational64::new(1, 1)); // Pi phase
-        let expected_scalar = g.to_tensorf()[[]];
+        let expected_scalar = g.to_tensor4()[[]];
 
         let mut d = Decomposer::new(&g);
         d.decompose(&BssWithCatsDriver { random_t: false });
@@ -1911,8 +1911,8 @@ mod tests {
             let g = create_t_graph(1);
             let ts: Vec<_> = g.vertices().filter(|&v| g.phase(v).is_t()).collect();
             let replacements = apply_single_decomp(&g, &ts);
-            let sum: Scalar4 = replacements.iter().map(|g| g.to_tensorf()[[]]).sum();
-            assert_eq!(g.to_tensorf()[[]], sum);
+            let sum: Scalar4 = replacements.iter().map(|g| g.to_tensor4()[[]]).sum();
+            assert_eq!(g.to_tensor4()[[]], sum);
         }
 
         // Test symmetric (2 T) replacement
@@ -1920,8 +1920,8 @@ mod tests {
             let g = create_t_graph(2);
             let ts: Vec<_> = g.vertices().filter(|&v| g.phase(v).is_t()).collect();
             let replacements = apply_sym_decomp(&g, &ts);
-            let sum: Scalar4 = replacements.iter().map(|g| g.to_tensorf()[[]]).sum();
-            assert_eq!(g.to_tensorf()[[]], sum);
+            let sum: Scalar4 = replacements.iter().map(|g| g.to_tensor4()[[]]).sum();
+            assert_eq!(g.to_tensor4()[[]], sum);
         }
 
         // Test BSS (6 T) replacement
@@ -1929,8 +1929,8 @@ mod tests {
             let g = create_t_graph(6);
             let ts: Vec<_> = g.vertices().filter(|&v| g.phase(v).is_t()).collect();
             let replacements = apply_bss_decomp(&g, &ts);
-            let sum: Scalar4 = replacements.iter().map(|g| g.to_tensorf()[[]]).sum();
-            assert_eq!(g.to_tensorf()[[]], sum);
+            let sum: Scalar4 = replacements.iter().map(|g| g.to_tensor4()[[]]).sum();
+            assert_eq!(g.to_tensor4()[[]], sum);
         }
 
         // Test magic5 replacement
@@ -1938,8 +1938,8 @@ mod tests {
             let g = create_t_graph(5);
             let ts: Vec<_> = g.vertices().filter(|&v| g.phase(v).is_t()).collect();
             let replacements = apply_magic5_from_cat_decomp(&g, &ts);
-            let sum: Scalar4 = replacements.iter().map(|g| g.to_tensorf()[[]]).sum();
-            assert_eq!(g.to_tensorf()[[]], sum);
+            let sum: Scalar4 = replacements.iter().map(|g| g.to_tensor4()[[]]).sum();
+            assert_eq!(g.to_tensor4()[[]], sum);
         }
     }
 
@@ -1961,7 +1961,7 @@ mod tests {
         g.add_edge_with_type(t1, z, EType::H);
         g.add_edge_with_type(t2, z, EType::H);
 
-        let expected_scalar = g.to_tensorf()[[]];
+        let expected_scalar = g.to_tensor4()[[]];
 
         // Test with split_graph_components
         let mut d = Decomposer::new(&g);
@@ -2027,7 +2027,7 @@ mod tests {
         d.with_full_simp();
         d.decompose_standard();
 
-        let sc = g.to_tensorf()[[]];
+        let sc = g.to_tensor4()[[]];
         // println!("{}", d.nterms);
         assert_eq!(sc, d.scalar());
     }

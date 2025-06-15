@@ -514,7 +514,7 @@ mod tests {
         println!("{c}");
         // panic!("foo");
 
-        assert_eq!(g.to_tensorf(), c.to_tensorf());
+        assert_eq!(g.to_tensor4(), c.to_tensor4());
     }
 
     #[test]
@@ -538,7 +538,7 @@ mod tests {
         println!("{c}");
         // panic!("foo");
 
-        assert_eq!(g.to_tensorf(), c.to_tensorf());
+        assert_eq!(g.to_tensor4(), c.to_tensor4());
     }
 
     #[test]
@@ -557,7 +557,7 @@ mod tests {
         match g.to_circuit() {
             Ok(c1) => {
                 println!("CIRCUIT: {c1}\n");
-                assert_eq!(c.to_tensorf(), c1.to_tensorf());
+                assert_eq!(c.to_tensor4(), c1.to_tensor4());
             }
             Err(ExtractError(msg, c1, g)) => {
                 println!("CIRCUIT: {}\n\nGRAPH: {}\n", c1, g.to_dot());
@@ -583,7 +583,7 @@ mod tests {
 
         match g.to_circuit() {
             Ok(c1) => {
-                assert_eq!(c.to_tensorf(), c1.to_tensorf());
+                assert_eq!(c.to_tensor4(), c1.to_tensor4());
             }
             Err(ExtractError(msg, c1, g)) => {
                 println!("CIRCUIT: {}\n\nGRAPH: {}\n", c1, g.to_dot());
@@ -615,7 +615,7 @@ mod tests {
         match g.to_circuit() {
             Ok(c1) => {
                 println!("CIRCUIT: {c1}\n");
-                assert_eq!(c.to_tensorf(), c1.to_tensorf());
+                assert_eq!(c.to_tensor4(), c1.to_tensor4());
             }
             Err(ExtractError(msg, c1, g)) => {
                 println!("CIRCUIT: {}\n\nGRAPH: {}\n", c1, g.to_dot());
@@ -637,9 +637,9 @@ mod tests {
         let mut g: Graph = c.to_graph();
         clifford_simp(&mut g);
 
-        assert_eq!(c.to_tensorf(), g.to_tensorf());
+        assert_eq!(c.to_tensor4(), g.to_tensor4());
         let c1 = g.to_circuit().expect("Circuit should extract.");
-        assert!(TensorF::scalar_compare(&c, &c1));
+        assert!(Tensor4::scalar_compare(&c, &c1));
     }
 
     #[test]
@@ -656,9 +656,9 @@ mod tests {
         let mut g: Graph = c.to_graph();
         clifford_simp(&mut g);
 
-        assert_eq!(c.to_tensorf(), g.to_tensorf());
+        assert_eq!(c.to_tensor4(), g.to_tensor4());
         let c1 = g.to_circuit().expect("Circuit should extract.");
-        assert!(TensorF::scalar_compare(&c, &c1));
+        assert!(Tensor4::scalar_compare(&c, &c1));
     }
 
     #[test]
@@ -699,9 +699,9 @@ mod tests {
 
         let mut g: Graph = c.to_graph();
         clifford_simp(&mut g);
-        assert!(TensorF::scalar_compare(&g, &c));
+        assert!(Tensor4::scalar_compare(&g, &c));
         let c1 = g.to_circuit().unwrap();
-        assert!(TensorF::scalar_compare(&c, &c1));
+        assert!(Tensor4::scalar_compare(&c, &c1));
     }
 
     #[test]
@@ -718,7 +718,7 @@ mod tests {
             full_simp(&mut g);
             // println!("{}", g.to_dot());
             let c1 = g.to_circuit().expect("Circuit should extract.");
-            assert!(TensorF::scalar_compare(&c, &c1));
+            assert!(Tensor4::scalar_compare(&c, &c1));
         }
     }
 }

@@ -891,7 +891,7 @@ mod tests {
         assert_eq!(g.num_edges(), 5);
         assert_eq!(g.degree(vs[2]), 5);
 
-        assert_eq!(g.to_tensorf(), h.to_tensorf());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
 
         assert_eq!(g.phase(vs[2]), Rational64::new(3, 4).into());
     }
@@ -941,8 +941,8 @@ mod tests {
         assert_eq!(g.degree(vs[4]), 1);
         assert_eq!(*g.scalar(), Scalar4::sqrt2_pow(-2));
 
-        let tg = g.to_tensorf();
-        let th = h.to_tensorf();
+        let tg = g.to_tensor4();
+        let th = h.to_tensor4();
         println!("\n\ntg =\n{tg}");
         println!("\n\nth =\n{th}");
         assert_eq!(tg, th);
@@ -985,8 +985,8 @@ mod tests {
         assert_eq!(g.num_vertices(), 8);
         assert_eq!(g.num_edges(), 10);
 
-        let tg = g.to_tensorf();
-        let th = h.to_tensorf();
+        let tg = g.to_tensor4();
+        let th = h.to_tensor4();
         println!("\n\ntg =\n{tg}");
         println!("\n\nth =\n{th}");
         assert_eq!(tg, th);
@@ -1032,7 +1032,7 @@ mod tests {
         let success = pivot(&mut h, 3, 4);
         assert!(success, "Pivot should match");
 
-        assert_eq!(g.to_tensorf(), h.to_tensorf());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
 
         assert_eq!(h.num_vertices(), 5);
         assert_eq!(h.num_edges(), 6);
@@ -1060,7 +1060,7 @@ mod tests {
         let mut h = g.clone();
         let success = pivot(&mut h, 3, 4);
         assert!(success, "Second pivot should match");
-        assert_eq!(g.to_tensorf(), h.to_tensorf());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
     }
 
     #[test]
@@ -1124,8 +1124,8 @@ mod tests {
         assert!(success, "gen_pivot should match");
 
         println!("g=\n{}\n\nh=\n{}", g.to_dot(), h.to_dot());
-        println!("gt=\n{}\n\nht=\n{}", g.to_tensorf(), h.to_tensorf());
-        assert_eq!(g.to_tensorf(), h.to_tensorf());
+        println!("gt=\n{}\n\nht=\n{}", g.to_tensor4(), h.to_tensor4());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
     }
 
     #[test]
@@ -1157,8 +1157,8 @@ mod tests {
         assert!(success, "gen_pivot should match");
 
         println!("g=\n{}\n\nh=\n{}", g.to_dot(), h.to_dot());
-        println!("gt=\n{}\n\nht=\n{}", g.to_tensorf(), h.to_tensorf());
-        assert_eq!(g.to_tensorf(), h.to_tensorf());
+        println!("gt=\n{}\n\nht=\n{}", g.to_tensor4(), h.to_tensor4());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
     }
 
     #[test]
@@ -1201,7 +1201,7 @@ mod tests {
             // println!("{}", h.to_tensorf());
             // println!("g = {} * \n {} \n\n", g.scalar(), g.to_dot());
             // println!("h = {} * \n {} \n\n", h.scalar(), h.to_dot());
-            assert_eq!(graph.to_tensorf(), h.to_tensorf());
+            assert_eq!(graph.to_tensor4(), h.to_tensor4());
         }
     }
 
@@ -1213,7 +1213,7 @@ mod tests {
             let mut h = g.clone();
             assert!(remove_single(&mut h, 0));
             assert_eq!(h.num_vertices(), 0, "h still has vertices");
-            assert_eq!(g.to_tensorf(), h.to_tensorf());
+            assert_eq!(g.to_tensor4(), h.to_tensor4());
         }
 
         for &t0 in &[VType::Z, VType::X] {
@@ -1227,8 +1227,8 @@ mod tests {
                     assert!(remove_pair(&mut h, 0, 1));
                     assert_eq!(h.num_vertices(), 0, "h still has vertices");
                     assert_eq!(
-                        g.to_tensorf(),
-                        h.to_tensorf(),
+                        g.to_tensor4(),
+                        h.to_tensor4(),
                         "Eq failed on case: {t0:?}, {t1:?}, {et:?}"
                     );
                 }
@@ -1268,11 +1268,11 @@ mod tests {
 
         let h = g.clone();
         pi_copy(&mut g, vs[0]);
-        assert_eq!(g.to_tensorf(), h.to_tensorf());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
         pi_copy(&mut g, vs[1]);
-        assert_eq!(g.to_tensorf(), h.to_tensorf());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
         pi_copy(&mut g, vs[4]);
-        assert_eq!(g.to_tensorf(), h.to_tensorf());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
     }
 
     #[test]
@@ -1307,7 +1307,7 @@ mod tests {
         let h = g.clone();
 
         assert!(remove_duplicate(&mut g, v0, v1));
-        assert_eq!(g.to_tensorf(), h.to_tensorf());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
     }
 }
 

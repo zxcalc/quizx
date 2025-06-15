@@ -141,7 +141,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let mut check: Graph = c.to_graph();
                 check.plug_inputs(&vec![BasisElem::Z0; qs]);
                 check.plug_outputs(&effect);
-                let amp = check.to_tensorf()[[]];
+                let amp = check.to_tensor4()[[]];
                 let check_prob = amp * amp.conj();
                 if check_prob == prob {
                     println!("OK");

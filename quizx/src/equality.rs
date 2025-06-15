@@ -36,7 +36,7 @@ pub fn equal_graph_tensor(g1: &Graph, g2: &Graph) -> bool {
     if !equal_graph_dim(g1, g2) {
         return false;
     }
-    g1.to_tensorf() == g2.to_tensorf()
+    g1.to_tensor4() == g2.to_tensor4()
 }
 
 /// Checks the equality of two circuits by comparing the linear maps they represent.
