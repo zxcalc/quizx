@@ -21,7 +21,7 @@ use num::complex::Complex;
 use num::rational::Rational64;
 use num::{One, Zero};
 use pyo3::prelude::*;
-use quizx::fscalar::*;
+use quizx::scalar::*;
 
 /// A type for exact and approximate representation of complex
 /// numbers.
@@ -81,7 +81,7 @@ impl Scalar {
 
     /// Create a scalar from a list of integer coefficients.
     #[staticmethod]
-    pub fn from_int_coeffs(coeffs: Vec<i32>) -> Self {
+    pub fn from_int_coeffs(coeffs: Vec<i64>) -> Self {
         Self {
             s: [coeffs[0], coeffs[1], coeffs[2], coeffs[3]].into(),
         }
