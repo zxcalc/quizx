@@ -112,36 +112,31 @@ impl Scalar4 {
     /// If the scalar is an exact representation of a number in the form `exp(i k π / 4) * sqrt(2)^p`,
     /// return `Some((k/4, p))`, otherwise return `None`.
     pub fn exact_phase_and_sqrt2_pow(&self) -> Option<(Phase, i32)> {
-        let mut p = 0;
         let mut s: Scalar4 = *self;
-        if self.num_coeffs() > 1 {
-            p = -1;
-            s *= Self::sqrt2()
-        };
 
-        for i in 0..4 {
-            if s.0[i].val() == 1
-                && s.0[(i + 1) % 4].is_zero()
-                && s.0[(i + 2) % 4].is_zero()
-                && s.0[(i + 3) % 4].is_zero()
-            {
-                return Some((
-                    Phase::new(Rational64::new(i as i64, 4)),
-                    s.0[i].exp() * 2 + p,
-                ));
-            } else if s.0[i].val() == -1
-                && s.0[(i + 1) % 4].is_zero()
-                && s.0[(i + 2) % 4].is_zero()
-                && s.0[(i + 3) % 4].is_zero()
-            {
-                return Some((
-                    Phase::new(Rational64::new((i + 4) as i64, 4)),
-                    s.0[i].exp() * 2 + p,
-                ));
+        let p;
+        if s.num_coeffs() != 1 {
+            p = -1;
+            s *= Self::sqrt2();
+            if s.num_coeffs() != 1 {
+                return None;
             }
+        } else {
+            p = 0;
         }
 
-        None
+        let (i, c) = s.0.iter().enumerate().find(|(_, c)| !c.is_zero()).unwrap();
+
+        if c.val() == 1 {
+            Some((Phase::new(Rational64::new(i as i64, 4)), c.exp() * 2 + p))
+        } else if c.val() == -1 {
+            Some((
+                Phase::new(Rational64::new((i + 4) as i64, 4)),
+                c.exp() * 2 + p,
+            ))
+        } else {
+            None
+        }
     }
 }
 
@@ -690,5 +685,39 @@ mod test {
         println!("complex value = {}", complex);
         let scalar1 = Scalar4::from(complex);
         assert_abs_diff_eq!(scalar, scalar1);
+    }
+
+    #[test]
+    fn exact_phases() {
+        let sqrt2 = Scalar4::sqrt2();
+        let phase = Scalar4::new([0, 1, 0, 0], 0);
+
+        let s = phase;
+        println!("{}", s);
+        assert_eq!(
+            s.exact_phase_and_sqrt2_pow(),
+            Some((Rational64::new(1, 4).into(), 0))
+        );
+
+        let s = phase * sqrt2;
+        println!("{}", s);
+        assert_eq!(
+            s.exact_phase_and_sqrt2_pow(),
+            Some((Rational64::new(1, 4).into(), 1))
+        );
+
+        let s = phase * sqrt2 * sqrt2;
+        println!("{}", s);
+        assert_eq!(
+            s.exact_phase_and_sqrt2_pow(),
+            Some((Rational64::new(1, 4).into(), 2))
+        );
+
+        let s = phase * phase * sqrt2;
+        println!("{}", s);
+        assert_eq!(
+            s.exact_phase_and_sqrt2_pow(),
+            Some((Rational64::new(1, 2).into(), 1))
+        );
     }
 }

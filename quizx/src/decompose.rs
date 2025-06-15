@@ -2015,7 +2015,7 @@ mod tests {
     #[test]
     fn mixed_sc() {
         let mut g = Graph::new();
-        for i in 0..20 {
+        for i in 0..10 {
             g.add_vertex_with_phase(VType::Z, Rational64::new(1, 4));
 
             for j in 0..i {

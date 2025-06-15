@@ -95,9 +95,9 @@ impl Dyadic {
     #[inline]
     pub fn exp(&self) -> Exponent {
         if self.is_zero() {
-            self.exp + (self.val.trailing_zeros() as Exponent)
-        } else {
             0
+        } else {
+            self.exp + (self.val.trailing_zeros() as Exponent)
         }
     }
 
@@ -447,6 +447,18 @@ mod test {
 
         assert_abs_diff_eq!(d1, d2);
         assert_abs_diff_eq!(d2, d3);
+    }
+
+    #[rstest]
+    #[case(Dyadic::new(1, 0), (1,0))]
+    #[case(Dyadic::new(0, 0), (0,0))]
+    #[case(Dyadic::new(32, 0), (1, 5))]
+    #[case(Dyadic::new(-5, 10), (-5, 10))]
+    #[case(Dyadic::new(53, 100), (53, 100))]
+    fn val_and_exp(#[case] s: Dyadic, #[case] ve: (SignedMantissa, Exponent)) {
+        assert_eq!(ve, s.val_and_exp());
+        assert_eq!(ve.0, s.val());
+        assert_eq!(ve.1, s.exp());
     }
 
     #[rstest]
