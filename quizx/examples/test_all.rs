@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     println!("Comparing tensors...");
                     let time = Instant::now();
-                    if !TensorF::scalar_compare(&c, &c1) {
+                    if !Tensor4::scalar_compare(&c, &c1) {
                         println!("Tensors differ!");
                     } else {
                         println!("Checked successfully in {:.2?}", time.elapsed());

@@ -21,7 +21,7 @@ use num::complex::Complex;
 use num::rational::Rational64;
 use num::{One, Zero};
 use pyo3::prelude::*;
-use quizx::fscalar::*;
+use quizx::scalar::*;
 
 /// A type for exact and approximate representation of complex
 /// numbers.
@@ -42,16 +42,16 @@ use quizx::fscalar::*;
 #[derive(Debug, Clone, Add, Mul, PartialEq)]
 pub struct Scalar {
     /// Rust representation of the scalar.
-    s: FScalar,
+    s: Scalar4,
 }
 
-impl From<FScalar> for Scalar {
-    fn from(s: FScalar) -> Self {
+impl From<Scalar4> for Scalar {
+    fn from(s: Scalar4) -> Self {
         Self { s }
     }
 }
 
-impl From<Scalar> for FScalar {
+impl From<Scalar> for Scalar4 {
     fn from(s: Scalar) -> Self {
         s.s
     }
@@ -75,13 +75,13 @@ impl Scalar {
     #[staticmethod]
     pub fn from_phase(phase: Rational64) -> Self {
         Self {
-            s: FScalar::from_phase(phase),
+            s: Scalar4::from_phase(phase),
         }
     }
 
     /// Create a scalar from a list of integer coefficients.
     #[staticmethod]
-    pub fn from_int_coeffs(coeffs: Vec<i32>) -> Self {
+    pub fn from_int_coeffs(coeffs: Vec<i64>) -> Self {
         Self {
             s: [coeffs[0], coeffs[1], coeffs[2], coeffs[3]].into(),
         }
@@ -100,7 +100,7 @@ impl Scalar {
     #[staticmethod]
     pub fn sqrt2_pow(p: i32) -> Self {
         Self {
-            s: FScalar::sqrt2_pow(p),
+            s: Scalar4::sqrt2_pow(p),
         }
     }
 
@@ -125,13 +125,13 @@ impl Scalar {
     /// Returns a zero scalar.
     #[staticmethod]
     pub fn zero() -> Self {
-        Self { s: FScalar::zero() }
+        Self { s: Scalar4::zero() }
     }
 
     /// Returns a one scalar.
     #[staticmethod]
     pub fn one() -> Self {
-        Self { s: FScalar::one() }
+        Self { s: Scalar4::one() }
     }
 
     /// Returns `True` if the scalar is zero.
@@ -190,7 +190,7 @@ impl Scalar {
 
     pub fn __sub__(&self, other: &Self) -> Self {
         Self {
-            s: self.s + (other.s * FScalar::minus_one()),
+            s: self.s + (other.s * Scalar4::minus_one()),
         }
     }
 
@@ -224,7 +224,7 @@ impl Scalar {
 
     pub fn __neg__(&self) -> Self {
         Self {
-            s: self.s * FScalar::minus_one(),
+            s: self.s * Scalar4::minus_one(),
         }
     }
 

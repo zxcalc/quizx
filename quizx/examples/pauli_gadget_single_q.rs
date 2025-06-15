@@ -109,7 +109,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             prob = d.scalar();
 
             if debug {
-                let prob_c: Complex<f64> = prob.into();
+                let prob_c: Complex<f64> = prob.complex_value();
                 println!(
                     "P: {} (re(P) ~ {}, terms: {}, time: {:.2?})",
                     prob,

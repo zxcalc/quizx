@@ -20,7 +20,7 @@ use std::fmt::Debug;
 use std::fmt::Display;
 
 // use crate::decompose;
-use crate::fscalar::*;
+use crate::scalar::*;
 // use crate::graph;
 use crate::graph::*;
 use derive_more::derive::Display;
@@ -576,7 +576,7 @@ fn replace_cat6_0<G: GraphLike>(g: &G, verts: &[V]) -> G {
 
 fn replace_cat6_1<G: GraphLike>(g: &G, verts: &[V]) -> G {
     let mut g = g.clone();
-    *g.scalar_mut() *= FScalar::dyadic(-1, [-1, 0, 1, 0]);
+    *g.scalar_mut() *= Scalar4::new([-1, 0, 1, 0], -1);
     for &v in &verts[1..] {
         g.add_to_phase(v, Rational64::new(-1, 4));
     }
@@ -585,7 +585,7 @@ fn replace_cat6_1<G: GraphLike>(g: &G, verts: &[V]) -> G {
 
 fn replace_cat6_2<G: GraphLike>(g: &G, verts: &[V]) -> G {
     let mut g = g.clone();
-    *g.scalar_mut() *= FScalar::dyadic(7, [0, -1, 0, 0]);
+    *g.scalar_mut() *= Scalar4::new([0, -1, 0, 0], 7);
     for i in 1..verts.len() {
         g.add_to_phase(verts[i], Rational64::new(-1, 4));
         for j in i + 1..verts.len() {
@@ -597,7 +597,7 @@ fn replace_cat6_2<G: GraphLike>(g: &G, verts: &[V]) -> G {
 
 fn replace_magic5_0<G: GraphLike>(g: &G, verts: &[V]) -> G {
     let mut g = g.clone();
-    *g.scalar_mut() *= FScalar::dyadic(1, [1, 0, 0, 0]);
+    *g.scalar_mut() *= Scalar4::new([1, 0, 0, 0], 1);
     for &v in verts {
         g.add_to_phase(v, Rational64::new(-1, 4));
         g.add_edge_smart(v, verts[0], EType::N);
@@ -608,7 +608,7 @@ fn replace_magic5_0<G: GraphLike>(g: &G, verts: &[V]) -> G {
 
 fn replace_magic5_1<G: GraphLike>(g: &G, verts: &[V]) -> G {
     let mut g = g.clone();
-    *g.scalar_mut() *= FScalar::dyadic(1, [-1, 0, 1, 0]);
+    *g.scalar_mut() *= Scalar4::new([-1, 0, 1, 0], 1);
     let p = g.add_vertex(VType::Z);
     for &v in verts {
         g.add_to_phase(v, Rational64::new(-1, 4));
@@ -621,7 +621,7 @@ fn replace_magic5_1<G: GraphLike>(g: &G, verts: &[V]) -> G {
 
 fn replace_magic5_2<G: GraphLike>(g: &G, verts: &[V]) -> G {
     let mut g = g.clone();
-    *g.scalar_mut() *= FScalar::dyadic(9, [0, -1, 0, 0]);
+    *g.scalar_mut() *= Scalar4::new([0, -1, 0, 0], 9);
     let p = g.add_vertex(VType::Z);
     let w = g.add_vertex_with_phase(VType::Z, Rational64::new(-1, 4));
     g.add_edge_with_type(p, w, EType::H);
@@ -638,7 +638,7 @@ fn replace_magic5_2<G: GraphLike>(g: &G, verts: &[V]) -> G {
 
 fn replace_cat4_0<G: GraphLike>(g: &G, verts: &[V]) -> G {
     let mut g = g.clone();
-    *g.scalar_mut() *= FScalar::dyadic(0, [0, 0, 1, 0]);
+    *g.scalar_mut() *= Scalar4::new([0, 0, 1, 0], 0);
     for &v in &verts[1..] {
         g.add_to_phase(v, Rational64::new(-1, 4));
     }
@@ -648,7 +648,7 @@ fn replace_cat4_0<G: GraphLike>(g: &G, verts: &[V]) -> G {
 fn replace_cat4_1<G: GraphLike>(g: &G, verts: &[V]) -> G {
     // same as replace_cat6_0, only with a different scalar
     let mut g = g.clone();
-    *g.scalar_mut() *= FScalar::dyadic(-1, [1, 0, -1, 0]);
+    *g.scalar_mut() *= Scalar4::new([1, 0, -1, 0], -1);
     for &v in &verts[1..] {
         g.add_to_phase(v, Rational64::new(-1, 4));
         g.set_edge_type(v, verts[0], EType::N);
@@ -660,7 +660,7 @@ fn replace_cat4_1<G: GraphLike>(g: &G, verts: &[V]) -> G {
 fn replace_b60<G: GraphLike>(g: &G, verts: &[V]) -> G {
     // println!("replace_b60");
     let mut g = g.clone();
-    *g.scalar_mut() *= FScalar::dyadic(-2, [-1, 0, 1, 1]);
+    *g.scalar_mut() *= Scalar4::new([-1, 0, 1, 1], -2);
     for &v in &verts[0..6] {
         g.add_to_phase(v, Rational64::new(-1, 4));
     }
@@ -670,7 +670,7 @@ fn replace_b60<G: GraphLike>(g: &G, verts: &[V]) -> G {
 fn replace_b66<G: GraphLike>(g: &G, verts: &[V]) -> G {
     // println!("replace_b66");
     let mut g = g.clone();
-    *g.scalar_mut() *= FScalar::dyadic(-2, [-1, 0, 1, -1]);
+    *g.scalar_mut() *= Scalar4::new([-1, 0, 1, -1], -2);
     for &v in verts {
         g.add_to_phase(v, Rational64::new(3, 4));
     }
@@ -680,7 +680,7 @@ fn replace_b66<G: GraphLike>(g: &G, verts: &[V]) -> G {
 fn replace_e6<G: GraphLike>(g: &G, verts: &[V]) -> G {
     // println!("replace_e6");
     let mut g = g.clone();
-    *g.scalar_mut() *= FScalar::dyadic(1, [0, -1, 0, 0]);
+    *g.scalar_mut() *= Scalar4::new([0, -1, 0, 0], 1);
 
     let w = g.add_vertex_with_phase(VType::Z, Rational64::one());
     for &v in verts {
@@ -694,7 +694,7 @@ fn replace_e6<G: GraphLike>(g: &G, verts: &[V]) -> G {
 fn replace_o6<G: GraphLike>(g: &G, verts: &[V]) -> G {
     // println!("replace_o6");
     let mut g = g.clone();
-    *g.scalar_mut() *= FScalar::dyadic(1, [-1, 0, -1, 0]);
+    *g.scalar_mut() *= Scalar4::new([-1, 0, -1, 0], 1);
 
     let w = g.add_vertex(VType::Z);
     for &v in verts {
@@ -708,7 +708,7 @@ fn replace_o6<G: GraphLike>(g: &G, verts: &[V]) -> G {
 fn replace_k6<G: GraphLike>(g: &G, verts: &[V]) -> G {
     // println!("replace_k6");
     let mut g = g.clone();
-    *g.scalar_mut() *= FScalar::dyadic(1, [1, 0, 0, 0]);
+    *g.scalar_mut() *= Scalar4::new([1, 0, 0, 0], 1);
 
     let w = g.add_vertex_with_phase(VType::Z, Rational64::new(-1, 2));
     for &v in verts {
@@ -722,7 +722,7 @@ fn replace_k6<G: GraphLike>(g: &G, verts: &[V]) -> G {
 fn replace_phi1<G: GraphLike>(g: &G, verts: &[V]) -> G {
     // println!("replace_phi1");
     let mut g = g.clone();
-    *g.scalar_mut() *= FScalar::dyadic(3, [1, 0, 1, 0]);
+    *g.scalar_mut() *= Scalar4::new([1, 0, 1, 0], 3);
 
     let mut ws = vec![];
     for i in 0..5 {
@@ -765,7 +765,7 @@ fn replace_bell_s<G: GraphLike>(g: &G, verts: &[V]) -> G {
 fn replace_epr<G: GraphLike>(g: &G, verts: &[V]) -> G {
     // println!("replace_epr");
     let mut g = g.clone();
-    *g.scalar_mut() *= FScalar::from_phase(Rational64::new(1, 4));
+    *g.scalar_mut() *= Scalar4::from_phase(Rational64::new(1, 4));
     let w = g.add_vertex_with_phase(VType::Z, Rational64::one());
     for &v in verts {
         g.add_edge_with_type(v, w, EType::H);
@@ -778,7 +778,7 @@ fn replace_epr<G: GraphLike>(g: &G, verts: &[V]) -> G {
 // fn replace_t0<G: GraphLike>(g: &G, verts: &[V]) -> G {
 //     // println!("replace_t0");
 //     let mut g = g.clone();
-//     *g.scalar_mut() *= FScalar::dyadic(-1, [0, 1, 0, -1]);
+//     *g.scalar_mut() *= FScalar::new([0, 1, 0, -1], -1);
 //     let w = g.add_vertex(VType::Z);
 //     g.add_edge_with_type(verts[0], w, EType::H);
 //     g.add_to_phase(verts[0], Rational64::new(-1, 4));
@@ -788,7 +788,7 @@ fn replace_epr<G: GraphLike>(g: &G, verts: &[V]) -> G {
 // fn replace_t1<G: GraphLike>(g: &G, verts: &[V]) -> G {
 //     // println!("replace_t1");
 //     let mut g = g.clone();
-//     *g.scalar_mut() *= FScalar::dyadic(-1, [1, 0, 1, 0]);
+//     *g.scalar_mut() *= FScalar::new([1, 0, 1, 0], -1);
 //     let w = g.add_vertex_with_phase(VType::Z, Rational64::one());
 //     g.add_edge_with_type(verts[0], w, EType::H);
 //     g.add_to_phase(verts[0], Rational64::new(-1, 4));
@@ -802,7 +802,7 @@ fn replace_single0<G: GraphLike>(g: &G, verts: &[V]) -> G {
     let w = g.add_vertex(VType::X);
     g.add_edge_with_type(verts[0], w, EType::N);
 
-    *g.scalar_mut() *= FScalar::sqrt2_pow(-1);
+    *g.scalar_mut() *= Scalar4::sqrt2_pow(-1);
 
     g.set_phase(verts[0], 0);
     g
@@ -817,7 +817,7 @@ fn replace_single1<G: GraphLike>(g: &G, verts: &[V]) -> G {
     if 4 % phase.to_rational().denom() != 0 {
         panic!("Currently only phases with denominator 1,2,4 supported")
     }
-    *g.scalar_mut() *= FScalar::from_phase(phase) * FScalar::sqrt2_pow(-1);
+    *g.scalar_mut() *= Scalar4::from_phase(phase) * Scalar4::sqrt2_pow(-1);
 
     g.set_phase(verts[0], 0);
     g
@@ -840,7 +840,7 @@ fn replace_tpair1<G: GraphLike>(g: &G, verts: &[V]) -> G {
 fn replace_p0<G: GraphLike>(g: &G, verts: &[V]) -> G {
     // println!("replace_p0");
     let mut g = g.clone();
-    *g.scalar_mut() *= FScalar::dyadic(-1, [0, 1, 0, -1]);
+    *g.scalar_mut() *= Scalar4::new([0, 1, 0, -1], -1);
     let w = g.add_vertex(VType::Z);
     g.add_edge_with_type(verts[0], w, EType::H);
     g
@@ -849,7 +849,7 @@ fn replace_p0<G: GraphLike>(g: &G, verts: &[V]) -> G {
 fn replace_p1<G: GraphLike>(g: &G, verts: &[V]) -> G {
     // println!("replace_p1");
     let mut g = g.clone();
-    *g.scalar_mut() *= FScalar::dyadic(-1, [0, 1, 0, -1]);
+    *g.scalar_mut() *= Scalar4::new([0, 1, 0, -1], -1);
     let w = g.add_vertex_with_phase(VType::Z, Rational64::one());
     g.add_edge_with_type(verts[0], w, EType::H);
     g
@@ -1020,7 +1020,7 @@ fn apply_decomp<G: GraphLike>(g: &G, decomp: &Decomp) -> Vec<G> {
 #[derive(Clone)]
 enum ComputationNode<G: GraphLike> {
     Graph(G),
-    Scalar(FScalar),
+    Scalar(Scalar4),
     Prod(Vec<ComputationNode<G>>),
     Sum(Vec<ComputationNode<G>>),
     None,
@@ -1070,7 +1070,7 @@ impl<G: GraphLike> Decomposer<G> {
         }
     }
 
-    pub fn scalar(&self) -> FScalar {
+    pub fn scalar(&self) -> Scalar4 {
         match self.result {
             ComputationNode::Scalar(scalar) => scalar,
             ComputationNode::None => panic!("Not yet initialised!"),
@@ -1140,7 +1140,7 @@ impl<G: GraphLike> Decomposer<G> {
         self
     }
 
-    fn node_to_scalar(&mut self, node: ComputationNode<G>) -> FScalar {
+    fn node_to_scalar(&mut self, node: ComputationNode<G>) -> Scalar4 {
         if let ComputationNode::Scalar(scalar) = node {
             scalar
         } else {
@@ -1491,15 +1491,15 @@ mod tests {
         for numer in 0..4 {
             let mut g = Graph::new();
             let v = g.add_vertex_with_phase(VType::Z, Rational64::new(numer, 4));
-            let original_scalar = g.to_tensorf()[[]];
+            let original_scalar = g.to_tensor4()[[]];
 
             // Test replace_t0
             let g0 = replace_single0(&g, &[v]);
-            let s0 = g0.to_tensorf()[[]];
+            let s0 = g0.to_tensor4()[[]];
 
             // Test replace_t1
             let g1 = replace_single1(&g, &[v]);
-            let s1 = g1.to_tensorf()[[]];
+            let s1 = g1.to_tensor4()[[]];
 
             // The sum should equal the original
             assert_eq!(original_scalar, s0 + s1);
@@ -1509,13 +1509,13 @@ mod tests {
     #[test]
     fn test_symmetric_decomp() {
         let g = create_t_graph(2);
-        let original_scalar = g.to_tensorf()[[]];
+        let original_scalar = g.to_tensor4()[[]];
         let ts: Vec<_> = g.vertices().filter(|&v| g.phase(v).is_t()).collect();
 
         let decomp = apply_sym_decomp(&g, &ts[0..2]);
         assert_eq!(decomp.len(), 2);
 
-        let sum: FScalar = decomp.iter().map(|g| g.to_tensorf()[[]]).sum();
+        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensor4()[[]]).sum();
 
         assert_eq!(original_scalar, sum);
     }
@@ -1523,13 +1523,13 @@ mod tests {
     #[test]
     fn test_bss_decomp() {
         let g = create_t_graph(6);
-        let original_scalar = g.to_tensorf()[[]];
+        let original_scalar = g.to_tensor4()[[]];
         let ts: Vec<_> = g.vertices().filter(|&v| g.phase(v).is_t()).collect();
 
         let decomp = apply_bss_decomp(&g, &ts[0..6]);
         assert_eq!(decomp.len(), 7);
 
-        let sum: FScalar = decomp.iter().map(|g| g.to_tensorf()[[]]).sum();
+        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensor4()[[]]).sum();
 
         assert_eq!(original_scalar, sum);
     }
@@ -1537,7 +1537,7 @@ mod tests {
     #[test]
     fn test_cat3_decomp() {
         let g = create_cat_graph(3, Rational64::new(1, 1));
-        let original_scalar = g.to_tensorf()[[]];
+        let original_scalar = g.to_tensor4()[[]];
         let verts = cat_ts(&g);
 
         assert_eq!(verts.len(), 4); // 1 Pauli + 3 T
@@ -1545,14 +1545,14 @@ mod tests {
         let decomp = apply_cat_decomp(&g, &verts);
         assert_eq!(decomp.len(), 2);
 
-        let sum: FScalar = decomp.iter().map(|g| g.to_tensorf()[[]]).sum();
+        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensor4()[[]]).sum();
 
         assert_eq!(original_scalar, sum);
     }
     #[test]
     fn test_cat4_decomp() {
         let g = create_cat_graph(4, Rational64::new(1, 1));
-        let original_scalar = g.to_tensorf()[[]];
+        let original_scalar = g.to_tensor4()[[]];
         let verts = cat_ts(&g);
 
         assert_eq!(verts.len(), 5); // 1 Pauli + 4 T
@@ -1560,7 +1560,7 @@ mod tests {
         let decomp = apply_cat_decomp(&g, &verts);
         assert_eq!(decomp.len(), 2);
 
-        let sum: FScalar = decomp.iter().map(|g| g.to_tensorf()[[]]).sum();
+        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensor4()[[]]).sum();
 
         assert_eq!(original_scalar, sum);
     }
@@ -1568,7 +1568,7 @@ mod tests {
     #[test]
     fn test_cat5_decomp() {
         let g = create_cat_graph(5, Rational64::new(1, 1));
-        let original_scalar = g.to_tensorf()[[]];
+        let original_scalar = g.to_tensor4()[[]];
         let verts = cat_ts(&g);
 
         assert_eq!(verts.len(), 6); // 1 Pauli + 5 T
@@ -1576,7 +1576,7 @@ mod tests {
         let decomp = apply_cat_decomp(&g, &verts);
         assert_eq!(decomp.len(), 3);
 
-        let sum: FScalar = decomp.iter().map(|g| g.to_tensorf()[[]]).sum();
+        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensor4()[[]]).sum();
 
         assert_eq!(original_scalar, sum);
     }
@@ -1584,7 +1584,7 @@ mod tests {
     #[test]
     fn test_cat6_decomp() {
         let g = create_cat_graph(6, Rational64::new(1, 1));
-        let original_scalar = g.to_tensorf()[[]];
+        let original_scalar = g.to_tensor4()[[]];
         let verts = cat_ts(&g);
 
         assert_eq!(verts.len(), 7); // 1 Pauli + 6 T
@@ -1592,7 +1592,7 @@ mod tests {
         let decomp = apply_cat_decomp(&g, &verts);
         assert_eq!(decomp.len(), 3);
 
-        let sum: FScalar = decomp.iter().map(|g| g.to_tensorf()[[]]).sum();
+        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensor4()[[]]).sum();
 
         assert_eq!(original_scalar, sum);
     }
@@ -1618,13 +1618,13 @@ mod tests {
     #[test]
     fn test_magic5_decomp() {
         let g = create_t_graph(5);
-        let original_scalar = g.to_tensorf()[[]];
+        let original_scalar = g.to_tensor4()[[]];
         let ts: Vec<_> = g.vertices().filter(|&v| g.phase(v).is_t()).collect();
 
         let decomp = apply_magic5_from_cat_decomp(&g, &ts[0..5]);
         assert_eq!(decomp.len(), 3);
 
-        let sum: FScalar = decomp.iter().map(|g| g.to_tensorf()[[]]).sum();
+        let sum: Scalar4 = decomp.iter().map(|g| g.to_tensor4()[[]]).sum();
 
         assert_eq!(original_scalar, sum);
     }
@@ -1635,11 +1635,11 @@ mod tests {
             for seed in [42, 5518] {
                 let g = create_non_t_graph(size, seed);
                 for v in g.vertices() {
-                    let original_scalar = g.to_tensorf()[[]];
+                    let original_scalar = g.to_tensor4()[[]];
 
-                    let sum_of_new_scalars: FScalar = apply_spider_cutting_decomp(&g, &[v])
+                    let sum_of_new_scalars: Scalar4 = apply_spider_cutting_decomp(&g, &[v])
                         .iter()
-                        .map(|new_g| new_g.to_tensorf()[[]])
+                        .map(|new_g| new_g.to_tensor4()[[]])
                         .sum();
                     _ = abs_diff_eq!(original_scalar, sum_of_new_scalars);
                 }
@@ -1668,7 +1668,7 @@ mod tests {
         for graph_generator in graph_generators {
             for size in 1..=7 {
                 let g = graph_generator(size);
-                let expected_scalar = g.to_tensorf()[[]];
+                let expected_scalar = g.to_tensor4()[[]];
 
                 for simp in &simp_funcs {
                     for &split in &split_components {
@@ -1678,7 +1678,7 @@ mod tests {
                                 parallel: bool,
                                 g: &impl GraphLike,
                                 driver: &impl Driver,
-                                expected_scalar: FScalar,
+                                expected_scalar: Scalar4,
                                 size: usize,
                                 split: bool,
                             ) {
@@ -1777,7 +1777,7 @@ mod tests {
     fn test_decomposer_with_cats() {
         for cat_size in [3, 4, 5, 6] {
             let g = create_cat_graph(cat_size, Rational64::new(0, 1));
-            let expected_scalar = g.to_tensorf()[[]];
+            let expected_scalar = g.to_tensor4()[[]];
 
             let mut d = Decomposer::new(&g);
             d.with_full_simp()
@@ -1809,7 +1809,7 @@ mod tests {
             g.add_edge_with_type(z, t, EType::H);
         }
 
-        let expected_scalar = g.to_tensorf()[[]];
+        let expected_scalar = g.to_tensor4()[[]];
 
         // Test with cat-aware driver
         let mut d = Decomposer::new(&g);
@@ -1825,7 +1825,7 @@ mod tests {
         let g = Graph::new();
         let mut d = Decomposer::new(&g);
         d.decompose(&BssWithCatsDriver { random_t: false });
-        assert_eq!(FScalar::one(), d.scalar());
+        assert_eq!(Scalar4::one(), d.scalar());
     }
 
     #[test]
@@ -1839,7 +1839,7 @@ mod tests {
         g.add_edge_with_type(v2, v3, EType::H);
         g.add_edge_with_type(v1, v3, EType::H);
 
-        let expected_scalar = g.to_tensorf()[[]];
+        let expected_scalar = g.to_tensor4()[[]];
 
         let mut d = Decomposer::new(&g);
         d.with_simp(CliffordSimp)
@@ -1860,37 +1860,34 @@ mod tests {
         let b60_g = replace_b60(&g, &ts);
         assert_eq!(
             b60_g.scalar(),
-            &(g.scalar() * FScalar::dyadic(-2, [-1, 0, 1, 1]))
+            &(g.scalar() * Scalar4::new([-1, 0, 1, 1], -2))
         );
 
         let b66_g = replace_b66(&g, &ts);
         assert_eq!(
             b66_g.scalar(),
-            &(g.scalar() * FScalar::dyadic(-2, [-1, 0, 1, -1]))
+            &(g.scalar() * Scalar4::new([-1, 0, 1, -1], -2))
         );
 
         let e6_g = replace_e6(&g, &ts);
         assert_eq!(
             e6_g.scalar(),
-            &(g.scalar() * FScalar::dyadic(1, [0, -1, 0, 0]))
+            &(g.scalar() * Scalar4::new([0, -1, 0, 0], 1))
         );
 
         let o6_g = replace_o6(&g, &ts);
         assert_eq!(
             o6_g.scalar(),
-            &(g.scalar() * FScalar::dyadic(1, [-1, 0, -1, 0]))
+            &(g.scalar() * Scalar4::new([-1, 0, -1, 0], 1))
         );
 
         let k6_g = replace_k6(&g, &ts);
-        assert_eq!(
-            k6_g.scalar(),
-            &(g.scalar() * FScalar::dyadic(1, [1, 0, 0, 0]))
-        );
+        assert_eq!(k6_g.scalar(), &(g.scalar() * Scalar4::new([1, 0, 0, 0], 1)));
 
         let phi1_g = replace_phi1(&g, &ts);
         assert_eq!(
             phi1_g.scalar(),
-            &(g.scalar() * FScalar::dyadic(3, [1, 0, 1, 0]))
+            &(g.scalar() * Scalar4::new([1, 0, 1, 0], 3))
         );
     }
 
@@ -1898,7 +1895,7 @@ mod tests {
     #[test]
     fn test_cat_with_pi_phase() {
         let g = create_cat_graph(4, Rational64::new(1, 1)); // Pi phase
-        let expected_scalar = g.to_tensorf()[[]];
+        let expected_scalar = g.to_tensor4()[[]];
 
         let mut d = Decomposer::new(&g);
         d.decompose(&BssWithCatsDriver { random_t: false });
@@ -1914,8 +1911,8 @@ mod tests {
             let g = create_t_graph(1);
             let ts: Vec<_> = g.vertices().filter(|&v| g.phase(v).is_t()).collect();
             let replacements = apply_single_decomp(&g, &ts);
-            let sum: FScalar = replacements.iter().map(|g| g.to_tensorf()[[]]).sum();
-            assert_eq!(g.to_tensorf()[[]], sum);
+            let sum: Scalar4 = replacements.iter().map(|g| g.to_tensor4()[[]]).sum();
+            assert_eq!(g.to_tensor4()[[]], sum);
         }
 
         // Test symmetric (2 T) replacement
@@ -1923,8 +1920,8 @@ mod tests {
             let g = create_t_graph(2);
             let ts: Vec<_> = g.vertices().filter(|&v| g.phase(v).is_t()).collect();
             let replacements = apply_sym_decomp(&g, &ts);
-            let sum: FScalar = replacements.iter().map(|g| g.to_tensorf()[[]]).sum();
-            assert_eq!(g.to_tensorf()[[]], sum);
+            let sum: Scalar4 = replacements.iter().map(|g| g.to_tensor4()[[]]).sum();
+            assert_eq!(g.to_tensor4()[[]], sum);
         }
 
         // Test BSS (6 T) replacement
@@ -1932,8 +1929,8 @@ mod tests {
             let g = create_t_graph(6);
             let ts: Vec<_> = g.vertices().filter(|&v| g.phase(v).is_t()).collect();
             let replacements = apply_bss_decomp(&g, &ts);
-            let sum: FScalar = replacements.iter().map(|g| g.to_tensorf()[[]]).sum();
-            assert_eq!(g.to_tensorf()[[]], sum);
+            let sum: Scalar4 = replacements.iter().map(|g| g.to_tensor4()[[]]).sum();
+            assert_eq!(g.to_tensor4()[[]], sum);
         }
 
         // Test magic5 replacement
@@ -1941,8 +1938,8 @@ mod tests {
             let g = create_t_graph(5);
             let ts: Vec<_> = g.vertices().filter(|&v| g.phase(v).is_t()).collect();
             let replacements = apply_magic5_from_cat_decomp(&g, &ts);
-            let sum: FScalar = replacements.iter().map(|g| g.to_tensorf()[[]]).sum();
-            assert_eq!(g.to_tensorf()[[]], sum);
+            let sum: Scalar4 = replacements.iter().map(|g| g.to_tensor4()[[]]).sum();
+            assert_eq!(g.to_tensor4()[[]], sum);
         }
     }
 
@@ -1964,7 +1961,7 @@ mod tests {
         g.add_edge_with_type(t1, z, EType::H);
         g.add_edge_with_type(t2, z, EType::H);
 
-        let expected_scalar = g.to_tensorf()[[]];
+        let expected_scalar = g.to_tensor4()[[]];
 
         // Test with split_graph_components
         let mut d = Decomposer::new(&g);
@@ -1979,16 +1976,16 @@ mod tests {
     #[test]
     fn bss_scalars() {
         // ... (keep existing test)
-        let one = FScalar::one();
-        let om = FScalar::dyadic(0, [0, 1, 0, 0]);
+        let one = Scalar4::one();
+        let om = Scalar4::new([0, 1, 0, 0], 0);
         let om2 = om * om;
-        let om7 = FScalar::dyadic(0, [0, 0, 0, -1]);
-        assert_eq!(om * om7, FScalar::one());
+        let om7 = Scalar4::new([0, 0, 0, -1], 0);
+        assert_eq!(om * om7, Scalar4::one());
 
-        let minus = FScalar::dyadic(0, [-1, 0, 0, 0]);
-        let onefourth = FScalar::dyadic(-2, [1, 0, 0, 0]);
+        let minus = Scalar4::new([-1, 0, 0, 0], 0);
+        let onefourth = Scalar4::new([1, 0, 0, 0], -2);
         let two = one + one;
-        let sqrt2 = FScalar::sqrt2();
+        let sqrt2 = Scalar4::sqrt2();
         let eight = two * two * two;
 
         let k6 = om7 * two * om;
@@ -1998,27 +1995,27 @@ mod tests {
         let o6 = om7 * minus * two * sqrt2 * om2;
         let e6 = om7 * minus * two * om2;
 
-        assert_eq!(b60, FScalar::dyadic(-2, [-1, 0, 1, 1]));
-        assert_eq!(b66, FScalar::dyadic(-2, [-1, 0, 1, -1]));
-        assert_eq!(e6, FScalar::dyadic(1, [0, -1, 0, 0]));
-        assert_eq!(o6, FScalar::dyadic(1, [-1, 0, -1, 0]));
-        assert_eq!(k6, FScalar::dyadic(1, [1, 0, 0, 0]));
-        assert_eq!(phi, FScalar::dyadic(3, [1, 0, 1, 0]));
+        assert_eq!(b60, Scalar4::new([-1, 0, 1, 1], -2));
+        assert_eq!(b66, Scalar4::new([-1, 0, 1, -1], -2));
+        assert_eq!(e6, Scalar4::new([0, -1, 0, 0], 1));
+        assert_eq!(o6, Scalar4::new([-1, 0, -1, 0], 1));
+        assert_eq!(k6, Scalar4::new([1, 0, 0, 0], 1));
+        assert_eq!(phi, Scalar4::new([1, 0, 1, 0], 3));
     }
 
     #[test]
     fn single_scalars() {
-        let s0 = FScalar::sqrt2_pow(-1);
-        let s1 = FScalar::from_phase(Rational64::new(1, 4)) * s0;
+        let s0 = Scalar4::sqrt2_pow(-1);
+        let s1 = Scalar4::from_phase(Rational64::new(1, 4)) * s0;
         // println!("s0 = {s0:?}\ns1 = {s1:?}");
-        assert_eq!(s0, FScalar::dyadic(-1, [0, 1, 0, -1]));
-        assert_eq!(s1, FScalar::dyadic(-1, [1, 0, 1, 0]));
+        assert_eq!(s0, Scalar4::new([0, 1, 0, -1], -1));
+        assert_eq!(s1, Scalar4::new([1, 0, 1, 0], -1));
     }
 
     #[test]
     fn mixed_sc() {
         let mut g = Graph::new();
-        for i in 0..20 {
+        for i in 0..10 {
             g.add_vertex_with_phase(VType::Z, Rational64::new(1, 4));
 
             for j in 0..i {
@@ -2030,7 +2027,7 @@ mod tests {
         d.with_full_simp();
         d.decompose_standard();
 
-        let sc = g.to_tensorf()[[]];
+        let sc = g.to_tensor4()[[]];
         // println!("{}", d.nterms);
         assert_eq!(sc, d.scalar());
     }

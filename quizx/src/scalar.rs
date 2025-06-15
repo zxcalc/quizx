@@ -14,891 +14,710 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use crate::scalar_traits::{FromPhase, Sqrt2};
 use approx::AbsDiffEq;
 use num::complex::Complex;
 pub use num::traits::identities::{One, Zero};
-use num::{integer, Integer, Rational64};
-use std::cmp::min;
-use std::f64::consts::PI;
+use num::{Rational64, ToPrimitive};
+use std::f64::consts::{PI, SQRT_2};
 use std::fmt;
-use std::ops::{Add, AddAssign, Mul};
-
-/// A type for exact and approximate representation of complex
-/// numbers.
-///
-/// The [Exact] representation of a scalar is given as an element of
-/// D\[omega\], where D is the ring if dyadic rationals and omega is
-/// the 2N-th root of unity, represented by its first N coefficients.
-/// Addition for this type is O(N) and multiplication O(N^2). Ring
-/// elements are stored as a global power of 2 and a list of integer
-/// coefficients. This is effectively a floating point number, but
-/// with a shared exponent and different behaviour w.r.t. limited
-/// precision (namely it panics if big numbers are added to small
-/// ones rather than approximating).
-///
-/// The type of the coefficient list is given as a type parameter
-/// implementing a trait [Coeffs].  This is to allow fixed N (with an
-/// array) or variable N (with a [Vec]).  Only the former is allowed
-/// to implement the [Copy] trait, needed for tensor/matrix elements.
-///
-/// The [Float] representation of a scalar is given as a 64-bit
-/// floating point [Complex] number.
-#[derive(Debug, Clone)]
-pub enum Scalar<T: Coeffs> {
-    Exact(i32, T),
-    Float(Complex<f64>),
-}
-
-/// A list of coefficients. We give this as a parameter to allow
-/// either fixed-size lists (e.g. `[i32;4]`) or dynamic ones (e.g.
-/// [Vec]\<i32\>). Only the former can be used in tensors and
-/// matrices, because they have to implement Copy (the size must be
-/// known at compile time).
-pub trait Coeffs: Clone + std::ops::IndexMut<usize, Output = isize> {
-    /// Returns a coefficient list representing the number 0.
-    fn zero() -> Self;
-
-    /// Returns a coefficient list representing the number 1.
-    fn one() -> Self;
-
-    /// Create a new list of coefficients of size sz.
-    fn new(sz: usize) -> Option<(Self, usize)>;
-
-    /// Returns the length of the coefficient list.
-    fn len(&self) -> usize;
-
-    /// Returns true if the coefficient list is empty.
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    /// Iterate over the coefficient list.
-    fn iter_coeffs(&self) -> impl Iterator<Item = isize>;
-}
-
-/// Implement Copy whenever our coefficient list allows us to.
-impl<T: Coeffs + Copy> Copy for Scalar<T> {}
-
-use Scalar::{Exact, Float};
+use std::iter::{Product, Sum};
+use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 
 use crate::phase::Phase;
+use crate::scalar::dyadic::DyadicExponentOverflowError;
+pub use crate::scalar_traits::{FromPhase, Sqrt2};
+pub mod dyadic;
+pub use dyadic::Dyadic;
 
-/// Allows transformation from a scalar.
+/// This is the main representation of scalars used in QuiZX. It is a wrapper around
+/// four [`Dyadic`] rationals, used to represent the coefficients in a complex number of
+/// the form:
 ///
-/// We do not use the standard library's [From] trait to avoid a clash
-/// when converting Scalar\<S\> to Scalar\<T\>, which is already
-/// implemented as a noop for [From] when S = T.
-pub trait FromScalar<T> {
-    fn from_scalar(s: &T) -> Self;
-}
+///   a + b ω + c ω² + d ω³
+///
+/// where ω is the 4th root of -1, i.e. exp(i π/4).
+///
+/// When scalars come from a Clifford+T circuit or ZX diagram, i.e. where all phase
+/// angles are integer multiples of π/4, scalars are guaranteed to be of the form
+/// above, with rational coefficients of the form x/2^y, for integers x, y.
+///
+/// Note that ω² = i, and [`Dyadic`] can store any [`f64`] losslessly. Hence, for all
+/// other complex numbers, [`Scalar4`] gives an approximate representation of that number
+/// as a + c ω² = a + i c. This allows easy conversions to and from [`Complex<f64>`].
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Scalar4([Dyadic; 4]);
 
-fn lcm_with_padding(n1: usize, n2: usize) -> (usize, usize, usize) {
-    if n1 == n2 {
-        (n1, 1, 1)
-    } else {
-        let lcm0 = integer::lcm(n1, n2);
-        (lcm0, lcm0 / n1, lcm0 / n2)
-    }
-}
-
-impl<T: Coeffs> Scalar<T> {
-    /// Create a new complex scalar from a pair of floats.
-    pub fn complex(re: f64, im: f64) -> Scalar<T> {
-        Float(Complex::new(re, im))
-    }
-
-    /// Create a new real scalar from a float number.
-    pub fn real(re: f64) -> Scalar<T> {
-        Float(Complex::new(re, 0.0))
+impl Scalar4 {
+    /// Constructs a scalar from 4 integer coefficients and a power of 2. For
+    /// `coeffs := [a,b,c,d]`, the resulting scalar is: `2^pow * (a + b ω + c ω² + d ω³)`.
+    pub fn new(coeffs: [i64; 4], pow: i32) -> Self {
+        Scalar4(coeffs.map(|coeff| Dyadic::new(coeff, pow)))
     }
 
-    /// Create a scalar from a list of integer coefficients.
-    pub fn from_int_coeffs(coeffs: &[isize]) -> Scalar<T> {
-        match T::new(coeffs.len()) {
-            Some((mut coeffs1, pad)) => {
-                for i in 0..coeffs.len() {
-                    coeffs1[i * pad] = coeffs[i];
-                }
-                Exact(0, coeffs1).reduce()
-            }
-            None => panic!("Wrong number of coefficients for scalar type"),
-        }
+    /// Constructs a scalar as a real number with the given float value
+    pub fn real(r: f64) -> Self {
+        Scalar4([r.into(), 0.into(), 0.into(), 0.into()])
     }
 
-    /// Returns the complex number representation of the scalar.
-    pub fn complex_value(&self) -> Complex<f64> {
-        match self {
-            Exact(pow, coeffs) => {
-                let omega = Complex::new(-1f64, 0f64).powf(1f64 / (coeffs.len() as f64));
-                let pow2 = 2f64.powi(*pow);
-
-                let mut num = Complex::new(0f64, 0f64);
-                for i in 0..coeffs.len() {
-                    num += pow2 * (coeffs[i] as f64) * omega.powu(i as u32);
-                }
-                num
-            }
-            Float(c) => *c,
-        }
+    /// Constructs a scalar as a complex number `re + im * i`.
+    pub fn complex(re: f64, im: f64) -> Self {
+        Scalar4([re.into(), 0.into(), im.into(), 0.into()])
     }
 
-    /// Returns the phase of the scalar, expressed as half turns.
-    ///
-    /// We deal with Pi/4 phases of Scalar4 (Clifford+T) exactly. For other cases, [`Phase`] is encoded as a rational
-    /// number, which may lose precision.
-    pub fn phase(&self) -> Phase {
-        if let Exact(_, coeffs) = self {
-            if coeffs.len() == 4 {
-                // cases where the phase is a multiple of 1/4 are handled exactly
-                match coeffs.iter_coeffs().collect::<Vec<_>>().as_slice() {
-                    [_, b, 0, c] if -b == *c => {
-                        return Phase::new(if self.complex_value().re > 0.0 { 0 } else { 1 })
-                    }
-                    [0, c, 0, 0] => {
-                        return Phase::new(Rational64::new(if *c > 0 { 1 } else { 5 }, 4))
-                    }
-                    [0, 0, c, 0] => {
-                        return Phase::new(Rational64::new(if *c > 0 { 1 } else { 3 }, 2))
-                    }
-                    [0, 0, 0, c] => {
-                        return Phase::new(Rational64::new(if *c > 0 { 3 } else { 7 }, 4))
-                    }
-                    [c, 0, d, 0] if c == d => {
-                        return Phase::new(Rational64::new(if *c > 0 { 1 } else { 5 }, 4))
-                    }
-                    [0, c, 0, d] if c == d => {
-                        return Phase::new(Rational64::new(if *c > 0 { 1 } else { 3 }, 2))
-                    }
-                    [d, 0, c, 0] if -c == *d => {
-                        return Phase::new(Rational64::new(if *c > 0 { 3 } else { 7 }, 4))
-                    }
-                    _ => {}
-                }
-            }
-        }
-        // for other cases, we use the floating point representation
-        Phase::from_f64(self.complex_value().arg() / PI)
+    /// Constructs a scalar `1 + e^(i π * phase)` for the given `Phase`
+    pub fn one_plus_phase(phase: impl Into<Phase>) -> Self {
+        Scalar4::one() + Scalar4::from_phase(phase)
     }
 
-    /// Returns `true` if this scalar uses an exact representation.
-    pub fn is_exact(&self) -> bool {
-        matches!(self, Exact(_, _))
-    }
-
-    /// Returns `true` if this scalar uses an approximate floating point representation.
-    pub fn is_float(&self) -> bool {
-        matches!(self, Float(_))
-    }
-
-    /// Multiply the scalar by the p-th power of sqrt(2).
+    /// Convience method for multipling by the given power of sqrt(2)
     pub fn mul_sqrt2_pow(&mut self, p: i32) {
-        *self *= Scalar::sqrt2_pow(p);
+        *self *= Scalar4::sqrt2_pow(p);
     }
 
-    /// Multiply the scalar by a phase.
+    /// Convience method for multipling by `e^(i π * phase)` for the given `Phase`
     pub fn mul_phase(&mut self, phase: impl Into<Phase>) {
-        *self *= Scalar::from_phase(phase);
+        *self *= Scalar4::from_phase(phase);
     }
 
-    /// Returns an equivalent scalar using complex floating point numbers for the coefficients.
-    pub fn to_float(&self) -> Scalar<T> {
-        Float(self.complex_value())
+    /// Convience method for multipling by `1 + e^(i π * phase)` for the given `Phase`
+    pub fn mul_one_plus_phase(&mut self, phase: impl Into<Phase>) {
+        *self *= Scalar4::one_plus_phase(phase)
     }
 
-    /// Returns a scalar value of 1 + 1^{i \pi p}.
-    pub fn one_plus_phase(p: impl Into<Phase>) -> Scalar<T> {
-        Scalar::one() + Scalar::from_phase(p)
+    /// Returns the complex conjugate of the scalar
+    pub fn conj(&self) -> Self {
+        Scalar4([self.0[0], -self.0[3], -self.0[2], -self.0[1]])
     }
 
-    /// Compute the reduced form of the scalar value
-    ///
-    /// For non-zero scalars, increment the power of 2 as long as the last bit in
-    /// every coefficient is 0. For the zero scalar, set the power of 2 to 0.
-    fn reduce(mut self) -> Scalar<T> {
-        if let Exact(pow, coeffs) = &mut self {
-            let mut all_zero = true;
-            for i in 0..coeffs.len() {
-                if coeffs[i] != 0 {
-                    all_zero = false;
-                    break;
-                }
+    /// Converts `Scalar4` into a `Complex<f64>`
+    pub fn complex_value(&self) -> Complex<f64> {
+        self.try_into().unwrap()
+    }
+
+    pub fn approx(&self) -> bool {
+        self.0.iter().any(|c| c.approx())
+    }
+
+    pub fn set_approx(&mut self, approx: bool) {
+        self.0.iter_mut().for_each(|c| c.set_approx(approx));
+    }
+
+    /// The number of non-zero coefficients
+    fn num_coeffs(&self) -> usize {
+        self.0
+            .iter()
+            .fold(0, |n, &co| if !co.is_zero() { n + 1 } else { n })
+    }
+
+    /// If the scalar is an exact representation of a number in the form `exp(i k π / 4) * sqrt(2)^p`,
+    /// return `Some((k/4, p))`, otherwise return `None`.
+    pub fn exact_phase_and_sqrt2_pow(&self) -> Option<(Phase, i32)> {
+        let mut s: Scalar4 = *self;
+
+        let p;
+        if s.num_coeffs() != 1 {
+            p = -1;
+            s *= Self::sqrt2();
+            if s.num_coeffs() != 1 {
+                return None;
             }
-
-            if all_zero {
-                *pow = 0;
-            } else {
-                let one: isize = 1;
-                'outer: loop {
-                    for i in 0..coeffs.len() {
-                        if one & coeffs[i] == one {
-                            break 'outer;
-                        }
-                    }
-
-                    for i in 0..coeffs.len() {
-                        coeffs[i] >>= 1;
-                    }
-                    *pow += 1;
-                }
-            }
-        }
-
-        self
-    }
-
-    /// Compute the complex conjugate of a scalar and return it
-    pub fn conj(&self) -> Scalar<T> {
-        match self {
-            Exact(pow, coeffs) => {
-                // create a new coeff list. n.b. this should always be a good size for T, so we unwrap()
-                let mut new_coeffs = T::new(coeffs.len()).unwrap().0;
-
-                // copy the real coeff
-                new_coeffs[0] = coeffs[0];
-
-                // for each complex coeff, invert the index mod N and add the negative coeff
-                // to that position
-                for i in 1..coeffs.len() {
-                    new_coeffs[coeffs.len() - i] = -coeffs[i];
-                }
-
-                Exact(*pow, new_coeffs)
-            }
-            Float(c) => Float(c.conj()),
-        }
-    }
-
-    /// Checks if the other scalar is approximately equal to this one.
-    ///
-    /// If both scalars are exact, this method will return true only if they are exactly equal.
-    pub fn approx_eq(&self, other: &Self, epsilon: f64) -> bool {
-        if self.is_exact() && other.is_exact() {
-            self == other
         } else {
-            let diff = self.complex_value() - other.complex_value();
-            diff.norm_sqr() < epsilon * epsilon
+            p = 0;
         }
-    }
 
-    // TODO: this is non-trivial (code below is wrong). Think about this some more.
-    // /// Returns true if scalar is real
-    // pub fn is_real(&self) -> bool {
-    //     match self {
-    //         Exact(_, coeffs) => {
-    //             for i in 0..coeffs.len() { if coeffs[i] != 0 { return false; }}
-    //             true
-    //         },
-    //         Float(c) => c.im == 0.0,
-    //     }
-    // }
+        let (i, c) = s.0.iter().enumerate().find(|(_, c)| !c.is_zero()).unwrap();
 
-    // /// Returns true if scalar is real and >= 0
-    // pub fn is_non_negative(&self) -> bool {
-    //     if !self.is_real() { return false; }
-    //     match self {
-    //         Exact(_, coeffs) => coeffs[0] >= 0,
-    //         Float(c) => c.re >= 0.0,
-    //     }
-    // }
-}
-
-impl<T: Coeffs> Zero for Scalar<T> {
-    fn zero() -> Scalar<T> {
-        Exact(0, T::zero())
-    }
-
-    fn is_zero(&self) -> bool {
-        *self == Scalar::zero()
-    }
-}
-
-impl<T: Coeffs> One for Scalar<T> {
-    fn one() -> Scalar<T> {
-        Exact(0, T::one())
-    }
-
-    fn is_one(&self) -> bool {
-        *self == Scalar::one()
-    }
-}
-
-impl<T: Coeffs> Sqrt2 for Scalar<T> {
-    fn sqrt2_pow(p: i32) -> Scalar<T> {
-        match T::new(4) {
-            Some((mut coeffs, pad)) => {
-                // we use the fact that when omega = e^(i pi/4), omega - omega^3 = sqrt(2)
-
-                if p % 2 == 0 {
-                    // for even p, use: sqrt(2)^p = 2^(p/2)
-                    coeffs[0] = 1;
-                    Exact(p / 2, coeffs)
-                } else {
-                    // for odd p, use:
-                    // sqrt(2)^p = sqrt(2)^(p-1) * sqrt(2) = 2^((p-1)/2) * (omega - omega^3)
-                    coeffs[pad] = 1;
-                    coeffs[3 * pad] = -1;
-                    Exact((p - 1) / 2, coeffs)
-                }
-            }
-            None => Float(Complex::new(2.0f64.powi(p), 0.0f64)),
+        if c.val() == 1 {
+            Some((Phase::new(Rational64::new(i as i64, 4)), c.exp() * 2 + p))
+        } else if c.val() == -1 {
+            Some((
+                Phase::new(Rational64::new((i + 4) as i64, 4)),
+                c.exp() * 2 + p,
+            ))
+        } else {
+            None
         }
     }
 }
 
-impl<T: Coeffs> FromPhase for Scalar<T> {
-    fn from_phase(p: impl Into<Phase>) -> Scalar<T> {
-        let p = p.into().to_rational();
-        let mut rnumer = *p.numer();
-        let mut rdenom = *p.denom();
-        match T::new(rdenom as usize) {
-            Some((mut coeffs, pad)) => {
-                rnumer *= pad as i64;
-                rdenom *= pad as i64;
-                rnumer = rnumer.rem_euclid(2 * rdenom);
-                let sgn = if rnumer >= rdenom {
-                    rnumer -= rdenom;
-                    -1
-                } else {
-                    1
-                };
-                coeffs[rnumer as usize] = sgn;
-                Exact(0, coeffs)
-            }
-            None => {
-                let f = (*p.numer() as f64) / (*p.denom() as f64);
-                Float(Complex::new(-1.0, 0.0).powf(f))
-            }
-        }
-    }
-
-    fn minus_one() -> Scalar<T> {
-        Scalar::from_phase(Phase::one())
+impl Default for Scalar4 {
+    fn default() -> Self {
+        Self::zero()
     }
 }
 
-impl<T: Coeffs> fmt::Display for Scalar<T> {
+impl Sqrt2 for Scalar4 {
+    fn sqrt2_pow(p: i32) -> Self {
+        Scalar4(if p % 2 == 0 {
+            [Dyadic::new(1, p / 2), 0.into(), 0.into(), 0.into()]
+        } else {
+            let d = Dyadic::new(1, (p - 1) / 2);
+            [0.into(), d, 0.into(), -d]
+        })
+    }
+}
+
+impl FromPhase for Scalar4 {
+    fn from_phase(phase: impl Into<Phase>) -> Self {
+        let p: Phase = phase.into();
+        p.into()
+    }
+
+    fn minus_one() -> Self {
+        Scalar4([-1, 0, 0, 0].map(|c| c.into()))
+    }
+}
+
+impl ndarray::ScalarOperand for Scalar4 {}
+
+impl fmt::Display for Scalar4 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Exact(pow, coeffs) => {
-                // special output for real clifford+T
-                if coeffs.len() == 4 && coeffs[1] == -coeffs[3] && coeffs[2] == 0 {
-                    if *pow != 0 {
-                        write!(f, "2^{pow} * (")?;
-                    }
-                    write!(f, "{}", coeffs[0])?;
-                    if coeffs[1] != 0 {
-                        write!(f, " + {} * sqrt2", coeffs[1])?;
-                    }
-                    if *pow != 0 {
-                        write!(f, ")")?;
-                    }
-                    return Ok(());
-                }
+        let mut fst = true;
 
-                // otherwise normal exact output
-                let mut fst = true;
-                for i in 0..coeffs.len() {
-                    if !coeffs[i].is_zero() {
-                        if fst {
-                            fst = false;
-                            if *pow != 0 {
-                                write!(f, "2^{pow} * (")?;
-                            }
-                        } else {
-                            write!(f, " + ")?;
-                        }
+        for (i, dy) in self.0.iter().enumerate() {
+            let (mut v, mut e) = dy.val_and_exp();
+            if v > -1024 && v < 1024 && e > 0 && e <= 10 {
+                v *= 2i64.pow(e as u32);
+                e = 0;
+            }
 
-                        write!(f, "{}", coeffs[i])?;
-                        // if *pow != 0 { write!(f, " * 2^{}", pow)?; }
-                        if i != 0 {
-                            write!(f, " * om^{i}")?;
-                        }
-                    }
-                }
-
+            if v != 0 {
                 if fst {
-                    write!(f, "0")
+                    write!(f, "{v}")?;
+                    fst = false;
+                } else if v > 0 {
+                    write!(f, " + {v}")?;
                 } else {
-                    if *pow != 0 {
-                        write!(f, ")")?;
-                    }
-                    Ok(())
+                    write!(f, " - {}", -v)?;
+                }
+
+                if e != 0 {
+                    write!(f, "e{e}")?;
+                }
+                if i == 1 {
+                    write!(f, " ω")?;
+                }
+                if i == 2 {
+                    write!(f, " ω²")?;
+                }
+                if i == 3 {
+                    write!(f, " ω³")?;
                 }
             }
-            Float(c) => write!(f, "{c}"),
         }
+
+        if fst {
+            write!(f, "0")?;
+        }
+
+        Ok(())
     }
 }
 
-// The main implementation of the Mul trait uses references, so
-// we don't need to make a copy of the scalars to multiply them.
-impl<T: Coeffs> Mul<&Scalar<T>> for &Scalar<T> {
-    type Output = Scalar<T>;
+impl Add<&Scalar4> for &Scalar4 {
+    type Output = Scalar4;
+    fn add(self, rhs: &Scalar4) -> Self::Output {
+        Scalar4([
+            self.0[0] + rhs.0[0],
+            self.0[1] + rhs.0[1],
+            self.0[2] + rhs.0[2],
+            self.0[3] + rhs.0[3],
+        ])
+    }
+}
 
-    fn mul(self, rhs: &Scalar<T>) -> Self::Output {
-        match (self, rhs) {
-            (Float(c), x) => Float(c * x.complex_value()),
-            (x, Float(c)) => Float(x.complex_value() * c),
-            (Exact(pow0, coeffs0), Exact(pow1, coeffs1)) => {
-                let (lcm, pad0, pad1) = lcm_with_padding(coeffs0.len(), coeffs1.len());
-                match T::new(lcm) {
-                    Some((mut coeffs, pad)) => {
-                        for i in 0..coeffs0.len() {
-                            for j in 0..coeffs1.len() {
-                                let pos = (i * pad * pad0 + j * pad * pad1).rem_euclid(2 * lcm);
-                                if pos < lcm {
-                                    coeffs[pos] += coeffs0[i] * coeffs1[j];
-                                } else {
-                                    coeffs[pos - lcm] += -coeffs0[i] * coeffs1[j];
-                                }
-                            }
-                        }
-
-                        Exact(pow0 + pow1, coeffs).reduce()
-                    }
-                    None => Float(self.complex_value() * rhs.complex_value()),
-                }
-            }
-        }
+impl Sum<Scalar4> for Scalar4 {
+    fn sum<I: Iterator<Item = Scalar4>>(iter: I) -> Self {
+        iter.fold(Scalar4::zero(), |accumulator, current_fscalar| {
+            accumulator + current_fscalar // Uses Scalar4 + Scalar4
+        })
     }
 }
 
 // These 3 variations take ownership of one or both args
-impl<T: Coeffs> Mul for Scalar<T> {
-    type Output = Scalar<T>;
-    fn mul(self, rhs: Scalar<T>) -> Self::Output {
-        &self * &rhs
+impl Add<Scalar4> for Scalar4 {
+    type Output = Scalar4;
+    fn add(self, rhs: Scalar4) -> Self::Output {
+        let rself = &self;
+        let rrhs = &rhs;
+        rself + rrhs
     }
 }
-impl<T: Coeffs> Mul<Scalar<T>> for &Scalar<T> {
-    type Output = Scalar<T>;
-    fn mul(self, rhs: Scalar<T>) -> Self::Output {
-        self * &rhs
+
+impl Add<Scalar4> for &Scalar4 {
+    type Output = Scalar4;
+    fn add(self, rhs: Scalar4) -> Self::Output {
+        let rrhs = &rhs;
+        self + rrhs
     }
 }
-impl<T: Coeffs> Mul<&Scalar<T>> for Scalar<T> {
-    type Output = Scalar<T>;
-    fn mul(self, rhs: &Scalar<T>) -> Self::Output {
-        &self * rhs
+
+impl Add<&Scalar4> for Scalar4 {
+    type Output = Scalar4;
+    fn add(self, rhs: &Scalar4) -> Self::Output {
+        let rself = &self;
+        rself + rhs
+    }
+}
+
+impl AddAssign for Scalar4 {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs;
+    }
+}
+
+impl AddAssign<&Scalar4> for Scalar4 {
+    fn add_assign(&mut self, rhs: &Scalar4) {
+        *self = *self + rhs;
+    }
+}
+
+impl Sub<&Scalar4> for &Scalar4 {
+    type Output = Scalar4;
+    fn sub(self, rhs: &Scalar4) -> Self::Output {
+        Scalar4([
+            self.0[0] - rhs.0[0],
+            self.0[1] - rhs.0[1],
+            self.0[2] - rhs.0[2],
+            self.0[3] - rhs.0[3],
+        ])
+    }
+}
+
+impl Sub<Scalar4> for Scalar4 {
+    type Output = Scalar4;
+    fn sub(self, rhs: Scalar4) -> Self::Output {
+        &self - &rhs
+    }
+}
+
+impl Sub<Scalar4> for &Scalar4 {
+    type Output = Scalar4;
+    fn sub(self, rhs: Scalar4) -> Self::Output {
+        let rrhs = &rhs;
+        self - rrhs
+    }
+}
+
+impl Sub<&Scalar4> for Scalar4 {
+    type Output = Scalar4;
+    fn sub(self, rhs: &Scalar4) -> Self::Output {
+        let rself = &self;
+        rself - rhs
+    }
+}
+
+impl SubAssign for Scalar4 {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = *self - rhs;
+    }
+}
+
+impl SubAssign<&Scalar4> for Scalar4 {
+    fn sub_assign(&mut self, rhs: &Scalar4) {
+        *self = *self - rhs;
+    }
+}
+
+impl Mul<&Scalar4> for &Scalar4 {
+    type Output = Scalar4;
+    fn mul(self, rhs: &Scalar4) -> Self::Output {
+        let mut s = Scalar4::zero();
+        for i in 0..4 {
+            if !self.0[i].is_zero() {
+                for j in 0..4 {
+                    let pos = (i + j) % 8;
+                    if pos < 4 {
+                        s.0[pos] += self.0[i] * rhs.0[j];
+                    } else {
+                        s.0[pos - 4] += -self.0[i] * rhs.0[j];
+                    }
+                }
+            }
+        }
+        s
+    }
+}
+
+// These 3 variations take ownership of one or both args
+impl Mul<Scalar4> for Scalar4 {
+    type Output = Scalar4;
+    fn mul(self, rhs: Scalar4) -> Self::Output {
+        let rself = &self;
+        let rrhs = &rhs;
+        rself * rrhs
+    }
+}
+impl Mul<Scalar4> for &Scalar4 {
+    type Output = Scalar4;
+    fn mul(self, rhs: Scalar4) -> Self::Output {
+        let rrhs = &rhs;
+        self * rrhs
+    }
+}
+impl Mul<&Scalar4> for Scalar4 {
+    type Output = Scalar4;
+    fn mul(self, rhs: &Scalar4) -> Self::Output {
+        let rself = &self;
+        rself * rhs
     }
 }
 
 /// Implements *=
-impl<T: Coeffs> std::ops::MulAssign<Scalar<T>> for Scalar<T> {
-    fn mul_assign(&mut self, rhs: Scalar<T>) {
-        *self = &*self * &rhs;
+impl MulAssign<Scalar4> for Scalar4 {
+    fn mul_assign(&mut self, rhs: Scalar4) {
+        *self = *self * rhs;
     }
 }
 
 // Variation takes ownership of rhs
-impl<T: Coeffs> std::ops::MulAssign<&Scalar<T>> for Scalar<T> {
-    fn mul_assign(&mut self, rhs: &Scalar<T>) {
-        *self = &*self * rhs;
+impl MulAssign<&Scalar4> for Scalar4 {
+    fn mul_assign(&mut self, rhs: &Scalar4) {
+        *self = *self * rhs;
     }
 }
 
-// The main implementation of the Add trait uses references, so we
-// don't need to make a copy of the scalars to add them.
-impl<T: Coeffs> Add<&Scalar<T>> for &Scalar<T> {
-    type Output = Scalar<T>;
-
-    fn add(self, rhs: &Scalar<T>) -> Self::Output {
-        // catch zeros early to prevent overflows for very large numbers
-        if rhs.is_zero() {
-            return self.clone();
-        }
-        if self.is_zero() {
-            return rhs.clone();
-        }
-        match (self, rhs) {
-            (Float(c), x) => Float(c + x.complex_value()),
-            (x, Float(c)) => Float(x.complex_value() + c),
-            (Exact(pow0, coeffs0), Exact(pow1, coeffs1)) => {
-                let (lcm, pad0, pad1) = lcm_with_padding(coeffs0.len(), coeffs1.len());
-
-                // nb. this can overflow if powers are too different
-                let minpow = min(*pow0, *pow1);
-                let base0 = 2isize.pow((*pow0 - minpow) as u32);
-                let base1 = 2isize.pow((*pow1 - minpow) as u32);
-
-                match T::new(lcm) {
-                    Some((mut coeffs, pad)) => {
-                        for i in 0..coeffs0.len() {
-                            coeffs[i * pad * pad0] += coeffs0[i] * base0;
-                        }
-
-                        for i in 0..coeffs1.len() {
-                            coeffs[i * pad * pad1] += coeffs1[i] * base1;
-                        }
-
-                        Exact(minpow, coeffs).reduce()
-                    }
-                    None => Float(self.complex_value() + self.complex_value()),
-                }
-            }
-        }
+impl Product<Scalar4> for Scalar4 {
+    fn product<I: Iterator<Item = Scalar4>>(iter: I) -> Self {
+        iter.fold(Scalar4::one(), |accumulator, current_scalar| {
+            accumulator * current_scalar // Uses Scalar4 * Scalar4
+        })
     }
 }
 
-// These 3 variations take ownership of one or both args
-impl<T: Coeffs> Add<Scalar<T>> for Scalar<T> {
-    type Output = Scalar<T>;
-    fn add(self, rhs: Scalar<T>) -> Self::Output {
-        &self + &rhs
+impl Zero for Scalar4 {
+    fn zero() -> Self {
+        [0, 0, 0, 0].into()
+    }
+
+    fn is_zero(&self) -> bool {
+        self.0.iter().all(|c| c.is_zero())
     }
 }
 
-impl<T: Coeffs> Add<Scalar<T>> for &Scalar<T> {
-    type Output = Scalar<T>;
-    fn add(self, rhs: Scalar<T>) -> Self::Output {
-        self + &rhs
+impl One for Scalar4 {
+    fn one() -> Self {
+        [1, 0, 0, 0].into()
+    }
+
+    fn is_one(&self) -> bool {
+        *self == Self::one()
     }
 }
 
-impl<T: Coeffs> Add<&Scalar<T>> for Scalar<T> {
-    type Output = Scalar<T>;
-    fn add(self, rhs: &Scalar<T>) -> Self::Output {
-        &self + rhs
-    }
-}
-
-impl<T: Coeffs> AddAssign for Scalar<T> {
-    fn add_assign(&mut self, rhs: Self) {
-        *self = &*self + &rhs;
-    }
-}
-
-impl<T: Coeffs> AddAssign<&Scalar<T>> for Scalar<T> {
-    fn add_assign(&mut self, rhs: &Scalar<T>) {
-        *self = &*self + rhs;
-    }
-}
-
-impl<T: Coeffs> FromScalar<Scalar<T>> for Complex<f64> {
-    fn from_scalar(s: &Scalar<T>) -> Complex<f64> {
-        s.complex_value()
-    }
-}
-
-impl<S: Coeffs, T: Coeffs> FromScalar<Scalar<T>> for Scalar<S> {
-    fn from_scalar(s: &Scalar<T>) -> Scalar<S> {
-        match s {
-            Exact(pow, coeffs) => match S::new(coeffs.len()) {
-                Some((mut coeffs1, pad)) => {
-                    for i in 0..coeffs.len() {
-                        coeffs1[i * pad] = coeffs[i];
-                    }
-                    Exact(*pow, coeffs1)
-                }
-                None => Float(s.complex_value()),
-            },
-            Float(c) => Float(*c),
-        }
-    }
-}
-
-impl<T: Coeffs> From<Complex<f64>> for Scalar<T> {
-    fn from(c: Complex<f64>) -> Scalar<T> {
-        Float(c)
-    }
-}
-
-impl<T: Coeffs> AbsDiffEq<Scalar<T>> for Scalar<T> {
+impl AbsDiffEq<Scalar4> for Scalar4 {
     type Epsilon = <f64 as AbsDiffEq>::Epsilon;
 
-    // since this is mainly used for testing, we allow rounding errors much bigger than
-    // machine-epsilon
     fn default_epsilon() -> Self::Epsilon {
-        1e-6f64
+        1e-10f64
     }
 
     fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        let c1 = self.complex_value();
-        let c2 = other.complex_value();
+        let c1: Complex<f64> = self.try_into().unwrap();
+        let c2: Complex<f64> = other.try_into().unwrap();
         f64::abs_diff_eq(&c1.re, &c2.re, epsilon) && f64::abs_diff_eq(&c1.im, &c2.im, epsilon)
     }
 }
 
-impl<T: Coeffs> PartialEq for Scalar<T> {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Float(c0), Float(c1)) => c0 == c1,
-            (Exact(pow0, coeffs0), Exact(pow1, coeffs1)) => {
-                // since scalars are reduced via Scalar::reduce(), equal scalars
-                // must have the same power of 2.
-                if pow0 != pow1 {
-                    return false;
-                }
-                let (lcm, pad0, pad1) = lcm_with_padding(coeffs0.len(), coeffs1.len());
+impl From<[i64; 4]> for Scalar4 {
+    fn from(value: [i64; 4]) -> Self {
+        Scalar4(value.map(|c| c.into()))
+    }
+}
 
-                let mut all_eq = true;
-                for i in 0..lcm {
-                    let c0 = if i % pad0 == 0 { coeffs0[i / pad0] } else { 0 };
-                    let c1 = if i % pad1 == 0 { coeffs1[i / pad1] } else { 0 };
-                    all_eq = all_eq && c0 == c1;
-                }
+impl From<[f64; 4]> for Scalar4 {
+    fn from(value: [f64; 4]) -> Self {
+        Scalar4(value.map(|c| c.into()))
+    }
+}
 
-                all_eq
+impl From<i64> for Scalar4 {
+    fn from(value: i64) -> Self {
+        [value, 0, 0, 0].into()
+    }
+}
+
+impl From<f64> for Scalar4 {
+    fn from(value: f64) -> Self {
+        [value, 0.0, 0.0, 0.0].into()
+    }
+}
+
+impl From<Complex<f64>> for Scalar4 {
+    fn from(value: Complex<f64>) -> Self {
+        [value.re, 0.0, value.im, 0.0].into()
+    }
+}
+
+impl TryFrom<&Scalar4> for Complex<f64> {
+    type Error = DyadicExponentOverflowError;
+    fn try_from(value: &Scalar4) -> Result<Self, Self::Error> {
+        Ok(Complex {
+            re: f64::try_from(value.0[0])? + f64::try_from(value.0[1] - value.0[3])? * 0.5 * SQRT_2,
+            im: f64::try_from(value.0[2])? + f64::try_from(value.0[1] + value.0[3])? * 0.5 * SQRT_2,
+        })
+    }
+}
+
+impl TryFrom<Scalar4> for Complex<f64> {
+    type Error = DyadicExponentOverflowError;
+    fn try_from(value: Scalar4) -> Result<Self, Self::Error> {
+        Ok(Complex {
+            re: f64::try_from(value.0[0])? + f64::try_from(value.0[1] - value.0[3])? * 0.5 * SQRT_2,
+            im: f64::try_from(value.0[2])? + f64::try_from(value.0[1] + value.0[3])? * 0.5 * SQRT_2,
+        })
+    }
+}
+
+impl From<Phase> for Scalar4 {
+    fn from(value: Phase) -> Self {
+        let r: Rational64 = value.into();
+        if 4 % r.denom() == 0 {
+            let pos = (r.numer() * (4 / r.denom())).rem_euclid(8) as usize;
+            let mut c: [i64; 4] = [0, 0, 0, 0];
+            if pos >= 4 {
+                c[pos - 4] = -1;
+            } else {
+                c[pos] = 1;
             }
-            _ => self.complex_value() == other.complex_value(),
+            c.into()
+        } else {
+            let angle = PI * r.to_f64().unwrap();
+            [f64::cos(angle), 0.0, f64::sin(angle), 0.0].into()
         }
     }
 }
 
-/// Implements Coeffs for an array of fixed size $n, and defines
-/// the associated scalar type.
-macro_rules! fixed_size_scalar {
-    ( $name:ident, $n:expr ) => {
-        impl Coeffs for [isize; $n] {
-            fn len(&self) -> usize {
-                $n
-            }
-            fn zero() -> Self {
-                [0; $n]
-            }
-            fn one() -> Self {
-                let mut a = [0; $n];
-                a[0] = 1;
-                a
-            }
-            fn new(sz: usize) -> Option<(Self, usize)> {
-                if $n.is_multiple_of(&sz) {
-                    Some(([0; $n], $n / sz))
-                } else {
-                    None
-                }
-            }
-            fn iter_coeffs(&self) -> impl Iterator<Item = isize> {
-                self.iter().copied()
-            }
-        }
-
-        pub type $name = Scalar<[isize; $n]>;
-        impl ndarray::ScalarOperand for $name {}
-    };
-}
-
-fixed_size_scalar!(Scalar1, 1);
-fixed_size_scalar!(Scalar2, 2);
-fixed_size_scalar!(Scalar3, 3);
-fixed_size_scalar!(Scalar4, 4);
-fixed_size_scalar!(Scalar5, 5);
-fixed_size_scalar!(Scalar6, 6);
-fixed_size_scalar!(Scalar7, 7);
-fixed_size_scalar!(Scalar8, 8);
-
-impl Coeffs for Vec<isize> {
-    fn len(&self) -> usize {
-        self.len()
-    }
-    fn zero() -> Self {
-        vec![0]
-    }
-    fn one() -> Self {
-        vec![1]
-    }
-    fn new(sz: usize) -> Option<(Self, usize)> {
-        Some((vec![0; sz], 1))
-    }
-    fn iter_coeffs(&self) -> impl Iterator<Item = isize> {
-        self.iter().copied()
-    }
-}
-
-pub type ScalarN = Scalar<Vec<isize>>;
-
-/// tests {{{
 #[cfg(test)]
-mod tests {
+mod test {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use num::Rational64;
     use rstest::rstest;
 
     #[test]
-    fn approx_mul() {
-        let s: Scalar4 = Scalar::real(f64::sqrt(0.3) * f64::sqrt(0.3) - 0.3);
-        let t: Scalar4 = Scalar::zero();
-        assert_ne!(s, t);
-        assert_abs_diff_eq!(s, t);
+    fn display() {
+        let s = Scalar4::zero();
+        assert_eq!(format!("{s}"), "0");
+
+        let s: Scalar4 = [1, 2, 3, 4].into();
+        assert_eq!(format!("{s}"), "1 + 2 ω + 3 ω² + 4 ω³");
+
+        let s: Scalar4 = [-1, -2, -3, -4].into();
+        assert_eq!(format!("{s}"), "-1 - 2 ω - 3 ω² - 4 ω³");
+
+        let s: Scalar4 = [0, 2, 0, 4].into();
+        assert_eq!(format!("{s}"), "2 ω + 4 ω³");
+
+        let s: Scalar4 = [0.5, 0.25, 0.125, 0.0625].into();
+        assert_eq!(format!("{s}"), "1e-1 + 1e-2 ω + 1e-3 ω² + 1e-4 ω³");
+
+        let s: Scalar4 = [
+            2.0f64.powi(11),
+            2.0f64.powi(21),
+            2.0f64.powi(31),
+            2.0f64.powi(41),
+        ]
+        .into();
+        assert_eq!(format!("{s}"), "1e11 + 1e21 ω + 1e31 ω² + 1e41 ω³");
     }
 
     #[test]
-    fn sqrt_i() {
-        let s = Scalar4::from_int_coeffs(&[0, 1, 0, 0]);
-        assert_abs_diff_eq!(
-            s.to_float(),
-            Scalar::complex(1.0 / f64::sqrt(2.0), 1.0 / f64::sqrt(2.0))
-        );
+    fn int_arith() {
+        let s4: Scalar4 = 4.into();
+        let s10: Scalar4 = 10.into();
+        let s14: Scalar4 = 14.into();
+        let sm1: Scalar4 = (-1).into();
+        let s40: Scalar4 = 40.into();
+        let sm14: Scalar4 = (-14).into();
+        let sm40: Scalar4 = (-40).into();
+
+        assert_eq!(s4 + s10, s14);
+        assert_eq!(s4 * s10, s40);
+        assert_eq!(sm1 * sm1, Scalar4::one());
+        assert_eq!(sm1 * s40, sm40);
+        assert_eq!(sm1 * (s4 + s10), sm14);
+        assert_eq!(sm1 * s4 + sm1 * s10, sm14);
     }
 
     #[test]
-    fn mul_same_base() {
-        let s = Scalar4::from_int_coeffs(&[1, 2, 3, 4]);
-        let t = Scalar4::from_int_coeffs(&[4, 5, 6, 7]);
-        let st = s * t;
-        assert!(matches!(st, Exact(_, _)));
-        assert_abs_diff_eq!(st.to_float(), s.to_float() * t.to_float());
+    fn real_arith() {
+        let a = 4.3;
+        let b = 2e-11;
+        let c = 0.3333333;
+        let d = -1000000.0;
+        let sa: Scalar4 = a.into();
+        let sb: Scalar4 = b.into();
+        let sc: Scalar4 = c.into();
+        let sd: Scalar4 = d.into();
+
+        assert_abs_diff_eq!(sa * sa, (a * a).into());
+        assert_abs_diff_eq!(sa * sb, (a * b).into());
+        assert_abs_diff_eq!(sc + (sa * sb), (c + (a * b)).into());
+        assert_abs_diff_eq!(sd - (sa * sb), (d - (a * b)).into());
     }
 
     #[test]
-    fn phases() {
-        let s: ScalarN =
-            ScalarN::from_phase(Rational64::new(4, 3)) * ScalarN::from_phase(Rational64::new(2, 5));
-        let t: ScalarN = ScalarN::from_phase(Rational64::new(4, 3) + Rational64::new(2, 5));
-        assert_abs_diff_eq!(s, t);
+    fn complex_arith() {
+        let one: Scalar4 = 1.into();
+        let i: Scalar4 = [0, 0, 1, 0].into();
+        let om: Scalar4 = [0, 1, 0, 0].into();
+        let sqrt2 = Scalar4::sqrt2_pow(1);
+        assert_eq!(om * om, i);
+        assert_eq!((one + i) * (one + i).conj(), one + one);
+        assert_eq!(om + om.conj(), sqrt2);
 
-        assert_abs_diff_eq!(Scalar4::from_phase(Rational64::new(0, 1)), Scalar4::one());
-        assert_abs_diff_eq!(
-            Scalar4::from_phase(Rational64::new(1, 1)),
-            Scalar4::real(-1.0)
-        );
-        assert_abs_diff_eq!(
-            Scalar4::from_phase(Rational64::new(1, 2)),
-            Scalar4::complex(0.0, 1.0)
-        );
-        assert_abs_diff_eq!(
-            Scalar4::from_phase(Rational64::new(-1, 2)),
-            Scalar4::complex(0.0, -1.0)
-        );
-        assert_abs_diff_eq!(
-            Scalar4::from_phase(Rational64::new(1, 4)),
-            Scalar4::from_int_coeffs(&[0, 1, 0, 0])
-        );
-        assert_abs_diff_eq!(
-            Scalar4::from_phase(Rational64::new(3, 4)),
-            Scalar4::from_int_coeffs(&[0, 0, 0, 1])
-        );
-        assert_abs_diff_eq!(
-            Scalar4::from_phase(Rational64::new(7, 4)),
-            Scalar4::from_int_coeffs(&[0, 0, 0, -1])
-        );
+        let c1: Complex<f64> = (one + i + i).complex_value();
+        let c2: Complex<f64> = Complex::new(1.0, 2.0);
+        assert_eq!(c1, c2);
+
+        let c1: Complex<f64> = (Scalar4::sqrt2_pow(3) + i * sqrt2).complex_value();
+        let c2: Complex<f64> = Complex::new(2.0 * SQRT_2, SQRT_2);
+        assert_abs_diff_eq!(c1.re, c2.re);
+        assert_abs_diff_eq!(c1.im, c2.im);
+    }
+
+    #[test]
+    fn sqrt2() {
+        // n.b. exact equality in the sqrt2_pow tests. This may break if conversion to Complex is
+        // implemented differently.
+        let sqrt2 = Scalar4::sqrt2_pow(1);
+        let sqrt2_c: Complex<f64> = sqrt2.complex_value();
+        assert_eq!(sqrt2_c.re, SQRT_2);
+        assert_eq!(sqrt2_c.im, 0.0);
+
+        let sqrt2_pow = Scalar4::sqrt2_pow(7);
+        let sqrt2_pow_c: Complex<f64> = sqrt2_pow.complex_value();
+        assert_eq!(sqrt2_pow_c.re, 2.0 * 2.0 * 2.0 * SQRT_2);
+        assert_eq!(sqrt2_pow_c.im, 0.0);
+
+        let two: Scalar4 = 2.into();
+        let a = Scalar4::sqrt2_pow(10);
+        let b = Scalar4::sqrt2_pow(11);
+        let c: Scalar4 = 32.into();
+        assert_eq!(two, sqrt2 * sqrt2);
+        assert_eq!(a * sqrt2, b);
+        assert_eq!(a, c);
+    }
+
+    #[test]
+    fn from_t_phase() {
+        let s: Scalar4 = Phase::new(Rational64::new(0, 1)).into();
+        let s1: Scalar4 = [1, 0, 0, 0].into();
+        assert_eq!(s, s1);
+        let s: Scalar4 = Phase::new(Rational64::new(1, 4)).into();
+        let s1: Scalar4 = [0, 1, 0, 0].into();
+        assert_eq!(s, s1);
+        let s: Scalar4 = Phase::new(Rational64::new(1, 2)).into();
+        let s1: Scalar4 = [0, 0, 1, 0].into();
+        assert_eq!(s, s1);
+        let s: Scalar4 = Phase::new(Rational64::new(3, 4)).into();
+        let s1: Scalar4 = [0, 0, 0, 1].into();
+        assert_eq!(s, s1);
+        let s: Scalar4 = Phase::new(Rational64::new(1, 1)).into();
+        let s1: Scalar4 = [-1, 0, 0, 0].into();
+        assert_eq!(s, s1);
+        let s: Scalar4 = Phase::new(Rational64::new(5, 4)).into();
+        let s1: Scalar4 = [0, -1, 0, 0].into();
+        assert_eq!(s, s1);
+        let s: Scalar4 = Phase::new(Rational64::new(3, 2)).into();
+        let s1: Scalar4 = [0, 0, -1, 0].into();
+        assert_eq!(s, s1);
+        let s: Scalar4 = Phase::new(Rational64::new(7, 4)).into();
+        let s1: Scalar4 = [0, 0, 0, -1].into();
+        assert_eq!(s, s1);
+
+        let s: Scalar4 = Phase::new(Rational64::new(0, 1)).into();
+        let s1: Scalar4 = [1, 0, 0, 0].into();
+        assert_eq!(s, s1);
+        let s: Scalar4 = Phase::new(Rational64::new(-7, 4)).into();
+        let s1: Scalar4 = [0, 1, 0, 0].into();
+        assert_eq!(s, s1);
+        let s: Scalar4 = Phase::new(Rational64::new(-3, 2)).into();
+        let s1: Scalar4 = [0, 0, 1, 0].into();
+        assert_eq!(s, s1);
+        let s: Scalar4 = Phase::new(Rational64::new(-5, 4)).into();
+        let s1: Scalar4 = [0, 0, 0, 1].into();
+        assert_eq!(s, s1);
+        let s: Scalar4 = Phase::new(Rational64::new(-1, 1)).into();
+        let s1: Scalar4 = [-1, 0, 0, 0].into();
+        assert_eq!(s, s1);
+        let s: Scalar4 = Phase::new(Rational64::new(-3, 4)).into();
+        let s1: Scalar4 = [0, -1, 0, 0].into();
+        assert_eq!(s, s1);
+        let s: Scalar4 = Phase::new(Rational64::new(-1, 2)).into();
+        let s1: Scalar4 = [0, 0, -1, 0].into();
+        assert_eq!(s, s1);
+        let s: Scalar4 = Phase::new(Rational64::new(-1, 4)).into();
+        let s1: Scalar4 = [0, 0, 0, -1].into();
+        assert_eq!(s, s1);
+    }
+
+    #[test]
+    fn from_gen_phase() {
+        let r = Rational64::new(-5, 37);
+        let s1: Scalar4 = Phase::new(r).into();
+        let c = Complex::new(0.0, PI * r.to_f64().unwrap()).exp();
+        let s2: Scalar4 = c.into();
+
+        assert_eq!(s1, s2);
+        let r = Rational64::new(12, 117);
+        let s1: Scalar4 = Phase::new(r).into();
+        let c = Complex::new(0.0, PI * r.to_f64().unwrap()).exp();
+        let s2: Scalar4 = c.into();
+        assert_eq!(s1, s2);
     }
 
     #[rstest]
-    #[case(ScalarN::from_int_coeffs(&[3, 0, 0, 0]))]
-    #[case(ScalarN::from_int_coeffs(&[0, -2, 0, 0]))]
-    #[case(ScalarN::from_int_coeffs(&[0, 0, 1, 0]))]
-    #[case(ScalarN::from_int_coeffs(&[0, 0, 0, 1]))]
-    #[case(ScalarN::from_int_coeffs(&[0, 0, 0, -1]))]
-    #[case(ScalarN::from_int_coeffs(&[2, 0, 2, 0]))]
-    #[case(ScalarN::from_int_coeffs(&[2, 0, -2, 0]))]
-    #[case(ScalarN::from_int_coeffs(&[-2, 0, -2, 0]))]
-    #[case(ScalarN::from_int_coeffs(&[0, 1, 0, 1]))]
-    #[case(ScalarN::from_int_coeffs(&[0, 1, 0, -1]))]
-    #[case(ScalarN::from_int_coeffs(&[0, -1, 0, 1]))]
-    #[case(ScalarN::from_int_coeffs(&[0, -2, 0, -2]))]
-    #[case(ScalarN::from_int_coeffs(&[0, 2, 0, -2]))]
-    #[case(ScalarN::from_int_coeffs(&[1, 1, 0, -1]))]
-    #[case(ScalarN::from_int_coeffs(&[1, 1, 0, 1]))]
-    #[case(ScalarN::from_int_coeffs(&[1, -1, 0, 1]))]
-    #[case(ScalarN::from_int_coeffs(&[1, 1, 0, -1]))]
-    #[case(ScalarN::from_int_coeffs(&[2, -1, 0, 1]))]
-    #[case(ScalarN::from_int_coeffs(&[-2, 1, 0, 1]))]
-    #[case(ScalarN::from_int_coeffs(&[2, 2, 0, -2]))]
-    #[case(ScalarN::from_int_coeffs(&[-1, 2, 3, -4]))]
-    fn get_phase(#[case] s: ScalarN) {
-        assert_abs_diff_eq!(s.phase().to_f64(), s.complex_value().arg() / PI);
+    #[case(Scalar4::zero())]
+    #[case(Scalar4::one())]
+    #[case(Scalar4::from_phase(1))]
+    #[case(Scalar4::from_phase((1,2)))]
+    #[case(Scalar4::from_phase((-1,2)))]
+    #[case(Scalar4::real(2.0))]
+    #[case(Scalar4::complex(1.0, 1.0))]
+    #[case(Scalar4::new([0, 1, 0, -1], 3))]
+    #[case(Scalar4::new([0, 7, 0, 7], -2))]
+    #[case(Scalar4::new([-2, 0, -2, 0], 0))]
+    #[case(Scalar4::new([2, 0, -2, 0], 30))]
+    #[case(Scalar4::new([2, 0, 0, 0], -10))]
+    fn scalar4_roundtrip(#[case] scalar: Scalar4) {
+        let complex = scalar.complex_value();
+        println!("complex value = {}", complex);
+        let scalar1 = Scalar4::from(complex);
+        assert_abs_diff_eq!(scalar, scalar1);
     }
 
     #[test]
-    fn additions() {
-        let s = ScalarN::from_int_coeffs(&[1, 2, 3, 4]);
-        let t = ScalarN::from_int_coeffs(&[2, 3, 4, 5]);
-        let st = ScalarN::from_int_coeffs(&[3, 5, 7, 9]);
-        assert_eq!(s + t, st);
-    }
+    fn exact_phases() {
+        let sqrt2 = Scalar4::sqrt2();
+        let phase = Scalar4::new([0, 1, 0, 0], 0);
 
-    #[test]
-    fn sqrt2_powers() {
-        let s = Scalar4::sqrt2_pow(0);
-        assert_eq!(s, Scalar4::one());
-        let s = Scalar4::sqrt2_pow(2);
-        assert_eq!(s, Scalar4::from_int_coeffs(&[2]));
-        let s = Scalar4::sqrt2_pow(1);
-        assert_abs_diff_eq!(s, Scalar4::real(f64::sqrt(2f64)));
-        let s = Scalar4::sqrt2_pow(-1);
-        assert_abs_diff_eq!(s, Scalar4::real(1.0 / f64::sqrt(2f64)));
-
-        for p in -7..7 {
-            let s = Scalar4::sqrt2_pow(p);
-            assert_abs_diff_eq!(s, Scalar4::real(f64::sqrt(2f64).powi(p)));
-        }
-    }
-
-    #[test]
-    fn one_plus_phases() {
-        assert_abs_diff_eq!(
-            ScalarN::one_plus_phase(Rational64::new(1, 1)),
-            ScalarN::zero()
+        let s = phase;
+        println!("{}", s);
+        assert_eq!(
+            s.exact_phase_and_sqrt2_pow(),
+            Some((Rational64::new(1, 4).into(), 0))
         );
 
-        let plus = ScalarN::one_plus_phase(Rational64::new(1, 2));
-        let minus = ScalarN::one_plus_phase(Rational64::new(-1, 2));
-        assert_abs_diff_eq!(plus * minus, Scalar::real(2.0));
-    }
+        let s = phase * sqrt2;
+        println!("{}", s);
+        assert_eq!(
+            s.exact_phase_and_sqrt2_pow(),
+            Some((Rational64::new(1, 4).into(), 1))
+        );
 
-    #[test]
-    fn mul_large_power_2() {
-        let p1 = Scalar4::sqrt2_pow(200);
-        let p2 = Scalar4::sqrt2_pow(-200);
-        // multiplying small, large, and/or very different powers of 2 is ok
-        let p3 = p1 * p2;
-        assert_eq!(p3, Scalar4::one());
-    }
+        let s = phase * sqrt2 * sqrt2;
+        println!("{}", s);
+        assert_eq!(
+            s.exact_phase_and_sqrt2_pow(),
+            Some((Rational64::new(1, 4).into(), 2))
+        );
 
-    #[test]
-    fn add_large_power_2() {
-        let p1 = Scalar4::sqrt2_pow(200);
-        let p2 = Scalar4::sqrt2_pow(210);
-        // adding large or small powers of 2 is ok, as long as they are fairly
-        // close
-        let p3 = p1 + p2;
-
-        let q1 = Scalar4::one();
-        let q2 = Scalar4::sqrt2_pow(10);
-        let q3 = Scalar4::sqrt2_pow(200) * (q1 + q2);
-
-        assert_eq!(p3, q3);
-    }
-
-    #[test]
-    #[should_panic(expected = "attempt to multiply with overflow")]
-    fn add_diff_power_2() {
-        let p1 = Scalar4::sqrt2_pow(200);
-        let p2 = Scalar4::sqrt2_pow(-200);
-        // adding very different powers of 2 will panic
-        let p3 = p1 + p2;
-        assert_eq!(p3, Scalar4::one());
-    }
-
-    #[test]
-    fn conjugates() {
-        let ps = vec![
-            Scalar4::Exact(0, [1, 1, 0, 0]),
-            Scalar4::Exact(0, [1, 2, 0, 5]),
-            Scalar4::Exact(10, [1, 1, 0, 0]),
-            Scalar4::Exact(-3, [1, 1, 1, 1]),
-        ];
-
-        for p in ps {
-            let p_conj = p.conj();
-
-            let lhs = p.complex_value().conj();
-            let rhs = p_conj.complex_value();
-            assert_abs_diff_eq!(lhs.re, rhs.re, epsilon = 0.00001);
-            assert_abs_diff_eq!(lhs.im, rhs.im, epsilon = 0.00001);
-
-            let abs = p * p_conj;
-            let absf = abs.complex_value();
-            println!("p = {p:?}");
-            println!("p_conj = {p_conj:?}");
-            println!("abs = {abs:?}");
-            assert_abs_diff_eq!(absf.im, 0.0, epsilon = 0.00001);
-            assert!(absf.re > 0.0);
-        }
+        let s = phase * phase * sqrt2;
+        println!("{}", s);
+        assert_eq!(
+            s.exact_phase_and_sqrt2_pow(),
+            Some((Rational64::new(1, 2).into(), 1))
+        );
     }
 }
-// }}}
-// vim:foldlevel=0:

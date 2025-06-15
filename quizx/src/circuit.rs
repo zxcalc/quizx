@@ -626,8 +626,8 @@ mod tests {
 
         println!("g = {}\n\nh = {}\n\n", g.to_dot(), h.to_dot());
 
-        assert_eq!(c.to_tensorf(), Tensor::cphase(Rational64::new(1, 1), 2));
-        assert_eq!(g.to_tensorf(), Tensor::cphase(Rational64::new(1, 1), 2));
+        assert_eq!(c.to_tensor4(), Tensor::cphase(Rational64::new(1, 1), 2));
+        assert_eq!(g.to_tensor4(), Tensor::cphase(Rational64::new(1, 1), 2));
     }
 
     #[test]
@@ -646,7 +646,7 @@ mod tests {
 
         assert_eq!(g.num_vertices(), 10);
         assert_eq!(g.num_edges(), 11);
-        assert_eq!(c.to_tensorf(), g.to_tensorf());
+        assert_eq!(c.to_tensor4(), g.to_tensor4());
     }
 
     #[test]
@@ -660,7 +660,7 @@ mod tests {
         .unwrap();
 
         let g: Graph = c.to_graph();
-        assert_eq!(c.to_tensorf(), g.to_tensorf());
+        assert_eq!(c.to_tensor4(), g.to_tensor4());
 
         let c = Circuit::from_qasm(
             r#"
@@ -675,7 +675,7 @@ mod tests {
         .unwrap();
 
         let g: Graph = c.to_graph();
-        assert_eq!(c.to_tensorf(), g.to_tensorf());
+        assert_eq!(c.to_tensor4(), g.to_tensor4());
     }
 
     #[test]
@@ -688,7 +688,7 @@ mod tests {
         )
         .unwrap();
         let g: Graph = c.to_graph_with_options(false, true);
-        assert_eq!(c.to_tensorf(), g.to_tensorf());
+        assert_eq!(c.to_tensor4(), g.to_tensor4());
 
         let c = Circuit::from_qasm(
             r#"
@@ -698,7 +698,7 @@ mod tests {
         )
         .unwrap();
         let g: Graph = c.to_graph_with_options(false, true);
-        assert_eq!(c.to_tensorf(), g.to_tensorf());
+        assert_eq!(c.to_tensor4(), g.to_tensor4());
     }
 
     #[test]
@@ -710,6 +710,6 @@ mod tests {
             .build();
         let g1 = c.to_graph::<Graph>();
         let g2 = c.to_graph_with_options::<Graph>(true, false);
-        assert_eq!(g1.to_tensorf(), g2.to_tensorf());
+        assert_eq!(g1.to_tensor4(), g2.to_tensor4());
     }
 }

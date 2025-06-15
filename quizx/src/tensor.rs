@@ -16,9 +16,9 @@
 
 // use crate::scalar::*;
 use crate::circuit::*;
-use crate::fscalar::*;
 use crate::graph::*;
 use crate::phase::Phase;
+use crate::scalar::*;
 use ndarray::parallel::prelude::*;
 use ndarray::prelude::*;
 use ndarray::*;
@@ -31,11 +31,11 @@ use std::iter::FromIterator;
 /// Generic tensor type used by quizx
 pub type Tensor<A> = Array<A, IxDyn>;
 
-/// Shorthand for tensors over FScalar
-pub type TensorF = Tensor<FScalar>;
+/// Shorthand for tensors over [`Scalar4`]
+pub type Tensor4 = Tensor<Scalar4>;
 
 /// Shorthand for tensors over floating point complex numbers
-pub type Tensor64 = Tensor<Complex<f64>>;
+pub type TensorF = Tensor<Complex<f64>>;
 
 impl Sqrt2 for Complex<f64> {
     fn sqrt2_pow(p: i32) -> Complex<f64> {
@@ -70,7 +70,7 @@ pub trait TensorElem:
     + One
     + Sqrt2
     + FromPhase
-    + From<FScalar>
+    + TryFrom<Scalar4, Error: std::fmt::Debug>
     + ScalarOperand
     + std::ops::MulAssign
     + std::fmt::Debug
@@ -85,7 +85,7 @@ impl<T> TensorElem for T where
         + One
         + Sqrt2
         + FromPhase
-        + From<FScalar>
+        + TryFrom<Scalar4, Error: std::fmt::Debug>
         + ScalarOperand
         + std::ops::MulAssign
         + std::fmt::Debug
@@ -96,18 +96,18 @@ impl<T> TensorElem for T where
 ///
 /// This implements a generic method [ToTensor::to_tensor] for any number type that
 /// implements [TensorElem], as well as two convenience methods [ToTensor::to_tensorf]
-/// and [ToTensor::to_tensorf] for [FScalar] and floating-point [Complex] numbers,
+/// and [ToTensor::to_tensorf] for [`Scalar4`] and floating-point [`Complex`] numbers,
 /// respectively.
 pub trait ToTensor {
     fn to_tensor<A: TensorElem>(&self) -> Tensor<A>;
 
-    /// Shorthand for `to_tensor::<FScalar>()`
-    fn to_tensorf(&self) -> TensorF {
+    /// Shorthand for `to_tensor::<Tensor4>()`
+    fn to_tensor4(&self) -> Tensor4 {
         self.to_tensor()
     }
 
-    /// Shorthand for `to_tensor::<Complex<f64>>()`
-    fn to_tensor64(&self) -> Tensor64 {
+    /// Shorthand for `to_tensor::<TensorF>()`
+    fn to_tensorf(&self) -> TensorF {
         self.to_tensor()
     }
 }
@@ -393,7 +393,7 @@ impl<G: GraphLike + Clone> ToTensor for G {
             seenv.insert(v, deg_v);
         }
 
-        let s = A::from(*g.scalar()); // * A::sqrt2_pow(-num_had);
+        let s = A::try_from(*g.scalar()).unwrap(); // * A::sqrt2_pow(-num_had);
         a * s
     }
 }
@@ -482,7 +482,7 @@ mod tests {
         g.add_vertex(VType::Z);
         g.add_vertex(VType::Z);
         g.add_edge(0, 1);
-        let t: Tensor<FScalar> = g.to_tensor();
+        let t: Tensor<Scalar4> = g.to_tensor();
         println!("{t}");
     }
 
@@ -494,7 +494,7 @@ mod tests {
         g.add_edge(0, 1);
         g.set_inputs(vec![0]);
         g.set_outputs(vec![1]);
-        let t: Tensor<FScalar> = g.to_tensor();
+        let t: Tensor<Scalar4> = g.to_tensor();
         assert_eq!(t, Tensor::ident(1));
 
         let mut g = Graph::new();
@@ -505,7 +505,7 @@ mod tests {
         g.add_edge(2, 1);
         g.set_inputs(vec![0]);
         g.set_outputs(vec![1]);
-        let t: Tensor<FScalar> = g.to_tensor();
+        let t: Tensor<Scalar4> = g.to_tensor();
         assert_eq!(t, Tensor::ident(1));
     }
 
@@ -525,7 +525,7 @@ mod tests {
         g.add_edge(3, 5);
         g.set_inputs(vec![0, 1]);
         g.set_outputs(vec![2, 3]);
-        let t = g.to_tensorf();
+        let t = g.to_tensor4();
         println!("{t}");
         assert_eq!(t, Tensor::delta(4));
     }
@@ -547,17 +547,17 @@ mod tests {
         g.set_inputs(vec![0, 1]);
         g.set_outputs(vec![4, 5]);
         g.scalar_mut().mul_sqrt2_pow(1);
-        let t = g.to_tensorf();
+        let t = g.to_tensor4();
         println!("{t}");
         assert_eq!(t, Tensor::cphase(Rational64::one(), 2));
     }
 
     #[test]
     fn had_at() {
-        let mut arr: Tensor<FScalar> = Tensor::ident(1);
+        let mut arr: Tensor<Scalar4> = Tensor::ident(1);
         arr.hadamard_at(0);
         assert_eq!(arr, Tensor::hadamard());
-        let mut arr: Tensor<FScalar> = Tensor::ident(2);
+        let mut arr: Tensor<Scalar4> = Tensor::ident(2);
         arr.hadamard_at(0);
         arr.hadamard_at(1);
         arr.hadamard_at(0);
@@ -585,9 +585,9 @@ mod tests {
         )
         .unwrap();
 
-        println!("{}", c1.to_tensorf());
-        println!("{}", c2.to_tensorf());
-        assert_eq!(c1.to_tensorf(), c2.to_tensorf());
+        println!("{}", c1.to_tensor4());
+        println!("{}", c2.to_tensor4());
+        assert_eq!(c1.to_tensor4(), c2.to_tensor4());
     }
 
     #[test]
@@ -610,13 +610,13 @@ mod tests {
 
         let c3 = &c1 + &c2;
 
-        let t1 = c1.to_tensorf();
-        let t2 = c2.to_tensorf();
+        let t1 = c1.to_tensor4();
+        let t2 = c2.to_tensor4();
         let t3 = t1.plug_n_qubits(2, &t2);
 
         println!("{t3}");
-        println!("{}", c3.to_tensorf());
+        println!("{}", c3.to_tensor4());
 
-        assert_eq!(t3, c3.to_tensorf());
+        assert_eq!(t3, c3.to_tensor4());
     }
 }

@@ -23,9 +23,9 @@ use super::{
     EdgeAttrs, JsonError, JsonGraph, JsonPhase, JsonScalar, VertexAnnotations, VertexAttrs,
     VertexData, VertexName,
 };
-use crate::fscalar::FScalar;
 use crate::graph::{Coord, EType, GraphLike, VData, VType, V};
 use crate::phase::Phase;
+use crate::scalar::Scalar4;
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -291,7 +291,7 @@ impl JsonGraph {
 
         // Set the scalar.
         if let Some(scalar) = &self.scalar {
-            *graph.scalar_mut() = FScalar::try_from(scalar)?;
+            *graph.scalar_mut() = Scalar4::try_from(scalar)?;
         }
 
         Ok(graph)

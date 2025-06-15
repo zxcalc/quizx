@@ -36,7 +36,7 @@ pub fn equal_graph_tensor(g1: &Graph, g2: &Graph) -> bool {
     if !equal_graph_dim(g1, g2) {
         return false;
     }
-    g1.to_tensorf() == g2.to_tensorf()
+    g1.to_tensor4() == g2.to_tensor4()
 }
 
 /// Checks the equality of two circuits by comparing the linear maps they represent.
@@ -70,7 +70,7 @@ pub fn equal_graph_with_options(g1: &Graph, g2: &Graph, up_to_global_phase: bool
         if !up_to_global_phase {
             // both graphs are verifiably equal if the resulting global phase is zero
             // otherwise, they are verifiably unequal / only equal up to global phase
-            let c: Complex<f64> = g.scalar().into();
+            let c: Complex<f64> = g.scalar().complex_value();
             return Some(abs_diff_eq!(c.arg(), 0.0));
         }
         // both graphs are verifiably equal up to global phase

@@ -14,10 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::fscalar::*;
 pub use crate::graph::*;
 use crate::json::JsonGraph;
 use crate::params::Expr;
+use crate::scalar::*;
 use rustc_hash::FxHashMap;
 use serde::de::Error as _;
 use serde::ser::Error as _;
@@ -34,8 +34,8 @@ pub struct Graph {
     numv: usize,
     nume: usize,
     freshv: V,
-    scalar: FScalar,
-    scalar_factors: FxHashMap<Expr, FScalar>,
+    scalar: Scalar4,
+    scalar_factors: FxHashMap<Expr, Scalar4>,
 }
 
 impl Graph {
@@ -217,10 +217,10 @@ impl GraphLike for Graph {
         self.edata.get(&v).expect("Vertex not found").len()
     }
 
-    fn scalar(&self) -> &FScalar {
+    fn scalar(&self) -> &Scalar4 {
         &self.scalar
     }
-    fn scalar_mut(&mut self) -> &mut FScalar {
+    fn scalar_mut(&mut self) -> &mut Scalar4 {
         &mut self.scalar
     }
 
@@ -250,15 +250,15 @@ impl GraphLike for Graph {
         self.vdata.contains_key(&v)
     }
 
-    fn scalar_factors(&self) -> impl Iterator<Item = (&Expr, &FScalar)> {
+    fn scalar_factors(&self) -> impl Iterator<Item = (&Expr, &Scalar4)> {
         self.scalar_factors.iter()
     }
 
-    fn get_scalar_factor(&self, e: &Expr) -> Option<FScalar> {
+    fn get_scalar_factor(&self, e: &Expr) -> Option<Scalar4> {
         self.scalar_factors.get(e).copied()
     }
 
-    fn mul_scalar_factor(&mut self, e: Expr, s: FScalar) {
+    fn mul_scalar_factor(&mut self, e: Expr, s: Scalar4) {
         if let Some(t) = self.scalar_factors.get_mut(&e) {
             *t *= s;
         } else {

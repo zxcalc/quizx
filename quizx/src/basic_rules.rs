@@ -26,10 +26,10 @@
 //! Note calling `X_unchecked` is allowed to make unsound ZX-diagram
 //! transformations, or even panic, if `check_X` doesn't return true.
 
-use crate::fscalar::*;
 use crate::graph::*;
 use crate::params::Expr;
 use crate::phase::Phase;
+use crate::scalar::*;
 use num::traits::Zero;
 use rustc_hash::FxHashSet;
 use std::iter::FromIterator;
@@ -220,7 +220,7 @@ pub fn pi_copy_unchecked(g: &mut impl GraphLike, v: V) {
 
     let vars = g.vars(v);
     if !vars.is_empty() {
-        g.mul_scalar_factor(Expr::linear(vars), FScalar::minus_one());
+        g.mul_scalar_factor(Expr::linear(vars), Scalar4::minus_one());
     }
 
     // Push a pi to all the surrounding nodes
@@ -334,7 +334,7 @@ pub fn local_comp_unchecked(g: &mut impl GraphLike, v: V) {
     g.scalar_mut().mul_phase(p / 2);
 
     if !vars.is_empty() {
-        g.mul_scalar_factor(Expr::linear(vars), FScalar::from_phase(-p));
+        g.mul_scalar_factor(Expr::linear(vars), Scalar4::from_phase(-p));
     }
 }
 
@@ -418,11 +418,11 @@ pub fn pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     g.scalar_mut().mul_sqrt2_pow((x - 2) * (y - 2));
 
     if !p0.is_zero() && !p1.is_zero() {
-        *g.scalar_mut() *= FScalar::minus_one();
+        *g.scalar_mut() *= Scalar4::minus_one();
     }
 
     if !vars0.is_empty() && !vars1.is_empty() {
-        g.mul_scalar_factor(Expr::quadratic(vars0, vars1), FScalar::minus_one());
+        g.mul_scalar_factor(Expr::quadratic(vars0, vars1), Scalar4::minus_one());
     }
 }
 
@@ -716,8 +716,8 @@ pub fn remove_single_unchecked(g: &mut impl GraphLike, v: V) {
         g.scalar_mut().mul_one_plus_phase(p);
     } else {
         let p1 = p + Phase::one();
-        g.mul_scalar_factor(Expr::linear(vars.negated()), FScalar::one_plus_phase(p));
-        g.mul_scalar_factor(Expr::linear(vars), FScalar::one_plus_phase(p1));
+        g.mul_scalar_factor(Expr::linear(vars.negated()), Scalar4::one_plus_phase(p));
+        g.mul_scalar_factor(Expr::linear(vars), Scalar4::one_plus_phase(p1));
     }
 
     g.remove_vertex(v);
@@ -755,31 +755,31 @@ pub fn remove_pair_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
             let vars = vars0 + vars1;
             g.mul_scalar_factor(
                 Expr::linear(vars.negated()),
-                FScalar::one_plus_phase(p0 + p1),
+                Scalar4::one_plus_phase(p0 + p1),
             );
             g.mul_scalar_factor(
                 Expr::linear(vars),
-                FScalar::one_plus_phase(p0 + p1 + Phase::one()),
+                Scalar4::one_plus_phase(p0 + p1 + Phase::one()),
             );
         }
 
     // different colors
     } else {
         let (x0, x1, x2) = (
-            FScalar::from_phase(p0),
-            FScalar::from_phase(p1),
-            FScalar::from_phase(p0 + p1),
+            Scalar4::from_phase(p0),
+            Scalar4::from_phase(p1),
+            Scalar4::from_phase(p0 + p1),
         );
 
         g.scalar_mut().mul_sqrt2_pow(-1);
 
         if vars0.is_empty() && vars1.is_empty() {
-            *g.scalar_mut() *= FScalar::one() + x0 + x1 - x2;
+            *g.scalar_mut() *= Scalar4::one() + x0 + x1 - x2;
         } else {
-            let s00 = FScalar::one() + x0 + x1 - x2;
-            let s01 = FScalar::one() + x0 - x1 + x2;
-            let s10 = FScalar::one() - x0 + x1 + x2;
-            let s11 = FScalar::one() - x0 - x1 - x2;
+            let s00 = Scalar4::one() + x0 + x1 - x2;
+            let s01 = Scalar4::one() + x0 - x1 + x2;
+            let s10 = Scalar4::one() - x0 + x1 + x2;
+            let s11 = Scalar4::one() - x0 - x1 - x2;
 
             if s00 == s01 && s10 == s11 {
                 g.mul_scalar_factor(Expr::linear(vars1.negated()), s00);
@@ -891,7 +891,7 @@ mod tests {
         assert_eq!(g.num_edges(), 5);
         assert_eq!(g.degree(vs[2]), 5);
 
-        assert_eq!(g.to_tensorf(), h.to_tensorf());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
 
         assert_eq!(g.phase(vs[2]), Rational64::new(3, 4).into());
     }
@@ -939,10 +939,10 @@ mod tests {
         assert_eq!(g.num_edges(), 4);
         assert_eq!(g.degree(vs[2]), 3);
         assert_eq!(g.degree(vs[4]), 1);
-        assert_eq!(*g.scalar(), FScalar::sqrt2_pow(-2));
+        assert_eq!(*g.scalar(), Scalar4::sqrt2_pow(-2));
 
-        let tg = g.to_tensorf();
-        let th = h.to_tensorf();
+        let tg = g.to_tensor4();
+        let th = h.to_tensor4();
         println!("\n\ntg =\n{tg}");
         println!("\n\nth =\n{th}");
         assert_eq!(tg, th);
@@ -985,8 +985,8 @@ mod tests {
         assert_eq!(g.num_vertices(), 8);
         assert_eq!(g.num_edges(), 10);
 
-        let tg = g.to_tensorf();
-        let th = h.to_tensorf();
+        let tg = g.to_tensor4();
+        let th = h.to_tensor4();
         println!("\n\ntg =\n{tg}");
         println!("\n\nth =\n{th}");
         assert_eq!(tg, th);
@@ -997,7 +997,7 @@ mod tests {
 
         assert_eq!(
             *g.scalar(),
-            FScalar::sqrt2_pow((4 - 1) * (4 - 2) / 2) * FScalar::from_phase(Rational64::new(1, 4))
+            Scalar4::sqrt2_pow((4 - 1) * (4 - 2) / 2) * Scalar4::from_phase(Rational64::new(1, 4))
         );
 
         let h = g.clone();
@@ -1032,7 +1032,7 @@ mod tests {
         let success = pivot(&mut h, 3, 4);
         assert!(success, "Pivot should match");
 
-        assert_eq!(g.to_tensorf(), h.to_tensorf());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
 
         assert_eq!(h.num_vertices(), 5);
         assert_eq!(h.num_edges(), 6);
@@ -1060,7 +1060,7 @@ mod tests {
         let mut h = g.clone();
         let success = pivot(&mut h, 3, 4);
         assert!(success, "Second pivot should match");
-        assert_eq!(g.to_tensorf(), h.to_tensorf());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
     }
 
     #[test]
@@ -1124,8 +1124,8 @@ mod tests {
         assert!(success, "gen_pivot should match");
 
         println!("g=\n{}\n\nh=\n{}", g.to_dot(), h.to_dot());
-        println!("gt=\n{}\n\nht=\n{}", g.to_tensorf(), h.to_tensorf());
-        assert_eq!(g.to_tensorf(), h.to_tensorf());
+        println!("gt=\n{}\n\nht=\n{}", g.to_tensor4(), h.to_tensor4());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
     }
 
     #[test]
@@ -1157,8 +1157,8 @@ mod tests {
         assert!(success, "gen_pivot should match");
 
         println!("g=\n{}\n\nh=\n{}", g.to_dot(), h.to_dot());
-        println!("gt=\n{}\n\nht=\n{}", g.to_tensorf(), h.to_tensorf());
-        assert_eq!(g.to_tensorf(), h.to_tensorf());
+        println!("gt=\n{}\n\nht=\n{}", g.to_tensor4(), h.to_tensor4());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
     }
 
     #[test]
@@ -1201,7 +1201,7 @@ mod tests {
             // println!("{}", h.to_tensorf());
             // println!("g = {} * \n {} \n\n", g.scalar(), g.to_dot());
             // println!("h = {} * \n {} \n\n", h.scalar(), h.to_dot());
-            assert_eq!(graph.to_tensorf(), h.to_tensorf());
+            assert_eq!(graph.to_tensor4(), h.to_tensor4());
         }
     }
 
@@ -1213,7 +1213,7 @@ mod tests {
             let mut h = g.clone();
             assert!(remove_single(&mut h, 0));
             assert_eq!(h.num_vertices(), 0, "h still has vertices");
-            assert_eq!(g.to_tensorf(), h.to_tensorf());
+            assert_eq!(g.to_tensor4(), h.to_tensor4());
         }
 
         for &t0 in &[VType::Z, VType::X] {
@@ -1227,8 +1227,8 @@ mod tests {
                     assert!(remove_pair(&mut h, 0, 1));
                     assert_eq!(h.num_vertices(), 0, "h still has vertices");
                     assert_eq!(
-                        g.to_tensorf(),
-                        h.to_tensorf(),
+                        g.to_tensor4(),
+                        h.to_tensor4(),
                         "Eq failed on case: {t0:?}, {t1:?}, {et:?}"
                     );
                 }
@@ -1268,11 +1268,11 @@ mod tests {
 
         let h = g.clone();
         pi_copy(&mut g, vs[0]);
-        assert_eq!(g.to_tensorf(), h.to_tensorf());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
         pi_copy(&mut g, vs[1]);
-        assert_eq!(g.to_tensorf(), h.to_tensorf());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
         pi_copy(&mut g, vs[4]);
-        assert_eq!(g.to_tensorf(), h.to_tensorf());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
     }
 
     #[test]
@@ -1307,7 +1307,7 @@ mod tests {
         let h = g.clone();
 
         assert!(remove_duplicate(&mut g, v0, v1));
-        assert_eq!(g.to_tensorf(), h.to_tensorf());
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
     }
 }
 

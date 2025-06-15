@@ -15,10 +15,10 @@
 // limitations under the License.
 
 use crate::circuit::Circuit;
-use crate::fscalar::FScalar;
 use crate::graph::*;
 use crate::params::{Parity, Var};
 use crate::phase::Phase;
+use crate::scalar::Scalar4;
 use num::{Rational64, Zero};
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
@@ -369,7 +369,7 @@ impl Gate {
             graph.add_edge_with_type(g0[2], s, EType::H);
 
             // fix scalar
-            *graph.scalar_mut() *= FScalar::dyadic(2, [0, 1, 0, 0]);
+            *graph.scalar_mut() *= Scalar4::new([0, 1, 0, 0], 2);
         }
     }
 
