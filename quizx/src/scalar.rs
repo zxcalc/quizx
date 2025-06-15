@@ -447,22 +447,18 @@ impl From<Complex<f64>> for Scalar4 {
 
 impl From<&Scalar4> for Complex<f64> {
     fn from(value: &Scalar4) -> Self {
-        let re_f: f64 = (value.0[0] + (value.0[1] - value.0[3])).into();
-        let im_f: f64 = (value.0[2] + (value.0[1] + value.0[3])).into();
         Complex {
-            re: re_f * 0.5 * SQRT_2,
-            im: im_f * 0.5 * SQRT_2,
+            re: f64::from(value.0[0]) + f64::from(value.0[1] - value.0[3]) * 0.5 * SQRT_2,
+            im: f64::from(value.0[2]) + f64::from(value.0[1] + value.0[3]) * 0.5 * SQRT_2,
         }
     }
 }
 
 impl From<Scalar4> for Complex<f64> {
     fn from(value: Scalar4) -> Self {
-        let re_f: f64 = (value.0[0] + (value.0[1] - value.0[3])).into();
-        let im_f: f64 = (value.0[2] + (value.0[1] + value.0[3])).into();
         Complex {
-            re: re_f * 0.5 * SQRT_2,
-            im: im_f * 0.5 * SQRT_2,
+            re: f64::from(value.0[0]) + f64::from(value.0[1] - value.0[3]) * 0.5 * SQRT_2,
+            im: f64::from(value.0[2]) + f64::from(value.0[1] + value.0[3]) * 0.5 * SQRT_2,
         }
     }
 }

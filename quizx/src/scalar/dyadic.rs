@@ -15,7 +15,7 @@ const SIGN_OFF: u8 = 0xff ^ SIGN;
 const APPROX: u8 = 0x02;
 
 // A dyadic is essentially a floating point number, but we have more control over precision
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Dyadic {
     flags: u8,
     exp: Exponent,
@@ -53,12 +53,16 @@ impl Dyadic {
 
     #[inline]
     pub fn val_and_exp(&self) -> (SignedMantissa, Exponent) {
-        let shift = self.val.trailing_zeros();
-        let v = self.val.wrapping_shr(shift) as SignedMantissa;
-        if self.sign() {
-            (-v, self.exp + (shift as Exponent))
+        if self.is_zero() {
+            (0, 0)
         } else {
-            (v, self.exp + (shift as Exponent))
+            let shift = self.val.trailing_zeros();
+            let v = self.val.wrapping_shr(shift) as SignedMantissa;
+            if self.sign() {
+                (-v, self.exp + (shift as Exponent))
+            } else {
+                (v, self.exp + (shift as Exponent))
+            }
         }
     }
 
@@ -75,7 +79,11 @@ impl Dyadic {
 
     #[inline]
     pub fn exp(&self) -> Exponent {
-        self.exp + (self.val.trailing_zeros() as Exponent)
+        if self.is_zero() {
+            self.exp + (self.val.trailing_zeros() as Exponent)
+        } else {
+            0
+        }
     }
 
     #[inline]
@@ -95,6 +103,16 @@ impl Dyadic {
         let mut d = *self;
         d.flags &= SIGN_OFF;
         d
+    }
+}
+
+impl fmt::Debug for Dyadic {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)?;
+        if self.approx() {
+            write!(f, "~")?;
+        }
+        Ok(())
     }
 }
 
@@ -267,10 +285,10 @@ impl Mul for Dyadic {
     type Output = Dyadic;
 
     fn mul(mut self, rhs: Self) -> Self::Output {
-        if self.val == 0 {
-            return rhs;
-        } else if rhs.val == 0 {
+        if self.is_zero() {
             return self;
+        } else if rhs.is_zero() {
+            return rhs;
         }
 
         self.exp = self.exp + rhs.exp;
@@ -381,6 +399,7 @@ mod test {
     #[case(Dyadic::new(32, 0), Dyadic::new(-12, 0), Dyadic::new(32 * -12, 0))]
     #[case(Dyadic::new(12, 10), Dyadic::new(-3, 4), Dyadic::new(12*1024 * -3*16, 0))]
     #[case(Dyadic::new(5, -8), Dyadic::new(3, 2), Dyadic::new(5 * 3, -6))]
+    #[case(Dyadic::new(1, 0), Dyadic::new(0, 0), Dyadic::new(0, 0))]
     fn mul(#[case] d1: Dyadic, #[case] d2: Dyadic, #[case] d3: Dyadic) {
         println!("{:?} * {:?} = {:?}", d1, d2, d3);
         assert_eq!(d1 * d2, d3);
