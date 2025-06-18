@@ -5,6 +5,17 @@
 ## Added
 - `add_edge` method to `VecGraph` class.
 
+## [0.4.0](https://github.com/zxcalc/quizx/compare/quizx-py-v0.3.0...quizx-py-v0.4.0) (2025-06-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* 
+
+### Features
+
+* Added dyadic rational type and new scalars based on this type ([#158](https://github.com/zxcalc/quizx/issues/158)) ([d6b63cb](https://github.com/zxcalc/quizx/commit/d6b63cb7d4cead3236081f12c1c2410ec55a7e22))
+
 ## [0.3.0](https://github.com/zxcalc/quizx/compare/quizx-py-v0.2.0...quizx-py-v0.3.0) (2025-06-12)
 
 
