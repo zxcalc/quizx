@@ -32,7 +32,7 @@ quizx opt circuit.qasm -o circuit_opt.qasm
 To run the classical simulator for 16 shots, run:
 
 ```bash
-quizx opt circuit.qasm -s 16
+quizx sim circuit.qasm -s 16
 ```
 
 Run `quizx help` to get an overview of the available commands then `quizx COMMAND --help` for command-specific help.
