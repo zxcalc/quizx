@@ -136,9 +136,9 @@ checksum = "1b8e56985ec62d17e9c1001dc89c88ecd7dc08e47eba5ec7c29c7b5eeecde967"
 
 [[package]]
 name = "bitgauss"
-version = "0.3.3"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6b5f1cc32f2a5426f564c93c0addccca1953631732995e60b80d90423503d73"
+checksum = "48ddbfbb6bfcc2fc37429e1a00cadb1d3e6d6e9ccfe95df19612f76434d4451c"
 dependencies = [
  "rand 0.9.1",
  "ref-cast",
