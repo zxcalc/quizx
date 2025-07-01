@@ -18,7 +18,7 @@ use crate::basic_rules::{boundary_pivot, remove_id};
 use crate::circuit::*;
 use crate::gate::*;
 use crate::graph::*;
-use crate::linalg::*;
+use bitgauss::{BitMatrix, RowOps};
 use num::Rational64;
 use num::Zero;
 use rustc_hash::FxHashSet;
@@ -97,7 +97,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
     ///
     /// Frontier elements are rows and neighbors are columns. The computed
     /// vec of neighbors and the matrix are returned.
-    fn frontier_biadj(&self) -> (Vec<V>, Mat2) {
+    fn frontier_biadj(&self) -> (Vec<V>, BitMatrix) {
         let mut neighbor_set = FxHashSet::default();
         for &(_, v) in &self.frontier {
             for n in self.g.neighbors(v) {
@@ -110,7 +110,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
         let neighbors: Vec<_> = neighbor_set.iter().copied().collect();
 
         // Build an adjacency matrix between the frontier and its neighbors
-        let m = Mat2::build(self.frontier.len(), neighbors.len(), |i, j| {
+        let m = BitMatrix::build(self.frontier.len(), neighbors.len(), |i, j| {
             self.g.connected(self.frontier[i].1, neighbors[j])
         });
 
@@ -118,10 +118,10 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
     }
 
     /// Set edges between frontier and given neighbors to match biadj. matrix
-    fn update_frontier_biadj(&mut self, neighbors: &[V], m: Mat2) {
+    fn update_frontier_biadj(&mut self, neighbors: &[V], m: BitMatrix) {
         for (i, &(_, v)) in self.frontier.iter().enumerate() {
             for (j, &w) in neighbors.iter().enumerate() {
-                if m[(i, j)] == 1 {
+                if m[(i, j)] {
                     if !self.g.connected(v, w) {
                         self.g.add_edge_with_type(v, w, EType::H);
                     }
@@ -164,7 +164,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
         // elimination, but they are pushed on to the front of the circuit, so they
         // should end up in reverse order.
         let mut c1 = Circuit::new(c.num_qubits());
-        m.gauss_x(true, 3, &mut c1);
+        m.gauss_with_proxy(true, 3, &mut c1);
 
         e.update_frontier_circuit(&c1, c);
         e.update_frontier_biadj(&neighbors, m);
@@ -173,15 +173,15 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
     /// Perform row operations to free a single vertex with the smallest solution set
     pub fn single_sln_set(e: &mut Extractor<G>, c: &mut Circuit) {
         let (neighbors, mut m) = e.frontier_biadj();
-        let mut row_ops = Mat2::id(m.num_rows());
+        let mut row_ops = BitMatrix::identity(m.rows());
         let mut m1 = m.clone();
-        m1.gauss_x(true, 1, &mut row_ops);
-        let mut min_weight = row_ops.num_cols() as u8;
+        m1.gauss_with_proxy(true, 1, &mut row_ops);
+        let mut min_weight = row_ops.cols();
         let mut extr_rows = Vec::new();
         let mut min_weight_row = 0;
 
         // find the vertex with the smallest solution set
-        for i in 0..m1.num_rows() {
+        for i in 0..m1.rows() {
             if m1.row_weight(i) == 1 {
                 extr_rows.push(i);
                 let weight = row_ops.row_weight(i);
@@ -193,8 +193,8 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
         }
 
         // compute the solution set
-        let sln_set: Vec<_> = (0..row_ops.num_cols())
-            .filter(|&i| row_ops[min_weight_row][i] == 1)
+        let sln_set: Vec<_> = (0..row_ops.cols())
+            .filter(|&i| row_ops[(min_weight_row, i)])
             .collect();
 
         if sln_set.len() < 2 {
@@ -208,7 +208,7 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
         // the solution set of the next extractable vertex.
 
         // if extr_rows.len() > 1 {
-        //     let cost_m = Mat2::build(extr_rows.len(), row_ops.num_cols(), |i,j| {
+        //     let cost_m = BitMatrix::build(extr_rows.len(), row_ops.num_cols(), |i,j| {
         //         row_ops[extr_rows[i]][j] == 1
         //     });
         //     let mut min_cost = (row_ops.num_cols() * sln_set.len()) as u8;
@@ -230,8 +230,8 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
         let mut c1 = Circuit::new(c.num_qubits());
         for &i in &sln_set {
             if i != target {
-                m.row_add(i, target);
-                c1.row_add(i, target);
+                m.add_row(i, target);
+                c1.add_row(i, target);
             }
         }
 
@@ -250,13 +250,13 @@ impl<'a, G: GraphLike> Extractor<'a, G> {
     /// A permutation graph contains only inputs, outputs, and normal edges
     /// connecting inputs to outputs.
     fn perm_to_cnots(&mut self, c: &mut Circuit, blocksize: usize) {
-        let mut m = Mat2::build(self.g.outputs().len(), self.g.inputs().len(), |i, j| {
+        let mut m = BitMatrix::build(self.g.outputs().len(), self.g.inputs().len(), |i, j| {
             self.g.connected(self.g.outputs()[i], self.g.inputs()[j])
         });
 
         // Extract CNOTs until adj. matrix is in reduced echelon form
         let mut c1 = Circuit::new(c.num_qubits());
-        m.gauss_x(true, blocksize, &mut c1);
+        m.gauss_with_proxy(true, blocksize, &mut c1);
         for g in c1.gates {
             c.push_front(g);
         }
