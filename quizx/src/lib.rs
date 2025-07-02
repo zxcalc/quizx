@@ -56,6 +56,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[allow(clippy::needless_range_loop, clippy::uninlined_format_args)]
 pub mod annealer;
 pub mod basic_rules;
 pub mod circuit;
