@@ -4,6 +4,17 @@ This is the changelog for the `quizx` rust library.
 For the changelog of the `quizx` python library, see the separate [`CHANGELOG.md`](https://github.com/zxcalc/quizx/blob/master/pybindings/CHANGELOG.md) file.
 
 
+## [0.4.0](https://github.com/zxcalc/quizx/compare/quizx@v0.3.0...quizx@v0.4.0) - 2025-07-04
+
+### Bug Fixes
+
+- typo in README
+
+### New Features
+
+- [**breaking**] Added dyadic rational type and new scalars based on this type ([#158](https://github.com/zxcalc/quizx/pull/158))
+- use bitgauss library for fast F2 linear algebra ([#161](https://github.com/zxcalc/quizx/pull/161))
+
 ## [0.3.0](https://github.com/zxcalc/quizx/compare/quizx@v0.2.0...quizx@v0.3.0) - 2025-06-12
 
 ### Bug Fixes
