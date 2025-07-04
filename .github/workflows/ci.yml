@@ -18,6 +18,7 @@ env:
   MIRIFLAGS: '-Zmiri-permissive-provenance'
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
+  CLIPPY_FLAGS: "-D warnings -A clippy::needless-range-loop -A clippy::uninlined-format-args"
   # Supported python version range
   PYTHON_MIN_VERSION: 3.9
   PYTHON_MAX_VERSION: 3.13
@@ -34,7 +35,7 @@ jobs:
       pull-requests: read
     # Set job outputs to values from filter step
     #
-    # Always returns true if running on the default branch, to ensure all changes are throughly checked.
+    # Always returns true if running on the default branch, to ensure all changes are thoroughly checked.
     outputs:
       quizx: ${{ github.ref_name == github.event.repository.default_branch || steps.filter.outputs.quizx }}
       pybindings: ${{ github.ref_name == github.event.repository.default_branch || steps.filter.outputs.pybindings }}
@@ -71,7 +72,7 @@ jobs:
       - name: Check rust formatting
         run: cargo fmt -p quizx -- --check
       - name: Run clippy
-        run: cargo clippy --all-targets --all-features -p quizx -- -D warnings
+        run: cargo clippy --all-targets --all-features -p quizx -- ${{ env.CLIPPY_FLAGS }}
       - name: Build docs
         run: cargo doc --no-deps --all-features
         env:
@@ -98,7 +99,7 @@ jobs:
       - name: Check rust formatting
         run: cargo fmt -p quizx_pybindings -- --check
       - name: Run clippy
-        run: cargo clippy --all-targets --all-features -p quizx_pybindings -- -D warnings
+        run: cargo clippy --all-targets --all-features -p quizx_pybindings -- ${{ env.CLIPPY_FLAGS }}
       - name: Type check python with mypy
         run: uv run mypy .
       - name: Check python formatting with ruff

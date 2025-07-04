@@ -16,12 +16,12 @@
 
 use crate::gate::*;
 use crate::graph::*;
-use crate::linalg::RowOps;
 use crate::params::Parity;
 use crate::params::Var;
 use crate::phase::Phase;
 use crate::simplify::local_ap_simp;
 use crate::util::pmax;
+use bitgauss::RowOps;
 use num::{Rational64, Zero};
 use openqasm::{ast::Symbol, translate::Value, GenericError, ProgramVisitor};
 use rustc_hash::FxHashMap;
@@ -388,19 +388,19 @@ impl std::ops::AddAssign<&Circuit> for Circuit {
 ///
 /// ```
 /// use quizx::circuit::Circuit;
-/// use quizx::linalg::*;
+/// use bitgauss::BitMatrix;
 /// let mut c = Circuit::new(3); // c|b> = |id * b>
-/// let mut m = Mat2::new(vec![vec![1,1,1], vec![0,1,1], vec![0,0,1]]);
-/// m.gauss_x(true, 1, &mut c);  // c|b> = |m^-1 * b>
+/// let mut m = BitMatrix::from_int_vec(&vec![vec![1,1,1], vec![0,1,1], vec![0,0,1]]);
+/// m.gauss_with_proxy(true, 1, &mut c);  // c|b> = |m^-1 * b>
 /// c.reverse();                 // c|b> = |m * b>
 ///
 /// ```
 impl RowOps for Circuit {
-    fn row_add(&mut self, r0: usize, r1: usize) {
+    fn add_row(&mut self, r0: usize, r1: usize) {
         self.push_back(Gate::new(GType::CNOT, vec![r1, r0]));
     }
 
-    fn row_swap(&mut self, r0: usize, r1: usize) {
+    fn swap_rows(&mut self, r0: usize, r1: usize) {
         self.push_back(Gate::new(GType::SWAP, vec![r0, r1]));
     }
 }

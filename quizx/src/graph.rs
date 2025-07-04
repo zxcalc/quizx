@@ -14,11 +14,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::linalg::Mat2;
 use crate::params::Expr;
 use crate::phase::Phase;
 use crate::util::*;
 use crate::{params::Parity, scalar::*};
+use bitgauss::BitMatrix;
 use derive_more::{Display, From};
 use num::rational::Rational64;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -890,7 +890,7 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
 
     /// Returns the adjacency matrix of the graph, optionally in the order of nodelist
     /// (similar to nx's adjacency_matrix)
-    fn adjacency_matrix(&self, nodelist: Option<&[V]>) -> Mat2 {
+    fn adjacency_matrix(&self, nodelist: Option<&[V]>) -> BitMatrix {
         // Get the nodes to use, either from nodelist or all vertices in the graph
         let nodes: Vec<V> = match nodelist {
             Some(list) => list.to_vec(),
@@ -898,14 +898,14 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
         };
 
         let n = nodes.len();
-        let mut adj = Mat2::zeros(n, n);
+        let mut adj = BitMatrix::zeros(n, n);
 
         // Fill the adjacency matrix
         for (i, &u) in nodes.iter().enumerate() {
             for (j, &v) in nodes.iter().enumerate() {
                 // Check both directions since the graph is undirected
                 if self.connected(u, v) || self.connected(v, u) {
-                    adj[(i, j)] = 1;
+                    adj.set_bit(i, j, true);
                 }
             }
         }
