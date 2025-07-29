@@ -6,47 +6,41 @@ use crate::graph::V;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DecompNode {
-    Leaf(usize, V),
+    Leaf([usize; 1], V),
     Interior([usize; 3]),
 }
 
 impl DecompNode {
     pub fn parent(self) -> usize {
-        if let DecompNode::Leaf(n, _) = self {
+        if let DecompNode::Leaf([n], _) = self {
             n
         } else {
             panic!("Called parent on an Interior node");
         }
     }
 
-    pub fn children(self) -> [usize; 3] {
-        if let DecompNode::Interior(nhd) = self {
-            nhd
-        } else {
-            panic!("Called children on a Leaf node");
+    pub fn nhd(&self) -> &[usize] {
+        match self {
+            DecompNode::Leaf(nhd, _) => nhd,
+            DecompNode::Interior(nhd) => nhd,
         }
     }
 
-    pub fn replace_child(&mut self, old: usize, new: usize) {
-        if let DecompNode::Interior(ref mut nhd) = self {
-            for n in nhd.iter_mut() {
-                if *n == old {
-                    *n = new;
-                    return;
-                }
+    pub fn nhd_mut(&mut self) -> &mut [usize] {
+        match self {
+            DecompNode::Leaf(nhd, _) => nhd,
+            DecompNode::Interior(nhd) => nhd,
+        }
+    }
+
+    pub fn replace_neighbor(&mut self, old: usize, new: usize) {
+        for n in self.nhd_mut().iter_mut() {
+            if *n == old {
+                *n = new;
+                return;
             }
-            panic!("Old child not found in Interior node");
-        } else {
-            panic!("Called replace_child on a Leaf node");
         }
-    }
-
-    pub fn set_parent(&mut self, new_parent: usize) {
-        if let DecompNode::Leaf(_, v) = self {
-            *self = DecompNode::Leaf(new_parent, *v);
-        } else {
-            panic!("Called set_parent on an Interior node");
-        }
+        panic!("Old neighbor {} not found in node {:?}", old, self);
     }
 }
 
@@ -64,29 +58,26 @@ impl DecompTree {
     }
 
     /// Find a path from vertex `v1` to vertex `v2` in the decomposition tree using a depth-first search.
-    pub fn path(&self, v1: usize, v2: usize) -> Vec<usize> {
+    fn dfs(
+        &self,
+        start: usize,
+        avoid: &[usize],
+        mut visit: impl FnMut(usize) -> bool,
+    ) -> Vec<usize> {
         let mut path = Vec::new();
-        let mut seen = FxHashSet::default();
+        let mut seen: FxHashSet<usize> = avoid.iter().copied().collect();
 
-        let mut current = v1;
+        let mut current = start;
         path.push(current);
         seen.insert(current);
 
-        if let DecompNode::Leaf(n, _) = self.nodes[current] {
-            current = n;
-            path.push(current);
-            seen.insert(current);
-        }
-
-        'dfs: while current != v2 {
-            if let DecompNode::Interior(nhd) = self.nodes[current] {
-                for n in nhd {
-                    if !seen.contains(&n) {
-                        current = n;
-                        path.push(current);
-                        seen.insert(current);
-                        continue 'dfs;
-                    }
+        'dfs: while !visit(current) {
+            for &n in self.nodes[current].nhd() {
+                if !seen.contains(&n) {
+                    current = n;
+                    path.push(current);
+                    seen.insert(current);
+                    continue 'dfs;
                 }
             }
 
@@ -94,11 +85,37 @@ impl DecompTree {
             if !path.is_empty() {
                 current = *path.last().unwrap();
             } else {
-                panic!("No path found from {} to {}", v1, v2);
+                break;
             }
         }
 
         path
+    }
+
+    /// Find a path from vertex `n1` to vertex `n2` in the decomposition tree using a depth-first search.
+    pub fn path(&self, n1: usize, n2: usize) -> Vec<usize> {
+        self.dfs(n1, &[], |n| n == n2)
+    }
+
+    /// Return the vertex partition defined by the given edge
+    pub fn partition(&self, edge: (usize, usize)) -> (Vec<V>, Vec<V>) {
+        let mut p1 = Vec::new();
+        self.dfs(edge.0, &[edge.1], |n| {
+            if let DecompNode::Leaf(_, v) = self.nodes[n] {
+                p1.push(v);
+            }
+            false
+        });
+
+        let mut p2 = Vec::new();
+        self.dfs(edge.1, &[edge.0], |n| {
+            if let DecompNode::Leaf(_, v) = self.nodes[n] {
+                p2.push(v);
+            }
+            false
+        });
+
+        (p1, p2)
     }
 
     pub fn swap_random_leaves(&mut self, rng: &mut impl rand::Rng) {
@@ -114,14 +131,14 @@ impl DecompTree {
 
         let l1 = self.leaves[i1];
         let l2 = self.leaves[i2];
-        let p1 = self.nodes[l1].parent();
-        let p2 = self.nodes[l2].parent();
+        let p1 = self.nodes[l1].nhd()[0];
+        let p2 = self.nodes[l2].nhd()[0];
 
         // swap leaves by updating connections in both directions
-        self.nodes[l1].set_parent(p2);
-        self.nodes[l2].set_parent(p1);
-        self.nodes[p1].replace_child(l1, l2);
-        self.nodes[p2].replace_child(l2, l1);
+        self.nodes[l1].replace_neighbor(p1, p2);
+        self.nodes[l2].replace_neighbor(p2, p1);
+        self.nodes[p1].replace_neighbor(l1, l2);
+        self.nodes[p2].replace_neighbor(l2, l1);
     }
 
     pub fn move_random_subtree(&mut self, rng: &mut impl rand::Rng) {
@@ -150,12 +167,12 @@ impl DecompTree {
 
         // Get the remaining nodes that are not in the path
         let a2 = self.nodes[a1]
-            .children()
+            .nhd()
             .iter()
             .find(|&&n| n != a && n != path[2])
             .unwrap();
         let b2 = self.nodes[b1]
-            .children()
+            .nhd()
             .iter()
             .find(|&&n| n != b && n != path[path.len() - 3])
             .unwrap();
@@ -175,9 +192,9 @@ mod tests {
         //    / | \
         //   1  2  3
         tree.nodes.push(DecompNode::Interior([1, 2, 3])); // node 0
-        tree.nodes.push(DecompNode::Leaf(0, 10)); // node 1, vertex 10, connects back to 0
-        tree.nodes.push(DecompNode::Leaf(0, 20)); // node 2, vertex 20, connects back to 0
-        tree.nodes.push(DecompNode::Leaf(0, 30)); // node 3, vertex 30, connects back to 0
+        tree.nodes.push(DecompNode::Leaf([0], 10)); // node 1, vertex 10, connects back to 0
+        tree.nodes.push(DecompNode::Leaf([0], 20)); // node 2, vertex 20, connects back to 0
+        tree.nodes.push(DecompNode::Leaf([0], 30)); // node 3, vertex 30, connects back to 0
         tree.leaves = vec![1, 2, 3];
 
         // Test path from node 1 to node 2
@@ -205,12 +222,12 @@ mod tests {
         //   4 5   6 7
         tree.nodes.push(DecompNode::Interior([1, 2, 3])); // node 0
         tree.nodes.push(DecompNode::Interior([0, 4, 5])); // node 1
-        tree.nodes.push(DecompNode::Leaf(0, 20)); // node 2
+        tree.nodes.push(DecompNode::Leaf([0], 20)); // node 2
         tree.nodes.push(DecompNode::Interior([0, 6, 7])); // node 3
-        tree.nodes.push(DecompNode::Leaf(1, 40)); // node 4
-        tree.nodes.push(DecompNode::Leaf(1, 50)); // node 5
-        tree.nodes.push(DecompNode::Leaf(3, 60)); // node 6
-        tree.nodes.push(DecompNode::Leaf(3, 70)); // node 7
+        tree.nodes.push(DecompNode::Leaf([1], 40)); // node 4
+        tree.nodes.push(DecompNode::Leaf([1], 50)); // node 5
+        tree.nodes.push(DecompNode::Leaf([3], 60)); // node 6
+        tree.nodes.push(DecompNode::Leaf([3], 70)); // node 7
         tree.leaves = vec![2, 4, 5, 6, 7];
 
         // Test path from deep leaf to another deep leaf
@@ -229,7 +246,7 @@ mod tests {
     #[test]
     fn test_path_same_node() {
         let mut tree = DecompTree::new();
-        tree.nodes.push(DecompNode::Leaf(0, 10));
+        tree.nodes.push(DecompNode::Leaf([0], 10));
         tree.leaves = vec![10];
 
         // Path from a node to itself should just be the node
