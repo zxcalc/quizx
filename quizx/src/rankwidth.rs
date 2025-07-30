@@ -33,6 +33,14 @@ impl DecompNode {
         }
     }
 
+    pub fn other_neighbor(&self, n1: usize, n2: usize) -> usize {
+        self.nhd()
+            .iter()
+            .find(|&&n| n != n1 && n != n2)
+            .copied()
+            .expect("No other neighbor found")
+    }
+
     pub fn replace_neighbor(&mut self, old: usize, new: usize) {
         for n in self.nhd_mut().iter_mut() {
             if *n == old {
@@ -141,6 +149,30 @@ impl DecompTree {
         self.nodes[p2].replace_neighbor(l2, l1);
     }
 
+    fn move_subtree(&mut self, path: &[usize]) {
+        let a = path[0];
+        let a1 = path[1];
+        let a2 = path[2];
+
+        let b = path[path.len() - 1];
+        let b1 = path[path.len() - 2];
+
+        // the node adjacent to a1 that is not in the path
+        let ao = self.nodes[a1].other_neighbor(a, a2);
+
+        // connect ao to a2
+        self.nodes[a2].replace_neighbor(a1, ao);
+        self.nodes[ao].replace_neighbor(a1, a2);
+
+        // connect b to a1
+        self.nodes[b].replace_neighbor(b1, a1);
+        self.nodes[a1].replace_neighbor(a2, b);
+
+        // connect a1 to b1
+        self.nodes[a1].replace_neighbor(ao, b1);
+        self.nodes[b1].replace_neighbor(b, a1);
+    }
+
     pub fn move_random_subtree(&mut self, rng: &mut impl rand::Rng) {
         // Need to have at least 2 nodes with no common neighbors, which can only
         // happen for well-formed trees with at least 6 nodes
@@ -148,13 +180,10 @@ impl DecompTree {
             return;
         }
 
-        let mut a;
-        let mut b;
         let mut path;
-
         loop {
-            a = rng.gen_range(0..self.nodes.len());
-            b = rng.gen_range(0..self.nodes.len());
+            let a = rng.gen_range(0..self.nodes.len());
+            let b = rng.gen_range(0..self.nodes.len());
             path = self.path(a, b);
 
             if path.len() >= 4 {
@@ -162,20 +191,7 @@ impl DecompTree {
             }
         }
 
-        let a1 = path[1];
-        let b1 = path[path.len() - 2];
-
-        // Get the remaining nodes that are not in the path
-        let a2 = self.nodes[a1]
-            .nhd()
-            .iter()
-            .find(|&&n| n != a && n != path[2])
-            .unwrap();
-        let b2 = self.nodes[b1]
-            .nhd()
-            .iter()
-            .find(|&&n| n != b && n != path[path.len() - 3])
-            .unwrap();
+        self.move_subtree(&path);
     }
 }
 
@@ -184,7 +200,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_path_simple_tree() {
+    fn path_simple_tree() {
         let mut tree = DecompTree::new();
 
         // Create a simple tree structure:
@@ -211,7 +227,7 @@ mod tests {
     }
 
     #[test]
-    fn test_path_deeper_tree() {
+    fn path_deeper_tree() {
         let mut tree = DecompTree::new();
 
         // Create a deeper tree structure:
@@ -244,7 +260,7 @@ mod tests {
     }
 
     #[test]
-    fn test_path_same_node() {
+    fn path_same_node() {
         let mut tree = DecompTree::new();
         tree.nodes.push(DecompNode::Leaf([0], 10));
         tree.leaves = vec![10];
@@ -252,5 +268,55 @@ mod tests {
         // Path from a node to itself should just be the node
         let path = tree.path(0, 0);
         assert_eq!(path, vec![0]);
+    }
+
+    #[test]
+    fn partition() {
+        // Create this tree:
+        //        0
+        //      / | \
+        //     1  2  3
+        //    /\    /\
+        //   4 5   6 7
+        let mut tree = DecompTree::new();
+        tree.nodes.push(DecompNode::Interior([1, 2, 3])); // node 0
+        tree.nodes.push(DecompNode::Interior([0, 4, 5])); // node 1
+        tree.nodes.push(DecompNode::Leaf([0], 20)); // node 2
+        tree.nodes.push(DecompNode::Interior([0, 6, 7])); // node 3
+        tree.nodes.push(DecompNode::Leaf([1], 40)); // node 4
+        tree.nodes.push(DecompNode::Leaf([1], 50)); // node 5
+        tree.nodes.push(DecompNode::Leaf([3], 60)); // node 6
+        tree.nodes.push(DecompNode::Leaf([3], 70)); // node 7
+        tree.leaves = vec![2, 4, 5, 6, 7];
+        let edge = (0, 3);
+        let (mut p1, mut p2) = tree.partition(edge);
+        p1.sort();
+        p2.sort();
+        assert_eq!(p1, vec![20, 40, 50]);
+        assert_eq!(p2, vec![60, 70]);
+    }
+
+    #[test]
+    fn move_subtree() {
+        // example from Florian Nouwt's thesis "A simulated annealing method for computing rank-width", p.30
+        let mut tree = DecompTree::new();
+        tree.nodes.push(DecompNode::Leaf([11], 0)); // node 0 = v1
+        tree.nodes.push(DecompNode::Leaf([12], 0)); // node 1 = v2
+        tree.nodes.push(DecompNode::Leaf([13], 0)); // node 2 = v3
+        tree.nodes.push(DecompNode::Leaf([15], 0)); // node 3 = v4
+        tree.nodes.push(DecompNode::Leaf([15], 0)); // node 4 = v5
+        tree.nodes.push(DecompNode::Leaf([9], 0)); // node 5 = v6
+        tree.nodes.push(DecompNode::Leaf([10], 0)); // node 6 = v7
+        tree.nodes.push(DecompNode::Leaf([9], 0)); // node 7 = v8
+        tree.nodes.push(DecompNode::Leaf([13], 0)); // node 8 = v9
+
+        // TODO:
+        tree.nodes.push(DecompNode::Interior([5, 7, 9])); // node 9 = a
+        tree.nodes.push(DecompNode::Interior([8, 10, 11])); // node 10 = a'
+        tree.nodes.push(DecompNode::Interior([0, 9, 12])); // node 11 = b
+        tree.nodes.push(DecompNode::Interior([1, 9, 13])); // node 12 = b'
+        tree.nodes.push(DecompNode::Interior([1, 2, 3])); // node 13 = x
+        tree.nodes.push(DecompNode::Interior([1, 2, 3])); // node 14 = y
+        tree.nodes.push(DecompNode::Interior([1, 2, 3])); // node 15 = z
     }
 }
