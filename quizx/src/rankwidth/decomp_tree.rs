@@ -58,6 +58,7 @@ impl DecompNode {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct DecompTree {
     nodes: Vec<DecompNode>,
     leaves: Vec<usize>,

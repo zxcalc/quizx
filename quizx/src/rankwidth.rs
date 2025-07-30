@@ -7,14 +7,24 @@ use decomp_tree::DecompTree;
 use rand::Rng;
 use rustc_hash::FxHashMap;
 
-pub struct RankWidthDecomposer<T: GraphLike> {
-    graph: T,
+pub struct RankWidthDecomposer<'a, T: GraphLike> {
+    graph: &'a T,
     tree: DecompTree,
     ranks: FxHashMap<(usize, usize), usize>,
 }
 
-impl<T: GraphLike> RankWidthDecomposer<T> {
-    pub fn new(graph: T, tree: DecompTree) -> Self {
+impl<T: GraphLike> Clone for RankWidthDecomposer<'_, T> {
+    fn clone(&self) -> Self {
+        RankWidthDecomposer {
+            graph: self.graph,
+            tree: self.tree.clone(),
+            ranks: self.ranks.clone(),
+        }
+    }
+}
+
+impl<'a, T: GraphLike> RankWidthDecomposer<'a, T> {
+    pub fn new(graph: &'a T, tree: DecompTree) -> Self {
         Self {
             graph,
             tree,
@@ -67,7 +77,7 @@ impl<T: GraphLike> RankWidthDecomposer<T> {
         }
     }
 
-    pub fn random_decomp(graph: T, rng: &mut impl Rng) -> Self {
+    pub fn random_decomp(graph: &'a T, rng: &mut impl Rng) -> Self {
         let mut tree = DecompTree::new();
 
         let mut vs: Vec<V> = graph.vertices().collect();
@@ -101,7 +111,7 @@ mod tests {
         let mut vs: Vec<V> = graph.vertices().collect();
         vs.sort();
 
-        let decomposer = RankWidthDecomposer::random_decomp(graph, &mut rng);
+        let decomposer = RankWidthDecomposer::random_decomp(&graph, &mut rng);
 
         for e in decomposer.tree.edges() {
             let (mut p1, p2) = decomposer.tree.partition(e);
