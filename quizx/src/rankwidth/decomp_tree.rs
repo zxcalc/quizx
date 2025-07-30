@@ -240,8 +240,8 @@ impl DecompTree {
             return; // Not enough leaves to swap
         }
 
-        let i1 = rng.gen_range(0..self.leaves.len());
-        let mut i2 = rng.gen_range(0..self.leaves.len() - 1);
+        let i1 = rng.random_range(0..self.leaves.len());
+        let mut i2 = rng.random_range(0..self.leaves.len() - 1);
         if i2 >= i1 {
             i2 += 1;
         }
@@ -262,8 +262,8 @@ impl DecompTree {
 
         let mut path;
         loop {
-            let a = rng.gen_range(0..self.nodes.len());
-            let b = rng.gen_range(0..self.nodes.len());
+            let a = rng.random_range(0..self.nodes.len());
+            let b = rng.random_range(0..self.nodes.len());
             path = self.path(a, b);
 
             if path.len() >= 4 {
@@ -281,9 +281,9 @@ impl DecompTree {
             return;
         }
 
-        let c = self.interior[rng.gen_range(0..self.interior.len())];
-        let n1 = rng.gen_range(0..3);
-        let mut n2 = rng.gen_range(0..2);
+        let c = self.interior[rng.random_range(0..self.interior.len())];
+        let n1 = rng.random_range(0..3);
+        let mut n2 = rng.random_range(0..2);
         if n2 >= n1 {
             n2 += 1;
         }

@@ -34,7 +34,7 @@ use roots::SimpleConvergency;
 // use itertools::Itertools;
 // use itertools::Itertools;
 use num::Rational64;
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
 // use rand::rngs::StdRng;
 use rayon::prelude::*;
 
@@ -74,7 +74,7 @@ pub fn random_ts<G: GraphLike>(g: &G, rng: &mut impl Rng) -> Vec<V> {
     let mut t = vec![];
 
     while t.len() < 6 && !all_t.is_empty() {
-        let i = rng.gen_range(0..all_t.len());
+        let i = rng.random_range(0..all_t.len());
         t.push(all_t.swap_remove(i));
     }
     t
@@ -269,7 +269,7 @@ pub struct SpiderCuttingDriver;
 impl Driver for BssTOnlyDriver {
     fn choose_decomp(&self, g: &impl GraphLike) -> Decomp {
         let ts = if self.random_t {
-            random_ts(g, &mut thread_rng())
+            random_ts(g, &mut rng())
         } else {
             first_ts(g)
         };
@@ -285,7 +285,7 @@ impl Driver for BssWithCatsDriver {
             CatDecomp(cat_nodes)
         } else {
             let ts = if self.random_t {
-                random_ts(g, &mut thread_rng())
+                random_ts(g, &mut rng())
             } else {
                 first_ts(g)
             };
@@ -488,7 +488,8 @@ impl Driver for DynamicTDriver {
 impl Driver for SherlockDriver {
     fn choose_decomp(&self, g: &impl GraphLike) -> Decomp {
         use rand::seq::SliceRandom;
-        let mut rng = thread_rng();
+        use rand::prelude::IndexedRandom;
+        let mut rng = rng();
         let t_vertices: Vec<usize> = g.vertices().filter(|vert| g.phase(*vert).is_t()).collect();
 
         // println!("{:?}", t_vertices);
@@ -1425,7 +1426,7 @@ mod tests {
             let v = g.add_vertex_with_phase(VType::Z, Rational64::new(1, 4));
             // Randomly connect to previous vertices with 50% probability
             for j in 0..i {
-                if rng.gen_bool(0.5) {
+                if rng.random_bool(0.5) {
                     g.add_edge_with_type(v, j, EType::H);
                 }
             }
@@ -1439,10 +1440,10 @@ mod tests {
         let mut g = Graph::new();
         let mut rng = StdRng::seed_from_u64(seed);
         for i in 0..n {
-            let phase = Rational64::new(rng.gen_range(0..8), 8);
+            let phase = Rational64::new(rng.random_range(0..8), 8);
             let v = g.add_vertex_with_phase(VType::Z, phase);
             for j in 0..i {
-                if rng.gen_bool(0.5) {
+                if rng.random_bool(0.5) {
                     g.add_edge_with_type(v, j, EType::H);
                 }
             }

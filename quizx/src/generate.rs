@@ -75,7 +75,7 @@ impl Circuit {
 impl Default for RandomCircuitBuilder {
     fn default() -> Self {
         RandomCircuitBuilder {
-            rng: StdRng::from_entropy(),
+            rng: StdRng::from_os_rng(),
             qubits: 0,
             depth: 0,
             p_cnot: 0.0,
@@ -90,7 +90,7 @@ impl Default for RandomCircuitBuilder {
 impl Default for RandomHiddenShiftCircuitBuilder {
     fn default() -> Self {
         RandomHiddenShiftCircuitBuilder {
-            rng: StdRng::from_entropy(),
+            rng: StdRng::from_os_rng(),
             qubits: 40,
             clifford_depth: 200,
             n_ccz: 5,
@@ -101,7 +101,7 @@ impl Default for RandomHiddenShiftCircuitBuilder {
 impl Default for RandomPauliGadgetCircuitBuilder {
     fn default() -> Self {
         RandomPauliGadgetCircuitBuilder {
-            rng: StdRng::from_entropy(),
+            rng: StdRng::from_os_rng(),
             qubits: 40,
             depth: 10,
             min_weight: 2,
@@ -185,9 +185,9 @@ impl RandomCircuitBuilder {
 
         for _ in 0..self.depth {
             let mut p0 = 0.0;
-            let p: f32 = self.rng.gen();
-            let q0 = self.rng.gen_range(0..self.qubits);
-            let mut q1 = self.rng.gen_range(0..self.qubits - 1);
+            let p: f32 = self.rng.random();
+            let q0 = self.rng.random_range(0..self.qubits);
+            let mut q1 = self.rng.random_range(0..self.qubits - 1);
             if q1 >= q0 {
                 q1 += 1;
             }
@@ -248,12 +248,12 @@ impl RandomHiddenShiftCircuitBuilder {
     fn random_clifford_layer(&mut self, c: &mut Circuit) {
         let qs = self.qubits / 2;
         for _ in 0..self.clifford_depth {
-            let q0 = self.rng.gen_range(0..qs);
+            let q0 = self.rng.random_range(0..qs);
 
-            if self.rng.gen_bool(0.5) {
+            if self.rng.random_bool(0.5) {
                 c.push(Gate::new(Z, vec![q0]));
             } else {
-                let mut q1 = self.rng.gen_range(0..qs - 1);
+                let mut q1 = self.rng.random_range(0..qs - 1);
                 if q1 >= q0 {
                     q1 += 1;
                 }
@@ -264,9 +264,9 @@ impl RandomHiddenShiftCircuitBuilder {
 
     fn random_ccz(&mut self, c: &mut Circuit) {
         let qs = self.qubits / 2;
-        let mut q0 = self.rng.gen_range(0..qs);
-        let mut q1 = self.rng.gen_range(0..qs - 1);
-        let mut q2 = self.rng.gen_range(0..qs - 2);
+        let mut q0 = self.rng.random_range(0..qs);
+        let mut q1 = self.rng.random_range(0..qs - 1);
+        let mut q2 = self.rng.random_range(0..qs - 2);
         if q1 >= q0 {
             q1 += 1;
         } else {
@@ -306,7 +306,7 @@ impl RandomHiddenShiftCircuitBuilder {
         let mut shift = vec![];
         let mut shift_c = Circuit::new(self.qubits);
         for q in 0..self.qubits {
-            if self.rng.gen_bool(0.5) {
+            if self.rng.random_bool(0.5) {
                 shift.push(1);
                 shift_c.push(Gate::new(Z, vec![q]));
             } else {
@@ -367,7 +367,7 @@ impl RandomPauliGadgetCircuitBuilder {
         // add "depth" pauli gadgets
         for _ in 0..self.depth {
             // pick a random weight in the provided range, inclusive
-            let w = self.rng.gen_range(self.min_weight..=self.max_weight);
+            let w = self.rng.random_range(self.min_weight..=self.max_weight);
             if w > self.qubits {
                 panic!("Weight larger than total qubits");
             }
@@ -376,7 +376,7 @@ impl RandomPauliGadgetCircuitBuilder {
             let mut all_qs: Vec<_> = (0..self.qubits).collect();
             let mut qs = vec![];
             for _ in 0..w {
-                let q = all_qs.swap_remove(self.rng.gen_range(0..all_qs.len()));
+                let q = all_qs.swap_remove(self.rng.random_range(0..all_qs.len()));
                 qs.push(q);
             }
             qs.sort();
@@ -385,7 +385,7 @@ impl RandomPauliGadgetCircuitBuilder {
             // phase gadget into random pauli gadget
             let mut lc = Circuit::new(self.qubits);
             for &q in &qs {
-                match self.rng.gen_range(0..=2) {
+                match self.rng.random_range(0..=2) {
                     1 => lc.push(Gate::new(HAD, vec![q])),
                     2 => {
                         let mut g = Gate::new(XPhase, vec![q]);
@@ -399,7 +399,7 @@ impl RandomPauliGadgetCircuitBuilder {
             // choose random non-clifford (if possible) phase with a fixed denominator
             let phase_num = if self.phase_denom >= 4 && self.phase_denom % 2 == 0 {
                 // if the denominator is even, avoid picking rationals equal to 1/2, 1, or 3/2
-                let mut p = self.rng.gen_range(1..(2 * self.phase_denom) - 3);
+                let mut p = self.rng.random_range(1..(2 * self.phase_denom) - 3);
                 if p >= self.phase_denom / 2 {
                     p += 1;
                 }
@@ -413,7 +413,7 @@ impl RandomPauliGadgetCircuitBuilder {
                 p
             } else {
                 // if the denominator is odd or too small, just choose any non-trivial phase
-                self.rng.gen_range(1..2 * self.phase_denom)
+                self.rng.random_range(1..2 * self.phase_denom)
             };
 
             let mut g = Gate::new(ParityPhase, qs);
