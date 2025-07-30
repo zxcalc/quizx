@@ -60,9 +60,9 @@ impl DecompNode {
 
 #[derive(Debug, Clone)]
 pub struct DecompTree {
-    nodes: Vec<DecompNode>,
-    leaves: Vec<usize>,
-    interior: Vec<usize>,
+    pub nodes: Vec<DecompNode>,
+    pub leaves: Vec<usize>,
+    pub interior: Vec<usize>,
 }
 
 pub struct EdgeIter<'a> {
@@ -118,20 +118,16 @@ impl DecompTree {
         index
     }
 
-    pub fn nodes(&self) -> &[DecompNode] {
-        &self.nodes
-    }
-
-    pub fn nodes_mut(&mut self) -> &mut [DecompNode] {
-        &mut self.nodes
-    }
-
     pub fn edges(&self) -> EdgeIter {
         EdgeIter {
             tree: self,
             i: 0,
             j: 0,
         }
+    }
+
+    pub fn num_edges(&self) -> usize {
+        (3 * self.interior.len() + self.leaves.len()) / 2
     }
 
     /// Find a path from vertex `v1` to vertex `v2` in the decomposition tree using a depth-first search.
@@ -201,7 +197,7 @@ impl DecompTree {
         }
     }
 
-    fn swap_subtrees(&mut self, t1: (usize, usize), t2: (usize, usize)) {
+    pub fn swap_subtrees(&mut self, t1: (usize, usize), t2: (usize, usize)) {
         let (p1, c1) = t1;
         let (p2, c2) = t2;
 
@@ -212,7 +208,7 @@ impl DecompTree {
         self.nodes[c2].replace_neighbor(p2, p1);
     }
 
-    fn move_subtree(&mut self, path: &[usize]) {
+    pub fn move_subtree(&mut self, path: &[usize]) {
         let a = path[0];
         let a1 = path[1];
         let a2 = path[2];
@@ -234,79 +230,6 @@ impl DecompTree {
         // connect a1 to b1
         self.nodes[a1].replace_neighbor(ao, b1);
         self.nodes[b1].replace_neighbor(b, a1);
-    }
-
-    pub fn swap_random_leaves(&mut self, rng: &mut impl rand::Rng) {
-        if self.leaves.len() < 2 {
-            return; // Not enough leaves to swap
-        }
-
-        let i1 = rng.random_range(0..self.leaves.len());
-        let mut i2 = rng.random_range(0..self.leaves.len() - 1);
-        if i2 >= i1 {
-            i2 += 1;
-        }
-
-        let l1 = self.leaves[i1];
-        let p1 = self.nodes[l1].parent();
-        let l2 = self.leaves[i2];
-        let p2 = self.nodes[l2].parent();
-        self.swap_subtrees((p1, l1), (p2, l2));
-    }
-
-    pub fn move_random_subtree(&mut self, rng: &mut impl rand::Rng) {
-        // Need to have at least 2 nodes with no common neighbors, which can only
-        // happen for well-formed trees with at least 6 nodes
-        if self.nodes.len() < 6 {
-            return;
-        }
-
-        let mut path;
-        loop {
-            let a = rng.random_range(0..self.nodes.len());
-            let b = rng.random_range(0..self.nodes.len());
-            path = self.path(a, b);
-
-            if path.len() >= 4 {
-                break;
-            }
-        }
-
-        self.move_subtree(&path);
-    }
-
-    pub fn random_local_swap(&mut self, rng: &mut impl rand::Rng) {
-        // Need to have at least 2 adjacent interior nodes, which can only
-        // happen for well-formed trees with at least 6 nodes
-        if self.nodes.len() < 6 {
-            return;
-        }
-
-        let c = self.interior[rng.random_range(0..self.interior.len())];
-        let n1 = rng.random_range(0..3);
-        let mut n2 = rng.random_range(0..2);
-        if n2 >= n1 {
-            n2 += 1;
-        }
-        let mut a = self.nodes[c].nhd()[n1];
-        let mut b = self.nodes[c].nhd()[n2];
-
-        // ensure b is always an interior node
-        if !self.nodes[b].is_interior() {
-            if self.nodes[a].is_interior() {
-                (b, a) = (a, b);
-            } else {
-                b = self.nodes[c].other_neighbor(&[a, b]);
-            }
-        }
-
-        assert!(
-            self.nodes[b].is_interior(),
-            "Node b should be interior (malformed tree)"
-        );
-
-        let d = self.nodes[b].other_neighbor(&[c]);
-        self.swap_subtrees((c, a), (b, d));
     }
 }
 
