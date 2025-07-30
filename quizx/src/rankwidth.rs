@@ -89,7 +89,6 @@ mod tests {
     use crate::vec_graph::Graph;
 
     use rand::{rngs::SmallRng, SeedableRng};
-    use rustc_hash::FxHashSet;
 
     #[test]
     fn test_random_decomp() {
@@ -99,27 +98,17 @@ mod tests {
             graph.add_vertex(VType::Z);
         }
 
-        let vertex_set: FxHashSet<V> = graph.vertices().collect();
+        let mut vs: Vec<V> = graph.vertices().collect();
+        vs.sort();
 
         let decomposer = RankWidthDecomposer::random_decomp(graph, &mut rng);
 
         for e in decomposer.tree.edges() {
-            let (p1, p2) = decomposer.tree.partition(e);
-            let p1_set: FxHashSet<V> = p1.into_iter().collect();
-            let p2_set: FxHashSet<V> = p2.into_iter().collect();
-            assert!(
-                p1_set.is_disjoint(&p2_set),
-                "Partitions {} and {} overlap",
-                p1_set.len(),
-                p2_set.len()
-            );
-            assert!(
-                p1_set.union(&p2_set).eq(&vertex_set),
-                "{:?} union {:?} != {:?}",
-                p1_set,
-                p2_set,
-                vertex_set
-            );
+            let (mut p1, p2) = decomposer.tree.partition(e);
+            assert!(p1.len() > 0 && p2.len() > 0, "Partition must be non-empty");
+            p1.extend_from_slice(&p2);
+            p1.sort();
+            assert_eq!(p1, vs, "Partition does not match original vertex set");
         }
     }
 }
