@@ -1,4 +1,5 @@
 //! Uses simulated annealing to find good rank decompositions of a graph
+pub mod annealer;
 pub mod decomp_tree;
 
 use crate::graph::{GraphLike, V};
@@ -106,20 +107,6 @@ impl<'a, T: GraphLike> RankWidthDecomposer<'a, T> {
         }
     }
 
-    pub fn random_decomp(graph: &'a T, rng: &mut impl Rng) -> Self {
-        let mut tree = DecompTree::new();
-
-        let mut vs: Vec<V> = graph.vertices().collect();
-        if vs.len() >= 2 {
-            let v = vs.pop().unwrap();
-            tree.add_leaf(0, v);
-            let i = Self::add_random_partition(0, &mut tree, vs, rng);
-            tree.nodes[0].nhd_mut()[0] = i;
-        }
-
-        RankWidthDecomposer::new(graph, tree)
-    }
-
     pub fn swap_random_leaves(&mut self, rng: &mut impl rand::Rng) {
         if self.tree.leaves.len() < 2 {
             return; // Not enough leaves to swap
@@ -205,6 +192,20 @@ impl<'a, T: GraphLike> RankWidthDecomposer<'a, T> {
         let d = self.tree.nodes[b].other_neighbor(&[c]);
         self.tree.swap_subtrees((c, a), (b, d));
         self.clear_rank((b, c));
+    }
+
+    pub fn random_decomp(graph: &'a T, rng: &mut impl Rng) -> Self {
+        let mut tree = DecompTree::new();
+
+        let mut vs: Vec<V> = graph.vertices().collect();
+        if vs.len() >= 2 {
+            let v = vs.pop().unwrap();
+            tree.add_leaf(0, v);
+            let i = Self::add_random_partition(0, &mut tree, vs, rng);
+            tree.nodes[0].nhd_mut()[0] = i;
+        }
+
+        RankWidthDecomposer::new(graph, tree)
     }
 }
 
