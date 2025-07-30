@@ -101,7 +101,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let mut effect: Vec<_> = (0..qs)
             .map(|_| {
-                if rng.gen_bool(0.5) {
+                if rng.random_bool(0.5) {
                     BasisElem::Z0
                 } else {
                     BasisElem::Z1
@@ -114,7 +114,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         for i in 0..metro_iters {
-            let j = rng.gen_range(0..qs);
+            let j = rng.random_range(0..qs);
             let mut effect1 = effect.clone();
             effect1[j] = effect1[j].flipped();
 
@@ -153,7 +153,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else if prob.complex_value().re != 0.0 {
                 // accept with probability prob1/prob if probability decreases
                 let p = prob1.complex_value().re / prob.complex_value().re;
-                if rng.gen_bool(p) {
+                if rng.random_bool(p) {
                     effect = effect1;
                     prob = prob1;
                 }
