@@ -1,6 +1,8 @@
-use rustc_hash::FxHashSet;
+use bitgauss::BitMatrix;
+use rand::Rng;
+use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::graph::V;
+use crate::graph::{GraphLike, V};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DecompNode {
@@ -59,24 +61,26 @@ impl DecompNode {
 }
 
 #[derive(Debug, Clone)]
-pub struct DecompTree {
+pub struct DecompTree<'a, G: GraphLike> {
     pub nodes: Vec<DecompNode>,
     pub leaves: Vec<usize>,
     pub interior: Vec<usize>,
+    graph: &'a G,
+    ranks: FxHashMap<(usize, usize), usize>,
 }
 
-pub struct EdgeIter<'a> {
-    tree: &'a DecompTree,
+pub struct EdgeIter<'a, G: GraphLike> {
+    tree: &'a DecompTree<'a, G>,
     i: usize,
     j: usize,
 }
 
-impl<'a> Iterator for EdgeIter<'a> {
+impl<'a, G: GraphLike> Iterator for EdgeIter<'a, G> {
     type Item = (usize, usize);
 
     fn next(&mut self) -> Option<Self::Item> {
-        while self.i < self.tree.nodes.len() {
-            let n = self.tree.nodes[self.i];
+        while self.i < self.nodes.len() {
+            let n = self.nodes[self.i];
             while self.j < n.nhd().len() {
                 let j = n.nhd()[self.j];
                 self.j += 1;
@@ -93,12 +97,14 @@ impl<'a> Iterator for EdgeIter<'a> {
     }
 }
 
-impl DecompTree {
-    pub fn new() -> Self {
+impl<'a, G: GraphLike> DecompTree<'a, G> {
+    pub fn new(graph: &'a G) -> Self {
         DecompTree {
             nodes: Vec::new(),
             leaves: Vec::new(),
             interior: Vec::new(),
+            graph,
+            ranks: FxHashMap::default(),
         }
     }
 
@@ -118,7 +124,7 @@ impl DecompTree {
         index
     }
 
-    pub fn edges(&self) -> EdgeIter {
+    pub fn edges(&self) -> EdgeIter<'_, G> {
         EdgeIter {
             tree: self,
             i: 0,
@@ -231,15 +237,193 @@ impl DecompTree {
         self.nodes[a1].replace_neighbor(ao, b1);
         self.nodes[b1].replace_neighbor(b, a1);
     }
+
+    pub fn compute_ranks(&mut self) {
+        if self.num_edges() == self.ranks.len() {
+            return;
+        }
+
+        for e in self.edges() {
+            if !self.ranks.contains_key(&e) {
+                let (p0, p1) = self.partition(e);
+                let rank = BitMatrix::build(p0.len(), p1.len(), |i, j| {
+                    self.graph.connected(p0[i], p1[j])
+                })
+                .rank();
+                self.ranks.insert(e, rank);
+            }
+        }
+    }
+
+    pub fn rankwidth(&mut self) -> usize {
+        self.compute_ranks();
+        self.ranks.values().max().copied().unwrap_or(0)
+    }
+
+    pub fn rankwidth_score(&mut self) -> usize {
+        self.compute_ranks();
+        self.ranks.values().map(|r| r * r).sum()
+    }
+
+    pub fn set_rank(&mut self, e: (usize, usize), rank: usize) {
+        let e = if e.0 < e.1 { e } else { (e.1, e.0) };
+        self.ranks.insert(e, rank);
+    }
+
+    pub fn clear_rank(&mut self, e: (usize, usize)) {
+        let e = if e.0 < e.1 { e } else { (e.1, e.0) };
+        self.ranks.remove(&e);
+    }
+
+    pub fn rank(&mut self, e: (usize, usize)) -> Option<usize> {
+        let e = if e.0 < e.1 { e } else { (e.1, e.0) };
+        self.ranks.get(&e).copied()
+    }
+
+    fn add_random_partition(
+        parent: usize,
+        tree: &mut Self,
+        mut vs: Vec<V>,
+        rng: &mut impl Rng,
+    ) -> usize {
+        if vs.len() == 1 {
+            tree.add_leaf(parent, vs[0])
+        } else if vs.len() >= 2 {
+            // split 'vs' into two random, non-empty subsets
+            let mut left = vec![vs.remove(rng.random_range(0..vs.len()))];
+            let mut right = vec![vs.remove(rng.random_range(0..vs.len()))];
+            while !vs.is_empty() {
+                if rng.random_bool(0.5) {
+                    left.push(vs.remove(rng.random_range(0..vs.len())));
+                } else {
+                    right.push(vs.remove(rng.random_range(0..vs.len())));
+                }
+            }
+
+            let i = tree.add_interior([parent, 0, 0]);
+            let l = Self::add_random_partition(i, tree, left, rng);
+            let r = Self::add_random_partition(i, tree, right, rng);
+            tree.nodes[i].nhd_mut()[1] = l;
+            tree.nodes[i].nhd_mut()[2] = r;
+
+            i
+        } else {
+            panic!("Attempted to decompose an empty list of vertices");
+        }
+    }
+
+    pub fn swap_random_leaves(&mut self, rng: &mut impl rand::Rng) {
+        if self.leaves.len() < 2 {
+            return; // Not enough leaves to swap
+        }
+
+        let i1 = rng.random_range(0..self.leaves.len());
+        let mut i2 = rng.random_range(0..self.leaves.len() - 1);
+        if i2 >= i1 {
+            i2 += 1;
+        }
+
+        let l1 = self.leaves[i1];
+        let p1 = self.nodes[l1].parent();
+        let l2 = self.leaves[i2];
+        let p2 = self.nodes[l2].parent();
+        self.swap_subtrees((p1, l1), (p2, l2));
+
+        let path = self.path(l1, l2);
+        let mut x = path[0];
+        for &y in &path[1..] {
+            self.clear_rank((x, y));
+            x = y;
+        }
+    }
+
+    pub fn move_random_subtree(&mut self, rng: &mut impl rand::Rng) {
+        // Need to have at least 2 nodes with no common neighbors, which can only
+        // happen for well-formed trees with at least 6 nodes
+        if self.nodes.len() < 6 {
+            return;
+        }
+
+        let mut path;
+        loop {
+            let a = rng.random_range(0..self.nodes.len());
+            let b = rng.random_range(0..self.nodes.len());
+            path = self.path(a, b);
+
+            if path.len() >= 4 {
+                break;
+            }
+        }
+
+        self.move_subtree(&path);
+
+        let mut x = path[0];
+        for &y in &path[1..] {
+            self.clear_rank((x, y));
+            x = y;
+        }
+    }
+
+    pub fn random_local_swap(&mut self, rng: &mut impl rand::Rng) {
+        // Need to have at least 2 adjacent interior nodes, which can only
+        // happen for well-formed trees with at least 6 nodes
+        if self.nodes.len() < 6 {
+            return;
+        }
+
+        let c = self.interior[rng.random_range(0..self.interior.len())];
+        let n1 = rng.random_range(0..3);
+        let mut n2 = rng.random_range(0..2);
+        if n2 >= n1 {
+            n2 += 1;
+        }
+        let mut a = self.nodes[c].nhd()[n1];
+        let mut b = self.nodes[c].nhd()[n2];
+
+        // ensure b is always an interior node
+        if !self.nodes[b].is_interior() {
+            if self.nodes[a].is_interior() {
+                (b, a) = (a, b);
+            } else {
+                b = self.nodes[c].other_neighbor(&[a, b]);
+            }
+        }
+
+        assert!(
+            self.nodes[b].is_interior(),
+            "Node b should be interior (malformed tree)"
+        );
+
+        let d = self.nodes[b].other_neighbor(&[c]);
+        self.swap_subtrees((c, a), (b, d));
+        self.clear_rank((b, c));
+    }
+
+    pub fn random_decomp(graph: &'a G, rng: &mut impl Rng) -> Self {
+        let mut tree = Self::new(graph);
+
+        let mut vs: Vec<V> = graph.vertices().collect();
+        if vs.len() >= 2 {
+            let v = vs.pop().unwrap();
+            tree.add_leaf(0, v);
+            let i = Self::add_random_partition(0, &mut tree, vs, rng);
+            tree.nodes[0].nhd_mut()[0] = i;
+        }
+
+        tree
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    use crate::vec_graph::Graph;
+
     #[test]
     fn path_simple_tree() {
-        let mut tree = DecompTree::new();
+        let graph = Graph::new();
+        let mut tree = DecompTree::new(&graph);
 
         // Create a simple tree structure:
         //      0
@@ -265,7 +449,8 @@ mod tests {
 
     #[test]
     fn path_deeper_tree() {
-        let mut tree = DecompTree::new();
+        let graph = Graph::new();
+        let mut tree = DecompTree::new(&graph);
 
         // Create a deeper tree structure:
         //        0
@@ -297,7 +482,8 @@ mod tests {
 
     #[test]
     fn path_same_node() {
-        let mut tree = DecompTree::new();
+        let graph = Graph::new();
+        let mut tree = DecompTree::new(&graph);
         tree.add_leaf(0, 10);
 
         // Path from a node to itself should just be the node
@@ -313,7 +499,8 @@ mod tests {
         //     1  2  3
         //    /\    /\
         //   4 5   6 7
-        let mut tree = DecompTree::new();
+        let graph = Graph::new();
+        let mut tree = DecompTree::new(&graph);
         tree.add_interior([1, 2, 3]); // node 0
         tree.add_interior([0, 4, 5]); // node 1
         tree.add_leaf(0, 20); // node 2
@@ -333,7 +520,8 @@ mod tests {
     #[test]
     fn move_subtree() {
         // example from Florian Nouwt's thesis "A simulated annealing method for computing rank-width", p.30
-        let mut tree = DecompTree::new();
+        let graph = Graph::new();
+        let mut tree = DecompTree::new(&graph);
         tree.add_leaf(11, 0); // node 0 = v1
         tree.add_leaf(12, 0); // node 1 = v2
         tree.add_leaf(13, 0); // node 2 = v3
@@ -351,7 +539,8 @@ mod tests {
         tree.add_interior([10, 12, 15]); // node 14 = y
         tree.add_interior([3, 4, 14]); // node 15 = z
 
-        let mut tree1 = DecompTree::new();
+        let graph = Graph::new();
+        let mut tree1 = DecompTree::new(&graph);
         tree1.add_leaf(11, 0); // node 0 = v1
         tree1.add_leaf(12, 0); // node 1 = v2
         tree1.add_leaf(13, 0); // node 2 = v3
@@ -389,7 +578,8 @@ mod tests {
         //     1  2  3
         //    /\    /\
         //   4 5   6 7
-        let mut tree = DecompTree::new();
+        let graph = Graph::new();
+        let mut tree = DecompTree::new(&graph);
         tree.add_interior([1, 2, 3]); // node 0
         tree.add_interior([0, 4, 5]); // node 1
         tree.add_leaf(0, 20); // node 2

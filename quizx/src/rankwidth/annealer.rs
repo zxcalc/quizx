@@ -38,24 +38,24 @@ impl<'a, R: Rng, G: GraphLike> RankwidthAnnealer<'a, R, G> {
         }
     }
 
-    pub fn set_init_temp(&mut self, temp: f64) {
-        self.init_temp = temp;
+    pub fn set_init_temp(&mut self, init_temp: f64) {
+        self.init_temp = init_temp;
     }
 
-    pub fn set_min_temp(&mut self, temp: f64) {
-        self.min_temp = temp;
+    pub fn set_min_temp(&mut self, min_temp: f64) {
+        self.min_temp = min_temp;
     }
 
-    pub fn set_cooling_rate(&mut self, rate: f64) {
-        self.cooling_rate = rate;
+    pub fn set_cooling_rate(&mut self, cooling_rate: f64) {
+        self.cooling_rate = cooling_rate;
     }
 
-    pub fn set_adaptive_cooling(&mut self, adaptive: bool) {
-        self.adaptive_cooling = adaptive;
+    pub fn set_adaptive_cooling(&mut self, adaptive_cooling: bool) {
+        self.adaptive_cooling = adaptive_cooling;
     }
 
-    pub fn set_iterations(&mut self, iters: usize) {
-        self.iterations = iters;
+    pub fn set_iterations(&mut self, iterations: usize) {
+        self.iterations = iterations;
     }
 
     pub fn run(&mut self) -> RankWidthDecomposer<'a, G> {
