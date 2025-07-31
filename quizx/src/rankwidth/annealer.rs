@@ -42,6 +42,10 @@ impl<R: Rng, G: GraphLike> RankwidthAnnealer<R, G> {
         }
     }
 
+    pub fn set_init_decomp(&mut self, init_decomp: DecompTree) {
+        self.init_decomp = init_decomp;
+    }
+
     pub fn set_init_temp(&mut self, init_temp: f64) {
         self.init_temp = init_temp;
     }
