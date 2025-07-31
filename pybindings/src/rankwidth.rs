@@ -283,6 +283,11 @@ impl PyRankwidthAnnealer {
         self.0.set_iterations(iterations);
     }
 
+    /// Get the initial decomposition tree
+    fn init_decomp(&self) -> PyDecompTree {
+        PyDecompTree(self.0.init_decomp().clone())
+    }
+
     /// Run the simulated annealing algorithm and return the best decomposition found
     fn run(&mut self) -> PyDecompTree {
         let result = self.0.run();

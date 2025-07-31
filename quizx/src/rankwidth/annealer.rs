@@ -66,6 +66,10 @@ impl<R: Rng, G: GraphLike> RankwidthAnnealer<R, G> {
         self.iterations = iterations;
     }
 
+    pub fn init_decomp(&self) -> &DecompTree {
+        &self.init_decomp
+    }
+
     pub fn run(&mut self) -> DecompTree {
         let mut best_width = self.init_decomp.rankwidth(&self.graph);
         let mut best_score = self.init_decomp.rankwidth_score(&self.graph);
