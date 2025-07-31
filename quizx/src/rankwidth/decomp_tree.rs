@@ -69,34 +69,6 @@ pub struct DecompTree<'a, G: GraphLike> {
     ranks: FxHashMap<(usize, usize), usize>,
 }
 
-pub struct EdgeIter<'a, G: GraphLike> {
-    tree: &'a DecompTree<'a, G>,
-    i: usize,
-    j: usize,
-}
-
-impl<'a, G: GraphLike> Iterator for EdgeIter<'a, G> {
-    type Item = (usize, usize);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        while self.i < self.nodes.len() {
-            let n = self.nodes[self.i];
-            while self.j < n.nhd().len() {
-                let j = n.nhd()[self.j];
-                self.j += 1;
-
-                // only return one copy of each edge
-                if j > self.i {
-                    return Some((self.i, j));
-                }
-            }
-            self.i += 1;
-            self.j = 0;
-        }
-        None
-    }
-}
-
 impl<'a, G: GraphLike> DecompTree<'a, G> {
     pub fn new(graph: &'a G) -> Self {
         DecompTree {
@@ -124,12 +96,16 @@ impl<'a, G: GraphLike> DecompTree<'a, G> {
         index
     }
 
-    pub fn edges(&self) -> EdgeIter<'_, G> {
-        EdgeIter {
-            tree: self,
-            i: 0,
-            j: 0,
+    pub fn edges(&self) -> Vec<(usize, usize)> {
+        let mut edges = Vec::new();
+        for (i, node) in self.nodes.iter().enumerate() {
+            for &j in node.nhd() {
+                if i <= j {
+                    edges.push((i, j));
+                }
+            }
         }
+        edges
     }
 
     pub fn num_edges(&self) -> usize {
@@ -243,14 +219,16 @@ impl<'a, G: GraphLike> DecompTree<'a, G> {
             return;
         }
 
-        for e in self.edges() {
-            if !self.ranks.contains_key(&e) {
-                let (p0, p1) = self.partition(e);
-                let rank = BitMatrix::build(p0.len(), p1.len(), |i, j| {
-                    self.graph.connected(p0[i], p1[j])
-                })
-                .rank();
-                self.ranks.insert(e, rank);
+        for (i, n) in self.nodes.iter().enumerate() {
+            for &j in n.nhd() {
+                if i <= j && !self.ranks.contains_key(&(i, j)) {
+                    let (p0, p1) = self.partition((i, j));
+                    let rank = BitMatrix::build(p0.len(), p1.len(), |i, j| {
+                        self.graph.connected(p0[i], p1[j])
+                    })
+                    .rank();
+                    self.ranks.insert((i, j), rank);
+                }
             }
         }
     }
@@ -417,8 +395,10 @@ impl<'a, G: GraphLike> DecompTree<'a, G> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use crate::graph::VType;
     use crate::vec_graph::Graph;
+
+    use rand::{rngs::SmallRng, SeedableRng};
 
     #[test]
     fn path_simple_tree() {
@@ -571,7 +551,7 @@ mod tests {
     }
 
     #[test]
-    fn edge_iterator() {
+    fn edge_vec() {
         // Create this tree:
         //        0
         //      / | \
@@ -589,8 +569,30 @@ mod tests {
         tree.add_leaf(3, 60); // node 6
         tree.add_leaf(3, 70); // node 7
 
-        let edges: Vec<_> = tree.edges().collect();
+        let edges: Vec<_> = tree.edges();
         let expected_edges = vec![(0, 1), (0, 2), (0, 3), (1, 4), (1, 5), (3, 6), (3, 7)];
         assert_eq!(edges, expected_edges);
+    }
+
+    #[test]
+    fn test_random_decomp() {
+        let mut rng = SmallRng::seed_from_u64(42);
+        let mut graph = Graph::new();
+        for _ in 0..10 {
+            graph.add_vertex(VType::Z);
+        }
+
+        let mut vs: Vec<V> = graph.vertices().collect();
+        vs.sort();
+
+        let tree = DecompTree::random_decomp(&graph, &mut rng);
+
+        for e in tree.edges() {
+            let (mut p1, p2) = tree.partition(e);
+            assert!(p1.len() > 0 && p2.len() > 0, "Partition must be non-empty");
+            p1.extend_from_slice(&p2);
+            p1.sort();
+            assert_eq!(p1, vs, "Partition does not match original vertex set");
+        }
     }
 }

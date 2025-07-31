@@ -1,10 +1,11 @@
 use rand::Rng;
 
-use crate::{graph::GraphLike, rankwidth::RankWidthDecomposer};
+use crate::graph::GraphLike;
+use crate::rankwidth::decomp_tree::DecompTree;
 
 pub struct RankwidthAnnealer<'a, R: Rng, G: GraphLike> {
     rng: R,
-    init_decomp: RankWidthDecomposer<'a, G>,
+    init_decomp: DecompTree<'a, G>,
     init_temp: f64,
     min_temp: f64,
     cooling_rate: f64,
@@ -14,7 +15,7 @@ pub struct RankwidthAnnealer<'a, R: Rng, G: GraphLike> {
 
 impl<'a, R: Rng, G: GraphLike> RankwidthAnnealer<'a, R, G> {
     pub fn from_graph(graph: &'a G, mut rng: R) -> Self {
-        let init_decomp = RankWidthDecomposer::random_decomp(graph, &mut rng);
+        let init_decomp = DecompTree::random_decomp(graph, &mut rng);
         Self {
             rng,
             init_decomp,
@@ -26,7 +27,7 @@ impl<'a, R: Rng, G: GraphLike> RankwidthAnnealer<'a, R, G> {
         }
     }
 
-    pub fn from_decomp(init_decomp: RankWidthDecomposer<'a, G>, rng: R) -> Self {
+    pub fn from_decomp(init_decomp: DecompTree<'a, G>, rng: R) -> Self {
         Self {
             rng,
             init_decomp,
@@ -58,7 +59,7 @@ impl<'a, R: Rng, G: GraphLike> RankwidthAnnealer<'a, R, G> {
         self.iterations = iterations;
     }
 
-    pub fn run(&mut self) -> RankWidthDecomposer<'a, G> {
+    pub fn run(&mut self) -> DecompTree<'a, G> {
         let mut best_width = self.init_decomp.rankwidth();
         let mut best_score = self.init_decomp.rankwidth_score();
         let mut old_score = self.init_decomp.rankwidth_score();
