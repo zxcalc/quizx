@@ -20,7 +20,7 @@ impl<'a, R: Rng, G: GraphLike> RankwidthAnnealer<'a, R, G> {
             rng,
             init_decomp,
             init_temp: 5.0,
-            min_temp: 0.05,
+            min_temp: 0.01,
             cooling_rate: 0.95,
             adaptive_cooling: true,
             iterations: 1000,
