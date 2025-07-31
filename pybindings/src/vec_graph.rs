@@ -14,6 +14,7 @@ type E = (V, V);
 
 /// Wrapper for quizx::vec_graph::Graph
 #[pyclass(name = "VecGraph")]
+#[derive(Default)]
 pub struct PyVecGraph {
     pub g: ::quizx::vec_graph::Graph,
 }

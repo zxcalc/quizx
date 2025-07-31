@@ -6,7 +6,7 @@ use quizx::rankwidth::annealer::RankwidthAnnealer;
 use quizx::rankwidth::decomp_tree::{DecompNode, DecompTree};
 
 #[pyclass(name = "DecompTree")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct PyDecompTree(DecompTree);
 
 #[pymethods]
@@ -18,8 +18,8 @@ impl PyDecompTree {
 
         let n = self.0.nodes[0].nhd()[0];
         let list = PyList::empty(py);
-        list.append(self.to_list_helper(py, 0, n)?)?;
-        list.append(self.to_list_helper(py, n, 0)?)?;
+        list.append(self.write_list(py, 0, n)?)?;
+        list.append(self.write_list(py, n, 0)?)?;
         Ok(list.into_any().unbind())
     }
 
@@ -33,8 +33,8 @@ impl PyDecompTree {
         }
 
         let mut tree = PyDecompTree(DecompTree::new());
-        let left = tree.from_list_helper(py, list.get_item(0)?.unbind(), 0)?;
-        let right = tree.from_list_helper(py, list.get_item(1)?.unbind(), 0)?;
+        let left = tree.read_list(py, list.get_item(0)?.unbind(), 0)?;
+        let right = tree.read_list(py, list.get_item(1)?.unbind(), 0)?;
         tree.0.nodes[left].nhd_mut()[0] = right;
         tree.0.nodes[right].nhd_mut()[0] = left;
 
@@ -43,7 +43,7 @@ impl PyDecompTree {
 
     /// Create a new empty decomposition tree
     #[new]
-    fn new() -> Self {
+    pub fn new() -> Self {
         PyDecompTree(DecompTree::new())
     }
 
@@ -61,7 +61,7 @@ impl PyDecompTree {
     fn edges(&self, py: Python<'_>) -> PyResult<PyObject> {
         let edges = self.0.edges();
         let py_edges: Vec<(usize, usize)> = edges;
-        Ok(py_edges.into_py_any(py)?)
+        py_edges.into_py_any(py)
     }
 
     /// Get the number of edges in the tree
@@ -72,14 +72,14 @@ impl PyDecompTree {
     /// Find a path between two nodes
     fn path(&self, py: Python<'_>, n1: usize, n2: usize) -> PyResult<PyObject> {
         let path = self.0.path(n1, n2);
-        Ok(path.into_py_any(py)?)
+        path.into_py_any(py)
     }
 
     /// Get the vertex partition defined by an edge
     fn partition(&self, py: Python<'_>, edge: (usize, usize)) -> PyResult<PyObject> {
         let (p1, p2) = self.0.partition(edge);
         let result = (p1, p2);
-        Ok(result.into_py_any(py)?)
+        result.into_py_any(py)
     }
 
     /// Compute ranks for all edges given a graph
@@ -189,19 +189,14 @@ impl PyDecompTree {
 }
 
 impl PyDecompTree {
-    fn to_list_helper<'py>(
-        &self,
-        py: Python<'py>,
-        node: usize,
-        parent: usize,
-    ) -> PyResult<PyObject> {
+    fn write_list<'py>(&self, py: Python<'py>, node: usize, parent: usize) -> PyResult<PyObject> {
         match self.0.nodes[node] {
             DecompNode::Leaf(_, v) => Ok(v.into_py_any(py)?),
             DecompNode::Interior(nhd) => {
                 let list = PyList::empty(py);
                 for n in nhd {
                     if parent != n {
-                        list.append(self.to_list_helper(py, n, node)?)?;
+                        list.append(self.write_list(py, n, node)?)?;
                     }
                 }
                 Ok(list.into_any().unbind())
@@ -209,12 +204,7 @@ impl PyDecompTree {
         }
     }
 
-    fn from_list_helper<'py>(
-        &mut self,
-        py: Python<'py>,
-        obj: PyObject,
-        parent: usize,
-    ) -> PyResult<usize> {
+    fn read_list<'py>(&mut self, py: Python<'py>, obj: PyObject, parent: usize) -> PyResult<usize> {
         if let Ok(list) = obj.downcast_bound::<PyList>(py) {
             if list.len() != 2 {
                 return Err(PyValueError::new_err(
@@ -223,8 +213,8 @@ impl PyDecompTree {
             }
 
             let n = self.0.add_interior([parent, 0, 0]);
-            let left = self.from_list_helper(py, list.get_item(0)?.unbind(), n)?;
-            let right = self.from_list_helper(py, list.get_item(1)?.unbind(), n)?;
+            let left = self.read_list(py, list.get_item(0)?.unbind(), n)?;
+            let right = self.read_list(py, list.get_item(1)?.unbind(), n)?;
             self.0.nodes[n].nhd_mut()[1] = left;
             self.0.nodes[n].nhd_mut()[2] = right;
             Ok(n)
@@ -296,6 +286,6 @@ impl PyRankwidthAnnealer {
 
     /// String representation for debugging
     fn __repr__(&self) -> String {
-        format!("RankwidthAnnealer()")
+        "RankwidthAnnealer()".to_string()
     }
 }

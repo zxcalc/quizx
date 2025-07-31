@@ -38,6 +38,22 @@ pub struct Graph {
     scalar_factors: FxHashMap<Expr, Scalar4>,
 }
 
+impl Default for Graph {
+    fn default() -> Self {
+        Graph {
+            vdata: FxHashMap::default(),
+            edata: FxHashMap::default(),
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+            numv: 0,
+            nume: 0,
+            freshv: 0,
+            scalar: Scalar4::one(),
+            scalar_factors: FxHashMap::default(),
+        }
+    }
+}
+
 impl Graph {
     /// Removes vertex 't' from the adjacency map of 's'. This private method
     /// is used by remove_edge and remove_vertex to make the latter slightly
