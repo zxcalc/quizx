@@ -5,11 +5,11 @@
 //! of Florian Nouwt:
 //!
 //! "A simulated annealing method for computing rank-width". University of Utrecht, 2022.
-//! https://doi.org/20.500.12932/41566
+//! <https://doi.org/20.500.12932/41566>
 //!
 //! Some specifics are ported from Florian's C# implementation, which is available here:
 //!
-//! https://github.com/Gericom/RankWidthApproximate/
+//! <https://github.com/Gericom/RankWidthApproximate/>
 //!
 pub mod annealer;
 pub mod decomp_tree;
