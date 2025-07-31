@@ -18,8 +18,7 @@ use crate::graph::GraphLike;
 use annealer::RankwidthAnnealer;
 use decomp_tree::DecompTree;
 
-pub fn rank_decomp<G: GraphLike>(graph: &G) -> DecompTree<'_, G> {
-    let mut rng = rand::rng();
-    let mut annealer = RankwidthAnnealer::from_graph(graph, &mut rng);
+pub fn rank_decomp<G: GraphLike>(graph: &G) -> DecompTree {
+    let mut annealer = RankwidthAnnealer::new(graph.clone(), rand::rng());
     annealer.run()
 }

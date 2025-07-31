@@ -1,5 +1,5 @@
-use crate::vec_graph::VecGraph;
-use crate::Scalar;
+use crate::vec_graph::PyVecGraph;
+use crate::PyScalar;
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -20,23 +20,23 @@ impl From<SimpFunc> for ::quizx::decompose::SimpFunc {
     }
 }
 
-#[pyclass]
-pub struct Decomposer {
+#[pyclass(name = "Decomposer")]
+pub struct PyDecomposer {
     d: ::quizx::decompose::Decomposer<::quizx::vec_graph::Graph>,
 }
 
 #[pymethods]
-impl Decomposer {
+impl PyDecomposer {
     #[staticmethod]
-    fn empty() -> Decomposer {
-        Decomposer {
+    fn empty() -> PyDecomposer {
+        PyDecomposer {
             d: ::quizx::decompose::Decomposer::empty(),
         }
     }
 
     #[new]
     #[pyo3(signature = (g, *, save=None, simp=None))]
-    fn new(g: &VecGraph, save: Option<bool>, simp: Option<SimpFunc>) -> Decomposer {
+    fn new(g: &PyVecGraph, save: Option<bool>, simp: Option<SimpFunc>) -> PyDecomposer {
         let mut d = ::quizx::decompose::Decomposer::new(&g.g);
 
         if let Some(save) = save {
@@ -47,13 +47,13 @@ impl Decomposer {
             d.with_simp(simp.into());
         }
 
-        Decomposer { d }
+        PyDecomposer { d }
     }
 
-    fn done(&self) -> PyResult<Vec<VecGraph>> {
+    fn done(&self) -> PyResult<Vec<PyVecGraph>> {
         let mut gs = vec![];
         for g in &self.d.done {
-            gs.push(VecGraph { g: g.clone() });
+            gs.push(PyVecGraph { g: g.clone() });
         }
         Ok(gs)
     }
@@ -200,7 +200,7 @@ impl Decomposer {
         self.d.nterms
     }
 
-    fn get_scalar(&self) -> Scalar {
+    fn get_scalar(&self) -> PyScalar {
         self.d.scalar().into()
     }
 

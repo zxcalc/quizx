@@ -40,6 +40,22 @@ pub struct Graph {
     scalar_factors: FxHashMap<Expr, Scalar4>,
 }
 
+impl Default for Graph {
+    fn default() -> Self {
+        Graph {
+            vdata: Vec::new(),
+            edata: Vec::new(),
+            holes: Vec::new(),
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+            numv: 0,
+            nume: 0,
+            scalar: Scalar4::one(),
+            scalar_factors: FxHashMap::default(),
+        }
+    }
+}
+
 impl Graph {
     /// Explicitly index neighbors of a vertex. Used for iteration.
     pub fn neighbor_at(&self, v: V, n: usize) -> V {
