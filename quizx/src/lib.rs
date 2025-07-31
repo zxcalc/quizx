@@ -77,6 +77,7 @@ pub mod optimize_circuit;
 pub mod params;
 pub mod phase;
 pub mod random_graph;
+pub mod rankwidth;
 pub mod scalar;
 pub mod scalar_traits;
 pub mod simplify;

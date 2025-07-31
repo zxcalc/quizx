@@ -126,7 +126,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             // randomly pick an outcome according to p
-            let outcome = if rng.gen_bool(p) {
+            let outcome = if rng.random_bool(p) {
                 // outcome 1: let |g> = |h> = (<1| ⊗ I)|g>
                 g.plug_output(0, BasisElem::Z1);
                 // and save <g|g> = <h|h>

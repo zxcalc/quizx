@@ -96,7 +96,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let effect: Vec<_> = (0..qs)
             .map(|_| {
-                if rng.gen_bool(0.5) {
+                if rng.random_bool(0.5) {
                     BasisElem::Z0
                 } else {
                     BasisElem::Z1
