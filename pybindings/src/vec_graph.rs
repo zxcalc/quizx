@@ -7,22 +7,22 @@ use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use crate::scalar::Scalar;
+use crate::scalar::PyScalar;
 use crate::util::phase_and_vars_to_py;
 
 type E = (V, V);
 
 /// Wrapper for quizx::vec_graph::Graph
-#[pyclass]
-pub struct VecGraph {
+#[pyclass(name = "VecGraph")]
+pub struct PyVecGraph {
     pub g: ::quizx::vec_graph::Graph,
 }
 
 #[pymethods]
-impl VecGraph {
+impl PyVecGraph {
     #[new]
-    fn new() -> VecGraph {
-        VecGraph {
+    pub fn new() -> PyVecGraph {
+        PyVecGraph {
             g: ::quizx::vec_graph::Graph::new(),
         }
     }
@@ -44,18 +44,18 @@ impl VecGraph {
     /// unavoidable due to Rust's ownership limitations.
     ///
     #[getter]
-    fn get_scalar(&mut self) -> Scalar {
+    fn get_scalar(&mut self) -> PyScalar {
         (*self.g.scalar()).into()
     }
 
     /// Sets the graph scalar.
     #[setter]
-    fn set_scalar(&mut self, scalar: Scalar) {
+    fn set_scalar(&mut self, scalar: PyScalar) {
         *self.g.scalar_mut() = scalar.into();
     }
 
-    fn clone(&self) -> VecGraph {
-        VecGraph { g: self.g.clone() }
+    fn clone(&self) -> PyVecGraph {
+        PyVecGraph { g: self.g.clone() }
     }
 
     fn inputs(&self) -> Vec<V> {
@@ -439,13 +439,13 @@ impl VecGraph {
     }
 
     #[pyo3(signature = (adjoint=false, backend=None))]
-    fn copy(&self, adjoint: bool, backend: Option<&str>) -> PyResult<VecGraph> {
+    fn copy(&self, adjoint: bool, backend: Option<&str>) -> PyResult<PyVecGraph> {
         if backend.is_some() && backend != Some("quizx-vec") {
             Err(PyNotImplementedError::new_err(
                 "Copy to other backends not implemented on backend: quizx-vec",
             ))
         } else {
-            Ok(VecGraph {
+            Ok(PyVecGraph {
                 g: self.g.copy(adjoint),
             })
         }
@@ -464,7 +464,7 @@ impl VecGraph {
 
     fn compose(&mut self, other: &Bound<'_, PyAny>) -> PyResult<()> {
         let other1 = other
-            .downcast::<VecGraph>()
+            .downcast::<PyVecGraph>()
             .map_err(|_| {
                 PyNotImplementedError::new_err(
                     "Operations with mixed backends not implemented on backend: quizx-vec",
@@ -480,7 +480,7 @@ impl VecGraph {
 
     fn tensor(&mut self, other: &Bound<'_, PyAny>) -> PyResult<()> {
         let other1 = other
-            .downcast::<VecGraph>()
+            .downcast::<PyVecGraph>()
             .map_err(|_| {
                 PyNotImplementedError::new_err(
                     "Operations with mixed backends not implemented on backend: quizx-vec",
@@ -507,15 +507,15 @@ impl VecGraph {
         self.compose(other)
     }
 
-    fn __add__(&self, other: &Bound<'_, PyAny>) -> PyResult<VecGraph> {
+    fn __add__(&self, other: &Bound<'_, PyAny>) -> PyResult<PyVecGraph> {
         let mut g = self.clone();
         g.compose(other)?;
         Ok(g)
     }
 
-    fn __mul__(&self, other: &Bound<'_, PyAny>) -> PyResult<VecGraph> {
+    fn __mul__(&self, other: &Bound<'_, PyAny>) -> PyResult<PyVecGraph> {
         let mut other1 = other
-            .downcast::<VecGraph>()
+            .downcast::<PyVecGraph>()
             .map_err(|_| {
                 PyNotImplementedError::new_err(
                     "Operations with mixed backends not implemented on backend: quizx-vec",
@@ -527,9 +527,9 @@ impl VecGraph {
         Ok(other1)
     }
 
-    fn __matmul__(&self, other: &Bound<'_, PyAny>) -> PyResult<VecGraph> {
+    fn __matmul__(&self, other: &Bound<'_, PyAny>) -> PyResult<PyVecGraph> {
         let mut other1 = other
-            .downcast::<VecGraph>()
+            .downcast::<PyVecGraph>()
             .map_err(|_| {
                 PyNotImplementedError::new_err(
                     "Operations with mixed backends not implemented on backend: quizx-vec",
@@ -548,8 +548,8 @@ impl VecGraph {
         ))
     }
 
-    fn subgraph_from_vertices(&self, verts: Vec<V>) -> VecGraph {
-        VecGraph {
+    fn subgraph_from_vertices(&self, verts: Vec<V>) -> PyVecGraph {
+        PyVecGraph {
             g: self.g.subgraph_from_vertices(verts),
         }
     }

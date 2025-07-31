@@ -38,27 +38,27 @@ use quizx::scalar::*;
 ///
 /// The float representation of a scalar is given as a 64-bit
 /// floating point complex number.
-#[pyclass]
+#[pyclass(name = "Scalar")]
 #[derive(Debug, Clone, Add, Mul, PartialEq)]
-pub struct Scalar {
+pub struct PyScalar {
     /// Rust representation of the scalar.
     s: Scalar4,
 }
 
-impl From<Scalar4> for Scalar {
+impl From<Scalar4> for PyScalar {
     fn from(s: Scalar4) -> Self {
         Self { s }
     }
 }
 
-impl From<Scalar> for Scalar4 {
-    fn from(s: Scalar) -> Self {
+impl From<PyScalar> for Scalar4 {
+    fn from(s: PyScalar) -> Self {
         s.s
     }
 }
 
 #[pymethods]
-impl Scalar {
+impl PyScalar {
     /// Create a new complex scalar from a pair of floats.
     #[staticmethod]
     pub fn complex(complex: Complex<f64>) -> Self {
