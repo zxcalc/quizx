@@ -19,24 +19,14 @@ use std::collections::HashSet;
 use std::fmt::Debug;
 use std::fmt::Display;
 
-// use crate::decompose;
-use crate::scalar::*;
-// use crate::graph;
 use crate::graph::*;
+use crate::scalar::*;
 use derive_more::derive::Display;
 use itertools::Itertools;
-// use rand::seq::SliceRandom;
-// use rayon::vec;
-use roots::SimpleConvergency;
-// use strum_macros::Display;
-// use crate::hash_graph::Graph;
-// use crate::tensor::Tensor;
-// use itertools::Itertools;
-// use itertools::Itertools;
 use num::Rational64;
-use rand::{rng, Rng};
-// use rand::rngs::StdRng;
+use rand::{prelude::IndexedRandom, rng, seq::SliceRandom, Rng};
 use rayon::prelude::*;
+use roots::SimpleConvergency;
 
 /// Gives upper bound for number of terms needed for BSS decomposition
 ///
@@ -487,8 +477,6 @@ impl Driver for DynamicTDriver {
 
 impl Driver for SherlockDriver {
     fn choose_decomp(&self, g: &impl GraphLike) -> Decomp {
-        use rand::seq::SliceRandom;
-        use rand::prelude::IndexedRandom;
         let mut rng = rng();
         let t_vertices: Vec<usize> = g.vertices().filter(|vert| g.phase(*vert).is_t()).collect();
 
