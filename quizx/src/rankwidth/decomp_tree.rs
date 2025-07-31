@@ -258,38 +258,6 @@ impl<'a, G: GraphLike> DecompTree<'a, G> {
         self.ranks.get(&e).copied()
     }
 
-    fn add_random_partition(
-        parent: usize,
-        tree: &mut Self,
-        mut vs: Vec<V>,
-        rng: &mut impl Rng,
-    ) -> usize {
-        if vs.len() == 1 {
-            tree.add_leaf(parent, vs[0])
-        } else if vs.len() >= 2 {
-            // split 'vs' into two random, non-empty subsets
-            let mut left = vec![vs.remove(rng.random_range(0..vs.len()))];
-            let mut right = vec![vs.remove(rng.random_range(0..vs.len()))];
-            while !vs.is_empty() {
-                if rng.random_bool(0.5) {
-                    left.push(vs.remove(rng.random_range(0..vs.len())));
-                } else {
-                    right.push(vs.remove(rng.random_range(0..vs.len())));
-                }
-            }
-
-            let i = tree.add_interior([parent, 0, 0]);
-            let l = Self::add_random_partition(i, tree, left, rng);
-            let r = Self::add_random_partition(i, tree, right, rng);
-            tree.nodes[i].nhd_mut()[1] = l;
-            tree.nodes[i].nhd_mut()[2] = r;
-
-            i
-        } else {
-            panic!("Attempted to decompose an empty list of vertices");
-        }
-    }
-
     pub fn swap_random_leaves(&mut self, rng: &mut impl rand::Rng) {
         if self.leaves.len() < 2 {
             return; // Not enough leaves to swap
@@ -377,6 +345,33 @@ impl<'a, G: GraphLike> DecompTree<'a, G> {
         self.clear_rank((b, c));
     }
 
+    fn add_random_partition(&mut self, parent: usize, mut vs: Vec<V>, rng: &mut impl Rng) -> usize {
+        if vs.len() == 1 {
+            self.add_leaf(parent, vs[0])
+        } else if vs.len() >= 2 {
+            // split 'vs' into two random, non-empty subsets
+            let mut left = vec![vs.remove(rng.random_range(0..vs.len()))];
+            let mut right = vec![vs.remove(rng.random_range(0..vs.len()))];
+            while !vs.is_empty() {
+                if rng.random_bool(0.5) {
+                    left.push(vs.remove(rng.random_range(0..vs.len())));
+                } else {
+                    right.push(vs.remove(rng.random_range(0..vs.len())));
+                }
+            }
+
+            let i = self.add_interior([parent, 0, 0]);
+            let l = self.add_random_partition(i, left, rng);
+            let r = self.add_random_partition(i, right, rng);
+            self.nodes[i].nhd_mut()[1] = l;
+            self.nodes[i].nhd_mut()[2] = r;
+
+            i
+        } else {
+            panic!("Attempted to decompose an empty list of vertices");
+        }
+    }
+
     pub fn random_decomp(graph: &'a G, rng: &mut impl Rng) -> Self {
         let mut tree = Self::new(graph);
 
@@ -384,7 +379,7 @@ impl<'a, G: GraphLike> DecompTree<'a, G> {
         if vs.len() >= 2 {
             let v = vs.pop().unwrap();
             tree.add_leaf(0, v);
-            let i = Self::add_random_partition(0, &mut tree, vs, rng);
+            let i = tree.add_random_partition(0, vs, rng);
             tree.nodes[0].nhd_mut()[0] = i;
         }
 
