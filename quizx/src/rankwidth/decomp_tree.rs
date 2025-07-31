@@ -61,21 +61,19 @@ impl DecompNode {
 }
 
 #[derive(Debug, Clone)]
-pub struct DecompTree<'a, G: GraphLike> {
+pub struct DecompTree {
     pub nodes: Vec<DecompNode>,
     pub leaves: Vec<usize>,
     pub interior: Vec<usize>,
-    graph: &'a G,
     ranks: FxHashMap<(usize, usize), usize>,
 }
 
-impl<'a, G: GraphLike> DecompTree<'a, G> {
-    pub fn new(graph: &'a G) -> Self {
+impl DecompTree {
+    pub fn new() -> Self {
         DecompTree {
             nodes: Vec::new(),
             leaves: Vec::new(),
             interior: Vec::new(),
-            graph,
             ranks: FxHashMap::default(),
         }
     }
@@ -214,7 +212,7 @@ impl<'a, G: GraphLike> DecompTree<'a, G> {
         self.nodes[b1].replace_neighbor(b, a1);
     }
 
-    pub fn compute_ranks(&mut self) {
+    pub fn compute_ranks(&mut self, graph: &impl GraphLike) {
         if self.num_edges() == self.ranks.len() {
             return;
         }
@@ -223,23 +221,22 @@ impl<'a, G: GraphLike> DecompTree<'a, G> {
             for &j in n.nhd() {
                 if i <= j && !self.ranks.contains_key(&(i, j)) {
                     let (p0, p1) = self.partition((i, j));
-                    let rank = BitMatrix::build(p0.len(), p1.len(), |i, j| {
-                        self.graph.connected(p0[i], p1[j])
-                    })
-                    .rank();
+                    let rank =
+                        BitMatrix::build(p0.len(), p1.len(), |i, j| graph.connected(p0[i], p1[j]))
+                            .rank();
                     self.ranks.insert((i, j), rank);
                 }
             }
         }
     }
 
-    pub fn rankwidth(&mut self) -> usize {
-        self.compute_ranks();
+    pub fn rankwidth(&mut self, graph: &impl GraphLike) -> usize {
+        self.compute_ranks(graph);
         self.ranks.values().max().copied().unwrap_or(0)
     }
 
-    pub fn rankwidth_score(&mut self) -> usize {
-        self.compute_ranks();
+    pub fn rankwidth_score(&mut self, graph: &impl GraphLike) -> usize {
+        self.compute_ranks(graph);
         self.ranks.values().map(|r| r * r).sum()
     }
 
@@ -346,8 +343,8 @@ impl<'a, G: GraphLike> DecompTree<'a, G> {
     }
 
     /// Check the decomposition tree gives a valid partition of the graph
-    pub fn is_valid(&self) -> bool {
-        let mut vs: Vec<V> = self.graph.vertices().collect();
+    pub fn is_valid_for_graph(&self, graph: &impl GraphLike) -> bool {
+        let mut vs: Vec<V> = graph.vertices().collect();
         vs.sort();
 
         for e in self.edges() {
@@ -391,8 +388,8 @@ impl<'a, G: GraphLike> DecompTree<'a, G> {
         }
     }
 
-    pub fn random_decomp(graph: &'a G, rng: &mut impl Rng) -> Self {
-        let mut tree = Self::new(graph);
+    pub fn random_decomp(graph: &impl GraphLike, rng: &mut impl Rng) -> Self {
+        let mut tree = Self::new();
 
         let mut vs: Vec<V> = graph.vertices().collect();
         if vs.len() >= 2 {
@@ -416,8 +413,7 @@ mod tests {
 
     #[test]
     fn path_simple_tree() {
-        let graph = Graph::new();
-        let mut tree = DecompTree::new(&graph);
+        let mut tree = DecompTree::new();
 
         // Create a simple tree structure:
         //      0
@@ -443,8 +439,7 @@ mod tests {
 
     #[test]
     fn path_deeper_tree() {
-        let graph = Graph::new();
-        let mut tree = DecompTree::new(&graph);
+        let mut tree = DecompTree::new();
 
         // Create a deeper tree structure:
         //        0
@@ -476,8 +471,7 @@ mod tests {
 
     #[test]
     fn path_same_node() {
-        let graph = Graph::new();
-        let mut tree = DecompTree::new(&graph);
+        let mut tree = DecompTree::new();
         tree.add_leaf(0, 10);
 
         // Path from a node to itself should just be the node
@@ -493,8 +487,7 @@ mod tests {
         //     1  2  3
         //    /\    /\
         //   4 5   6 7
-        let graph = Graph::new();
-        let mut tree = DecompTree::new(&graph);
+        let mut tree = DecompTree::new();
         tree.add_interior([1, 2, 3]); // node 0
         tree.add_interior([0, 4, 5]); // node 1
         tree.add_leaf(0, 20); // node 2
@@ -514,8 +507,7 @@ mod tests {
     #[test]
     fn move_subtree() {
         // example from Florian Nouwt's thesis "A simulated annealing method for computing rank-width", p.30
-        let graph = Graph::new();
-        let mut tree = DecompTree::new(&graph);
+        let mut tree = DecompTree::new();
         tree.add_leaf(11, 0); // node 0 = v1
         tree.add_leaf(12, 0); // node 1 = v2
         tree.add_leaf(13, 0); // node 2 = v3
@@ -533,8 +525,7 @@ mod tests {
         tree.add_interior([10, 12, 15]); // node 14 = y
         tree.add_interior([3, 4, 14]); // node 15 = z
 
-        let graph = Graph::new();
-        let mut tree1 = DecompTree::new(&graph);
+        let mut tree1 = DecompTree::new();
         tree1.add_leaf(11, 0); // node 0 = v1
         tree1.add_leaf(12, 0); // node 1 = v2
         tree1.add_leaf(13, 0); // node 2 = v3
@@ -572,8 +563,7 @@ mod tests {
         //     1  2  3
         //    /\    /\
         //   4 5   6 7
-        let graph = Graph::new();
-        let mut tree = DecompTree::new(&graph);
+        let mut tree = DecompTree::new();
         tree.add_interior([1, 2, 3]); // node 0
         tree.add_interior([0, 4, 5]); // node 1
         tree.add_leaf(0, 20); // node 2

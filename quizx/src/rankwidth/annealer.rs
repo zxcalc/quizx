@@ -3,9 +3,10 @@ use rand::Rng;
 use crate::graph::GraphLike;
 use crate::rankwidth::decomp_tree::DecompTree;
 
-pub struct RankwidthAnnealer<'a, R: Rng, G: GraphLike> {
+pub struct RankwidthAnnealer<R: Rng, G: GraphLike> {
     rng: R,
-    init_decomp: DecompTree<'a, G>,
+    graph: G,
+    init_decomp: DecompTree,
     init_temp: f64,
     min_temp: f64,
     cooling_rate: f64,
@@ -13,11 +14,12 @@ pub struct RankwidthAnnealer<'a, R: Rng, G: GraphLike> {
     iterations: usize,
 }
 
-impl<'a, R: Rng, G: GraphLike> RankwidthAnnealer<'a, R, G> {
-    pub fn from_graph(graph: &'a G, mut rng: R) -> Self {
-        let init_decomp = DecompTree::random_decomp(graph, &mut rng);
+impl<R: Rng, G: GraphLike> RankwidthAnnealer<R, G> {
+    pub fn new(graph: G, mut rng: R) -> Self {
+        let init_decomp = DecompTree::random_decomp(&graph, &mut rng);
         Self {
             rng,
+            graph,
             init_decomp,
             init_temp: 5.0,
             min_temp: 0.01,
@@ -27,9 +29,10 @@ impl<'a, R: Rng, G: GraphLike> RankwidthAnnealer<'a, R, G> {
         }
     }
 
-    pub fn from_decomp(init_decomp: DecompTree<'a, G>, rng: R) -> Self {
+    pub fn new_with_decomp(graph: G, init_decomp: DecompTree, rng: R) -> Self {
         Self {
             rng,
+            graph,
             init_decomp,
             init_temp: 5.0,
             min_temp: 0.05,
@@ -59,10 +62,10 @@ impl<'a, R: Rng, G: GraphLike> RankwidthAnnealer<'a, R, G> {
         self.iterations = iterations;
     }
 
-    pub fn run(&mut self) -> DecompTree<'a, G> {
-        let mut best_width = self.init_decomp.rankwidth();
-        let mut best_score = self.init_decomp.rankwidth_score();
-        let mut old_score = self.init_decomp.rankwidth_score();
+    pub fn run(&mut self) -> DecompTree {
+        let mut best_width = self.init_decomp.rankwidth(&self.graph);
+        let mut best_score = self.init_decomp.rankwidth_score(&self.graph);
+        let mut old_score = self.init_decomp.rankwidth_score(&self.graph);
         let mut best_decomp = self.init_decomp.clone();
         let mut old_decomp = self.init_decomp.clone();
         let mut temp = self.init_temp;
@@ -82,7 +85,7 @@ impl<'a, R: Rng, G: GraphLike> RankwidthAnnealer<'a, R, G> {
                 decomp.move_random_subtree(&mut self.rng);
             }
 
-            let score = decomp.rankwidth_score();
+            let score = decomp.rankwidth_score(&self.graph);
 
             let keep = if score < old_score {
                 true
@@ -102,7 +105,7 @@ impl<'a, R: Rng, G: GraphLike> RankwidthAnnealer<'a, R, G> {
             };
 
             if keep {
-                let width = decomp.rankwidth();
+                let width = decomp.rankwidth(&self.graph);
                 if width < best_width {
                     best_width = width;
                     best_decomp = decomp.clone();
@@ -156,17 +159,26 @@ mod tests {
 
         println!("Finished constructing graph");
 
-        let mut annealer = RankwidthAnnealer::from_graph(&graph, &mut rng);
+        let mut annealer = RankwidthAnnealer::new(graph.clone(), rng);
         assert!(
-            annealer.init_decomp.is_valid(),
+            annealer.init_decomp.is_valid_for_graph(&graph),
             "Initial decomposition tree is not valid"
         );
         annealer.set_iterations(1000);
-        println!("Initial rankwidth: {}", annealer.init_decomp.rankwidth());
-        println!("Initial score: {}", annealer.init_decomp.rankwidth_score());
+        println!(
+            "Initial rankwidth: {}",
+            annealer.init_decomp.rankwidth(&graph)
+        );
+        println!(
+            "Initial score: {}",
+            annealer.init_decomp.rankwidth_score(&graph)
+        );
         let mut decomp = annealer.run();
-        assert!(decomp.is_valid(), "Final decomposition tree is not valid");
-        println!("Final rankwidth: {}", decomp.rankwidth());
-        println!("Final score: {}", decomp.rankwidth_score());
+        assert!(
+            decomp.is_valid_for_graph(&graph),
+            "Final decomposition tree is not valid"
+        );
+        println!("Final rankwidth: {}", decomp.rankwidth(&graph));
+        println!("Final score: {}", decomp.rankwidth_score(&graph));
     }
 }

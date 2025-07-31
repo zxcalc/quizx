@@ -4,12 +4,14 @@
 
 pub mod circuit;
 pub mod decompose;
+pub mod rankwidth;
 pub mod scalar;
 pub mod util;
 pub mod vec_graph;
 
 use crate::circuit::to_pyzx_circuit;
 use crate::decompose::{Decomposer, SimpFunc};
+use crate::rankwidth::PyDecompTree;
 use crate::scalar::Scalar;
 use crate::vec_graph::VecGraph;
 
@@ -31,6 +33,7 @@ fn quizx(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Decomposer>()?;
     m.add_class::<SimpFunc>()?;
     m.add_class::<Scalar>()?;
+    m.add_class::<PyDecompTree>()?;
     Ok(())
 }
 
