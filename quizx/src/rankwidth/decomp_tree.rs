@@ -345,6 +345,25 @@ impl<'a, G: GraphLike> DecompTree<'a, G> {
         self.clear_rank((b, c));
     }
 
+    /// Check the decomposition tree gives a valid partition of the graph
+    pub fn is_valid(&self) -> bool {
+        let mut vs: Vec<V> = self.graph.vertices().collect();
+        vs.sort();
+
+        for e in self.edges() {
+            let (mut p1, p2) = self.partition(e);
+            if p1.is_empty() || p2.is_empty() {
+                return false;
+            }
+            p1.extend_from_slice(&p2);
+            p1.sort();
+            if p1 != vs {
+                return false;
+            }
+        }
+        true
+    }
+
     fn add_random_partition(&mut self, parent: usize, mut vs: Vec<V>, rng: &mut impl Rng) -> usize {
         if vs.len() == 1 {
             self.add_leaf(parent, vs[0])

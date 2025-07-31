@@ -93,8 +93,12 @@ impl<'a, R: Rng, G: GraphLike> RankwidthAnnealer<'a, R, G> {
                 } else {
                     temp
                 };
-                let prob = (-delta / t).exp();
-                self.rng.random_bool(prob)
+                let prob = (delta / t).exp();
+                if prob > 1.0 {
+                    true
+                } else {
+                    self.rng.random_bool(prob)
+                }
             };
 
             if keep {
@@ -119,5 +123,50 @@ impl<'a, R: Rng, G: GraphLike> RankwidthAnnealer<'a, R, G> {
             }
         }
         best_decomp
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rand::SeedableRng;
+
+    use super::*;
+    use crate::graph::{EType, VType};
+    use crate::vec_graph::Graph;
+
+    #[test]
+    fn test_rankwidth_annealer() {
+        let mut rng = rand::rngs::SmallRng::seed_from_u64(42);
+        let mut graph = Graph::new();
+        let num_v = 40;
+        let num_e = 400;
+        for _ in 0..num_v {
+            graph.add_vertex(VType::Z);
+        }
+
+        let mut e = 0;
+        while e < num_e {
+            let v1 = rng.random_range(0..num_v);
+            let v2 = rng.random_range(0..num_v);
+            if v1 != v2 && !graph.connected(v1, v2) {
+                graph.add_edge_with_type(v1, v2, EType::H);
+                e += 1;
+            }
+        }
+
+        println!("Finished constructing graph");
+
+        let mut annealer = RankwidthAnnealer::from_graph(&graph, &mut rng);
+        assert!(
+            annealer.init_decomp.is_valid(),
+            "Initial decomposition tree is not valid"
+        );
+        annealer.set_iterations(1000);
+        println!("Initial rankwidth: {}", annealer.init_decomp.rankwidth());
+        println!("Initial score: {}", annealer.init_decomp.rankwidth_score());
+        let mut decomp = annealer.run();
+        assert!(decomp.is_valid(), "Final decomposition tree is not valid");
+        println!("Final rankwidth: {}", decomp.rankwidth());
+        println!("Final score: {}", decomp.rankwidth_score());
     }
 }
