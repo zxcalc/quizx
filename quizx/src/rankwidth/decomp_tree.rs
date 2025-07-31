@@ -603,7 +603,10 @@ mod tests {
 
         for e in tree.edges() {
             let (mut p1, p2) = tree.partition(e);
-            assert!(p1.len() > 0 && p2.len() > 0, "Partition must be non-empty");
+            assert!(
+                !p1.is_empty() && !p2.is_empty(),
+                "Partition must be non-empty"
+            );
             p1.extend_from_slice(&p2);
             p1.sort();
             assert_eq!(p1, vs, "Partition does not match original vertex set");
