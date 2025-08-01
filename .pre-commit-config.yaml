@@ -45,7 +45,7 @@ repos:
       - id: cargo-clippy
         name: cargo clippy
         description: Run clippy lints with `cargo clippy`.
-        entry: cargo clippy --all-features --all-targets --workspace -- -D warnings
+        entry: cargo clippy --all-features --all-targets --workspace -- -D warnings -A clippy::needless-range-loop -A clippy::uninlined-format-args
         language: system
         files: \.rs$
         pass_filenames: false

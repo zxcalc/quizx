@@ -233,6 +233,7 @@ impl PyRankwidthAnnealer {
     /// Create a new annealer with a random initial decomposition
     #[new]
     #[pyo3(signature = (graph, seed=None, init_decomp=None, init_temp=None, min_temp=None, cooling_rate=None, adaptive_cooling=None, iterations=None))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         graph: &PyVecGraph,
         seed: Option<u64>,
