@@ -232,43 +232,81 @@ pub struct PyRankwidthAnnealer(RankwidthAnnealer<rand::rngs::StdRng, quizx::vec_
 impl PyRankwidthAnnealer {
     /// Create a new annealer with a random initial decomposition
     #[new]
-    #[pyo3(signature = (graph, seed=None))]
-    fn new(graph: &PyVecGraph, seed: Option<u64>) -> Self {
+    #[pyo3(signature = (graph, seed=None, init_decomp=None, init_temp=None, min_temp=None, cooling_rate=None, adaptive_cooling=None, iterations=None))]
+    #[allow(clippy::too_many_arguments)]
+    fn new(
+        graph: &PyVecGraph,
+        seed: Option<u64>,
+        init_decomp: Option<PyDecompTree>,
+        init_temp: Option<f64>,
+        min_temp: Option<f64>,
+        cooling_rate: Option<f64>,
+        adaptive_cooling: Option<bool>,
+        iterations: Option<usize>,
+    ) -> Self {
         use rand::{rngs::StdRng, SeedableRng};
         let rng = if let Some(s) = seed {
             StdRng::seed_from_u64(s)
         } else {
             StdRng::from_os_rng()
         };
-        PyRankwidthAnnealer(RankwidthAnnealer::new(graph.g.clone(), rng))
+        let mut annealer = PyRankwidthAnnealer(RankwidthAnnealer::new(graph.g.clone(), rng));
+
+        // Set optional parameters if provided
+        if let Some(decomp) = init_decomp {
+            annealer.set_init_decomp(decomp);
+        }
+        if let Some(temp) = init_temp {
+            annealer.set_init_temp(temp);
+        }
+        if let Some(temp) = min_temp {
+            annealer.set_min_temp(temp);
+        }
+        if let Some(rate) = cooling_rate {
+            annealer.set_cooling_rate(rate);
+        }
+        if let Some(adaptive) = adaptive_cooling {
+            annealer.set_adaptive_cooling(adaptive);
+        }
+        if let Some(iter) = iterations {
+            annealer.set_iterations(iter);
+        }
+
+        annealer
     }
 
     /// Set the initial decomposition tree
+    #[setter]
     fn set_init_decomp(&mut self, init_decomp: PyDecompTree) {
         self.0.set_init_decomp(init_decomp.0);
     }
 
     /// Set the initial temperature for simulated annealing
+    #[setter]
     fn set_init_temp(&mut self, init_temp: f64) {
         self.0.set_init_temp(init_temp);
     }
 
     /// Set the minimum temperature for simulated annealing
+    #[setter]
     fn set_min_temp(&mut self, min_temp: f64) {
         self.0.set_min_temp(min_temp);
     }
 
     /// Set the cooling rate for simulated annealing
+    #[setter]
     fn set_cooling_rate(&mut self, cooling_rate: f64) {
         self.0.set_cooling_rate(cooling_rate);
     }
 
     /// Set whether to use adaptive cooling
+    #[setter]
     fn set_adaptive_cooling(&mut self, adaptive_cooling: bool) {
         self.0.set_adaptive_cooling(adaptive_cooling);
     }
 
     /// Set the number of iterations to run
+    #[setter]
     fn set_iterations(&mut self, iterations: usize) {
         self.0.set_iterations(iterations);
     }
@@ -276,6 +314,36 @@ impl PyRankwidthAnnealer {
     /// Get the initial decomposition tree
     fn init_decomp(&self) -> PyDecompTree {
         PyDecompTree(self.0.init_decomp().clone())
+    }
+
+    /// Get the initial temperature for simulated annealing
+    #[getter]
+    fn init_temp(&self) -> f64 {
+        self.0.init_temp()
+    }
+
+    /// Get the minimum temperature for simulated annealing
+    #[getter]
+    fn min_temp(&self) -> f64 {
+        self.0.min_temp()
+    }
+
+    /// Get the cooling rate for simulated annealing
+    #[getter]
+    fn cooling_rate(&self) -> f64 {
+        self.0.cooling_rate()
+    }
+
+    /// Get whether adaptive cooling is enabled
+    #[getter]
+    fn adaptive_cooling(&self) -> bool {
+        self.0.adaptive_cooling()
+    }
+
+    /// Get the number of iterations to run
+    #[getter]
+    fn iterations(&self) -> usize {
+        self.0.iterations()
     }
 
     /// Run the simulated annealing algorithm and return the best decomposition found

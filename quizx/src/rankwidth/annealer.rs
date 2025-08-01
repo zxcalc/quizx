@@ -42,32 +42,58 @@ impl<R: Rng, G: GraphLike> RankwidthAnnealer<R, G> {
         }
     }
 
-    pub fn set_init_decomp(&mut self, init_decomp: DecompTree) {
+    pub fn set_init_decomp(&mut self, init_decomp: DecompTree) -> &mut Self {
         self.init_decomp = init_decomp;
+        self
     }
 
-    pub fn set_init_temp(&mut self, init_temp: f64) {
+    pub fn set_init_temp(&mut self, init_temp: f64) -> &mut Self {
         self.init_temp = init_temp;
+        self
     }
 
-    pub fn set_min_temp(&mut self, min_temp: f64) {
+    pub fn set_min_temp(&mut self, min_temp: f64) -> &mut Self {
         self.min_temp = min_temp;
+        self
     }
 
-    pub fn set_cooling_rate(&mut self, cooling_rate: f64) {
+    pub fn set_cooling_rate(&mut self, cooling_rate: f64) -> &mut Self {
         self.cooling_rate = cooling_rate;
+        self
     }
 
-    pub fn set_adaptive_cooling(&mut self, adaptive_cooling: bool) {
+    pub fn set_adaptive_cooling(&mut self, adaptive_cooling: bool) -> &mut Self {
         self.adaptive_cooling = adaptive_cooling;
+        self
     }
 
-    pub fn set_iterations(&mut self, iterations: usize) {
+    pub fn set_iterations(&mut self, iterations: usize) -> &mut Self {
         self.iterations = iterations;
+        self
     }
 
     pub fn init_decomp(&self) -> &DecompTree {
         &self.init_decomp
+    }
+
+    pub fn init_temp(&self) -> f64 {
+        self.init_temp
+    }
+
+    pub fn min_temp(&self) -> f64 {
+        self.min_temp
+    }
+
+    pub fn cooling_rate(&self) -> f64 {
+        self.cooling_rate
+    }
+
+    pub fn adaptive_cooling(&self) -> bool {
+        self.adaptive_cooling
+    }
+
+    pub fn iterations(&self) -> usize {
+        self.iterations
     }
 
     pub fn run(&mut self) -> DecompTree {
