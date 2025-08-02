@@ -245,6 +245,10 @@ impl DecompTree {
         self.ranks.insert(e, rank);
     }
 
+    pub fn clear_ranks(&mut self) {
+        self.ranks.clear();
+    }
+
     pub fn clear_rank(&mut self, e: (usize, usize)) {
         let e = if e.0 < e.1 { e } else { (e.1, e.0) };
         self.ranks.remove(&e);
@@ -300,11 +304,13 @@ impl DecompTree {
 
         self.move_subtree(&path);
 
-        let mut x = path[0];
-        for &y in &path[1..] {
-            self.clear_rank((x, y));
-            x = y;
-        }
+        // TODO: only clear ranks that may have changed
+        self.clear_ranks();
+        // let mut x = path[0];
+        // for &y in &path[1..] {
+        //     self.clear_rank((x, y));
+        //     x = y;
+        // }
     }
 
     pub fn random_local_swap(&mut self, rng: &mut impl rand::Rng) {

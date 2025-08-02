@@ -107,6 +107,11 @@ impl PyDecompTree {
         self.0.clear_rank(edge)
     }
 
+    /// Clear ranks of all edges
+    fn clear_ranks(&mut self) {
+        self.0.clear_ranks()
+    }
+
     /// Get the rank of an edge
     fn rank(&mut self, edge: (usize, usize)) -> Option<usize> {
         self.0.rank(edge)
