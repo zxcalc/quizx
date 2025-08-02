@@ -1,3 +1,5 @@
+use num::complex::Complex64;
+use num::One;
 use num::Rational64;
 use num::Zero;
 use pyo3::exceptions::*;
@@ -5,12 +7,13 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use quizx::graph::*;
 use quizx::phase::*;
+use quizx::scalar::Scalar4;
 use quizx::vec_graph::Graph;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use crate::scalar::PyScalar;
-use crate::util::phase_and_vars_to_py;
+use crate::scalar::PyScalar4;
+use crate::util::*;
 
 type E = (V, V);
 
@@ -63,14 +66,29 @@ impl PyVecGraph {
     /// unavoidable due to Rust's ownership limitations.
     ///
     #[getter]
-    fn get_scalar(&mut self) -> PyScalar {
-        (*self.g.scalar()).into()
+    fn scalar<'py>(&mut self, py: Python<'py>) -> PyResult<PyObject> {
+        to_pyzx_scalar(py, self.g.scalar())
     }
 
     /// Sets the graph scalar.
     #[setter]
-    fn set_scalar(&mut self, scalar: PyScalar) {
-        *self.g.scalar_mut() = scalar.into();
+    fn set_scalar<'py>(&mut self, py: Python<'py>, scalar: PyObject) -> PyResult<()> {
+        *self.g.scalar_mut() = from_pyzx_scalar(py, scalar)?;
+        Ok(())
+    }
+
+    /// Get a wrapped quizx native scalar
+    ///
+    /// This can be used to avoid losing precision converting to/from PyZX scalars
+    #[getter]
+    fn scalar4(&self) -> PyScalar4 {
+        self.g.scalar().clone().into()
+    }
+
+    /// Set a wrapped quizx native scalar
+    #[setter]
+    fn set_scalar4(&mut self, s: PyScalar4) {
+        *self.g.scalar_mut() = s.into();
     }
 
     fn clone<'py>(&self, py: Python<'py>) -> PyResult<PyVecGraph> {
@@ -224,7 +242,7 @@ impl PyVecGraph {
 
     fn phase(&self, py: Python<'_>, v: usize) -> PyResult<PyObject> {
         let (phase, vars) = self.g.phase_and_vars(v);
-        phase_and_vars_to_py(py, phase, vars)
+        to_fraction_like(py, phase, vars)
     }
 
     fn set_phase(&mut self, v: usize, phase: Rational64) {
@@ -685,7 +703,7 @@ impl PyVecGraph {
         ))
     }
 
-    fn add_edge_table(&self) -> PyResult<()> {
+    fn add_edge_table(&self, _et: PyObject) -> PyResult<()> {
         Err(PyNotImplementedError::new_err(
             "Not implemented on backend: quizx-vec",
         ))
@@ -721,16 +739,24 @@ impl PyVecGraph {
         ))
     }
 
-    fn vdata_dict(&self) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx-vec",
-        ))
+    fn vdata_dict<'py>(&self, py: Python<'py>, _v: PyObject) -> PyResult<Py<PyDict>> {
+        println!("warning: set_vdata_dict is not implemented for quizx-vec backend");
+        Ok(PyDict::new(py).unbind())
     }
 
-    fn set_vdata_dict(&self) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx-vec",
-        ))
+    fn set_vdata_dict(&self, _v: PyObject, _d: PyObject) -> PyResult<()> {
+        println!("warning: set_vdata_dict is not implemented for quizx-vec backend");
+        Ok(())
+    }
+
+    fn edata_dict<'py>(&self, py: Python<'py>, _e: PyObject) -> PyResult<Py<PyDict>> {
+        println!("warning: set_edata_dict is not implemented for quizx-vec backend");
+        Ok(PyDict::new(py).unbind())
+    }
+
+    fn set_edata_dict(&self, _e: PyObject, _d: PyObject) -> PyResult<()> {
+        println!("warning: set_edata_dict is not implemented for quizx-vec backend");
+        Ok(())
     }
 
     fn is_well_formed(&self) -> PyResult<()> {
@@ -801,4 +827,81 @@ impl PyVecGraph {
     fn set_phase_mult(&mut self, value: Py<PyDict>) {
         self.phase_mult = value;
     }
+
+    // These methods are no-ops for the quizx-vec backend, as it doesn't support
+    // Poly or custom merge_vdata
+
+    #[getter]
+    fn variable_types<'py>(&self, py: Python<'py>) -> PyResult<Py<PyDict>> {
+        Ok(PyDict::new(py).unbind())
+    }
+
+    #[setter]
+    fn set_variable_types(&mut self, _d: Py<PyDict>) {
+        // No-op for quizx-vec, as it does not track variable types
+    }
+
+    #[getter]
+    fn merge_vdata(&self) -> Option<PyObject> {
+        None
+    }
+
+    #[setter]
+    fn set_merge_vdata(&mut self, _d: Option<PyObject>) {
+        // No-op for quizx-vec, as it does not use merge_vdata
+    }
+}
+
+/// Returns the scalar as a tuple of four integers.
+pub fn from_pyzx_scalar<'py>(py: Python<'py>, pyzx_scalar: PyObject) -> PyResult<Scalar4> {
+    let is_zero = pyzx_scalar.getattr(py, "is_zero")?.extract::<bool>(py)?;
+    if is_zero {
+        return Ok(Scalar4::zero());
+    }
+
+    let mut s = Scalar4::one();
+
+    let phase = from_fraction_like(py, pyzx_scalar.getattr(py, "phase")?);
+    s.mul_phase(phase);
+
+    let power2 = pyzx_scalar
+        .getattr(py, "power2")?
+        .extract::<i32>(py)
+        .unwrap_or_default();
+    s.mul_sqrt2_pow(power2);
+
+    pyzx_scalar
+        .getattr(py, "phasenodes")?
+        .extract::<Vec<PyObject>>(py)?
+        .into_iter()
+        .for_each(|f| {
+            let s1 = Scalar4::one_plus_phase(from_fraction_like(py, f));
+            s += s1;
+        });
+
+    let floatfactor: Scalar4 = pyzx_scalar
+        .getattr(py, "floatfactor")?
+        .extract::<Complex64>(py)?
+        .into();
+
+    if !floatfactor.is_one() {
+        s *= floatfactor;
+    }
+
+    Ok(s)
+}
+
+pub fn to_pyzx_scalar<'py>(py: Python<'py>, s: &Scalar4) -> PyResult<PyObject> {
+    let m = PyModule::import(py, "pyzx.graph.scalar")?;
+    let scalar_class = m.getattr("Scalar")?;
+    let scalar = scalar_class.call1(())?;
+
+    if let Some((phase, pow)) = s.exact_phase_and_sqrt2_pow() {
+        scalar.setattr("phase", Rational64::from(phase).into_pyobject(py)?)?;
+        scalar.setattr("power2", pow.into_pyobject(py)?)?;
+    } else {
+        scalar.setattr("floatfactor", s.complex_value().into_pyobject(py)?)?;
+    }
+
+    Ok(scalar.unbind())
 }

@@ -12,7 +12,7 @@ pub mod vec_graph;
 use crate::circuit::to_pyzx_circuit;
 use crate::decompose::{PyDecomposer, PySimpFunc};
 use crate::rankwidth::{PyDecompTree, PyRankwidthAnnealer};
-use crate::scalar::PyScalar;
+use crate::scalar::PyScalar4;
 use crate::vec_graph::PyVecGraph;
 
 use ::quizx::circuit::Circuit;
@@ -34,7 +34,7 @@ fn quizx(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyDecomposer>()?;
     m.add_class::<PyRankwidthAnnealer>()?;
     m.add_class::<PySimpFunc>()?;
-    m.add_class::<PyScalar>()?;
+    m.add_class::<PyScalar4>()?;
     m.add_class::<PyDecompTree>()?;
     Ok(())
 }

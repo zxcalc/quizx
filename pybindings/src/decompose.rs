@@ -1,7 +1,7 @@
 use quizx::decompose::{Decomposer, SimpFunc};
 
 use crate::vec_graph::PyVecGraph;
-use crate::PyScalar;
+use crate::PyScalar4;
 use pyo3::prelude::*;
 
 #[pyclass(name = "SimpFunc")]
@@ -202,7 +202,7 @@ impl PyDecomposer {
         self.d.nterms
     }
 
-    fn get_scalar(&self) -> PyScalar {
+    fn get_scalar(&self) -> PyScalar4 {
         self.d.scalar().into()
     }
 
