@@ -82,7 +82,7 @@ impl PyVecGraph {
     /// This can be used to avoid losing precision converting to/from PyZX scalars
     #[getter]
     fn scalar4(&self) -> PyScalar4 {
-        self.g.scalar().clone().into()
+        (*self.g.scalar()).into()
     }
 
     /// Set a wrapped quizx native scalar
