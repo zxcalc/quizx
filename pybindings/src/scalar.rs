@@ -17,7 +17,7 @@
 //! Python-side scalar definition.
 
 use derive_more::{Add, Mul};
-use num::complex::Complex;
+use num::complex::{Complex, Complex64};
 use num::rational::Rational64;
 use num::{One, Zero};
 use pyo3::prelude::*;
@@ -38,27 +38,26 @@ use quizx::scalar::*;
 ///
 /// The float representation of a scalar is given as a 64-bit
 /// floating point complex number.
-#[pyclass(name = "Scalar")]
+#[pyclass(name = "Scalar4")]
 #[derive(Debug, Clone, Add, Mul, PartialEq)]
-pub struct PyScalar {
-    /// Rust representation of the scalar.
+pub struct PyScalar4 {
     s: Scalar4,
 }
 
-impl From<Scalar4> for PyScalar {
+impl From<Scalar4> for PyScalar4 {
     fn from(s: Scalar4) -> Self {
         Self { s }
     }
 }
 
-impl From<PyScalar> for Scalar4 {
-    fn from(s: PyScalar) -> Self {
+impl From<PyScalar4> for Scalar4 {
+    fn from(s: PyScalar4) -> Self {
         s.s
     }
 }
 
 #[pymethods]
-impl PyScalar {
+impl PyScalar4 {
     /// Create a new complex scalar from a pair of floats.
     #[staticmethod]
     pub fn complex(complex: Complex<f64>) -> Self {
@@ -234,5 +233,70 @@ impl PyScalar {
 
     pub fn __complex__(&self) -> Complex<f64> {
         self.s.complex_value()
+    }
+}
+
+impl PyScalar4 {
+    /// Returns the scalar as a tuple of four integers.
+    pub fn from_pyzx_scalar<'py>(py: Python<'py>, pyzx_scalar: PyObject) -> PyResult<PyScalar4> {
+        let is_zero = pyzx_scalar.getattr(py, "is_zero")?.extract::<bool>(py)?;
+        if is_zero {
+            return Ok(PyScalar4 { s: Scalar4::zero() });
+        }
+
+        let mut s = Scalar4::one();
+
+        let phase = from_fraction_like(py, pyzx_scalar.getattr(py, "phase")?);
+        s.mul_phase(phase);
+
+        let power2 = pyzx_scalar
+            .getattr(py, "power2")?
+            .extract::<i32>(py)
+            .unwrap_or_default();
+        s.mul_sqrt2_pow(power2);
+
+        pyzx_scalar
+            .getattr(py, "phasenodes")?
+            .extract::<Vec<PyObject>>(py)?
+            .into_iter()
+            .for_each(|f| {
+                let s1 = Scalar4::one_plus_phase(from_fraction_like(py, f));
+                s += s1;
+            });
+
+        let floatfactor: Scalar4 = pyzx_scalar
+            .getattr(py, "floatfactor")?
+            .extract::<Complex64>(py)?
+            .into();
+
+        if !floatfactor.is_one() {
+            s *= floatfactor;
+        }
+
+        Ok(PyScalar4 { s })
+    }
+
+    pub fn to_pyzx_scalar<'py>(&self, py: Python<'py>) -> PyResult<PyObject> {
+        let m = PyModule::import(py, "pyzx.graph.scalar")?;
+        let scalar_class = m.getattr("Scalar")?;
+        let scalar = scalar_class.call1(())?;
+
+        if let Some((phase, pow)) = self.s.exact_phase_and_sqrt2_pow() {
+            scalar.setattr("phase", Rational64::from(phase).into_pyobject(py)?)?;
+            scalar.setattr("power2", pow.into_pyobject(py)?)?;
+        } else {
+            scalar.setattr("floatfactor", self.s.complex_value().into_pyobject(py)?)?;
+        }
+
+        Ok(scalar.unbind())
+    }
+}
+
+pub fn from_fraction_like<'py>(py: Python<'py>, f: PyObject) -> Rational64 {
+    // FractionLike can be int, rational, or Poly. If it is Poly, set to zero
+    if let Ok(p) = f.extract::<Rational64>(py) {
+        p
+    } else {
+        f.extract::<i64>(py).unwrap_or_default().into()
     }
 }
