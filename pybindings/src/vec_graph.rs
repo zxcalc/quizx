@@ -1,9 +1,11 @@
-use ::quizx::graph::*;
-use ::quizx::phase::*;
 use num::Rational64;
 use num::Zero;
 use pyo3::exceptions::*;
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
+use quizx::graph::*;
+use quizx::phase::*;
+use quizx::vec_graph::Graph;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -14,18 +16,34 @@ type E = (V, V);
 
 /// Wrapper for quizx::vec_graph::Graph
 #[pyclass(name = "VecGraph")]
-#[derive(Default)]
 pub struct PyVecGraph {
     pub g: ::quizx::vec_graph::Graph,
+    // extra data PyZX expects in BaseGraph
+    track_phases: bool,
+    phase_index: Py<PyDict>,
+    max_phase_index: isize,
+    phase_master: Option<Py<PyAny>>,
+    phase_mult: Py<PyDict>,
+}
+
+impl PyVecGraph {
+    pub fn from_graph<'py>(py: Python<'py>, g: Graph) -> PyVecGraph {
+        PyVecGraph {
+            g,
+            track_phases: false,
+            phase_index: PyDict::new(py).unbind(),
+            max_phase_index: -1,
+            phase_master: None,
+            phase_mult: PyDict::new(py).unbind(),
+        }
+    }
 }
 
 #[pymethods]
 impl PyVecGraph {
     #[new]
-    pub fn new() -> PyVecGraph {
-        PyVecGraph {
-            g: ::quizx::vec_graph::Graph::new(),
-        }
+    pub fn new<'py>(py: Python<'py>) -> PyVecGraph {
+        PyVecGraph::from_graph(py, Graph::new())
     }
 
     #[classattr]
@@ -55,8 +73,15 @@ impl PyVecGraph {
         *self.g.scalar_mut() = scalar.into();
     }
 
-    fn clone(&self) -> PyVecGraph {
-        PyVecGraph { g: self.g.clone() }
+    fn clone<'py>(&self, py: Python<'py>) -> PyResult<PyVecGraph> {
+        Ok(PyVecGraph {
+            g: self.g.clone(),
+            track_phases: false,
+            phase_index: PyDict::new(py).unbind(),
+            max_phase_index: -1,
+            phase_master: None,
+            phase_mult: PyDict::new(py).unbind(),
+        })
     }
 
     fn inputs(&self) -> Vec<V> {
@@ -440,15 +465,18 @@ impl PyVecGraph {
     }
 
     #[pyo3(signature = (adjoint=false, backend=None))]
-    fn copy(&self, adjoint: bool, backend: Option<&str>) -> PyResult<PyVecGraph> {
+    fn copy<'py>(
+        &self,
+        py: Python<'py>,
+        adjoint: bool,
+        backend: Option<&str>,
+    ) -> PyResult<PyVecGraph> {
         if backend.is_some() && backend != Some("quizx-vec") {
             Err(PyNotImplementedError::new_err(
                 "Copy to other backends not implemented on backend: quizx-vec",
             ))
         } else {
-            Ok(PyVecGraph {
-                g: self.g.copy(adjoint),
-            })
+            Ok(PyVecGraph::from_graph(py, self.g.copy(adjoint)))
         }
     }
 
@@ -508,13 +536,13 @@ impl PyVecGraph {
         self.compose(other)
     }
 
-    fn __add__(&self, other: &Bound<'_, PyAny>) -> PyResult<PyVecGraph> {
-        let mut g = self.clone();
+    fn __add__<'py>(&self, py: Python<'py>, other: &Bound<'_, PyAny>) -> PyResult<PyVecGraph> {
+        let mut g = self.clone(py)?;
         g.compose(other)?;
         Ok(g)
     }
 
-    fn __mul__(&self, other: &Bound<'_, PyAny>) -> PyResult<PyVecGraph> {
+    fn __mul__<'py>(&self, py: Python<'py>, other: &Bound<'_, PyAny>) -> PyResult<PyVecGraph> {
         let mut other1 = other
             .downcast::<PyVecGraph>()
             .map_err(|_| {
@@ -523,12 +551,12 @@ impl PyVecGraph {
                 )
             })?
             .borrow()
-            .clone();
+            .clone(py)?;
         other1.g.plug(&self.g);
         Ok(other1)
     }
 
-    fn __matmul__(&self, other: &Bound<'_, PyAny>) -> PyResult<PyVecGraph> {
+    fn __matmul__<'py>(&self, py: Python<'py>, other: &Bound<'_, PyAny>) -> PyResult<PyVecGraph> {
         let mut other1 = other
             .downcast::<PyVecGraph>()
             .map_err(|_| {
@@ -537,7 +565,7 @@ impl PyVecGraph {
                 )
             })?
             .borrow()
-            .clone();
+            .clone(py)?;
         other1.g.plug(&self.g);
         Ok(other1)
     }
@@ -549,10 +577,8 @@ impl PyVecGraph {
         ))
     }
 
-    fn subgraph_from_vertices(&self, verts: Vec<V>) -> PyVecGraph {
-        PyVecGraph {
-            g: self.g.subgraph_from_vertices(verts),
-        }
+    fn subgraph_from_vertices<'py>(&self, py: Python<'py>, verts: Vec<V>) -> PyVecGraph {
+        PyVecGraph::from_graph(py, self.g.subgraph_from_vertices(verts))
     }
 
     fn apply_state(&mut self, state: String) {
@@ -581,7 +607,7 @@ impl PyVecGraph {
     fn to_tensor(&self, py: Python<'_>, preserve_scalar: bool) -> PyResult<PyObject> {
         let m = PyModule::import(py, "pyzx.tensor")?;
         let f = m.getattr("tensorfy")?;
-        Ok(f.call((self.clone(), preserve_scalar), None)?.unbind())
+        Ok(f.call((self.clone(py)?, preserve_scalar), None)?.unbind())
     }
 
     #[pyo3(signature = (preserve_scalar=true))]
@@ -590,7 +616,7 @@ impl PyVecGraph {
         let tensorfy = m.getattr("tensorfy")?;
         let tensor_to_matrix = m.getattr("tensor_to_matrix")?;
 
-        let tensor = tensorfy.call((self.clone(), preserve_scalar), None)?;
+        let tensor = tensorfy.call((self.clone(py)?, preserve_scalar), None)?;
         Ok(tensor_to_matrix
             .call((tensor, self.num_inputs(), self.num_outputs()), None)?
             .unbind())
@@ -665,12 +691,6 @@ impl PyVecGraph {
         ))
     }
 
-    fn set_phase_master(&self) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "Not implemented on backend: quizx-vec",
-        ))
-    }
-
     fn update_phase_index(&self) -> PyResult<()> {
         Err(PyNotImplementedError::new_err(
             "Not implemented on backend: quizx-vec",
@@ -729,5 +749,56 @@ impl PyVecGraph {
         Err(PyNotImplementedError::new_err(
             "Not implemented on backend: quizx-vec",
         ))
+    }
+
+    // Properties for BaseGraph compatibility fields
+    #[getter]
+    fn track_phases(&self) -> bool {
+        self.track_phases
+    }
+
+    #[setter]
+    fn set_track_phases(&mut self, value: bool) {
+        self.track_phases = value;
+    }
+
+    #[getter]
+    fn phase_index<'py>(&self, py: Python<'py>) -> PyResult<Py<PyDict>> {
+        Ok(self.phase_index.clone_ref(py))
+    }
+
+    #[setter]
+    fn set_phase_index(&mut self, value: Py<PyDict>) {
+        self.phase_index = value;
+    }
+
+    #[getter]
+    fn max_phase_index(&self) -> isize {
+        self.max_phase_index
+    }
+
+    #[setter]
+    fn set_max_phase_index(&mut self, value: isize) {
+        self.max_phase_index = value;
+    }
+
+    #[getter]
+    fn phase_master<'py>(&self, py: Python<'py>) -> Option<Py<PyAny>> {
+        self.phase_master.as_ref().map(|pm| pm.clone_ref(py))
+    }
+
+    #[setter]
+    fn set_phase_master(&mut self, value: Option<Py<PyAny>>) {
+        self.phase_master = value;
+    }
+
+    #[getter]
+    fn phase_mult<'py>(&self, py: Python<'py>) -> PyResult<Py<PyDict>> {
+        Ok(self.phase_mult.clone_ref(py))
+    }
+
+    #[setter]
+    fn set_phase_mult(&mut self, value: Py<PyDict>) {
+        self.phase_mult = value;
     }
 }

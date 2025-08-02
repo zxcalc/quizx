@@ -10,13 +10,13 @@ pub mod util;
 pub mod vec_graph;
 
 use crate::circuit::to_pyzx_circuit;
-use crate::decompose::{PyDecomposer, SimpFunc};
+use crate::decompose::{PyDecomposer, PySimpFunc};
 use crate::rankwidth::{PyDecompTree, PyRankwidthAnnealer};
 use crate::scalar::PyScalar;
 use crate::vec_graph::PyVecGraph;
 
-use ::quizx::extract::ExtractError;
-use ::quizx::extract::ToCircuit;
+use ::quizx::circuit::Circuit;
+use ::quizx::extract::{ExtractError, ToCircuit};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
@@ -33,21 +33,21 @@ fn quizx(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyVecGraph>()?;
     m.add_class::<PyDecomposer>()?;
     m.add_class::<PyRankwidthAnnealer>()?;
-    m.add_class::<SimpFunc>()?;
+    m.add_class::<PySimpFunc>()?;
     m.add_class::<PyScalar>()?;
     m.add_class::<PyDecompTree>()?;
     Ok(())
 }
 
 #[pyfunction(name = "Graph")]
-fn new_graph() -> PyVecGraph {
-    PyVecGraph::new()
+fn new_graph<'py>(py: Python<'py>) -> PyVecGraph {
+    PyVecGraph::new(py)
 }
 
 #[pyfunction]
-fn qasm(source: &str) -> PyResult<PyVecGraph> {
-    let c = ::quizx::circuit::Circuit::from_qasm(source).map_err(PyValueError::new_err)?;
-    Ok(PyVecGraph { g: c.to_graph() })
+fn qasm<'py>(py: Python<'py>, source: &str) -> PyResult<PyVecGraph> {
+    let c = Circuit::from_qasm(source).map_err(PyValueError::new_err)?;
+    Ok(PyVecGraph::from_graph(py, c.to_graph()))
 }
 
 #[pyfunction]
