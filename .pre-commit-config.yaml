@@ -52,14 +52,14 @@ repos:
       - id: ruff format
         name: ruff format
         description: Format python code with `ruff format`.
-        entry: uv run ruff format
+        entry: uv run ruff format --exclude scratchpads
         language: system
         files: \.py$
         pass_filenames: false
       - id: ruff lint
         name: ruff lint
         description: Lint python code with `ruff lint`.
-        entry: uv run ruff check
+        entry: uv run ruff check --exclude scratchpads
         language: system
         files: \.py$
         pass_filenames: false
