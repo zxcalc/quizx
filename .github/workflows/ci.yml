@@ -164,7 +164,7 @@ jobs:
       - name: Install the project libraries
         run: uv sync --frozen
       - name: Check python formatting with ruff
-        run: uv run ruff format --check
+        run: uv run ruff format --check --exclude scratchpads
 
   # Python linting with ruff  
   python-ruff-lint:
@@ -181,7 +181,7 @@ jobs:
       - name: Install the project libraries
         run: uv sync --frozen
       - name: Lint python with ruff
-        run: uv run ruff check
+        run: uv run ruff check --exclude scratchpads
 
   test-quizx-stable:
     needs: changes

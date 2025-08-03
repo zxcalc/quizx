@@ -1,28 +1,30 @@
+use quizx::decompose::{Decomposer, SimpFunc};
+
 use crate::vec_graph::PyVecGraph;
-use crate::PyScalar;
+use crate::PyScalar4;
 use pyo3::prelude::*;
 
-#[pyclass]
+#[pyclass(name = "SimpFunc")]
 #[derive(Clone, Debug)]
-pub enum SimpFunc {
+pub enum PySimpFunc {
     FullSimp,
     CliffordSimp,
     NoSimp,
 }
 
-impl From<SimpFunc> for ::quizx::decompose::SimpFunc {
-    fn from(s: SimpFunc) -> Self {
+impl From<PySimpFunc> for SimpFunc {
+    fn from(s: PySimpFunc) -> Self {
         match s {
-            SimpFunc::FullSimp => ::quizx::decompose::SimpFunc::FullSimp,
-            SimpFunc::CliffordSimp => ::quizx::decompose::SimpFunc::CliffordSimp,
-            SimpFunc::NoSimp => ::quizx::decompose::SimpFunc::NoSimp,
+            PySimpFunc::FullSimp => SimpFunc::FullSimp,
+            PySimpFunc::CliffordSimp => SimpFunc::CliffordSimp,
+            PySimpFunc::NoSimp => SimpFunc::NoSimp,
         }
     }
 }
 
 #[pyclass(name = "Decomposer")]
 pub struct PyDecomposer {
-    d: ::quizx::decompose::Decomposer<::quizx::vec_graph::Graph>,
+    d: Decomposer<::quizx::vec_graph::Graph>,
 }
 
 #[pymethods]
@@ -30,14 +32,14 @@ impl PyDecomposer {
     #[staticmethod]
     fn empty() -> PyDecomposer {
         PyDecomposer {
-            d: ::quizx::decompose::Decomposer::empty(),
+            d: Decomposer::empty(),
         }
     }
 
     #[new]
     #[pyo3(signature = (g, *, save=None, simp=None))]
-    fn new(g: &PyVecGraph, save: Option<bool>, simp: Option<SimpFunc>) -> PyDecomposer {
-        let mut d = ::quizx::decompose::Decomposer::new(&g.g);
+    fn new(g: &PyVecGraph, save: Option<bool>, simp: Option<PySimpFunc>) -> PyDecomposer {
+        let mut d = Decomposer::new(&g.g);
 
         if let Some(save) = save {
             d.with_save(save);
@@ -50,15 +52,15 @@ impl PyDecomposer {
         PyDecomposer { d }
     }
 
-    fn done(&self) -> PyResult<Vec<PyVecGraph>> {
+    fn done<'py>(&self, py: Python<'py>) -> PyResult<Vec<PyVecGraph>> {
         let mut gs = vec![];
         for g in &self.d.done {
-            gs.push(PyVecGraph { g: g.clone() });
+            gs.push(PyVecGraph::from_graph(py, g.clone()));
         }
         Ok(gs)
     }
 
-    fn with_simp(&mut self, simp: SimpFunc) {
+    fn with_simp(&mut self, simp: PySimpFunc) {
         self.d.with_simp(simp.into());
     }
 
@@ -200,7 +202,7 @@ impl PyDecomposer {
         self.d.nterms
     }
 
-    fn get_scalar(&self) -> PyScalar {
+    fn get_scalar(&self) -> PyScalar4 {
         self.d.scalar().into()
     }
 
