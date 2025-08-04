@@ -145,6 +145,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Install rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Build quizx crate
+        run: cargo build -p quizx
       - name: Install uv
         uses: astral-sh/setup-uv@v6
         with:
@@ -162,6 +169,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Install rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Build quizx crate
+        run: cargo build -p quizx
       - name: Install uv
         uses: astral-sh/setup-uv@v6
         with:
@@ -179,6 +193,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Install rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Build quizx crate
+        run: cargo build -p quizx
       - name: Install uv
         uses: astral-sh/setup-uv@v6
         with:
