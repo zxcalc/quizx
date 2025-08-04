@@ -344,8 +344,10 @@ impl DecompTree {
         );
 
         let d = self.nodes[b].other_neighbor(&[c]);
-        self.swap_subtrees((c, a), (b, d));
+        self.clear_rank((c, a));
+        self.clear_rank((b, d));
         self.clear_rank((b, c));
+        self.swap_subtrees((c, a), (b, d));
     }
 
     /// Check the decomposition tree gives a valid partition of the graph
