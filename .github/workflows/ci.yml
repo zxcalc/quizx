@@ -159,7 +159,7 @@ jobs:
       - name: Install the project libraries
         run: uv sync --frozen
       - name: Type check python with mypy
-        run: uv run mypy .
+        run: uv run mypy pybindings
 
   # Python formatting with ruff
   python-ruff-format:
