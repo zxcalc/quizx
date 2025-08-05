@@ -57,11 +57,11 @@ jobs:
             - 'Cargo.toml'
             - 'pyproject.toml'
 
-  # Rust formatting check for quizx
-  rust-fmt-quizx:
-    name: 🦀 Rust formatting (quizx)
+  # Rust formatting check
+  rust-fmt:
+    name: 🦀 Rust formatting
     needs: changes
-    if: ${{ needs.changes.outputs.quizx == 'true' }}
+    if: ${{ needs.changes.outputs.quizx == 'true' || needs.changes.outputs.pybindings == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -70,30 +70,18 @@ jobs:
         with:
           components: rustfmt
       - uses: mozilla-actions/sccache-action@v0.0.9
-      - name: Check rust formatting
+      - name: Check rust formatting (quizx)
+        if: ${{ needs.changes.outputs.quizx == 'true' }}
         run: cargo fmt -p quizx -- --check
-
-  # Rust formatting check for pybindings
-  rust-fmt-pybindings:
-    name: 🦀 Rust formatting (pybindings)
-    needs: changes
-    if: ${{ needs.changes.outputs.pybindings == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - uses: mozilla-actions/sccache-action@v0.0.9
-      - name: Check rust formatting
+      - name: Check rust formatting (pybindings)
+        if: ${{ needs.changes.outputs.pybindings == 'true' }}
         run: cargo fmt -p quizx_pybindings -- --check
 
-  # Rust clippy check for quizx
-  rust-clippy-quizx:
-    name: 🦀 Rust clippy (quizx)
+  # Rust clippy check
+  rust-clippy:
+    name: 🦀 Rust clippy
     needs: changes
-    if: ${{ needs.changes.outputs.quizx == 'true' }}
+    if: ${{ needs.changes.outputs.quizx == 'true' || needs.changes.outputs.pybindings == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -102,23 +90,11 @@ jobs:
         with:
           components: clippy
       - uses: mozilla-actions/sccache-action@v0.0.9
-      - name: Run clippy
+      - name: Run clippy (quizx)
+        if: ${{ needs.changes.outputs.quizx == 'true' }}
         run: cargo clippy --all-targets --all-features -p quizx -- ${{ env.CLIPPY_FLAGS }}
-
-  # Rust clippy check for pybindings
-  rust-clippy-pybindings:
-    name: 🦀 Rust clippy (pybindings)
-    needs: changes
-    if: ${{ needs.changes.outputs.pybindings == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-      - uses: mozilla-actions/sccache-action@v0.0.9
-      - name: Run clippy
+      - name: Run clippy (pybindings)
+        if: ${{ needs.changes.outputs.pybindings == 'true' }}
         run: cargo clippy --all-targets --all-features -p quizx_pybindings -- ${{ env.CLIPPY_FLAGS }}
 
   # Rust documentation for quizx
@@ -286,7 +262,7 @@ jobs:
   # even if they are skipped due to no changes in the relevant files.
   required-checks:
     name: Required checks 🐍
-    needs: [changes, rust-fmt-quizx, rust-fmt-pybindings, rust-clippy-quizx, rust-clippy-pybindings, rust-doc-quizx, python-mypy, python-ruff-format, python-ruff-lint, test-quizx-stable, test-pybindings]
+    needs: [changes, rust-fmt, rust-clippy, rust-doc-quizx, python-mypy, python-ruff-format, python-ruff-lint, test-quizx-stable, test-pybindings]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
@@ -297,10 +273,8 @@ jobs:
         # See https://github.com/orgs/community/discussions/80788
         if: |
           needs.changes.result == 'failure' || needs.changes.result == 'cancelled' ||
-          needs.rust-fmt-quizx.result == 'failure' || needs.rust-fmt-quizx.result == 'cancelled' ||
-          needs.rust-fmt-pybindings.result == 'failure' || needs.rust-fmt-pybindings.result == 'cancelled' ||
-          needs.rust-clippy-quizx.result == 'failure' || needs.rust-clippy-quizx.result == 'cancelled' ||
-          needs.rust-clippy-pybindings.result == 'failure' || needs.rust-clippy-pybindings.result == 'cancelled' ||
+          needs.rust-fmt.result == 'failure' || needs.rust-fmt.result == 'cancelled' ||
+          needs.rust-clippy.result == 'failure' || needs.rust-clippy.result == 'cancelled' ||
           needs.rust-doc-quizx.result == 'failure' || needs.rust-doc-quizx.result == 'cancelled' ||
           needs.python-mypy.result == 'failure' || needs.python-mypy.result == 'cancelled' ||
           needs.python-ruff-format.result == 'failure' || needs.python-ruff-format.result == 'cancelled' ||
