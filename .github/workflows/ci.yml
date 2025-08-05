@@ -63,6 +63,8 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.quizx == 'true' || needs.changes.outputs.pybindings == 'true' }}
     runs-on: ubuntu-latest
+    env:
+      RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@v4
       - name: Install stable toolchain
@@ -83,6 +85,8 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.quizx == 'true' || needs.changes.outputs.pybindings == 'true' }}
     runs-on: ubuntu-latest
+    env:
+      RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@v4
       - name: Install stable toolchain
@@ -103,6 +107,8 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.quizx == 'true' }}
     runs-on: ubuntu-latest
+    env:
+      RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@v4
       - name: Install stable toolchain
@@ -119,6 +125,8 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.pybindings == 'true' }}
     runs-on: ubuntu-latest
+    env:
+      RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@v4
       - uses: mozilla-actions/sccache-action@v0.0.9
@@ -143,6 +151,8 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.pybindings == 'true' }}
     runs-on: ubuntu-latest
+    env:
+      RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@v4
       - uses: mozilla-actions/sccache-action@v0.0.9
@@ -167,6 +177,8 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.pybindings == 'true' }}
     runs-on: ubuntu-latest
+    env:
+      RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@v4
       - uses: mozilla-actions/sccache-action@v0.0.9
@@ -190,6 +202,8 @@ jobs:
     if: ${{ needs.changes.outputs.quizx == 'true' }}
     runs-on: ubuntu-latest
     name: 🦀 Test quizx (Rust stable)
+    env:
+      RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@v4
       - uses: mozilla-actions/sccache-action@v0.0.9
@@ -215,6 +229,8 @@ jobs:
       matrix:
         rust: ['1.81', beta, nightly]
     name: 🦀 Test quizx (Rust ${{ matrix.rust }})
+    env:
+      RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@v4
       - id: toolchain
@@ -236,6 +252,8 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.pybindings == 'true' }}
     runs-on: ubuntu-latest
+    env:
+      RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@v4
       - uses: mozilla-actions/sccache-action@v0.0.9
