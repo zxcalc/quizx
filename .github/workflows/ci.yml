@@ -72,12 +72,8 @@ jobs:
         with:
           components: rustfmt
       - uses: mozilla-actions/sccache-action@v0.0.9
-      - name: Check rust formatting (quizx)
-        if: ${{ needs.changes.outputs.quizx == 'true' }}
-        run: cargo fmt -p quizx -- --check
-      - name: Check rust formatting (pybindings)
-        if: ${{ needs.changes.outputs.pybindings == 'true' }}
-        run: cargo fmt -p quizx_pybindings -- --check
+      - name: Check rust formatting (workspace)
+        run: cargo fmt --all -- --check
 
   # Rust clippy check
   rust-clippy:
@@ -94,12 +90,8 @@ jobs:
         with:
           components: clippy
       - uses: mozilla-actions/sccache-action@v0.0.9
-      - name: Run clippy (quizx)
-        if: ${{ needs.changes.outputs.quizx == 'true' }}
-        run: cargo clippy --all-targets --all-features -p quizx -- ${{ env.CLIPPY_FLAGS }}
-      - name: Run clippy (pybindings)
-        if: ${{ needs.changes.outputs.pybindings == 'true' }}
-        run: cargo clippy --all-targets --all-features -p quizx_pybindings -- ${{ env.CLIPPY_FLAGS }}
+      - name: Run clippy (workspace)
+        run: cargo clippy --workspace --all-targets --all-features -- ${{ env.CLIPPY_FLAGS }}
 
   # Rust documentation for quizx
   rust-doc-quizx:
