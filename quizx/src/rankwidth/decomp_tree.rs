@@ -274,7 +274,6 @@ impl DecompTree {
         let p1 = self.nodes[l1].parent();
         let l2 = self.leaves[i2];
         let p2 = self.nodes[l2].parent();
-        self.swap_subtrees((p1, l1), (p2, l2));
 
         let path = self.path(l1, l2);
         let mut x = path[0];
@@ -282,6 +281,8 @@ impl DecompTree {
             self.clear_rank((x, y));
             x = y;
         }
+
+        self.swap_subtrees((p1, l1), (p2, l2));
     }
 
     pub fn move_random_subtree(&mut self, rng: &mut impl rand::Rng) {
@@ -302,8 +303,6 @@ impl DecompTree {
             }
         }
 
-        self.move_subtree(&path);
-
         // TODO: only clear ranks that may have changed
         self.clear_ranks();
         // let mut x = path[0];
@@ -311,6 +310,8 @@ impl DecompTree {
         //     self.clear_rank((x, y));
         //     x = y;
         // }
+
+        self.move_subtree(&path);
     }
 
     pub fn random_local_swap(&mut self, rng: &mut impl rand::Rng) {
@@ -344,8 +345,10 @@ impl DecompTree {
         );
 
         let d = self.nodes[b].other_neighbor(&[c]);
-        self.swap_subtrees((c, a), (b, d));
+        self.clear_rank((c, a));
+        self.clear_rank((b, d));
         self.clear_rank((b, c));
+        self.swap_subtrees((c, a), (b, d));
     }
 
     /// Check the decomposition tree gives a valid partition of the graph

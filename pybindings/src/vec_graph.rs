@@ -997,7 +997,7 @@ pub fn from_pyzx_scalar<'py>(py: Python<'py>, pyzx_scalar: PyObject) -> PyResult
         .into_iter()
         .for_each(|f| {
             let s1 = Scalar4::one_plus_phase(from_fraction_like(py, f));
-            s += s1;
+            s *= s1;
         });
 
     let floatfactor: Scalar4 = pyzx_scalar
