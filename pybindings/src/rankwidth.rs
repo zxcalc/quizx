@@ -97,6 +97,21 @@ impl PyDecompTree {
         self.0.rankwidth_score(&graph.g)
     }
 
+    /// Compute the contraction rankwidth of the tree given a graph
+    fn contraction_rankwidth(&mut self, graph: &PyVecGraph) -> usize {
+        self.0.contraction_rankwidth(&graph.g)
+    }
+
+    /// Compute the contraction rankwidth score (sum of squares of contraction ranks)
+    fn contraction_rankwidth_score(&mut self, graph: &PyVecGraph) -> usize {
+        self.0.contraction_rankwidth_score(&graph.g)
+    }
+
+    /// Get the contraction rank of a node
+    fn contraction_rank(&mut self, node: usize) -> Option<usize> {
+        self.0.contraction_rank(node)
+    }
+
     /// Set the rank of an edge
     fn set_rank(&mut self, edge: (usize, usize), rank: usize) {
         self.0.set_rank(edge, rank)
@@ -237,7 +252,7 @@ pub struct PyRankwidthAnnealer(RankwidthAnnealer<rand::rngs::StdRng, quizx::vec_
 impl PyRankwidthAnnealer {
     /// Create a new annealer with a random initial decomposition
     #[new]
-    #[pyo3(signature = (graph, seed=None, init_decomp=None, init_temp=None, min_temp=None, cooling_rate=None, adaptive_cooling=None, iterations=None))]
+    #[pyo3(signature = (graph, seed=None, init_decomp=None, init_temp=None, min_temp=None, cooling_rate=None, adaptive_cooling=None, iterations=None, contraction_rankwidth=None))]
     #[allow(clippy::too_many_arguments)]
     fn new(
         graph: &PyVecGraph,
@@ -248,6 +263,7 @@ impl PyRankwidthAnnealer {
         cooling_rate: Option<f64>,
         adaptive_cooling: Option<bool>,
         iterations: Option<usize>,
+        contraction_rankwidth: Option<bool>,
     ) -> Self {
         use rand::{rngs::StdRng, SeedableRng};
         let rng = if let Some(s) = seed {
@@ -275,6 +291,9 @@ impl PyRankwidthAnnealer {
         }
         if let Some(iter) = iterations {
             annealer.set_iterations(iter);
+        }
+        if let Some(contraction) = contraction_rankwidth {
+            annealer.set_contraction_rankwidth(contraction);
         }
 
         annealer
@@ -316,6 +335,12 @@ impl PyRankwidthAnnealer {
         self.0.set_iterations(iterations);
     }
 
+    /// Set whether to use contraction rankwidth
+    #[setter]
+    fn set_contraction_rankwidth(&mut self, contraction_rankwidth: bool) {
+        self.0.set_contraction_rankwidth(contraction_rankwidth);
+    }
+
     /// Get the initial decomposition tree
     fn init_decomp(&self) -> PyDecompTree {
         PyDecompTree(self.0.init_decomp().clone())
@@ -349,6 +374,12 @@ impl PyRankwidthAnnealer {
     #[getter]
     fn iterations(&self) -> usize {
         self.0.iterations()
+    }
+
+    /// Get whether contraction rankwidth is being used
+    #[getter]
+    fn contraction_rankwidth(&self) -> bool {
+        self.0.contraction_rankwidth()
     }
 
     /// Run the simulated annealing algorithm and return the best decomposition found
