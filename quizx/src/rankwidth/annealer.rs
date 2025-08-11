@@ -108,12 +108,35 @@ impl<R: Rng, G: GraphLike> RankwidthAnnealer<R, G> {
         self.contraction_rankwidth
     }
 
+    /// Function used to drive the annealer
+    ///
+    /// While we are actually trying to minimise `cost`, this function empirically
+    /// behaves better for annealing, as it takes into account all of the ranks, not
+    /// just the maximum one.
+    fn score(&self, decomp: &mut DecompTree) -> usize {
+        if self.contraction_rankwidth {
+            decomp.contraction_rankwidth_score(&self.graph)
+        } else {
+            decomp.rankwidth_score(&self.graph)
+        }
+    }
+
+    /// Function we are trying to minimise
+    fn cost(&self, decomp: &mut DecompTree) -> usize {
+        if self.contraction_rankwidth {
+            decomp.contraction_rankwidth(&self.graph)
+        } else {
+            decomp.rankwidth(&self.graph)
+        }
+    }
+
     pub fn run(&mut self) -> DecompTree {
-        let mut best_width = self.init_decomp.rankwidth(&self.graph);
-        let mut best_score = self.init_decomp.rankwidth_score(&self.graph);
-        let mut old_score = self.init_decomp.rankwidth_score(&self.graph);
         let mut best_decomp = self.init_decomp.clone();
         let mut old_decomp = self.init_decomp.clone();
+        let mut best_width = self.cost(&mut best_decomp);
+        let mut best_score = self.score(&mut best_decomp);
+        let mut old_score = self.score(&mut old_decomp);
+
         let mut temp = self.init_temp;
 
         // operators chosen with weights:
@@ -131,7 +154,7 @@ impl<R: Rng, G: GraphLike> RankwidthAnnealer<R, G> {
                 decomp.move_random_subtree(&mut self.rng);
             }
 
-            let score = decomp.rankwidth_score(&self.graph);
+            let score = self.score(&mut decomp);
 
             let keep = if score < old_score {
                 true
@@ -151,7 +174,7 @@ impl<R: Rng, G: GraphLike> RankwidthAnnealer<R, G> {
             };
 
             if keep {
-                let width = decomp.rankwidth(&self.graph);
+                let width = self.cost(&mut decomp);
                 if width < best_width {
                     best_width = width;
                     best_decomp = decomp.clone();
