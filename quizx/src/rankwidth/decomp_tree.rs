@@ -240,6 +240,22 @@ impl DecompTree {
         self.ranks.values().map(|r| r * r).sum()
     }
 
+    pub fn contraction_rankwidth(&mut self, graph: &impl GraphLike) -> usize {
+        self.compute_ranks(graph);
+        (0..self.nodes.len())
+            .filter_map(|n| self.contraction_rank(n))
+            .max()
+            .unwrap_or(0)
+    }
+
+    pub fn contraction_rankwidth_score(&mut self, graph: &impl GraphLike) -> usize {
+        self.compute_ranks(graph);
+        (0..self.nodes.len())
+            .filter_map(|n| self.contraction_rank(n))
+            .map(|r| r * r)
+            .sum()
+    }
+
     pub fn set_rank(&mut self, e: (usize, usize), rank: usize) {
         let e = if e.0 < e.1 { e } else { (e.1, e.0) };
         self.ranks.insert(e, rank);
@@ -257,6 +273,23 @@ impl DecompTree {
     pub fn rank(&mut self, e: (usize, usize)) -> Option<usize> {
         let e = if e.0 < e.1 { e } else { (e.1, e.0) };
         self.ranks.get(&e).copied()
+    }
+
+    /// Returns the contraction rank of a node
+    ///
+    /// For leaves, the contraction rank is the cutrank of its adjacent edge. For interior nodes, it
+    /// is the sum of the two smallest cutranks of adjacent edges.
+    pub fn contraction_rank(&mut self, n: usize) -> Option<usize> {
+        match self.nodes[n] {
+            DecompNode::Leaf([m], _) => self.rank((n, m)),
+            DecompNode::Interior(nhd) => {
+                let mut ranks = Vec::new();
+                for m in nhd {
+                    ranks.push(self.rank((n, m))?);
+                }
+                Some(ranks.iter().sum::<usize>() - ranks.into_iter().max().unwrap())
+            }
+        }
     }
 
     pub fn swap_random_leaves(&mut self, rng: &mut impl rand::Rng) {

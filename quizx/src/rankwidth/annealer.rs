@@ -7,6 +7,7 @@ pub struct RankwidthAnnealer<R: Rng, G: GraphLike> {
     rng: R,
     graph: G,
     init_decomp: DecompTree,
+    contraction_rankwidth: bool,
     init_temp: f64,
     min_temp: f64,
     cooling_rate: f64,
@@ -21,6 +22,7 @@ impl<R: Rng, G: GraphLike> RankwidthAnnealer<R, G> {
             rng,
             graph,
             init_decomp,
+            contraction_rankwidth: false,
             init_temp: 5.0,
             min_temp: 0.01,
             cooling_rate: 0.95,
@@ -34,6 +36,7 @@ impl<R: Rng, G: GraphLike> RankwidthAnnealer<R, G> {
             rng,
             graph,
             init_decomp,
+            contraction_rankwidth: false,
             init_temp: 5.0,
             min_temp: 0.05,
             cooling_rate: 0.95,
@@ -44,6 +47,11 @@ impl<R: Rng, G: GraphLike> RankwidthAnnealer<R, G> {
 
     pub fn set_init_decomp(&mut self, init_decomp: DecompTree) -> &mut Self {
         self.init_decomp = init_decomp;
+        self
+    }
+
+    pub fn set_contraction_rankwidth(&mut self, contraction_rankwidth: bool) -> &mut Self {
+        self.contraction_rankwidth = contraction_rankwidth;
         self
     }
 
