@@ -122,7 +122,7 @@ pub trait QubitOps<A: TensorElem> {
     fn hadamard_at(&mut self, i: usize);
 
     /// split into two non-overlapping pieces, where index q=0 and q=1
-    fn slice_qubit_mut(&mut self, q: usize) -> (ArrayViewMut<A, IxDyn>, ArrayViewMut<A, IxDyn>);
+    fn slice_qubit_mut(&mut self, q: usize) -> (ArrayViewMut<'_, A, IxDyn>, ArrayViewMut<'_, A, IxDyn>);
 
     /// contract the last n qubit indices with the first n qubits of other
     ///
@@ -177,7 +177,7 @@ impl<A: TensorElem> CompareTensors for Tensor<A> {
 }
 
 impl<A: TensorElem> QubitOps<A> for Tensor<A> {
-    fn slice_qubit_mut(&mut self, q: usize) -> (ArrayViewMut<A, IxDyn>, ArrayViewMut<A, IxDyn>) {
+    fn slice_qubit_mut(&mut self, q: usize) -> (ArrayViewMut<'_, A, IxDyn>, ArrayViewMut<'_, A, IxDyn>) {
         let slice0: SliceInfo<_, IxDyn, IxDyn> =
             SliceInfo::try_from(Vec::from_iter((0..self.ndim()).map(|i| {
                 if i == q {
