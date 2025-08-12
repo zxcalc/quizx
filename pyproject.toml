@@ -22,3 +22,6 @@ build-backend = "hatchling.build"
 manifest-path = "pybindings/Cargo.toml"
 python-source = "pybindings"
 module-name = "quizx"
+
+[tool.ruff]
+exclude = ["scratchpads"]
