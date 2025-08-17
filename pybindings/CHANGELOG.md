@@ -5,6 +5,28 @@
 ## Added
 - `add_edge` method to `VecGraph` class.
 
+## [0.4.0](https://github.com/zxcalc/quizx/compare/quizx-py-v0.3.0...quizx-py-v0.4.0) (2025-08-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* 
+* 
+* 
+
+### Features
+
+* Added dyadic rational type and new scalars based on this type ([#158](https://github.com/zxcalc/quizx/issues/158)) ([d6b63cb](https://github.com/zxcalc/quizx/commit/d6b63cb7d4cead3236081f12c1c2410ec55a7e22))
+* added keyword args and properties to bindings ([#169](https://github.com/zxcalc/quizx/issues/169)) ([38a9da5](https://github.com/zxcalc/quizx/commit/38a9da5defe8c325515f18f58324eb41e48d8402))
+* Python bindings for rankwidth functions ([#168](https://github.com/zxcalc/quizx/issues/168)) ([4f7d47d](https://github.com/zxcalc/quizx/commit/4f7d47d2ad628fa448b1ffc6834fac70a6941654))
+
+
+### Bug Fixes
+
+* added missing methods to VecGraph bindings ([#170](https://github.com/zxcalc/quizx/issues/170)) ([5f4b111](https://github.com/zxcalc/quizx/commit/5f4b111bf7d99b57781f7e62aa9cdcaf5e609204))
+* bug in conversion from pyzx scalar ([81e198e](https://github.com/zxcalc/quizx/commit/81e198e242aa161ec03ef9a6ba5d87fd1d5e9005))
+* bug in cutrank caching ([#173](https://github.com/zxcalc/quizx/issues/173)) ([83300c6](https://github.com/zxcalc/quizx/commit/83300c6e278d77223130c3ee1b736c29b37c27b5))
+
 ## [0.3.0](https://github.com/zxcalc/quizx/compare/quizx-py-v0.2.0...quizx-py-v0.3.0) (2025-06-12)
 
 
