@@ -4,6 +4,23 @@ This is the changelog for the `quizx` rust library.
 For the changelog of the `quizx` python library, see the separate [`CHANGELOG.md`](https://github.com/zxcalc/quizx/blob/master/pybindings/CHANGELOG.md) file.
 
 
+## [0.4.0](https://github.com/zxcalc/quizx/compare/quizx@v0.3.0...quizx@v0.4.0) - 2025-08-07
+
+### Bug Fixes
+
+- typo in README
+- bug in cutrank caching ([#173](https://github.com/zxcalc/quizx/pull/173))
+- remove stale edges from rank cache
+- another caching bug in rankwidth
+
+### New Features
+
+- [**breaking**] Added dyadic rational type and new scalars based on this type ([#158](https://github.com/zxcalc/quizx/pull/158))
+- use bitgauss library for fast F2 linear algebra ([#161](https://github.com/zxcalc/quizx/pull/161))
+- [**breaking**] low-rankwidth decompositions of ZX diagrams ([#166](https://github.com/zxcalc/quizx/pull/166))
+- [**breaking**] Python bindings for rankwidth functions ([#168](https://github.com/zxcalc/quizx/pull/168))
+- added keyword args and properties to bindings ([#169](https://github.com/zxcalc/quizx/pull/169))
+
 ## [0.3.0](https://github.com/zxcalc/quizx/compare/quizx@v0.2.0...quizx@v0.3.0) - 2025-06-12
 
 ### Bug Fixes
