@@ -198,10 +198,13 @@ impl GraphLike for Graph {
             }
             self.holes.remove(h.unwrap());
         } else {
-            for i in self.vdata.len()..(v) {
+            for i in self.vdata.len()..=(v) {
                 self.vdata.push(None);
                 self.edata.push(None);
-                self.holes.push(i);
+
+                if i != v {
+                    self.holes.push(i);
+                }
             }
         }
 
