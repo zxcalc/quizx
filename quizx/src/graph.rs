@@ -912,6 +912,43 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
 
         adj
     }
+
+    /// Renames a vertex in the graph. Panics if the new name is already taken
+    fn rename_vertex(&mut self, old: V, new: V) {
+        if old != new && self.contains_vertex(new) {
+            panic!("New vertex name already exists in the graph");
+        }
+
+        println!("Graph before rename:\n{}", self.to_dot());
+
+        println!("Renaming vertex {} to {}", old, new);
+
+        let data = self.vertex_data(old).clone();
+        let nhd = self.incident_edge_vec(old);
+        // println!("Neighborhood: {:?}", nhd);
+        self.remove_vertex(old);
+
+        self.add_named_vertex_with_data(new, data)
+            .expect("Failed to add new vertex");
+
+        for (neighbor, ety) in nhd {
+            if neighbor != old {
+                self.add_edge_with_type(new, neighbor, ety);
+            } else {
+                self.add_edge_with_type(new, new, ety);
+            }
+        }
+
+        if let Some(pos) = self.inputs().iter().position(|&x| x == old) {
+            self.inputs_mut()[pos] = new;
+        }
+
+        if let Some(pos) = self.outputs().iter().position(|&x| x == old) {
+            self.outputs_mut()[pos] = new;
+        }
+
+        println!("Graph after rename:\n{}", self.to_dot());
+    }
 }
 
 #[cfg(test)]
@@ -1138,5 +1175,48 @@ mod tests {
             graph.connected(v2, new_node),
             "v2 should be connected to new node"
         );
+    }
+
+    #[test]
+    fn test_rename_vertex() {
+        let mut g = Graph::new();
+
+        // Add vertices
+        let v0 = g.add_vertex(VType::B); // boundary
+        let v1 = g.add_vertex(VType::Z); // Z spider with phase
+        let v2 = g.add_vertex(VType::X); // X spider
+        let v3 = g.add_vertex(VType::B); // boundary
+
+        // Set some properties
+        g.set_phase(v1, Phase::from(Rational64::new(1, 4))); // π/4 phase
+        g.set_coord(v1, Coord::new(1.0, 2.0));
+        g.set_coord(v2, Coord::new(2.0, 3.0));
+
+        // Add edges
+        g.add_edge(v0, v1);
+        g.add_edge_with_type(v1, v2, EType::H); // Hadamard edge
+        g.add_edge(v2, v3);
+
+        // Set inputs and outputs
+        g.set_inputs(vec![v0]);
+        g.set_outputs(vec![v3]);
+
+        // Rename v1 to a new index (use the next available index)
+        let new_name = 10;
+        let mut h = g.clone();
+        h.rename_vertex(v1, new_name);
+
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
+    }
+
+    #[test]
+    #[should_panic(expected = "New vertex name already exists in the graph")]
+    fn test_rename_vertex_panic_on_existing_name() {
+        let mut g = Graph::new();
+        let v1 = g.add_vertex(VType::Z);
+        let v2 = g.add_vertex(VType::X);
+
+        // This should panic because v2 already exists
+        g.rename_vertex(v1, v2);
     }
 }
