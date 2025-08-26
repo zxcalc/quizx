@@ -453,9 +453,9 @@ fn unfuse_boundary(g: &mut impl GraphLike, v: V, b: V) {
 ///
 /// If the vertex already has a Pauli phase, this is a noop.
 #[inline]
-fn unfuse_gadget(g: &mut impl GraphLike, v: V) {
+fn unfuse_gadget(g: &mut impl GraphLike, v: V) -> Option<(V, V)> {
     if g.phase(v).is_pauli() {
-        return;
+        return None;
     }
     let vd1 = VData {
         ty: VType::Z,
@@ -479,6 +479,7 @@ fn unfuse_gadget(g: &mut impl GraphLike, v: V) {
     // of the Clifford simplifications.
     g.add_edge_with_type(v, v1, EType::H);
     g.add_edge_with_type(v1, v2, EType::H);
+    Some((v1, v2))
 }
 
 /// Check gen_pivot applies
@@ -585,15 +586,35 @@ pub fn gen_pivot_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     }
 
     pivot_unchecked(g, v0, v1);
-
-    // for &n in nhd0.iter().chain(nhd1.iter()) {
-    //      if g.contains_vertex(n) {
-    //          if remove_id(g, n) { println!("REMOVED EXTRA: {}", n); }
-    //      }
-    //  }
 }
 
-checked_rule2!(check_gen_pivot, gen_pivot_unchecked, gen_pivot);
+#[inline]
+pub fn gen_pivot_rename_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
+    let nhd0 = g.neighbor_vec(v0);
+    let new0 = unfuse_gadget(g, v0);
+    for &n in &nhd0 {
+        unfuse_boundary(g, v0, n);
+    }
+
+    let nhd1 = g.neighbor_vec(v1);
+    let new1 = unfuse_gadget(g, v1);
+    for &n in &nhd1 {
+        unfuse_boundary(g, v1, n);
+    }
+
+    pivot_unchecked(g, v0, v1);
+
+    // the newly create vertices should claim the old names of v0 and v1
+    if let Some((hub0, phase0)) = new0 {
+        g.rename_vertex(phase0, v0);
+        g.rename_vertex(hub0, v1);
+    } else if let Some((hub1, phase1)) = new1 {
+        g.rename_vertex(hub1, v0);
+        g.rename_vertex(phase1, v1);
+    }
+}
+
+checked_rule2!(check_gen_pivot, gen_pivot_rename_unchecked, gen_pivot);
 checked_rule2!(check_boundary_pivot, gen_pivot_unchecked, boundary_pivot);
 checked_rule2!(
     check_h_boundary_pivot,

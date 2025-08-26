@@ -209,6 +209,7 @@ impl GraphLike for Graph {
         }
 
         self.numv += 1;
+
         self.vdata[v] = Some(d);
         self.edata[v] = Some(Vec::new());
         Ok(())

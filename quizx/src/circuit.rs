@@ -704,6 +704,7 @@ mod tests {
     #[test]
     fn tograph_simplify() {
         let c = Circuit::random()
+            .seed(46)
             .qubits(4)
             .depth(20)
             .with_cliffords()
@@ -711,5 +712,24 @@ mod tests {
         let g1 = c.to_graph::<Graph>();
         let g2 = c.to_graph_with_options::<Graph>(true, false);
         assert_eq!(g1.to_tensor4(), g2.to_tensor4());
+    }
+
+    #[test]
+    fn small_tograph_simplify() {
+        let c = Circuit::random()
+            .seed(15)
+            .qubits(2)
+            .depth(2)
+            .with_cliffords()
+            .build();
+        let g1 = c.to_graph::<Graph>();
+        let g2 = c.to_graph_with_options::<Graph>(true, false);
+
+        // println!("wait for me....");
+
+        // println!("{}", g1.to_dot());
+        // println!("{}", g2.to_dot());
+        assert_eq!(g1.to_tensor4(), g2.to_tensor4());
+        // panic!("test");
     }
 }
