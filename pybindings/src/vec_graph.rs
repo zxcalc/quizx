@@ -7,6 +7,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyType};
 use quizx::graph::*;
 use quizx::phase::*;
+use quizx::scalar::FromPhase;
 use quizx::scalar::Scalar4;
 use quizx::vec_graph::Graph;
 use std::collections::HashMap;
@@ -337,6 +338,31 @@ impl PyVecGraph {
 
     fn multigraph(&self) -> bool {
         false
+    }
+
+    fn mult_scalar_by_phase(&mut self, phase: Rational64) {
+        self.g.scalar_mut().mul_phase(Phase::new(phase));
+    }
+
+    fn mult_scalar_by_one_plus_phase(&mut self, phase: Rational64) {
+        self.g.scalar_mut().mul_one_plus_phase(Phase::new(phase));
+    }
+
+    fn mult_scalar_by_sqrt2_power(&mut self, power: i32) {
+        self.g.scalar_mut().mul_sqrt2_pow(power);
+    }
+
+    fn mult_scalar_by_scalar(&mut self, py: Python<'_>, scalar: PyObject) -> PyResult<()> {
+        *self.g.scalar_mut() *= from_pyzx_scalar(py, scalar)?;
+        Ok(())
+    }
+
+    fn mult_scalar_by_spider_pair(&mut self, phase1: Rational64, phase2: Rational64) {
+        let p1 = Phase::new(phase1);
+        let p2 = Phase::new(phase2);
+        self.g.scalar_mut().mul_sqrt2_pow(-1);
+        *self.g.scalar_mut() *= Scalar4::one() + Scalar4::from_phase(p1) + Scalar4::from_phase(p2)
+            - Scalar4::from_phase(p1 + p2);
     }
 
     fn phases(&self, py: Python<'_>) -> PyResult<HashMap<V, PyObject>> {

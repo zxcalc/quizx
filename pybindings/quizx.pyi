@@ -13,7 +13,8 @@ from typing import (
     Any,
     Union,
 )
-from pyzx.graph.base import BaseGraph, VertexType, EdgeType, FractionLike, FloatInt
+from pyzx.graph.base import BaseGraph
+from pyzx.utils import VertexType, EdgeType, FractionLike, FloatInt
 from pyzx.simplify import Simplifier
 from pyzx.graph.scalar import Scalar
 import numpy as np
