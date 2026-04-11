@@ -20,7 +20,6 @@ build-backend = "hatchling.build"
 # We mirror the `pybindings/pyproject.toml` config here so `maturin develop` still works
 # from the root of the workspace.
 manifest-path = "pybindings/Cargo.toml"
-python-source = "pybindings/src/"
 module-name = "quizx"
 # "extension-module" tells pyo3 we want to build an extension module (skips linking against libpython.so)
 features = ["pyo3/extension-module"]
