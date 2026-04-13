@@ -698,6 +698,123 @@ pub fn gadget_fusion_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
 
 checked_rule2!(check_gadget_fusion, gadget_fusion_unchecked, gadget_fusion);
 
+/// Check [bialg_unchecked] applies
+///
+/// The bialgebra rule applies when:
+/// - v0 and v1 are Z and X spiders (in either order)
+/// - v0 and v1 are connected by a normal edge
+/// - All neighbors of v0 (except v1) have the same color as v1
+/// - All neighbors of v1 (except v0) have the same color as v0
+/// - Both v0 and v1 have zero phase
+///
+/// ```
+/// # use quizx::graph::*;
+/// # use quizx::vec_graph::Graph;
+/// # use quizx::basic_rules::check_bialg;
+/// let mut g = Graph::new();
+/// let z0 = g.add_vertex(VType::Z);
+/// let x0 = g.add_vertex(VType::X);
+/// // Neighbors of z0 must be X-type (same as x0)
+/// let x1 = g.add_vertex(VType::X);
+/// let x2 = g.add_vertex(VType::X);
+/// // Neighbors of x0 must be Z-type (same as z0)
+/// let z1 = g.add_vertex(VType::Z);
+/// let z2 = g.add_vertex(VType::Z);
+/// g.add_edge(z0, x0);
+/// g.add_edge(x1, z0);
+/// g.add_edge(x2, z0);
+/// g.add_edge(x0, z1);
+/// g.add_edge(x0, z2);
+///
+/// assert!(check_bialg(&g, z0, x0));
+/// assert!(check_bialg(&g, x0, z0)); // order doesn't matter
+/// ```
+#[inline]
+pub fn check_bialg(g: &impl GraphLike, v0: V, v1: V) -> bool {
+    if v0 == v1 || g.edge_type_opt(v0, v1) != Some(EType::N) {
+        return false;
+    }
+    let t0 = g.vertex_type(v0);
+    let t1 = g.vertex_type(v1);
+    if !((t0 == VType::Z && t1 == VType::X) || (t0 == VType::X && t1 == VType::Z)) {
+        return false;
+    }
+    if !g.phase(v0).is_zero() || !g.phase(v1).is_zero() {
+        return false;
+    }
+    for n in g.neighbor_vec(v0) {
+        if n != v1 && g.vertex_type(n) != t1 {
+            return false;
+        }
+    }
+    for n in g.neighbor_vec(v1) {
+        if n != v0 && g.vertex_type(n) != t0 {
+            return false;
+        }
+    }
+    true
+}
+
+/// Apply the bialgebra rule
+///
+/// Removes both spiders v0 and v1, and adds normal edges between all neighbors
+/// of v0 and all neighbors of v1.
+///
+/// ```
+/// # use quizx::graph::*;
+/// # use quizx::tensor::ToTensor;
+/// # use quizx::vec_graph::Graph;
+/// # use quizx::basic_rules::bialg_unchecked;
+/// let mut g = Graph::new();
+/// let z0 = g.add_vertex(VType::Z);
+/// let x0 = g.add_vertex(VType::X);
+/// // Neighbors of z0 must be X-type (same as x0)
+/// let x1 = g.add_vertex(VType::X);
+/// let x2 = g.add_vertex(VType::X);
+/// // Neighbors of x0 must be Z-type (same as z0)
+/// let z1 = g.add_vertex(VType::Z);
+/// let z2 = g.add_vertex(VType::Z);
+/// g.add_edge(z0, x0);
+/// g.add_edge(x1, z0);
+/// g.add_edge(x2, z0);
+/// g.add_edge(x0, z1);
+/// g.add_edge(x0, z2);
+///
+/// let h = g.clone();
+/// bialg_unchecked(&mut g, z0, x0);
+///
+/// // After bialgebra: z0 and x0 are removed
+/// // New edges: x1-z1, x1-z2, x2-z1, x2-z2
+/// assert_eq!(g.num_vertices(), 4);
+/// assert_eq!(g.num_edges(), 4);
+/// assert_eq!(g.to_tensor4(), h.to_tensor4());
+/// ```
+#[inline]
+pub fn bialg_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
+    // Collect neighbors before modifying the graph.
+    let v0_neighbors: Vec<V> = g.neighbor_vec(v0).into_iter().filter(|&n| n != v1).collect();
+    let v1_neighbors: Vec<V> = g.neighbor_vec(v1).into_iter().filter(|&n| n != v0).collect();
+
+    // Remove both vertices.
+    g.remove_vertex(v0);
+    g.remove_vertex(v1);
+
+    // Add edges between all v0 neighbors and all v1 neighbors.
+    for &n0 in &v0_neighbors {
+        for &n1 in &v1_neighbors {
+            g.add_edge_smart(n0, n1, EType::N);
+        }
+    }
+
+    // Scalar factor: sqrt(2)^((m-1)*(n-1)) where m, n are external neighbor counts.
+    // This is the Z-X case; PyZX also handles X-H bialgebra with a different scalar.
+    let m = v0_neighbors.len() as i32;
+    let n = v1_neighbors.len() as i32;
+    g.scalar_mut().mul_sqrt2_pow((m - 1) * (n - 1));
+}
+
+checked_rule2!(check_bialg, bialg_unchecked, bialg);
+
 #[inline]
 pub fn check_remove_single(g: &impl GraphLike, v: V) -> bool {
     if let Some(t) = g.vertex_type_opt(v) {
@@ -1307,6 +1424,240 @@ mod tests {
         let h = g.clone();
 
         assert!(remove_duplicate(&mut g, v0, v1));
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
+    }
+
+    #[test]
+    fn bialg_basic() {
+        // Basic bialgebra test: Z -- X where neighbors of Z are X-type and neighbors of X are Z-type.
+        //
+        //   x1 --\      /-- z1
+        //         z0--x0
+        //   x2 --/      \-- z2
+        //
+        // After bialg: x1-z1, x1-z2, x2-z1, x2-z2
+        let mut g = Graph::new();
+        let z0 = g.add_vertex(VType::Z);
+        let x0 = g.add_vertex(VType::X);
+        // Neighbors of z0 must be X-type (same as x0).
+        let x1 = g.add_vertex(VType::X);
+        let x2 = g.add_vertex(VType::X);
+        // Neighbors of x0 must be Z-type (same as z0).
+        let z1 = g.add_vertex(VType::Z);
+        let z2 = g.add_vertex(VType::Z);
+
+        g.add_edge(z0, x0);
+        g.add_edge(x1, z0);
+        g.add_edge(x2, z0);
+        g.add_edge(x0, z1);
+        g.add_edge(x0, z2);
+
+        let h = g.clone();
+
+        assert!(check_bialg(&g, z0, x0));
+        assert!(check_bialg(&g, x0, z0)); // order doesn't matter
+
+        assert!(bialg(&mut g, z0, x0));
+
+        assert_eq!(g.num_vertices(), 4);
+        assert_eq!(g.num_edges(), 4);
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
+    }
+
+    #[test]
+    fn bialg_with_boundaries() {
+        // Bialgebra with boundary vertices
+        // Neighbors of z0 are X-type, neighbors of x0 are Z-type.
+        //
+        //   B -- x1 --\      /-- z1 -- B
+        //              z0--x0
+        //   B -- x2 --/      \-- z2 -- B
+        //
+        let mut g = Graph::new();
+        let b0 = g.add_vertex(VType::B);
+        let b1 = g.add_vertex(VType::B);
+        let b2 = g.add_vertex(VType::B);
+        let b3 = g.add_vertex(VType::B);
+
+        let z0 = g.add_vertex(VType::Z);
+        let x0 = g.add_vertex(VType::X);
+        // Neighbors of z0 must be X-type.
+        let x1 = g.add_vertex(VType::X);
+        let x2 = g.add_vertex(VType::X);
+        // Neighbors of x0 must be Z-type.
+        let z1 = g.add_vertex(VType::Z);
+        let z2 = g.add_vertex(VType::Z);
+
+        g.add_edge(b0, x1);
+        g.add_edge(b1, x2);
+        g.add_edge(z1, b2);
+        g.add_edge(z2, b3);
+
+        g.add_edge(z0, x0);
+        g.add_edge(x1, z0);
+        g.add_edge(x2, z0);
+        g.add_edge(x0, z1);
+        g.add_edge(x0, z2);
+
+        g.set_inputs(vec![b0, b1]);
+        g.set_outputs(vec![b2, b3]);
+
+        let h = g.clone();
+
+        assert!(check_bialg(&g, z0, x0));
+        assert!(bialg(&mut g, z0, x0));
+
+        assert_eq!(g.num_vertices(), 8);
+        assert_eq!(g.num_edges(), 8); // 4 boundary edges + 4 new edges
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
+    }
+
+    #[test]
+    fn bialg_single_neighbors() {
+        // Bialgebra with single neighbor on each side.
+        // x1 is neighbor of z0 (X-type), z1 is neighbor of x0 (Z-type).
+        //
+        //   x1 -- z0 -- x0 -- z1
+        //
+        let mut g = Graph::new();
+        let z0 = g.add_vertex(VType::Z);
+        let x0 = g.add_vertex(VType::X);
+        let x1 = g.add_vertex(VType::X); // neighbor of z0
+        let z1 = g.add_vertex(VType::Z); // neighbor of x0
+
+        g.add_edge(x1, z0);
+        g.add_edge(z0, x0);
+        g.add_edge(x0, z1);
+
+        let h = g.clone();
+
+        assert!(check_bialg(&g, z0, x0));
+        assert!(bialg(&mut g, z0, x0));
+
+        assert_eq!(g.num_vertices(), 2);
+        assert_eq!(g.num_edges(), 1);
+        assert!(g.connected(x1, z1));
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
+    }
+
+    #[test]
+    fn bialg_no_other_neighbors() {
+        // Bialgebra with no other neighbors (just the central edge).
+        //
+        //   z0 -- x0
+        //
+        let mut g = Graph::new();
+        let z0 = g.add_vertex(VType::Z);
+        let x0 = g.add_vertex(VType::X);
+
+        g.add_edge(z0, x0);
+
+        let h = g.clone();
+
+        assert!(check_bialg(&g, z0, x0));
+        assert!(bialg(&mut g, z0, x0));
+
+        assert_eq!(g.num_vertices(), 0);
+        assert_eq!(g.num_edges(), 0);
+        assert_eq!(g.to_tensor4(), h.to_tensor4());
+    }
+
+    #[test]
+    fn bialg_does_not_match_same_color() {
+        // Should not match: same color spiders.
+        let mut g = Graph::new();
+        let z0 = g.add_vertex(VType::Z);
+        let z1 = g.add_vertex(VType::Z);
+        g.add_edge(z0, z1);
+
+        assert!(!check_bialg(&g, z0, z1));
+    }
+
+    #[test]
+    fn bialg_does_not_match_wrong_neighbor_colors() {
+        // Should not match: Z neighbor on X side.
+        //
+        //   z1 -- z0 -- x0 -- z2  (z2 is wrong color!)
+        //
+        let mut g = Graph::new();
+        let z0 = g.add_vertex(VType::Z);
+        let x0 = g.add_vertex(VType::X);
+        let z1 = g.add_vertex(VType::Z);
+        let z2 = g.add_vertex(VType::Z); // wrong color for x0's neighbor
+
+        g.add_edge(z1, z0);
+        g.add_edge(z0, x0);
+        g.add_edge(x0, z2);
+
+        assert!(!check_bialg(&g, z0, x0));
+    }
+
+    #[test]
+    fn bialg_does_not_match_hadamard_edge() {
+        // Should not match: Hadamard edge between z0 and x0.
+        let mut g = Graph::new();
+        let z0 = g.add_vertex(VType::Z);
+        let x0 = g.add_vertex(VType::X);
+        let z1 = g.add_vertex(VType::Z);
+        let x1 = g.add_vertex(VType::X);
+
+        g.add_edge(z1, z0);
+        g.add_edge_with_type(z0, x0, EType::H); // Hadamard edge
+        g.add_edge(x0, x1);
+
+        assert!(!check_bialg(&g, z0, x0));
+    }
+
+    #[test]
+    fn bialg_does_not_match_with_phase() {
+        // Should not match: non-zero phase.
+        let mut g = Graph::new();
+        let z0 = g.add_vertex_with_phase(VType::Z, Rational64::new(1, 4));
+        let x0 = g.add_vertex(VType::X);
+        let z1 = g.add_vertex(VType::Z);
+        let x1 = g.add_vertex(VType::X);
+
+        g.add_edge(z1, z0);
+        g.add_edge(z0, x0);
+        g.add_edge(x0, x1);
+
+        assert!(!check_bialg(&g, z0, x0));
+    }
+
+    #[test]
+    fn bialg_asymmetric() {
+        // Asymmetric case: more neighbors on one side.
+        // x1, x2, x3 are X-type neighbors of z0, z1 is Z-type neighbor of x0.
+        //
+        //   x1 --\
+        //   x2 --- z0 -- x0 -- z1
+        //   x3 --/
+        //
+        let mut g = Graph::new();
+        let z0 = g.add_vertex(VType::Z);
+        let x0 = g.add_vertex(VType::X);
+        let x1 = g.add_vertex(VType::X);
+        let x2 = g.add_vertex(VType::X);
+        let x3 = g.add_vertex(VType::X);
+        let z1 = g.add_vertex(VType::Z);
+
+        g.add_edge(x1, z0);
+        g.add_edge(x2, z0);
+        g.add_edge(x3, z0);
+        g.add_edge(z0, x0);
+        g.add_edge(x0, z1);
+
+        let h = g.clone();
+
+        assert!(check_bialg(&g, z0, x0));
+        assert!(bialg(&mut g, z0, x0));
+
+        // x1, x2, x3 should each connect to z1
+        assert_eq!(g.num_vertices(), 4);
+        assert_eq!(g.num_edges(), 3);
+        assert!(g.connected(x1, z1));
+        assert!(g.connected(x2, z1));
+        assert!(g.connected(x3, z1));
         assert_eq!(g.to_tensor4(), h.to_tensor4());
     }
 }
