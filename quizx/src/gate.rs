@@ -688,3 +688,199 @@ impl Gate {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_gtype_from_qasm_name() {
+        assert_eq!(GType::from_qasm_name("rz"), ZPhase);
+        assert_eq!(GType::from_qasm_name("rx"), XPhase);
+        assert_eq!(GType::from_qasm_name("x"), NOT);
+        assert_eq!(GType::from_qasm_name("z"), Z);
+        assert_eq!(GType::from_qasm_name("s"), S);
+        assert_eq!(GType::from_qasm_name("t"), T);
+        assert_eq!(GType::from_qasm_name("sdg"), Sdg);
+        assert_eq!(GType::from_qasm_name("tdg"), Tdg);
+        assert_eq!(GType::from_qasm_name("h"), HAD);
+        assert_eq!(GType::from_qasm_name("cx"), CNOT);
+        assert_eq!(GType::from_qasm_name("CX"), CNOT);
+        assert_eq!(GType::from_qasm_name("cz"), CZ);
+        assert_eq!(GType::from_qasm_name("ccx"), TOFF);
+        assert_eq!(GType::from_qasm_name("ccz"), CCZ);
+        assert_eq!(GType::from_qasm_name("swap"), SWAP);
+        assert_eq!(GType::from_qasm_name("unknown"), UnknownGate);
+    }
+
+    #[test]
+    fn test_gtype_qasm_name_roundtrip() {
+        let gate_types = [
+            ZPhase, XPhase, NOT, Z, S, T, Sdg, Tdg, HAD, CNOT, CZ, TOFF, CCZ, SWAP, ParityPhase,
+            XCX, InitAncilla, PostSelect, Measure, MeasureReset,
+        ];
+
+        for gt in gate_types {
+            let name = gt.qasm_name();
+            // Most gates should roundtrip (except for aliases like CX).
+            if gt != CNOT {
+                assert_eq!(GType::from_qasm_name(name), gt, "Failed for {:?}", gt);
+            }
+        }
+    }
+
+    #[test]
+    fn test_gtype_num_qubits() {
+        assert_eq!(ZPhase.num_qubits(), Some(1));
+        assert_eq!(XPhase.num_qubits(), Some(1));
+        assert_eq!(HAD.num_qubits(), Some(1));
+        assert_eq!(T.num_qubits(), Some(1));
+        assert_eq!(S.num_qubits(), Some(1));
+        assert_eq!(CNOT.num_qubits(), Some(2));
+        assert_eq!(CZ.num_qubits(), Some(2));
+        assert_eq!(SWAP.num_qubits(), Some(2));
+        assert_eq!(XCX.num_qubits(), Some(2));
+        assert_eq!(TOFF.num_qubits(), Some(3));
+        assert_eq!(CCZ.num_qubits(), Some(3));
+        assert_eq!(ParityPhase.num_qubits(), None);
+        assert_eq!(UnknownGate.num_qubits(), None);
+    }
+
+    #[test]
+    fn test_gate_new() {
+        let g = Gate::new(CNOT, vec![0, 1]);
+        assert_eq!(g.t, CNOT);
+        assert_eq!(g.qs, vec![0, 1]);
+        assert!(g.phase.is_zero());
+    }
+
+    #[test]
+    fn test_gate_new_with_phase() {
+        let g = Gate::new_with_phase(ZPhase, vec![0], (1, 4));
+        assert_eq!(g.t, ZPhase);
+        assert_eq!(g.qs, vec![0]);
+        assert_eq!(g.phase, Phase::from((1, 4)));
+    }
+
+    #[test]
+    fn test_gate_default() {
+        let g = Gate::default();
+        assert_eq!(g.t, UnknownGate);
+        assert!(g.qs.is_empty());
+        assert!(g.phase.is_zero());
+    }
+
+    #[test]
+    fn test_gate_to_qasm() {
+        let g = Gate::new(CNOT, vec![0, 1]);
+        assert_eq!(g.to_qasm(), "cx q[0], q[1]");
+
+        let g = Gate::new(HAD, vec![2]);
+        assert_eq!(g.to_qasm(), "h q[2]");
+
+        let g = Gate::new_with_phase(ZPhase, vec![0], (1, 2));
+        assert!(g.to_qasm().starts_with("rz("));
+        assert!(g.to_qasm().contains("q[0]"));
+    }
+
+    #[test]
+    fn test_gate_adjoint() {
+        // T -> Tdg
+        let mut g = Gate::new(T, vec![0]);
+        g.adjoint();
+        assert_eq!(g.t, Tdg);
+
+        // Tdg -> T
+        let mut g = Gate::new(Tdg, vec![0]);
+        g.adjoint();
+        assert_eq!(g.t, T);
+
+        // S -> Sdg
+        let mut g = Gate::new(S, vec![0]);
+        g.adjoint();
+        assert_eq!(g.t, Sdg);
+
+        // Sdg -> S
+        let mut g = Gate::new(Sdg, vec![0]);
+        g.adjoint();
+        assert_eq!(g.t, S);
+
+        // ZPhase negates phase.
+        let mut g = Gate::new_with_phase(ZPhase, vec![0], (1, 4));
+        g.adjoint();
+        assert_eq!(g.phase, Phase::from((-1, 4)));
+
+        // Self-adjoint gates unchanged
+        let mut g = Gate::new(HAD, vec![0]);
+        g.adjoint();
+        assert_eq!(g.t, HAD);
+
+        let mut g = Gate::new(CNOT, vec![0, 1]);
+        g.adjoint();
+        assert_eq!(g.t, CNOT);
+    }
+
+    #[test]
+    fn test_gate_num_basic_gates() {
+        assert_eq!(Gate::new(HAD, vec![0]).num_basic_gates(), 1);
+        assert_eq!(Gate::new(CNOT, vec![0, 1]).num_basic_gates(), 1);
+        assert_eq!(Gate::new(CCZ, vec![0, 1, 2]).num_basic_gates(), 13);
+        assert_eq!(Gate::new(TOFF, vec![0, 1, 2]).num_basic_gates(), 15);
+
+        // ParityPhase: 2*n - 1 gates for n qubits
+        let g = Gate::new(ParityPhase, vec![0, 1, 2]);
+        assert_eq!(g.num_basic_gates(), 5); // 2*3 - 1
+
+        let g = Gate::new(ParityPhase, vec![]);
+        assert_eq!(g.num_basic_gates(), 0);
+    }
+
+    #[test]
+    fn test_gate_push_basic_gates() {
+        let mut c = Circuit::new(1);
+        let g = Gate::new(HAD, vec![0]);
+        g.push_basic_gates(&mut c);
+        assert_eq!(c.num_gates(), 1);
+        assert_eq!(c.gates[0].t, HAD);
+
+        let mut c = Circuit::new(3);
+        let g = Gate::new(CCZ, vec![0, 1, 2]);
+        g.push_basic_gates(&mut c);
+        assert_eq!(c.num_gates(), 13);
+
+        // TOFF = H on target, then CCZ, then H on target.
+        let mut c = Circuit::new(3);
+        let g = Gate::new(TOFF, vec![0, 1, 2]);
+        g.push_basic_gates(&mut c);
+        assert_eq!(c.num_gates(), 15);
+        assert_eq!(c.gates[0].t, HAD);
+        assert_eq!(c.gates[14].t, HAD);
+    }
+
+    #[test]
+    fn test_gate_parity_phase_decomposition() {
+        // ParityPhase decomposes into CNOT ladder to accumulate parity on last qubit,
+        // a ZPhase on that qubit, then the reverse CNOT ladder to restore.
+        let mut c = Circuit::new(3);
+        let g = Gate::new_with_phase(ParityPhase, vec![0, 1, 2], (1, 4));
+        g.push_basic_gates(&mut c);
+
+        assert_eq!(c.num_gates(), 5);
+        assert_eq!((c.gates[0].t, &c.gates[0].qs), (CNOT, &vec![0, 2]));
+        assert_eq!((c.gates[1].t, &c.gates[1].qs), (CNOT, &vec![1, 2]));
+        assert_eq!((c.gates[2].t, &c.gates[2].qs), (ZPhase, &vec![2]));
+        assert_eq!((c.gates[3].t, &c.gates[3].qs), (CNOT, &vec![1, 2]));
+        assert_eq!((c.gates[4].t, &c.gates[4].qs), (CNOT, &vec![0, 2]));
+        assert_eq!(c.gates[2].phase, Phase::from((1, 4)));
+    }
+
+    #[test]
+    fn test_gate_from_qasm_name() {
+        let g = Gate::from_qasm_name("h");
+        assert_eq!(g.t, HAD);
+        assert!(g.qs.is_empty());
+
+        let g = Gate::from_qasm_name("unknown_gate");
+        assert_eq!(g.t, UnknownGate);
+    }
+}

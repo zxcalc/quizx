@@ -38,3 +38,41 @@ impl Cli {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_error_display_io() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
+        let err = CliError::IO(io_err);
+        let msg = format!("{}", err);
+        assert!(msg.contains("IO error"));
+        assert!(msg.contains("file not found"));
+    }
+
+    #[test]
+    fn cli_error_display_parse() {
+        let err = CliError::CircuitParse("invalid gate".to_string());
+        let msg = format!("{}", err);
+        assert!(msg.contains("Error parsing"));
+        assert!(msg.contains("invalid gate"));
+    }
+
+    #[test]
+    fn cli_error_display_string_len() {
+        let err = CliError::StringWrongLen(5, 3, "Pauli".to_string());
+        let msg = format!("{}", err);
+        assert!(msg.contains("5 qubits"));
+        assert!(msg.contains("length 3"));
+        assert!(msg.contains("Pauli"));
+    }
+
+    #[test]
+    fn cli_error_from_io() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied");
+        let cli_err: CliError = io_err.into();
+        assert!(matches!(cli_err, CliError::IO(_)));
+    }
+}

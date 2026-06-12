@@ -241,3 +241,145 @@ impl DivAssign<i64> for Phase {
         *self = *self / other;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalization() {
+        // Values in range (-1, 1] are unchanged.
+        assert_eq!(Phase::from((1, 2)).to_rational(), Rational64::new(1, 2));
+        assert_eq!(Phase::from((-1, 2)).to_rational(), Rational64::new(-1, 2));
+        assert_eq!(Phase::from((1, 4)).to_rational(), Rational64::new(1, 4));
+        assert_eq!(Phase::from((1, 1)).to_rational(), Rational64::new(1, 1));
+
+        // Values outside range are normalized by adding/subtracting 2.
+        assert_eq!(Phase::from((3, 2)).to_rational(), Rational64::new(-1, 2));
+        assert_eq!(Phase::from((5, 4)).to_rational(), Rational64::new(-3, 4));
+        assert_eq!(Phase::from((-3, 2)).to_rational(), Rational64::new(1, 2));
+
+        // Boundary: 1 is included, but not -1 (maps to 1).
+        assert_eq!(Phase::from((2, 2)).to_rational(), Rational64::new(1, 1));
+        assert_eq!(Phase::from((-2, 2)).to_rational(), Rational64::new(1, 1));
+    }
+
+    #[test]
+    fn from_conversions() {
+        assert_eq!(Phase::from(0_i64), Phase::zero());
+        assert_eq!(Phase::from(1_i64), Phase::one());
+        assert_eq!(Phase::from(2_i64), Phase::zero()); // normalized
+
+        let p: Phase = (1, 4).into();
+        assert_eq!(p.to_rational(), Rational64::new(1, 4));
+    }
+
+    #[test]
+    fn f64_conversion() {
+        let p = Phase::from_f64(0.5);
+        assert!((p.to_f64() - 0.5).abs() < 1e-10);
+
+        let p = Phase::from_f64(0.25);
+        assert!((p.to_f64() - 0.25).abs() < 1e-10);
+    }
+
+    #[test]
+    fn classification_predicates() {
+        // Clifford phases: multiples of 1/2 (denominator <= 2).
+        assert!(Phase::zero().is_clifford());
+        assert!(Phase::one().is_clifford());
+        assert!(Phase::from((1, 2)).is_clifford());
+        assert!(Phase::from((-1, 2)).is_clifford());
+        assert!(!Phase::from((1, 4)).is_clifford());
+        assert!(!Phase::from((1, 3)).is_clifford());
+
+        // Proper Clifford: exactly +/- 1/2.
+        assert!(Phase::from((1, 2)).is_proper_clifford());
+        assert!(Phase::from((-1, 2)).is_proper_clifford());
+        assert!(!Phase::zero().is_proper_clifford());
+        assert!(!Phase::one().is_proper_clifford());
+        assert!(!Phase::from((1, 4)).is_proper_clifford());
+
+        // Pauli: 0 or 1.
+        assert!(Phase::zero().is_pauli());
+        assert!(Phase::one().is_pauli());
+        assert!(!Phase::from((1, 2)).is_pauli());
+
+        // T-gate phases: denominator exactly 4.
+        assert!(Phase::from((1, 4)).is_t());
+        assert!(Phase::from((3, 4)).is_t());
+        assert!(Phase::from((-1, 4)).is_t());
+        assert!(!Phase::from((1, 2)).is_t()); // denominator 2
+        assert!(!Phase::from((1, 8)).is_t()); // denominator 8
+    }
+
+    #[test]
+    fn arithmetic() {
+        let a = Phase::from((1, 4));
+        let b = Phase::from((1, 4));
+        assert_eq!(a + b, Phase::from((1, 2)));
+
+        let a = Phase::from((3, 4));
+        let b = Phase::from((1, 2));
+        assert_eq!(a + b, Phase::from((-3, 4))); // 5/4 normalizes to -3/4
+
+        let a = Phase::from((1, 2));
+        let b = Phase::from((1, 4));
+        assert_eq!(a - b, Phase::from((1, 4)));
+
+        assert_eq!(-Phase::from((1, 4)), Phase::from((-1, 4)));
+        assert_eq!(-Phase::one(), Phase::one()); // -1 normalizes to 1
+    }
+
+    #[test]
+    fn mul_div() {
+        let a = Phase::from((1, 4));
+        assert_eq!(a * 2, Phase::from((1, 2)));
+        assert_eq!(a * 4, Phase::one());
+        assert_eq!(a * 8, Phase::zero()); // 2 normalizes to 0
+
+        let a = Phase::from((1, 2));
+        assert_eq!(a / 2, Phase::from((1, 4)));
+    }
+
+    #[test]
+    fn assign_ops() {
+        let mut p = Phase::from((1, 4));
+        p += Phase::from((1, 4));
+        assert_eq!(p, Phase::from((1, 2)));
+
+        let mut p = Phase::from((1, 2));
+        p -= Phase::from((1, 4));
+        assert_eq!(p, Phase::from((1, 4)));
+
+        let mut p = Phase::from((1, 4));
+        p *= 2;
+        assert_eq!(p, Phase::from((1, 2)));
+
+        let mut p = Phase::from((1, 2));
+        p /= 2;
+        assert_eq!(p, Phase::from((1, 4)));
+    }
+
+    #[test]
+    fn zero_one_traits() {
+        assert!(Phase::zero().is_zero());
+        assert!(!Phase::one().is_zero());
+        assert!(Phase::one().is_one());
+        assert!(!Phase::zero().is_one());
+    }
+
+    #[test]
+    fn limit_denominator_phase() {
+        // High-precision phase approximated to simpler form.
+        let p = Phase::from((355, 113)); // approximation of pi
+        let approx = p.limit_denominator(10);
+        assert!(approx.to_rational().denom().abs() <= 10);
+    }
+
+    #[test]
+    fn display() {
+        assert_eq!(format!("{}", Phase::from((1, 2))), "1/2");
+        assert_eq!(format!("{}", Phase::zero()), "0");
+    }
+}

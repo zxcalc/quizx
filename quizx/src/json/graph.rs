@@ -307,3 +307,106 @@ fn avg_coord(a: Coord, b: Coord) -> Coord {
         y: ((a.y + b.y) * 1000.).round() / 2000.,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::circuit::Circuit;
+    use crate::vec_graph::Graph;
+
+    #[test]
+    fn roundtrip_simple_graph() {
+        let mut g: Graph = Graph::new();
+        let v0 = g.add_vertex(VType::B);
+        let v1 = g.add_vertex(VType::Z);
+        let v2 = g.add_vertex(VType::B);
+        g.add_edge(v0, v1);
+        g.add_edge(v1, v2);
+        g.set_inputs(vec![v0]);
+        g.set_outputs(vec![v2]);
+
+        let json = JsonGraph::from_graph(&g).unwrap();
+        let g2: Graph = json.to_graph().unwrap();
+
+        assert_eq!(g.num_vertices(), g2.num_vertices());
+        assert_eq!(g.num_edges(), g2.num_edges());
+        assert_eq!(g.inputs().len(), g2.inputs().len());
+        assert_eq!(g.outputs().len(), g2.outputs().len());
+    }
+
+    #[test]
+    fn roundtrip_circuit_graph() {
+        let mut c = Circuit::new(2);
+        c.add_gate("h", vec![0]);
+        c.add_gate("cx", vec![0, 1]);
+        c.add_gate("t", vec![1]);
+        let g: Graph = c.to_graph();
+
+        let json = JsonGraph::from_graph(&g).unwrap();
+        let g2: Graph = json.to_graph().unwrap();
+
+        assert_eq!(g.num_vertices(), g2.num_vertices());
+        assert_eq!(g.num_edges(), g2.num_edges());
+    }
+
+    #[test]
+    fn roundtrip_with_phases() {
+        let mut g: Graph = Graph::new();
+        let v0 = g.add_vertex(VType::B);
+        let v1 = g.add_vertex(VType::Z);
+        let v2 = g.add_vertex(VType::X);
+        let v3 = g.add_vertex(VType::B);
+        g.set_phase(v1, Phase::from((1, 4)));
+        g.set_phase(v2, Phase::from((-1, 2)));
+        g.add_edge(v0, v1);
+        g.add_edge(v1, v2);
+        g.add_edge(v2, v3);
+        g.set_inputs(vec![v0]);
+        g.set_outputs(vec![v3]);
+
+        let json = JsonGraph::from_graph(&g).unwrap();
+        let g2: Graph = json.to_graph().unwrap();
+
+        // Check phases are preserved.
+        for v in g2.vertices() {
+            if g2.vertex_type(v) == VType::Z {
+                assert_eq!(g2.phase(v), Phase::from((1, 4)));
+            } else if g2.vertex_type(v) == VType::X {
+                assert_eq!(g2.phase(v), Phase::from((-1, 2)));
+            }
+        }
+    }
+
+    #[test]
+    fn roundtrip_hadamard_edges() {
+        let mut g: Graph = Graph::new();
+        let v0 = g.add_vertex(VType::B);
+        let v1 = g.add_vertex(VType::Z);
+        let v2 = g.add_vertex(VType::Z);
+        let v3 = g.add_vertex(VType::B);
+        g.add_edge(v0, v1);
+        g.add_edge_with_type(v1, v2, EType::H);
+        g.add_edge(v2, v3);
+        g.set_inputs(vec![v0]);
+        g.set_outputs(vec![v3]);
+
+        let json = JsonGraph::from_graph(&g).unwrap();
+        let g2: Graph = json.to_graph().unwrap();
+
+        // Count Hadamard edges.
+        let h_edges: usize = g2
+            .edges()
+            .filter(|(_, _, et)| *et == EType::H)
+            .count();
+        assert_eq!(h_edges, 1);
+    }
+
+    #[test]
+    fn avg_coord_computes_midpoint() {
+        let a = Coord { x: 0.0, y: 0.0 };
+        let b = Coord { x: 2.0, y: 4.0 };
+        let mid = avg_coord(a, b);
+        assert!((mid.x - 1.0).abs() < 0.01);
+        assert!((mid.y - 2.0).abs() < 0.01);
+    }
+}

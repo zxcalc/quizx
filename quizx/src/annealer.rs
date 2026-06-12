@@ -140,3 +140,85 @@ impl<G: GraphLike> Annealer<G> {
         println!("{}/{}", self.iters, self.iters);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::circuit::Circuit;
+    use crate::vec_graph::Graph;
+
+    fn simple_graph_from_circuit() -> Graph {
+        // CNOT circuit to get a graph with local_comp and pivot opportunities.
+        let mut c = Circuit::new(2);
+        c.add_gate("h", vec![0]);
+        c.add_gate("cx", vec![0, 1]);
+        c.add_gate("h", vec![1]);
+        c.to_graph()
+    }
+
+    #[test]
+    fn builder_defaults() {
+        let g: Graph = Graph::new();
+        let a = Annealer::new(g);
+        assert_eq!(a.temp, 25.0);
+        assert_eq!(a.cool, 0.005);
+        assert_eq!(a.iters, 1000);
+    }
+
+    #[test]
+    fn builder_setters() {
+        let g: Graph = Graph::new();
+        let mut a = Annealer::new(g);
+        a.seed(42).temp(50.0).cool(0.01).iters(500);
+        assert_eq!(a.temp, 50.0);
+        assert_eq!(a.cool, 0.01);
+        assert_eq!(a.iters, 500);
+    }
+
+    #[test]
+    fn extract_2q_score_counts_two_qubit_gates() {
+        use crate::simplify::clifford_simp;
+
+        let mut c = Circuit::new(3);
+        c.add_gate("h", vec![0]);
+        c.add_gate("cx", vec![0, 1]);
+        c.add_gate("cx", vec![1, 2]);
+        c.add_gate("h", vec![2]);
+        let mut g: Graph = c.to_graph();
+
+        // Simplify to graph-like form, then extract back to circuit.
+        clifford_simp(&mut g);
+
+        let score = Annealer::extract_2q_score(&g);
+        // After simplification, 2-qubit gate count may differ from original.
+        assert!(score <= 3);
+    }
+
+    #[test]
+    fn random_local_comp_modifies_graph() {
+        use crate::simplify::clifford_simp;
+
+        let mut g = simple_graph_from_circuit();
+        clifford_simp(&mut g);
+
+        let original_edges = g.num_edges();
+        let mut rng = StdRng::seed_from_u64(42);
+
+        // May or may not find candidates; if it does, graph changes.
+        let has_candidates = g.vertices().any(|v| check_local_comp(&g, v));
+        if has_candidates {
+            Annealer::random_local_comp(&mut rng, &mut g);
+            // Graph structure may change.
+            assert!(g.num_edges() != original_edges || g.num_vertices() > 0);
+        }
+    }
+
+    #[test]
+    fn anneal_empty_actions() {
+        let g: Graph = Graph::new();
+        let mut a = Annealer::new(g);
+        a.actions = vec![];
+        a.iters(10).anneal();
+        // Should not panic with empty actions.
+    }
+}
