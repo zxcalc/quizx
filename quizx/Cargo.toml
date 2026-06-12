@@ -15,7 +15,7 @@ license = { workspace = true }
 num = { workspace = true }
 rustc-hash = { workspace = true }
 rayon = { workspace = true }
-ndarray = { workspace = true, features = ["rayon"] }
+ndarray = { workspace = true, features = ["rayon", "approx"] }
 approx = { workspace = true }
 regex = { workspace = true }
 rand = { workspace = true }

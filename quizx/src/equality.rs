@@ -1,8 +1,9 @@
-use approx::abs_diff_eq;
+use approx::{abs_diff_eq, AbsDiffEq};
 use num::Complex;
 
 use crate::circuit::Circuit;
 use crate::graph::GraphLike;
+use crate::scalar::Scalar4;
 use crate::simplify::full_simp;
 use crate::tensor::ToTensor;
 use crate::vec_graph::Graph;
@@ -36,7 +37,9 @@ pub fn equal_graph_tensor(g1: &Graph, g2: &Graph) -> bool {
     if !equal_graph_dim(g1, g2) {
         return false;
     }
-    g1.to_tensor4() == g2.to_tensor4()
+    let t1 = g1.to_tensor4();
+    let t2 = g2.to_tensor4();
+    t1.abs_diff_eq(&t2, Scalar4::default_epsilon())
 }
 
 /// Checks the equality of two circuits by comparing the linear maps they represent.
@@ -190,5 +193,26 @@ mod tests {
 
         // c1 and c2 are verifiably equal
         assert!(equal_circuit_with_options(&c1, &c2, false).unwrap());
+    }
+
+    #[test]
+    fn floating_point_tolerance() {
+        use crate::tensor::ToTensor;
+        use crate::vec_graph::Graph;
+        let angle = std::f64::consts::PI / 7.0;
+
+        // c1: apply non-dyadic rotation directly.
+        let mut c1 = Circuit::new(1);
+        c1.add_gate_with_phase("rz", vec![0], angle);
+
+        // c2: apply as two half-rotations to induce different rounding.
+        let mut c2 = Circuit::new(1);
+        c2.add_gate_with_phase("rz", vec![0], angle / 2.0);
+        c2.add_gate_with_phase("rz", vec![0], angle / 2.0);
+
+        let g1: Graph = c1.to_graph();
+        let g2: Graph = c2.to_graph();
+        assert!(g1.to_tensor4() != g2.to_tensor4());  // not equal due to floating point rounding
+        assert!(equal_circuit_tensor(&c1, &c2));
     }
 }
