@@ -234,17 +234,21 @@ impl GraphLike for Graph {
             panic!("Source vertex not found");
         }
 
-        if let Some(Some(nhd)) = self.edata.get_mut(t) {
-            nhd.push((s, ety));
-        } else {
-            panic!("Target vertex not found");
+        if s != t {
+            if let Some(Some(nhd)) = self.edata.get_mut(t) {
+                nhd.push((s, ety));
+            } else {
+                panic!("Target vertex not found");
+            }
         }
     }
 
     fn remove_edge(&mut self, s: V, t: V) {
         self.nume -= 1;
         self.remove_half_edge(s, t);
-        self.remove_half_edge(t, s);
+        if s != t {
+            self.remove_half_edge(t, s);
+        }
     }
 
     fn vertex_data(&self, v: V) -> &VData {
@@ -268,11 +272,13 @@ impl GraphLike for Graph {
             panic!("Source vertex not found");
         }
 
-        if let Some(Some(nhd)) = self.edata.get_mut(t) {
-            let i = Graph::index(nhd, s).expect("Edge not found");
-            nhd[i] = (s, ety);
-        } else {
-            panic!("Target vertex not found");
+        if s != t {
+            if let Some(Some(nhd)) = self.edata.get_mut(t) {
+                let i = Graph::index(nhd, s).expect("Edge not found");
+                nhd[i] = (s, ety);
+            } else {
+                panic!("Target vertex not found");
+            }
         }
     }
 
@@ -583,5 +589,15 @@ mod tests {
         assert!(g.vertex_type(0) == VType::X);
         assert!(g.vertex_type(1) == VType::Z);
         assert!(g.vertex_type(2) == VType::B);
+    }
+
+    #[test]
+    fn self_loop_not_duplicated() {
+        let mut g = Graph::new();
+        let v = g.add_vertex(VType::Z);
+        g.add_edge_with_type(v, v, EType::N);
+
+        let edges: Vec<_> = g.edges().collect();
+        assert_eq!(edges.len(), 1);
     }
 }

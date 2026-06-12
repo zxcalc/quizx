@@ -170,16 +170,20 @@ impl GraphLike for Graph {
             .get_mut(&s)
             .expect("Source vertex not found")
             .insert(t, ety);
-        self.edata
-            .get_mut(&t)
-            .expect("Target vertex not found")
-            .insert(s, ety);
+        if s != t {
+            self.edata
+                .get_mut(&t)
+                .expect("Target vertex not found")
+                .insert(s, ety);
+        }
     }
 
     fn remove_edge(&mut self, s: V, t: V) {
         self.nume -= 1;
         self.remove_half_edge(s, t);
-        self.remove_half_edge(t, s);
+        if s != t {
+            self.remove_half_edge(t, s);
+        }
     }
 
     fn vertex_data(&self, v: V) -> &VData {
@@ -201,12 +205,14 @@ impl GraphLike for Graph {
             .expect("Source vertex not found")
             .get_mut(&t)
             .expect("Edge not found") = ety;
-        *self
-            .edata
-            .get_mut(&t)
-            .expect("Target vertex not found")
-            .get_mut(&s)
-            .expect("Edge not found") = ety;
+        if s != t {
+            *self
+                .edata
+                .get_mut(&t)
+                .expect("Target vertex not found")
+                .get_mut(&s)
+                .expect("Edge not found") = ety;
+        }
     }
 
     fn edge_type_opt(&self, s: V, t: V) -> Option<EType> {

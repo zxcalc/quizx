@@ -162,8 +162,27 @@ impl Coord {
     }
 }
 
+/// Trait for ZX-diagram graph representations.
+///
+/// # Self-loop semantics
+///
+/// Self-loops (edges where source equals target) are stored as a single entry in the
+/// adjacency list, not two. This means:
+///
+/// - `degree(v)` returns 1 for a vertex with only a self-loop (not 2 as in standard
+///   graph theory convention)
+/// - `neighbors(v)` yields the vertex once for a self-loop (not twice)
+/// - `edges()` yields the self-loop exactly once
+///
+/// This design ensures consistent behavior between `VecGraph` and `HashGraph` (the latter
+/// uses `HashMap` for adjacency lists, which cannot store duplicate keys), and correct
+/// edge counting in `remove_vertex`.
+///
+/// Note: In ZX-calculus simplification, self-loops on Z/X spiders are typically handled
+/// by `add_edge_smart`, which converts them to phase modifications rather than storing
+/// them as edges.
 pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
-    /// Initialise a new empty graph
+    /// Initialise a new empty graph.
     fn new() -> Self;
 
     /// Next fresh vertex index
@@ -217,7 +236,10 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// Behavior is undefined if the vertex is not in the graph.
     fn remove_vertex(&mut self, v: V);
 
-    /// Add an edge with the given type
+    /// Add an edge with the given type.
+    ///
+    /// Self-loops (where `s == t`) are stored once, not twice. See the trait-level
+    /// documentation for details on self-loop semantics.
     ///
     /// Behaviour is undefined if an edge already exists between s and t.
     fn add_edge_with_type(&mut self, s: V, t: V, ety: EType);
@@ -242,14 +264,23 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
     /// Returns type of an edge or None if the edge (or one of the vertices) doesn't exist
     fn edge_type_opt(&self, s: V, t: V) -> Option<EType>;
 
-    /// Returns an iterator over neighbors of a vertex
+    /// Returns an iterator over neighbors of a vertex.
+    ///
+    /// For self-loops, the vertex appears once (not twice). See the trait-level
+    /// documentation for details on self-loop semantics.
     fn neighbors(&self, v: V) -> impl Iterator<Item = V>;
 
-    /// Returns an iterator over pairs (v, t) for `v` the "other end" of an edge,
-    /// and `t` its type.
+    /// Returns an iterator over incident edges as pairs `(v, t)` where `v` is the
+    /// neighbor vertex and `t` is the edge type.
+    ///
+    /// For self-loops, the pair appears once (not twice). See the trait-level
+    /// documentation for details on self-loop semantics.
     fn incident_edges(&self, v: V) -> impl Iterator<Item = (V, EType)>;
 
-    /// Returns degree of a vertex
+    /// Returns degree of a vertex.
+    ///
+    /// Self-loops contribute 1 to degree (not 2 as in standard graph theory).
+    /// See the trait-level documentation for details on self-loop semantics.
     fn degree(&self, v: V) -> usize;
 
     /// Returns the scalar associated with a ZX diagram
