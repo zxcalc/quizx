@@ -215,6 +215,46 @@ jobs:
       - name: Tests with no features
         run: cargo test --verbose --workspace --no-default-features -p quizx
 
+  # Test the minimum supported Rust version with minimal direct dependency versions.
+  test-quizx-msrv:
+    needs: changes
+    if: ${{ needs.changes.outputs.quizx == 'true' && github.event_name != 'merge_group' }}
+    runs-on: ubuntu-latest
+    name: 🦀 Test quizx (Rust MSRV, min dependencies)
+    env:
+      RUSTC_WRAPPER: sccache
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install MSRV toolchain
+        id: toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.81"
+      - name: Install nightly toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          # Required by cargo-minimal-versions to resolve dependency versions.
+          toolchain: "nightly"
+      - name: Configure default rust toolchain
+        run: rustup override set ${{steps.toolchain.outputs.name}}
+      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: cargo-bins/cargo-binstall@main
+      - name: Install cargo-minimal-versions
+        run: |
+          cargo binstall cargo-hack --force
+          cargo binstall cargo-minimal-versions --force
+      - name: Remove lockfile before resolving minimal dependencies
+        run: rm Cargo.lock
+      - name: Pin transitive dependencies incompatible with our MSRV
+        # Newer indexmap and toml_parser releases require Rust 1.82 and 1.85.
+        run: cargo +nightly add -p quizx indexmap@=2.11.4 toml_parser@=1.0.10
+      - name: Build QuiZX binary with all features
+        run: cargo minimal-versions --direct build --verbose --all-features --bin quizx -p quizx
+      - name: Build with all features
+        run: cargo minimal-versions --direct test --verbose --all-features --no-run -p quizx
+      - name: Tests with all features
+        run: cargo minimal-versions --direct test --verbose --all-features -p quizx
+
   test-quizx-other:
     needs: changes
     if: ${{ needs.changes.outputs.quizx == 'true' && github.event_name != 'merge_group' }}
@@ -222,7 +262,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        rust: ["1.81", beta, nightly]
+        rust: [beta, nightly]
     name: 🦀 Test quizx (Rust ${{ matrix.rust }})
     env:
       RUSTC_WRAPPER: sccache
