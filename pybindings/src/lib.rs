@@ -4,17 +4,19 @@
 
 pub mod circuit;
 pub mod decompose;
+pub mod rankwidth;
 pub mod scalar;
 pub mod util;
 pub mod vec_graph;
 
 use crate::circuit::to_pyzx_circuit;
-use crate::decompose::{Decomposer, SimpFunc};
-use crate::scalar::Scalar;
-use crate::vec_graph::VecGraph;
+use crate::decompose::{PyDecomposer, PySimpFunc};
+use crate::rankwidth::{PyDecompTree, PyRankwidthAnnealer};
+use crate::scalar::PyScalar4;
+use crate::vec_graph::PyVecGraph;
 
-use ::quizx::extract::ExtractError;
-use ::quizx::extract::ToCircuit;
+use ::quizx::circuit::Circuit;
+use ::quizx::extract::{ExtractError, ToCircuit};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
@@ -27,41 +29,49 @@ fn quizx(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(full_simp, m)?)?;
     m.add_function(wrap_pyfunction!(extract_circuit, m)?)?;
     m.add_function(wrap_pyfunction!(qasm, m)?)?;
-    m.add_class::<VecGraph>()?;
-    m.add_class::<Decomposer>()?;
-    m.add_class::<SimpFunc>()?;
-    m.add_class::<Scalar>()?;
+    m.add_function(wrap_pyfunction!(new_graph, m)?)?;
+    m.add_class::<PyVecGraph>()?;
+    m.add_class::<PyDecomposer>()?;
+    m.add_class::<PyRankwidthAnnealer>()?;
+    m.add_class::<PySimpFunc>()?;
+    m.add_class::<PyScalar4>()?;
+    m.add_class::<PyDecompTree>()?;
     Ok(())
 }
 
-#[pyfunction]
-fn qasm(source: &str) -> PyResult<VecGraph> {
-    let c = ::quizx::circuit::Circuit::from_qasm(source).map_err(PyValueError::new_err)?;
-    Ok(VecGraph { g: c.to_graph() })
+#[pyfunction(name = "Graph")]
+fn new_graph<'py>(py: Python<'py>) -> PyVecGraph {
+    PyVecGraph::new(py)
 }
 
 #[pyfunction]
-fn interior_clifford_simp(g: &mut VecGraph) {
+fn qasm<'py>(py: Python<'py>, source: &str) -> PyResult<PyVecGraph> {
+    let c = Circuit::from_qasm(source).map_err(PyValueError::new_err)?;
+    Ok(PyVecGraph::from_graph(py, c.to_graph()))
+}
+
+#[pyfunction]
+fn interior_clifford_simp(g: &mut PyVecGraph) {
     ::quizx::simplify::interior_clifford_simp(&mut g.g);
 }
 
 #[pyfunction]
-fn clifford_simp(g: &mut VecGraph) {
+fn clifford_simp(g: &mut PyVecGraph) {
     ::quizx::simplify::clifford_simp(&mut g.g);
 }
 
 #[pyfunction]
-fn fuse_gadgets(g: &mut VecGraph) {
+fn fuse_gadgets(g: &mut PyVecGraph) {
     ::quizx::simplify::fuse_gadgets(&mut g.g);
 }
 
 #[pyfunction]
-fn full_simp(g: &mut VecGraph) {
+fn full_simp(g: &mut PyVecGraph) {
     ::quizx::simplify::full_simp(&mut g.g);
 }
 
 #[pyfunction]
-fn extract_circuit(py: Python<'_>, g: &mut VecGraph) -> PyResult<PyObject> {
+fn extract_circuit(py: Python<'_>, g: &mut PyVecGraph) -> PyResult<PyObject> {
     match g.g.to_circuit() {
         Ok(c) => to_pyzx_circuit(py, c),
         Err(ExtractError(s, _, _)) => Err(PyValueError::new_err(s)),

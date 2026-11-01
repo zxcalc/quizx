@@ -3,7 +3,7 @@
 
 use crate::graph::VType;
 use crate::hash_graph::{Graph, GraphLike};
-use crate::linalg::Mat2;
+use bitgauss::BitMatrix;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::collections::HashMap;
@@ -94,7 +94,7 @@ fn ordered_nodes(g: &Graph) -> (Vec<usize>, HashMap<usize, usize>) {
 /// index_map: needed to translate the obtained firing vector for original adjacency
 /// v: binary firing vector (a spider "fires" by introducing an opposite-colored pi spider on each adjacent edge)
 /// g: ZX graph on which to create the pauliweb
-pub fn pw(index_map: &HashMap<usize, usize>, v: &Mat2, g: &Graph) -> PauliWeb {
+pub fn pw(index_map: &HashMap<usize, usize>, v: &BitMatrix, g: &Graph) -> PauliWeb {
     let n_outs = g.inputs().len() + g.outputs().len();
     let mut red_edges = BTreeSet::new();
     let mut green_edges = BTreeSet::new();
@@ -102,8 +102,8 @@ pub fn pw(index_map: &HashMap<usize, usize>, v: &Mat2, g: &Graph) -> PauliWeb {
 
     // Process each non-zero entry in the matrix row
     // Assuming v is a row vector (1 x n matrix)
-    for col in 0..v.num_cols() {
-        if v[(0, col)] == 1 {
+    for col in 0..v.cols() {
+        if v[(0, col)] {
             let node = *index_map
                 .get(&(col - n_outs))
                 .expect("Node index not found in index map.");
@@ -142,13 +142,13 @@ pub fn pw(index_map: &HashMap<usize, usize>, v: &Mat2, g: &Graph) -> PauliWeb {
 }
 
 /// Debugging helper functions, makes the log::debug!() blocks shorter
-fn draw_mat(_name: &str, _mat: &Mat2) {
+fn draw_mat(_name: &str, _mat: &BitMatrix) {
     let _ = env_logger::builder().is_test(true).try_init();
     log::debug!(
         "Matrix {} ({}x{}):\n{}",
         _name,
-        _mat.num_rows(),
-        _mat.num_cols(),
+        _mat.rows(),
+        _mat.cols(),
         _mat
     );
 }
@@ -194,11 +194,11 @@ pub fn detection_webs(g: &mut Graph) -> Vec<PauliWeb> {
     draw_mat("N (adjacency)", &big_n);
 
     // Create I_n (identity matrix of size outs x outs)
-    let i_n = Mat2::id(outs);
+    let i_n = BitMatrix::identity(outs);
     draw_mat("I_n", &i_n);
 
     // Create zero block of size (n - outs) x outs
-    let zeroblock = Mat2::zeros(big_n.num_rows() - outs, outs);
+    let zeroblock = BitMatrix::zeros(big_n.rows() - outs, outs);
     draw_mat("zeroblock", &zeroblock);
 
     // Stack I_n on top of zeroblock vertically
@@ -213,8 +213,8 @@ pub fn detection_webs(g: &mut Graph) -> Vec<PauliWeb> {
     // does not contain boundary edges
     // So create [I_{2*outs} | 0] where I is identity and 0 is zero matrix
 
-    let eye_part = Mat2::id(2 * outs);
-    let zero_part = Mat2::zeros(2 * outs, md.num_cols() - 2 * outs);
+    let eye_part = BitMatrix::identity(2 * outs);
+    let zero_part = BitMatrix::zeros(2 * outs, md.cols() - 2 * outs);
     let no_output = eye_part.hstack(&zero_part);
 
     // Stacking this achieves that we only get internal webs, so detection webs

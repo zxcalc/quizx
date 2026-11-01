@@ -4,7 +4,7 @@ use clap::{Args, Parser};
 use itertools::Itertools;
 use num::rational::Ratio;
 // use num::Zero;
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
 use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
@@ -229,7 +229,7 @@ fn sample(
 ) -> String {
     let qs = circ.num_qubits();
     let mut xs: Vec<bool> = vec![];
-    let mut rng = thread_rng();
+    let mut rng = rng();
     for _ in 0..qs {
         let mut g: Graph = circ.to_graph();
         g.plug_inputs(&vec![BasisElem::Z0; qs]);
@@ -241,7 +241,7 @@ fn sample(
         g.plug(&g.to_adjoint());
 
         let scalar = decomp_graph(g, decomposer, driver, parallel);
-        xs.push(rng.gen_bool(scalar.complex_value().re));
+        xs.push(rng.random_bool(scalar.complex_value().re));
     }
     xs.iter().map(|x| if *x { '1' } else { '0' }).join("")
 }

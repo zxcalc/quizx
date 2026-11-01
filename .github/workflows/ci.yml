@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - master 
+      - master
   pull_request:
     branches:
       - master
@@ -15,9 +15,10 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
   RUSTFLAGS: "--cfg=ci_run"
-  MIRIFLAGS: '-Zmiri-permissive-provenance'
+  MIRIFLAGS: "-Zmiri-permissive-provenance"
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
+  CLIPPY_FLAGS: "-D warnings -A clippy::needless-range-loop -A clippy::uninlined-format-args"
   # Supported python version range
   PYTHON_MIN_VERSION: 3.9
   PYTHON_MAX_VERSION: 3.13
@@ -34,54 +35,93 @@ jobs:
       pull-requests: read
     # Set job outputs to values from filter step
     #
-    # Always returns true if running on the default branch, to ensure all changes are throughly checked.
+    # Always returns true if running on the default branch, to ensure all changes are thoroughly checked.
     outputs:
       quizx: ${{ github.ref_name == github.event.repository.default_branch || steps.filter.outputs.quizx }}
       pybindings: ${{ github.ref_name == github.event.repository.default_branch || steps.filter.outputs.pybindings }}
     steps:
-    - uses: actions/checkout@v4
-    - uses: dorny/paths-filter@v3
-      id: filter
-      with:
-        filters: |
-          quizx:
-            - .github/workflows/ci.yml
-            - 'quizx/**'
-            - 'circuits/**'
-            - 'Cargo.toml'
-          pybindings:
-            - .github/workflows/ci.yml
-            - 'quizx/**'
-            - 'pybindings/**'
-            - 'Cargo.toml'
-            - 'pyproject.toml'
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            quizx:
+              - .github/workflows/ci.yml
+              - 'quizx/**'
+              - 'circuits/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            pybindings:
+              - .github/workflows/ci.yml
+              - 'quizx/**'
+              - 'pybindings/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'pyproject.toml'
+              - 'uv.lock'
 
-  check-quizx:
-    name: 🦀 Check quizx package
+  # Rust formatting check
+  rust-fmt:
+    name: 🦀 Rust formatting
     needs: changes
-    if: ${{ needs.changes.outputs.quizx == 'true' }}
+    if: ${{ needs.changes.outputs.quizx == 'true' || needs.changes.outputs.pybindings == 'true' }}
     runs-on: ubuntu-latest
+    env:
+      RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@v4
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
+          components: rustfmt
       - uses: mozilla-actions/sccache-action@v0.0.9
-      - name: Check rust formatting
-        run: cargo fmt -p quizx -- --check
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -p quizx -- -D warnings
+      - name: Check rust formatting (workspace)
+        run: cargo fmt --all -- --check
+
+  # Rust clippy check
+  rust-clippy:
+    name: 🦀 Rust clippy
+    needs: changes
+    if: ${{ needs.changes.outputs.quizx == 'true' || needs.changes.outputs.pybindings == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      RUSTC_WRAPPER: sccache
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Run clippy (workspace)
+        run: cargo clippy --workspace --all-targets --all-features -- ${{ env.CLIPPY_FLAGS }}
+
+  # Rust documentation for quizx
+  rust-doc-quizx:
+    name: 🦀 Rust documentation (quizx)
+    needs: changes
+    if: ${{ needs.changes.outputs.quizx == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      RUSTC_WRAPPER: sccache
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - uses: mozilla-actions/sccache-action@v0.0.9
       - name: Build docs
         run: cargo doc --no-deps --all-features
         env:
           RUSTDOCFLAGS: "-Dwarnings"
 
-  check-pybindings:
-    name: 🦀🐍 Check quizx_pybindings
+  # Python type checking with mypy
+  python-mypy:
+    name: 🐍 Python type checking
     needs: changes
     if: ${{ needs.changes.outputs.pybindings == 'true' }}
     runs-on: ubuntu-latest
+    env:
+      RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@v4
       - uses: mozilla-actions/sccache-action@v0.0.9
@@ -89,20 +129,66 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      - name: Build quizx crate
+        run: cargo build -p quizx
       - name: Install uv
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
       - name: Install the project libraries
         run: uv sync --frozen
-      - name: Check rust formatting
-        run: cargo fmt -p quizx_pybindings -- --check
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -p quizx_pybindings -- -D warnings
       - name: Type check python with mypy
-        run: uv run mypy .
+        run: uv run mypy pybindings
+
+  # Python formatting with ruff
+  python-ruff-format:
+    name: 🐍 Python formatting
+    needs: changes
+    if: ${{ needs.changes.outputs.pybindings == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      RUSTC_WRAPPER: sccache
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Install rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Build quizx crate
+        run: cargo build -p quizx
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install the project libraries
+        run: uv sync --frozen
       - name: Check python formatting with ruff
         run: uv run ruff format --check
+
+  # Python linting with ruff
+  python-ruff-lint:
+    name: 🐍 Python linting
+    needs: changes
+    if: ${{ needs.changes.outputs.pybindings == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      RUSTC_WRAPPER: sccache
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Install rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Build quizx crate
+        run: cargo build -p quizx
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install the project libraries
+        run: uv sync --frozen
       - name: Lint python with ruff
         run: uv run ruff check
 
@@ -111,13 +197,15 @@ jobs:
     if: ${{ needs.changes.outputs.quizx == 'true' }}
     runs-on: ubuntu-latest
     name: 🦀 Test quizx (Rust stable)
+    env:
+      RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@v4
       - uses: mozilla-actions/sccache-action@v0.0.9
       - id: toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 'stable'
+          toolchain: "stable"
       - name: Configure default rust toolchain
         run: rustup override set ${{steps.toolchain.outputs.name}}
       - name: Build QuiZX binary with no features
@@ -127,6 +215,46 @@ jobs:
       - name: Tests with no features
         run: cargo test --verbose --workspace --no-default-features -p quizx
 
+  # Test the minimum supported Rust version with minimal direct dependency versions.
+  test-quizx-msrv:
+    needs: changes
+    if: ${{ needs.changes.outputs.quizx == 'true' && github.event_name != 'merge_group' }}
+    runs-on: ubuntu-latest
+    name: 🦀 Test quizx (Rust MSRV, min dependencies)
+    env:
+      RUSTC_WRAPPER: sccache
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install MSRV toolchain
+        id: toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.81"
+      - name: Install nightly toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          # Required by cargo-minimal-versions to resolve dependency versions.
+          toolchain: "nightly"
+      - name: Configure default rust toolchain
+        run: rustup override set ${{steps.toolchain.outputs.name}}
+      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: cargo-bins/cargo-binstall@main
+      - name: Install cargo-minimal-versions
+        run: |
+          cargo binstall cargo-hack --force
+          cargo binstall cargo-minimal-versions --force
+      - name: Remove lockfile before resolving minimal dependencies
+        run: rm Cargo.lock
+      - name: Pin transitive dependencies incompatible with our MSRV
+        # Newer indexmap and toml_parser releases require Rust 1.82 and 1.85.
+        run: cargo +nightly add -p quizx indexmap@=2.11.4 toml_parser@=1.0.10
+      - name: Build QuiZX binary with all features
+        run: cargo minimal-versions --direct build --verbose --all-features --bin quizx -p quizx
+      - name: Build with all features
+        run: cargo minimal-versions --direct test --verbose --all-features --no-run -p quizx
+      - name: Tests with all features
+        run: cargo minimal-versions --direct test --verbose --all-features -p quizx
+
   test-quizx-other:
     needs: changes
     if: ${{ needs.changes.outputs.quizx == 'true' && github.event_name != 'merge_group' }}
@@ -134,8 +262,10 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        rust: ['1.81', beta, nightly]
+        rust: [beta, nightly]
     name: 🦀 Test quizx (Rust ${{ matrix.rust }})
+    env:
+      RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@v4
       - id: toolchain
@@ -157,6 +287,8 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.pybindings == 'true' }}
     runs-on: ubuntu-latest
+    env:
+      RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@v4
       - uses: mozilla-actions/sccache-action@v0.0.9
@@ -183,21 +315,23 @@ jobs:
   # even if they are skipped due to no changes in the relevant files.
   required-checks:
     name: Required checks 🐍
-    needs: [changes, check-quizx, check-pybindings, test-quizx-stable, test-pybindings]
+    needs:
+      [
+        changes,
+        rust-fmt,
+        rust-clippy,
+        rust-doc-quizx,
+        python-mypy,
+        python-ruff-format,
+        python-ruff-lint,
+        test-quizx-stable,
+        test-pybindings,
+      ]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Fail if required checks failed
-        # This condition should simply be `if: failure() || cancelled()`,
-        # but there seems to be a bug in the github workflow runner.
-        #
-        # See https://github.com/orgs/community/discussions/80788
-        if: |
-          needs.changes.result == 'failure' || needs.changes.result == 'cancelled' ||
-          needs.check-quizx.result == 'failure' || needs.check-quizx.result == 'cancelled' ||
-          needs.check-pybindings.result == 'failure' || needs.check-pybindings.result == 'cancelled' ||
-          needs.test-quizx-stable.result == 'failure' || needs.test-quizx-stable.result == 'cancelled' ||
-          needs.test-pybindings.result == 'failure' || needs.test-pybindings.result == 'cancelled'
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         run: |
           echo "Required checks failed"
           echo "Please check the logs for more information"

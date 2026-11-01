@@ -17,7 +17,7 @@ impl Default for EquatorialStabilizerStateBuilder {
 impl EquatorialStabilizerStateBuilder {
     pub fn new() -> EquatorialStabilizerStateBuilder {
         EquatorialStabilizerStateBuilder {
-            rng: StdRng::from_entropy(),
+            rng: StdRng::from_os_rng(),
             qubits: 1,
         }
     }
@@ -38,10 +38,10 @@ impl EquatorialStabilizerStateBuilder {
         let mut num_cz = 0;
         for i in 0..self.qubits {
             g.add_edge(spiders[i], outputs[i]);
-            g.set_phase(spiders[i], Rational64::new(self.rng.gen_range(0..3), 2));
+            g.set_phase(spiders[i], Rational64::new(self.rng.random_range(0..3), 2));
 
             for j in 0..i {
-                if self.rng.gen_bool(0.5) {
+                if self.rng.random_bool(0.5) {
                     g.add_edge_with_type(spiders[i], spiders[j], EType::H);
                     num_cz += 1;
                 }

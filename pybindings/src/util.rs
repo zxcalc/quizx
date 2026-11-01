@@ -2,7 +2,17 @@ use num::{One, Rational64, Zero};
 use pyo3::{prelude::*, types::PyList};
 use quizx::{params::Parity, phase::Phase};
 
-pub fn phase_and_vars_to_py(py: Python<'_>, phase: Phase, vars: Parity) -> PyResult<PyObject> {
+pub fn from_fraction_like<'py>(py: Python<'py>, f: PyObject) -> Rational64 {
+    // FractionLike can be int, rational, or Poly. If it is Poly, set to zero
+    // TODO: return Parity for the Poly case, rather than zero
+    if let Ok(p) = f.extract::<Rational64>(py) {
+        p
+    } else {
+        f.extract::<i64>(py).unwrap_or_default().into()
+    }
+}
+
+pub fn to_fraction_like<'py>(py: Python<'py>, phase: Phase, vars: Parity) -> PyResult<PyObject> {
     let p = if vars.is_empty() {
         phase.to_rational().into_pyobject(py)?
     } else {
