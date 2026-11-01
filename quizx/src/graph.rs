@@ -818,6 +818,12 @@ pub trait GraphLike: Clone + Sized + Send + Sync + std::fmt::Debug {
                 g.add_edge_with_type(vert_map[&s], vert_map[&t], ety);
             }
         }
+        g.set_inputs(self.inputs().iter().map(|v| vert_map[v]).collect());
+        g.set_outputs(self.outputs().iter().map(|v| vert_map[v]).collect());
+        *g.scalar_mut() = *self.scalar();
+        for (expr, scalar) in self.scalar_factors() {
+            g.mul_scalar_factor(expr.clone(), *scalar);
+        }
         if adjoint {
             g.adjoint();
         }
