@@ -394,10 +394,7 @@ mod tests {
         let g2: Graph = json.to_graph().unwrap();
 
         // Count Hadamard edges.
-        let h_edges: usize = g2
-            .edges()
-            .filter(|(_, _, et)| *et == EType::H)
-            .count();
+        let h_edges: usize = g2.edges().filter(|(_, _, et)| *et == EType::H).count();
         assert_eq!(h_edges, 1);
     }
 

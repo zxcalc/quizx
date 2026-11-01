@@ -716,8 +716,26 @@ mod tests {
     #[test]
     fn test_gtype_qasm_name_roundtrip() {
         let gate_types = [
-            ZPhase, XPhase, NOT, Z, S, T, Sdg, Tdg, HAD, CNOT, CZ, TOFF, CCZ, SWAP, ParityPhase,
-            XCX, InitAncilla, PostSelect, Measure, MeasureReset,
+            ZPhase,
+            XPhase,
+            NOT,
+            Z,
+            S,
+            T,
+            Sdg,
+            Tdg,
+            HAD,
+            CNOT,
+            CZ,
+            TOFF,
+            CCZ,
+            SWAP,
+            ParityPhase,
+            XCX,
+            InitAncilla,
+            PostSelect,
+            Measure,
+            MeasureReset,
         ];
 
         for gt in gate_types {

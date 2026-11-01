@@ -147,15 +147,6 @@ mod tests {
     use crate::circuit::Circuit;
     use crate::vec_graph::Graph;
 
-    fn simple_graph_from_circuit() -> Graph {
-        // CNOT circuit to get a graph with local_comp and pivot opportunities.
-        let mut c = Circuit::new(2);
-        c.add_gate("h", vec![0]);
-        c.add_gate("cx", vec![0, 1]);
-        c.add_gate("h", vec![1]);
-        c.to_graph()
-    }
-
     #[test]
     fn builder_defaults() {
         let g: Graph = Graph::new();
@@ -196,21 +187,24 @@ mod tests {
 
     #[test]
     fn random_local_comp_modifies_graph() {
-        use crate::simplify::clifford_simp;
+        let mut g = Graph::new();
+        let center = g.add_vertex_with_phase(VType::Z, (1, 2));
+        let left = g.add_vertex(VType::Z);
+        let right = g.add_vertex(VType::Z);
+        g.add_edge_with_type(center, left, EType::H);
+        g.add_edge_with_type(center, right, EType::H);
 
-        let mut g = simple_graph_from_circuit();
-        clifford_simp(&mut g);
-
-        let original_edges = g.num_edges();
+        // There is exactly one candidate, so the random choice is deterministic.
+        let candidates: Vec<_> = g.vertices().filter(|&v| check_local_comp(&g, v)).collect();
+        assert_eq!(candidates, vec![center]);
         let mut rng = StdRng::seed_from_u64(42);
+        Annealer::random_local_comp(&mut rng, &mut g);
 
-        // May or may not find candidates; if it does, graph changes.
-        let has_candidates = g.vertices().any(|v| check_local_comp(&g, v));
-        if has_candidates {
-            Annealer::random_local_comp(&mut rng, &mut g);
-            // Graph structure may change.
-            assert!(g.num_edges() != original_edges || g.num_vertices() > 0);
-        }
+        // Local complementation removes the center and connects its neighbors.
+        assert!(!g.contains_vertex(center));
+        assert_eq!(g.num_vertices(), 2);
+        assert_eq!(g.num_edges(), 1);
+        assert_eq!(g.edge_type(left, right), EType::H);
     }
 
     #[test]
