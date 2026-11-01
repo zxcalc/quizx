@@ -96,7 +96,12 @@ fn gates_commute(a: &Gate, b: &Gate) -> bool {
 /// `None` => not combinable; `Some(None)` => they annihilate;
 /// `Some(Some(g))` => they fuse into `g`.
 fn try_combine(a: &Gate, b: &Gate) -> Option<Option<Gate>> {
-    if a.qs != b.qs {
+    if a.qs != b.qs || is_barrier(a.t) || is_barrier(b.t) {
+        return None;
+    }
+    // Gate::adjoint leaves XCX unchanged even for a nontrivial phase.
+    // Keep it opaque until its inverse semantics are represented explicitly.
+    if a.t == XCX || b.t == XCX {
         return None;
     }
     // Fuse adjacent non-symbolic phase gates of the same axis.
@@ -142,6 +147,23 @@ mod tests {
         }
         c.optimize();
         c.gates.into_iter().collect()
+    }
+
+    #[test]
+    fn repeated_barriers_are_preserved() {
+        for t in [Measure, MeasureReset, InitAncilla, PostSelect, UnknownGate] {
+            let gates = vec![Gate::new(t, vec![0]), Gate::new(t, vec![0])];
+            assert_eq!(run(gates.clone(), 1), gates, "{t:?}");
+        }
+    }
+
+    #[test]
+    fn xcx_phases_do_not_cancel() {
+        let gates = vec![
+            Gate::new_with_phase(XCX, vec![0, 1], (1, 4)),
+            Gate::new_with_phase(XCX, vec![0, 1], (1, 4)),
+        ];
+        assert_eq!(run(gates.clone(), 2), gates);
     }
 
     #[test]
