@@ -4,6 +4,36 @@ This is the changelog for the `quizx` rust library.
 For the changelog of the `quizx` python library, see the separate [`CHANGELOG.md`](https://github.com/zxcalc/quizx/blob/master/pybindings/CHANGELOG.md) file.
 
 
+## [0.4.0](https://github.com/zxcalc/quizx/compare/quizx@v0.3.0...quizx@v0.4.0) - 2026-11-01
+
+### Bug Fixes
+
+- typo in README
+- bug in cutrank caching ([#173](https://github.com/zxcalc/quizx/pull/173))
+- remove stale edges from rank cache
+- another caching bug in rankwidth
+- Preserve boundaries and scalars when copying graphs ([#199](https://github.com/zxcalc/quizx/pull/199))
+- Parse Qiskit phase gates in custom QASM definitions ([#200](https://github.com/zxcalc/quizx/pull/200))
+- adding a self-loop should not add two edges ([#187](https://github.com/zxcalc/quizx/pull/187))
+- Support ancilla and post-selection circuit tensors ([#203](https://github.com/zxcalc/quizx/pull/203))
+- Mantissa overflows ([#204](https://github.com/zxcalc/quizx/pull/204))
+
+### New Features
+
+- [**breaking**] Added dyadic rational type and new scalars based on this type ([#158](https://github.com/zxcalc/quizx/pull/158))
+- use bitgauss library for fast F2 linear algebra ([#161](https://github.com/zxcalc/quizx/pull/161))
+- [**breaking**] low-rankwidth decompositions of ZX diagrams ([#166](https://github.com/zxcalc/quizx/pull/166))
+- [**breaking**] Python bindings for rankwidth functions ([#168](https://github.com/zxcalc/quizx/pull/168))
+- added keyword args and properties to bindings ([#169](https://github.com/zxcalc/quizx/pull/169))
+- Extend pyzx compatibility to >=0.9,<0.11 ([#198](https://github.com/zxcalc/quizx/pull/198))
+- implement approximate equality of tensors with floating point scalars ([#137](https://github.com/zxcalc/quizx/pull/137)) ([#182](https://github.com/zxcalc/quizx/pull/182))
+- implement Circuit::optimize (basic gate-level optimisation) ([#193](https://github.com/zxcalc/quizx/pull/193))
+- implement Z-X bialgebra rewrite rule ([#189](https://github.com/zxcalc/quizx/pull/189))
+
+### Testing
+
+- add unit tests for gate, phase, util, random_graph, annealer, cli, json ([#188](https://github.com/zxcalc/quizx/pull/188))
+
 ## [0.3.0](https://github.com/zxcalc/quizx/compare/quizx@v0.2.0...quizx@v0.3.0) - 2025-06-12
 
 ### Bug Fixes
