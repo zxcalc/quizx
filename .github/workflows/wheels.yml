@@ -80,23 +80,24 @@ jobs:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
+        # setup-python provides Python 3.9 for Ubuntu 24.04, but not 26.04.
         platform:
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             target: x86_64
             manylinux: "manylinux_2_28"
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             target: x86
             manylinux: "manylinux_2_28"
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             target: aarch64
             manylinux: "manylinux_2_28"
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             target: armv7
             manylinux: "manylinux_2_28"
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             target: s390x
             manylinux: "manylinux_2_28"
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             target: ppc64le
             manylinux: "manylinux_2_28"
     steps:
