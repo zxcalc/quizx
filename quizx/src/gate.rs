@@ -566,7 +566,7 @@ impl Gate {
                         qs.remove(&self.qs[0]);
 
                         // adjust qubit indices to account for the missing output
-                        for (_, v1) in qs.iter_mut() {
+                        for v1 in qs.values_mut() {
                             if *v1 > i {
                                 *v1 -= 1;
                             }
@@ -597,7 +597,7 @@ impl Gate {
                         qs.remove(&self.qs[0]);
 
                         // adjust qubit indices to account for the missing output
-                        for (_, v1) in qs.iter_mut() {
+                        for v1 in qs.values_mut() {
                             if *v1 > i {
                                 *v1 -= 1;
                             }
