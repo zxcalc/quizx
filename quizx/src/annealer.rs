@@ -140,3 +140,79 @@ impl<G: GraphLike> Annealer<G> {
         println!("{}/{}", self.iters, self.iters);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::circuit::Circuit;
+    use crate::vec_graph::Graph;
+
+    #[test]
+    fn builder_defaults() {
+        let g: Graph = Graph::new();
+        let a = Annealer::new(g);
+        assert_eq!(a.temp, 25.0);
+        assert_eq!(a.cool, 0.005);
+        assert_eq!(a.iters, 1000);
+    }
+
+    #[test]
+    fn builder_setters() {
+        let g: Graph = Graph::new();
+        let mut a = Annealer::new(g);
+        a.seed(42).temp(50.0).cool(0.01).iters(500);
+        assert_eq!(a.temp, 50.0);
+        assert_eq!(a.cool, 0.01);
+        assert_eq!(a.iters, 500);
+    }
+
+    #[test]
+    fn extract_2q_score_counts_two_qubit_gates() {
+        use crate::simplify::clifford_simp;
+
+        let mut c = Circuit::new(3);
+        c.add_gate("h", vec![0]);
+        c.add_gate("cx", vec![0, 1]);
+        c.add_gate("cx", vec![1, 2]);
+        c.add_gate("h", vec![2]);
+        let mut g: Graph = c.to_graph();
+
+        // Simplify to graph-like form, then extract back to circuit.
+        clifford_simp(&mut g);
+
+        let score = Annealer::extract_2q_score(&g);
+        // After simplification, 2-qubit gate count may differ from original.
+        assert!(score <= 3);
+    }
+
+    #[test]
+    fn random_local_comp_modifies_graph() {
+        let mut g = Graph::new();
+        let center = g.add_vertex_with_phase(VType::Z, (1, 2));
+        let left = g.add_vertex(VType::Z);
+        let right = g.add_vertex(VType::Z);
+        g.add_edge_with_type(center, left, EType::H);
+        g.add_edge_with_type(center, right, EType::H);
+
+        // There is exactly one candidate, so the random choice is deterministic.
+        let candidates: Vec<_> = g.vertices().filter(|&v| check_local_comp(&g, v)).collect();
+        assert_eq!(candidates, vec![center]);
+        let mut rng = StdRng::seed_from_u64(42);
+        Annealer::random_local_comp(&mut rng, &mut g);
+
+        // Local complementation removes the center and connects its neighbors.
+        assert!(!g.contains_vertex(center));
+        assert_eq!(g.num_vertices(), 2);
+        assert_eq!(g.num_edges(), 1);
+        assert_eq!(g.edge_type(left, right), EType::H);
+    }
+
+    #[test]
+    fn anneal_empty_actions() {
+        let g: Graph = Graph::new();
+        let mut a = Annealer::new(g);
+        a.actions = vec![];
+        a.iters(10).anneal();
+        // Should not panic with empty actions.
+    }
+}

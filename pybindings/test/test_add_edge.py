@@ -1,5 +1,6 @@
-from quizx import VecGraph
 from pyzx import EdgeType
+
+from quizx import VecGraph
 
 
 def test_add_edge():

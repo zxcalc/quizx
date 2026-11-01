@@ -30,7 +30,7 @@ jobs:
       has_breaking_footer: ${{ steps.breaking.outputs.has_breaking_footer }}
     steps:
       - name: Validate the PR title format
-        uses: amannn/action-semantic-pull-request@v5
+        uses: amannn/action-semantic-pull-request@v6
         id: lint_pr_title
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
