@@ -2,7 +2,7 @@
 
 This guide is intended to help you get started with developing quizx.
 
-If you find any errors or omissions in this document, please [open an issue](https://github.com/zxlang/quizx/issues/new)!
+If you find any errors or omissions in this document, please [open an issue](https://github.com/zxcalc/quizx/issues/new)!
 
 ## #️⃣ Setting up the development environment
 
@@ -21,7 +21,7 @@ Run `just` to see all available commands.
 ## 🚀 Building the project
 
 There is a miscellaneous collection of rust programs written using the library,
-found in `examples/`. To execute these programs, run:
+found in `quizx/examples/`. To execute these programs, run:
 
 ```bash
 cargo run --release --example <program_name>
@@ -73,7 +73,7 @@ just fix-python
 
 ## 🌐 Contributing to quizx
 
-We welcome contributions to quizx! Please open [an issue](https://github.com/CQCL/hugr/issues/new) or [pull request](https://github.com/CQCL/hugr/compare) if you have any questions or suggestions.
+We welcome contributions to quizx! Please open [an issue](https://github.com/zxcalc/quizx/issues/new) or [pull request](https://github.com/zxcalc/quizx/compare) if you have any questions or suggestions.
 
 PRs should be made against the `master` branch, and should pass all CI checks before being merged.
 
