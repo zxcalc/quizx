@@ -177,7 +177,7 @@ impl fmt::Display for Scalar4 {
         for (i, dy) in self.0.iter().enumerate() {
             let (mut v, mut e) = dy.val_and_exp();
             if v > -1024 && v < 1024 && e > 0 && e <= 10 {
-                v *= 2i64.pow(e as u32);
+                v *= 2i128.pow(e as u32);
                 e = 0;
             }
 
@@ -493,6 +493,17 @@ mod test {
     use super::*;
     use approx::assert_abs_diff_eq;
     use rstest::rstest;
+
+    #[test]
+    fn full_width_coefficient_preserves_value_and_phase() {
+        let scalar = Scalar4::new([i64::MAX, 0, 0, 0], 0) + Scalar4::new([1, 0, 0, 0], 63);
+        let negative = scalar * Scalar4::new([-1, 0, 0, 0], 0);
+        assert_eq!(scalar.to_string(), u64::MAX.to_string());
+        assert_eq!(negative.to_string(), format!("-{}", u64::MAX));
+        assert_eq!(scalar.complex_value(), Complex::new(u64::MAX as f64, 0.0));
+        assert_eq!(scalar.exact_phase_and_sqrt2_pow(), None);
+        assert_eq!(negative.exact_phase_and_sqrt2_pow(), None);
+    }
 
     #[test]
     fn display() {

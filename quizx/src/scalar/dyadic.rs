@@ -33,7 +33,7 @@ impl Dyadic {
         let mut d = if val.is_negative() {
             Dyadic {
                 flags: SIGN,
-                val: -val as Mantissa,
+                val: val.unsigned_abs(),
                 exp,
             }
         } else {
@@ -66,13 +66,15 @@ impl Dyadic {
         }
     }
 
+    /// Returns the signed odd mantissa and its power of two, or `(0, 0)` for zero.
+    /// The signed result needs 128 bits to hold the full unsigned 64-bit mantissa.
     #[inline]
-    pub fn val_and_exp(&self) -> (SignedMantissa, Exponent) {
+    pub fn val_and_exp(&self) -> (i128, Exponent) {
         if self.is_zero() {
             (0, 0)
         } else {
             let shift = self.val.trailing_zeros();
-            let v = self.val.wrapping_shr(shift) as SignedMantissa;
+            let v = i128::from(self.val.wrapping_shr(shift));
             if self.sign() {
                 (-v, self.exp + (shift as Exponent))
             } else {
@@ -81,15 +83,10 @@ impl Dyadic {
         }
     }
 
+    /// Returns the signed odd mantissa, preserving all 64 magnitude bits.
     #[inline]
-    pub fn val(&self) -> SignedMantissa {
-        let shift = self.val.trailing_zeros();
-        let v = self.val.wrapping_shr(shift) as SignedMantissa;
-        if self.sign() {
-            -v
-        } else {
-            v
-        }
+    pub fn val(&self) -> i128 {
+        self.val_and_exp().0
     }
 
     #[inline]
@@ -135,9 +132,9 @@ impl fmt::Display for Dyadic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let (mut v, mut e) = self.val_and_exp();
 
-        let bnd: SignedMantissa = 1024;
+        let bnd: i128 = 1024;
         if v > -bnd && v < bnd && e.is_positive() && e < 10 {
-            v *= (2 as SignedMantissa).pow(e as u32);
+            v *= 2i128.pow(e as u32);
             e = 0;
         }
 
@@ -404,7 +401,7 @@ mod test {
     #[case(Dyadic::new(3, 12), (3, 12))]
     #[case(Dyadic::new(12, 10), (3, 12))]
     #[case(Dyadic::new(-3, 4), (-3, 4))]
-    fn repr(#[case] d: Dyadic, #[case] p: (SignedMantissa, Exponent)) {
+    fn repr(#[case] d: Dyadic, #[case] p: (i128, Exponent)) {
         assert_eq!(d.val_and_exp(), p);
     }
 
@@ -455,7 +452,7 @@ mod test {
     #[case(Dyadic::new(32, 0), (1, 5))]
     #[case(Dyadic::new(-5, 10), (-5, 10))]
     #[case(Dyadic::new(53, 100), (53, 100))]
-    fn val_and_exp(#[case] s: Dyadic, #[case] ve: (SignedMantissa, Exponent)) {
+    fn val_and_exp(#[case] s: Dyadic, #[case] ve: (i128, Exponent)) {
         assert_eq!(ve, s.val_and_exp());
         assert_eq!(ve.0, s.val());
         assert_eq!(ve.1, s.exp());
@@ -483,6 +480,51 @@ mod test {
     fn roundtrip2(#[case] f: f64) {
         let f1 = f64::try_from(Dyadic::from(f));
         assert_eq!(Ok(f), f1);
+    }
+
+    #[rstest]
+    #[case(1, 0)]
+    #[case(-1, 0)]
+    #[case(1, -100)]
+    #[case(-1, 100)]
+    fn full_width_mantissa_to_float(#[case] sign: SignedMantissa, #[case] exp: Exponent) {
+        let value = Dyadic::new(sign, exp) + Dyadic::new(sign, exp - 63);
+        assert_eq!(
+            f64::try_from(value).unwrap(),
+            (sign as f64) * 2.0f64.powi(exp)
+        );
+    }
+
+    #[rstest]
+    #[case(Dyadic::new(1, 0) + Dyadic::new(1, -63), (1i128 << 63) + 1, -63)]
+    #[case(Dyadic::new(i64::MAX, 0) + Dyadic::new(1, 63), i128::from(u64::MAX), 0)]
+    fn full_width_mantissa_accessors(
+        #[case] value: Dyadic,
+        #[case] mantissa: i128,
+        #[case] exp: Exponent,
+    ) {
+        for (value, mantissa) in [(value, mantissa), (-value, -mantissa)] {
+            assert_eq!(value.val_and_exp(), (mantissa, exp));
+            assert_eq!(value.val(), mantissa);
+            assert_eq!(value.exp(), exp);
+            let expected = if exp == 0 {
+                mantissa.to_string()
+            } else {
+                format!("{mantissa}e{exp}")
+            };
+            assert_eq!(value.to_string(), expected);
+            assert_eq!(
+                f64::try_from(value).unwrap(),
+                (mantissa as f64) * 2.0f64.powi(exp)
+            );
+        }
+    }
+
+    #[test]
+    fn minimum_signed_mantissa() {
+        let value = Dyadic::new(i64::MIN, 0);
+        assert_eq!(value.val_and_exp(), (-1, 63));
+        assert_eq!(f64::try_from(value).unwrap(), i64::MIN as f64);
     }
 
     #[rstest]
