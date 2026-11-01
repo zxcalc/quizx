@@ -14,6 +14,20 @@ mod test {
     }
 
     #[rstest]
+    fn qiskit_mcx(mut cmd: Command) {
+        let output = tempfile::NamedTempFile::new().unwrap();
+        cmd.arg("tests/fixtures/mcx.qasm")
+            .arg("-o")
+            .arg(output.path())
+            .assert()
+            .success();
+        let optimized =
+            quizx::circuit::Circuit::from_file(output.path().to_str().unwrap()).unwrap();
+        assert_eq!(optimized.num_qubits(), 4);
+        assert!(optimized.num_gates() > 0);
+    }
+
+    #[rstest]
     fn default(mut cmd: Command) {
         cmd.arg(CIRC).assert().success();
     }
