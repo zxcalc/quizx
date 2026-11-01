@@ -75,12 +75,8 @@ impl CircuitStats {
                 NOT | Z | S | Sdg | CNOT | CZ | SWAP | HAD => {
                     s.cliff += 1;
                 }
-                ZPhase | XPhase => {
-                    if g.phase.is_clifford() {
-                        s.cliff += 1;
-                    } else {
-                        s.non_cliff += 1;
-                    }
+                ZPhase | XPhase if g.phase.is_clifford() => {
+                    s.cliff += 1;
                 }
                 _ => {
                     s.non_cliff += 1;

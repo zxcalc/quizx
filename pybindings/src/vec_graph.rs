@@ -598,7 +598,7 @@ impl PyVecGraph {
     }
 
     fn __iadd__(&mut self, other: &Bound<'_, PyAny>) -> PyResult<()> {
-        // TODO: should return a reference to Self. I don't know how to do this w PyO3
+        // PyO3 returns the original Python object when this method succeeds.
         self.compose(other)
     }
 
