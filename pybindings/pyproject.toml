@@ -34,8 +34,8 @@ requires = ["maturin>=1.7.0"]
 build-backend = "maturin"
 
 [project.urls]
-homepage = "https://github.com/zxlang/quizx"
-repository = "https://github.com/zxlang/quizx"
+homepage = "https://github.com/zxcalc/quizx"
+repository = "https://github.com/zxcalc/quizx"
 
 [tool.maturin]
 module-name = "quizx"
