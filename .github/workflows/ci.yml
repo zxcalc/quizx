@@ -19,9 +19,6 @@ env:
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
   CLIPPY_FLAGS: "-D warnings -A clippy::needless-range-loop -A clippy::uninlined-format-args"
-  # Supported python version range
-  PYTHON_MIN_VERSION: 3.9
-  PYTHON_MAX_VERSION: 3.13
 
 jobs:
   # Computes if changes where made to each group of files, so we can run only the necessary checks.
@@ -283,10 +280,15 @@ jobs:
         run: cargo test --verbose --all-features -p quizx
 
   test-pybindings:
-    name: 🐍 Build and Test quizx_pybindings
+    name: 🐍 Python ${{ matrix.python }} / PyZX ${{ matrix.pyzx }}
     needs: changes
     if: ${{ needs.changes.outputs.pybindings == 'true' }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.13"]
+        pyzx: ["==0.9.0", ">=0.10,<0.11"]
     env:
       RUSTC_WRAPPER: sccache
     steps:
@@ -294,22 +296,18 @@ jobs:
       - uses: mozilla-actions/sccache-action@v0.0.9
       - name: Install rust stable toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      - name: Install poetry
-        run: pipx install poetry
       - name: Install uv
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - name: Build pyo3 bindings for minimum supported python version
-        run: uv run --python ${{ env.PYTHON_MIN_VERSION }} maturin develop
-      - name: Test pyo3 bindings for minimum supported python version
-        run: uv run --python ${{ env.PYTHON_MIN_VERSION }} pytest
-      - name: Build pyo3 bindings for latest supported python version
-        run: uv run --python ${{ env.PYTHON_MAX_VERSION }} maturin develop
-      - name: Test pyo3 bindings for latest supported python version
-        run: uv run --python ${{ env.PYTHON_MAX_VERSION }} pytest
+      - name: Install the project libraries
+        run: uv sync --frozen --python "${{ matrix.python }}"
+      - name: Select PyZX version
+        run: uv pip install "pyzx${{ matrix.pyzx }}"
+      - name: Build pyo3 bindings
+        run: uv run --no-sync maturin develop --manifest-path pybindings/Cargo.toml
+      - name: Test pyo3 bindings
+        run: uv run --no-sync pytest
 
   # This is a meta job to mark successful completion of the required checks,
   # even if they are skipped due to no changes in the relevant files.

@@ -203,6 +203,8 @@ impl GraphLike for Graph {
                 self.edata.push(None);
                 self.holes.push(i);
             }
+            self.vdata.push(None);
+            self.edata.push(None);
         }
 
         self.numv += 1;
