@@ -39,7 +39,11 @@ pub fn equal_graph_tensor(g1: &Graph, g2: &Graph) -> bool {
     }
     let t1 = g1.to_tensor4();
     let t2 = g2.to_tensor4();
-    t1.abs_diff_eq(&t2, Scalar4::default_epsilon())
+
+    // Compare exact scalar entries exactly. Compare approximate entries with `eps = 1e-10`.
+    t1.iter().zip(t2.iter()).all(|(a, b)| {
+        a == b || ((a.approx() || b.approx()) && a.abs_diff_eq(b, Scalar4::default_epsilon()))
+    })
 }
 
 /// Checks the equality of two circuits by comparing the linear maps they represent.
@@ -196,6 +200,27 @@ mod tests {
     }
 
     #[test]
+    fn exact_scalars_remain_distinct() {
+        use crate::graph::GraphLike;
+        use crate::scalar::Scalar4;
+        use crate::vec_graph::Graph;
+        let g1 = Graph::new();
+        let mut g2 = g1.clone();
+        *g2.scalar_mut() += Scalar4::new([1, 0, 0, 0], -40);
+        assert!(!super::equal_graph_tensor(&g1, &g2));
+    }
+
+    #[test]
+    fn unequal_approximate_phases() {
+        let mut c1 = Circuit::new(1);
+        c1.add_gate_with_phase("rz", vec![0], (1, 7));
+        let mut c2 = Circuit::new(1);
+        c2.add_gate_with_phase("rz", vec![0], (2, 7));
+        assert!(!equal_circuit_tensor(&c1, &c2));
+        assert!(!equal_circuit_tensor(&c1, &Circuit::new(2)));
+    }
+
+    #[test]
     fn floating_point_tolerance() {
         use crate::tensor::ToTensor;
         use crate::vec_graph::Graph;
@@ -212,7 +237,7 @@ mod tests {
 
         let g1: Graph = c1.to_graph();
         let g2: Graph = c2.to_graph();
-        assert!(g1.to_tensor4() != g2.to_tensor4());  // not equal due to floating point rounding
+        assert!(g1.to_tensor4() != g2.to_tensor4()); // not equal due to floating point rounding
         assert!(equal_circuit_tensor(&c1, &c2));
     }
 }
