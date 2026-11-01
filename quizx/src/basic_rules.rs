@@ -705,7 +705,8 @@ checked_rule2!(check_gadget_fusion, gadget_fusion_unchecked, gadget_fusion);
 /// - v0 and v1 are connected by a normal edge
 /// - All neighbors of v0 (except v1) have the same color as v1
 /// - All neighbors of v1 (except v0) have the same color as v0
-/// - Both v0 and v1 have zero phase
+/// - All incident edges are normal edges
+/// - Both v0 and v1 have zero phase and no symbolic phase variables
 ///
 /// ```
 /// # use quizx::graph::*;
@@ -739,16 +740,20 @@ pub fn check_bialg(g: &impl GraphLike, v0: V, v1: V) -> bool {
     if !((t0 == VType::Z && t1 == VType::X) || (t0 == VType::X && t1 == VType::Z)) {
         return false;
     }
-    if !g.phase(v0).is_zero() || !g.phase(v1).is_zero() {
+    if !g.phase(v0).is_zero()
+        || !g.phase(v1).is_zero()
+        || !g.vars(v0).is_empty()
+        || !g.vars(v1).is_empty()
+    {
         return false;
     }
     for n in g.neighbor_vec(v0) {
-        if n != v1 && g.vertex_type(n) != t1 {
+        if n != v1 && (g.vertex_type(n) != t1 || g.edge_type(v0, n) != EType::N) {
             return false;
         }
     }
     for n in g.neighbor_vec(v1) {
-        if n != v0 && g.vertex_type(n) != t0 {
+        if n != v0 && (g.vertex_type(n) != t0 || g.edge_type(v1, n) != EType::N) {
             return false;
         }
     }
@@ -792,8 +797,16 @@ pub fn check_bialg(g: &impl GraphLike, v0: V, v1: V) -> bool {
 #[inline]
 pub fn bialg_unchecked(g: &mut impl GraphLike, v0: V, v1: V) {
     // Collect neighbors before modifying the graph.
-    let v0_neighbors: Vec<V> = g.neighbor_vec(v0).into_iter().filter(|&n| n != v1).collect();
-    let v1_neighbors: Vec<V> = g.neighbor_vec(v1).into_iter().filter(|&n| n != v0).collect();
+    let v0_neighbors: Vec<V> = g
+        .neighbor_vec(v0)
+        .into_iter()
+        .filter(|&n| n != v1)
+        .collect();
+    let v1_neighbors: Vec<V> = g
+        .neighbor_vec(v1)
+        .into_iter()
+        .filter(|&n| n != v0)
+        .collect();
 
     // Remove both vertices.
     g.remove_vertex(v0);
@@ -1425,6 +1438,62 @@ mod tests {
 
         assert!(remove_duplicate(&mut g, v0, v1));
         assert_eq!(g.to_tensor4(), h.to_tensor4());
+    }
+
+    #[test]
+    fn bialg_rejects_hadamard_neighbor() {
+        let mut g = Graph::new();
+        let z = g.add_vertex(VType::Z);
+        let x = g.add_vertex(VType::X);
+        let neighbor = g.add_vertex(VType::X);
+        g.add_edge(z, x);
+        g.add_edge_with_type(z, neighbor, EType::H);
+        assert!(!check_bialg(&g, z, x));
+        assert!(!check_bialg(&g, x, z));
+    }
+
+    #[test]
+    fn bialg_rejects_symbolic_phase() {
+        let mut g = Graph::new();
+        let z = g.add_vertex(VType::Z);
+        let x = g.add_vertex(VType::X);
+        g.set_vars(z, vec![0].into());
+        g.add_edge(z, x);
+        assert!(!check_bialg(&g, z, x));
+        assert!(!check_bialg(&g, x, z));
+    }
+
+    #[test]
+    fn bialg_preserves_tensors_across_degrees() {
+        for m in 0..=3 {
+            for n in 0..=3 {
+                let mut g = Graph::new();
+                let z = g.add_vertex(VType::Z);
+                let x = g.add_vertex(VType::X);
+                g.add_edge(z, x);
+                let mut inputs = Vec::new();
+                let mut outputs = Vec::new();
+                for _ in 0..m {
+                    let neighbor = g.add_vertex(VType::X);
+                    let boundary = g.add_vertex(VType::B);
+                    g.add_edge(z, neighbor);
+                    g.add_edge(neighbor, boundary);
+                    inputs.push(boundary);
+                }
+                for _ in 0..n {
+                    let neighbor = g.add_vertex(VType::Z);
+                    let boundary = g.add_vertex(VType::B);
+                    g.add_edge(x, neighbor);
+                    g.add_edge(neighbor, boundary);
+                    outputs.push(boundary);
+                }
+                g.set_inputs(inputs);
+                g.set_outputs(outputs);
+                let original = g.to_tensor4();
+                assert!(bialg(&mut g, z, x));
+                assert_eq!(g.to_tensor4(), original, "m={m}, n={n}");
+            }
+        }
     }
 
     #[test]
