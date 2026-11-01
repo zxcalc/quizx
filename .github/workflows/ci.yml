@@ -50,12 +50,15 @@ jobs:
             - 'quizx/**'
             - 'circuits/**'
             - 'Cargo.toml'
+            - 'Cargo.lock'
           pybindings:
             - .github/workflows/ci.yml
             - 'quizx/**'
             - 'pybindings/**'
             - 'Cargo.toml'
+            - 'Cargo.lock'
             - 'pyproject.toml'
+            - 'uv.lock'
 
   # Rust formatting check
   rust-fmt:
