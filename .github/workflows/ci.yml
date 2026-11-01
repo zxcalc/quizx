@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - master 
+      - master
   pull_request:
     branches:
       - master
@@ -15,7 +15,7 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
   RUSTFLAGS: "--cfg=ci_run"
-  MIRIFLAGS: '-Zmiri-permissive-provenance'
+  MIRIFLAGS: "-Zmiri-permissive-provenance"
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
   CLIPPY_FLAGS: "-D warnings -A clippy::needless-range-loop -A clippy::uninlined-format-args"
@@ -40,25 +40,25 @@ jobs:
       quizx: ${{ github.ref_name == github.event.repository.default_branch || steps.filter.outputs.quizx }}
       pybindings: ${{ github.ref_name == github.event.repository.default_branch || steps.filter.outputs.pybindings }}
     steps:
-    - uses: actions/checkout@v4
-    - uses: dorny/paths-filter@v3
-      id: filter
-      with:
-        filters: |
-          quizx:
-            - .github/workflows/ci.yml
-            - 'quizx/**'
-            - 'circuits/**'
-            - 'Cargo.toml'
-            - 'Cargo.lock'
-          pybindings:
-            - .github/workflows/ci.yml
-            - 'quizx/**'
-            - 'pybindings/**'
-            - 'Cargo.toml'
-            - 'Cargo.lock'
-            - 'pyproject.toml'
-            - 'uv.lock'
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            quizx:
+              - .github/workflows/ci.yml
+              - 'quizx/**'
+              - 'circuits/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            pybindings:
+              - .github/workflows/ci.yml
+              - 'quizx/**'
+              - 'pybindings/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'pyproject.toml'
+              - 'uv.lock'
 
   # Rust formatting check
   rust-fmt:
@@ -166,7 +166,7 @@ jobs:
       - name: Check python formatting with ruff
         run: uv run ruff format --check
 
-  # Python linting with ruff  
+  # Python linting with ruff
   python-ruff-lint:
     name: 🐍 Python linting
     needs: changes
@@ -205,7 +205,7 @@ jobs:
       - id: toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 'stable'
+          toolchain: "stable"
       - name: Configure default rust toolchain
         run: rustup override set ${{steps.toolchain.outputs.name}}
       - name: Build QuiZX binary with no features
@@ -222,7 +222,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        rust: ['1.81', beta, nightly]
+        rust: ["1.81", beta, nightly]
     name: 🦀 Test quizx (Rust ${{ matrix.rust }})
     env:
       RUSTC_WRAPPER: sccache
@@ -275,25 +275,23 @@ jobs:
   # even if they are skipped due to no changes in the relevant files.
   required-checks:
     name: Required checks 🐍
-    needs: [changes, rust-fmt, rust-clippy, rust-doc-quizx, python-mypy, python-ruff-format, python-ruff-lint, test-quizx-stable, test-pybindings]
+    needs:
+      [
+        changes,
+        rust-fmt,
+        rust-clippy,
+        rust-doc-quizx,
+        python-mypy,
+        python-ruff-format,
+        python-ruff-lint,
+        test-quizx-stable,
+        test-pybindings,
+      ]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Fail if required checks failed
-        # This condition should simply be `if: failure() || cancelled()`,
-        # but there seems to be a bug in the github workflow runner.
-        #
-        # See https://github.com/orgs/community/discussions/80788
-        if: |
-          needs.changes.result == 'failure' || needs.changes.result == 'cancelled' ||
-          needs.rust-fmt.result == 'failure' || needs.rust-fmt.result == 'cancelled' ||
-          needs.rust-clippy.result == 'failure' || needs.rust-clippy.result == 'cancelled' ||
-          needs.rust-doc-quizx.result == 'failure' || needs.rust-doc-quizx.result == 'cancelled' ||
-          needs.python-mypy.result == 'failure' || needs.python-mypy.result == 'cancelled' ||
-          needs.python-ruff-format.result == 'failure' || needs.python-ruff-format.result == 'cancelled' ||
-          needs.python-ruff-lint.result == 'failure' || needs.python-ruff-lint.result == 'cancelled' ||
-          needs.test-quizx-stable.result == 'failure' || needs.test-quizx-stable.result == 'cancelled' ||
-          needs.test-pybindings.result == 'failure' || needs.test-pybindings.result == 'cancelled'
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         run: |
           echo "Required checks failed"
           echo "Please check the logs for more information"
