@@ -49,7 +49,7 @@ pub trait ToCircuit: GraphLike {
         self.clone().to_circuit_mut()
     }
 
-    fn extractor(&mut self) -> Extractor<Self> {
+    fn extractor(&mut self) -> Extractor<'_, Self> {
         Extractor::new(self)
     }
 }

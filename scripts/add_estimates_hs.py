@@ -2,6 +2,7 @@
 
 import csv
 import sys
+
 from bigfloat import BigFloat, log10  # type: ignore
 
 

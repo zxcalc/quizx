@@ -75,12 +75,8 @@ impl CircuitStats {
                 NOT | Z | S | Sdg | CNOT | CZ | SWAP | HAD => {
                     s.cliff += 1;
                 }
-                ZPhase | XPhase => {
-                    if g.phase.is_clifford() {
-                        s.cliff += 1;
-                    } else {
-                        s.non_cliff += 1;
-                    }
+                ZPhase | XPhase if g.phase.is_clifford() => {
+                    s.cliff += 1;
                 }
                 _ => {
                     s.non_cliff += 1;
@@ -199,6 +195,8 @@ impl Circuit {
         parser.parse_source::<String>(
             "
             opaque rz(phase) q;
+            gate p(phase) q { rz(phase) q; }
+            gate u1(phase) q { rz(phase) q; }
             opaque rx(phase) q;
             opaque x q;
             opaque z q;
@@ -711,5 +709,40 @@ mod tests {
         let g1 = c.to_graph::<Graph>();
         let g2 = c.to_graph_with_options::<Graph>(true, false);
         assert_eq!(g1.to_tensor4(), g2.to_tensor4());
+    }
+}
+
+#[cfg(test)]
+mod qasm_phase_tests {
+    use super::*;
+    use crate::tensor::{QubitOps, TensorF, ToTensor};
+
+    #[test]
+    fn qiskit_mcx() {
+        let c = Circuit::from_qasm(include_str!("../tests/fixtures/mcx.qasm")).unwrap();
+        assert!(c.gates.iter().all(|g| g.t != GType::UnknownGate));
+        let mut expected = TensorF::ident(4);
+        expected.hadamard_at(3);
+        expected.cphase_at(1, &[0, 1, 2, 3]);
+        expected.hadamard_at(3);
+        let actual = c.to_tensorf();
+        assert_eq!(actual.shape(), expected.shape());
+        for (a, b) in actual.iter().zip(expected.iter()) {
+            assert!((*a - *b).norm() < 1e-10);
+        }
+    }
+
+    #[test]
+    fn phase_aliases() {
+        for name in ["p", "u1"] {
+            let c = Circuit::from_qasm(&format!(
+                "OPENQASM 2.0; include \"qelib1.inc\"; qreg q[1]; {name}(-pi/8) q[0];"
+            ))
+            .unwrap();
+            assert_eq!(
+                c.gates[0],
+                Gate::new_with_phase(GType::ZPhase, vec![0], (-1, 8))
+            );
+        }
     }
 }

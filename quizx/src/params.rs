@@ -69,7 +69,7 @@ impl Parity {
         Parity(self.0.clone(), !self.1)
     }
 
-    pub fn iter(&self) -> ParityIter {
+    pub fn iter(&self) -> ParityIter<'_> {
         let it = self.0.iter().copied();
         it
     }
@@ -187,7 +187,7 @@ impl Expr {
         self.len() == 1
     }
 
-    pub fn iter(&self) -> ExprIter {
+    pub fn iter(&self) -> ExprIter<'_> {
         self.0.iter()
     }
 }

@@ -17,6 +17,14 @@ use crate::util::*;
 
 type E = (V, V);
 
+fn edge_type_to_u8(ty: EType) -> u8 {
+    match ty {
+        EType::N => 1,
+        EType::H => 2,
+        EType::Wio => 3,
+    }
+}
+
 /// Wrapper for quizx::vec_graph::Graph
 #[pyclass(name = "VecGraph")]
 pub struct PyVecGraph {
@@ -30,6 +38,13 @@ pub struct PyVecGraph {
 }
 
 impl PyVecGraph {
+    fn reverse_rows(&mut self) {
+        let depth = self.g.depth();
+        for v in self.g.vertex_vec() {
+            self.g.set_row(v, depth - self.g.row(v));
+        }
+    }
+
     pub fn from_graph<'py>(py: Python<'py>, g: Graph) -> PyVecGraph {
         PyVecGraph {
             g,
@@ -60,7 +75,7 @@ impl PyVecGraph {
     /// effect, you must set the scalar back afters, e.g. in Python:
     ///     s = g.scalar
     ///     s.add_phase(Fraction(1,2))
-    ///     g.set_scalar(s)
+    ///     g.scalar = s
     ///
     /// This is different from the behaviour of other backends, but it seems to be
     /// unavoidable due to Rust's ownership limitations.
@@ -161,16 +176,26 @@ impl PyVecGraph {
 
     #[pyo3(signature = (s=None, t=None, et=None))]
     fn num_edges(&self, s: Option<V>, t: Option<V>, et: Option<u8>) -> usize {
-        // For now, we ignore the filtering parameters and just return total count
-        let _s = s;
-        let _t = t;
-        let _et = et;
-        if s.is_some() || t.is_some() || et.is_some() {
-            println!(
-                "warning: num_edges filtering parameters are not implemented for quizx-vec backend"
-            );
+        if s.is_none() && et.is_none() {
+            return self.g.num_edges();
         }
-        self.g.num_edges()
+        match (s, t) {
+            (Some(s), Some(t)) => usize::from(
+                self.g
+                    .edge_type_opt(s, t)
+                    .is_some_and(|ty| et.map_or(true, |et| edge_type_to_u8(ty) == et)),
+            ),
+            (Some(s), None) => self
+                .g
+                .incident_edges(s)
+                .filter(|&(_, ty)| et.map_or(true, |et| edge_type_to_u8(ty) == et))
+                .count(),
+            _ => self
+                .g
+                .edges()
+                .filter(|&(_, _, ty)| et.map_or(true, |et| edge_type_to_u8(ty) == et))
+                .count(),
+        }
     }
 
     fn vertices(&self) -> Vec<V> {
@@ -182,7 +207,7 @@ impl PyVecGraph {
         match (s, t) {
             (Some(s), Some(t)) => {
                 if self.g.connected(s, t) {
-                    vec![self.edge(s, t)]
+                    vec![self.edge(s, t, None)]
                 } else {
                     vec![]
                 }
@@ -375,7 +400,10 @@ impl PyVecGraph {
         self.g.depth()
     }
 
-    fn edge(&self, s: V, t: V) -> E {
+    #[pyo3(signature = (s, t, et=None))]
+    fn edge(&self, s: V, t: V, et: Option<u8>) -> E {
+        // Simple graphs identify an edge by its endpoints, independently of type.
+        let _ = et;
         if s < t {
             (s, t)
         } else {
@@ -387,7 +415,8 @@ impl PyVecGraph {
         self.g.connected(s, t)
     }
 
-    #[pyo3(signature = (ty=0, qubit=-1.0, row=-1.0, phase=None, ground=false))]
+    #[pyo3(signature = (ty=0, qubit=-1.0, row=-1.0, phase=None, ground=false, index=None))]
+    #[allow(clippy::too_many_arguments)]
     fn add_vertex(
         &mut self,
         ty: u8,
@@ -395,6 +424,7 @@ impl PyVecGraph {
         row: f64,
         phase: Option<Rational64>,
         ground: bool,
+        index: Option<V>,
     ) -> PyResult<usize> {
         let _ground = ground;
         // TODO: should accept Fraction for phase
@@ -410,13 +440,21 @@ impl PyVecGraph {
             None => Phase::zero(),
         };
 
-        Ok(self.g.add_vertex_with_data(VData {
+        let data = VData {
             ty: ty1,
             phase: phase1,
             qubit,
             row,
             ..Default::default()
-        }))
+        };
+        if let Some(v) = index {
+            self.g
+                .add_named_vertex_with_data(v, data)
+                .map_err(|error| PyValueError::new_err(error.to_string()))?;
+            Ok(v)
+        } else {
+            Ok(self.g.add_vertex_with_data(data))
+        }
     }
 
     #[pyo3(signature = (edge_pairs, edgetype=1))]
@@ -542,12 +580,18 @@ impl PyVecGraph {
                 "Copy to other backends not implemented on backend: quizx-vec",
             ))
         } else {
-            Ok(PyVecGraph::from_graph(py, self.g.copy(adjoint)))
+            let mut graph = PyVecGraph::from_graph(py, self.g.copy(adjoint));
+            if adjoint {
+                graph.reverse_rows();
+            }
+            Ok(graph)
         }
     }
 
-    fn adjoint(&mut self) {
-        self.g.adjoint()
+    fn adjoint(&self, py: Python<'_>) -> PyVecGraph {
+        let mut graph = PyVecGraph::from_graph(py, self.g.to_adjoint());
+        graph.reverse_rows();
+        graph
     }
 
     fn map_qubits(&self, qubit_map: HashMap<i32, (f64, f64)>) -> PyResult<()> {
@@ -598,7 +642,7 @@ impl PyVecGraph {
     }
 
     fn __iadd__(&mut self, other: &Bound<'_, PyAny>) -> PyResult<()> {
-        // TODO: should return a reference to Self. I don't know how to do this w PyO3
+        // PyO3 returns the original Python object when this method succeeds.
         self.compose(other)
     }
 
@@ -668,20 +712,38 @@ impl PyVecGraph {
         self.g.plug_outputs(&e);
     }
 
-    #[pyo3(signature = (preserve_scalar=true))]
-    fn to_tensor(&self, py: Python<'_>, preserve_scalar: bool) -> PyResult<PyObject> {
+    #[pyo3(signature = (preserve_scalar=true, strategy="auto"))]
+    fn to_tensor(
+        &self,
+        py: Python<'_>,
+        preserve_scalar: bool,
+        strategy: &str,
+    ) -> PyResult<PyObject> {
+        if !matches!(strategy, "auto" | "naive") {
+            return Err(PyValueError::new_err(
+                "QuiZX supports the auto and naive tensor strategies",
+            ));
+        }
         let m = PyModule::import(py, "pyzx.tensor")?;
-        let f = m.getattr("tensorfy")?;
+        // PyZX 0.10 defaults to a rank-width path that runs Python rewrites.
+        // Keep the contraction-only behavior used by PyZX 0.9: VecGraph's
+        // scalar property returns a copy, so Python rewrites cannot mutate it.
+        let f = m
+            .getattr("tensorfy_naive")
+            .or_else(|_| m.getattr("tensorfy"))?;
         Ok(f.call((self.clone(py)?, preserve_scalar), None)?.unbind())
     }
 
-    #[pyo3(signature = (preserve_scalar=true))]
-    fn to_matrix(&self, py: Python<'_>, preserve_scalar: bool) -> PyResult<PyObject> {
+    #[pyo3(signature = (preserve_scalar=true, strategy="auto"))]
+    fn to_matrix(
+        &self,
+        py: Python<'_>,
+        preserve_scalar: bool,
+        strategy: &str,
+    ) -> PyResult<PyObject> {
         let m = PyModule::import(py, "pyzx.tensor")?;
-        let tensorfy = m.getattr("tensorfy")?;
         let tensor_to_matrix = m.getattr("tensor_to_matrix")?;
-
-        let tensor = tensorfy.call((self.clone(py)?, preserve_scalar), None)?;
+        let tensor = self.to_tensor(py, preserve_scalar, strategy)?;
         Ok(tensor_to_matrix
             .call((tensor, self.num_inputs(), self.num_outputs()), None)?
             .unbind())

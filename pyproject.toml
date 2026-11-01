@@ -3,9 +3,9 @@ members = ["pybindings"]
 
 [tool.uv]
 dev-dependencies = [
-    "pip >=25,<26",
-    "maturin >=1.8.2,<2",
-    "pytest >=8.3.3,<9",
+    "pip >=25,<27",
+    "maturin >=1.13.1,<2",
+    "pytest >=8.3.3,<10",
     "ruff >=0.6.8,<1",
     "pre-commit >=4.1.0,<5",
     "mypy >=1.11.2,<2",
@@ -20,8 +20,9 @@ build-backend = "hatchling.build"
 # We mirror the `pybindings/pyproject.toml` config here so `maturin develop` still works
 # from the root of the workspace.
 manifest-path = "pybindings/Cargo.toml"
-python-source = "pybindings"
 module-name = "quizx"
+# "extension-module" tells pyo3 we want to build an extension module (skips linking against libpython.so)
+features = ["pyo3/extension-module"]
 
 [tool.ruff]
 exclude = ["scratchpads"]

@@ -27,15 +27,15 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 
-dependencies = ["pyzx >=0.9.0,<0.10.0"]
+dependencies = ["pyzx >=0.9.0,<0.11"]
 
 [build-system]
 requires = ["maturin>=1.7.0"]
 build-backend = "maturin"
 
 [project.urls]
-homepage = "https://github.com/zxlang/quizx"
-repository = "https://github.com/zxlang/quizx"
+homepage = "https://github.com/zxcalc/quizx"
+repository = "https://github.com/zxcalc/quizx"
 
 [tool.maturin]
 module-name = "quizx"

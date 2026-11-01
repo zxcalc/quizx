@@ -122,7 +122,10 @@ pub trait QubitOps<A: TensorElem> {
     fn hadamard_at(&mut self, i: usize);
 
     /// split into two non-overlapping pieces, where index q=0 and q=1
-    fn slice_qubit_mut(&mut self, q: usize) -> (ArrayViewMut<A, IxDyn>, ArrayViewMut<A, IxDyn>);
+    fn slice_qubit_mut(
+        &mut self,
+        q: usize,
+    ) -> (ArrayViewMut<'_, A, IxDyn>, ArrayViewMut<'_, A, IxDyn>);
 
     /// contract the last n qubit indices with the first n qubits of other
     ///
@@ -177,7 +180,10 @@ impl<A: TensorElem> CompareTensors for Tensor<A> {
 }
 
 impl<A: TensorElem> QubitOps<A> for Tensor<A> {
-    fn slice_qubit_mut(&mut self, q: usize) -> (ArrayViewMut<A, IxDyn>, ArrayViewMut<A, IxDyn>) {
+    fn slice_qubit_mut(
+        &mut self,
+        q: usize,
+    ) -> (ArrayViewMut<'_, A, IxDyn>, ArrayViewMut<'_, A, IxDyn>) {
         let slice0: SliceInfo<_, IxDyn, IxDyn> =
             SliceInfo::try_from(Vec::from_iter((0..self.ndim()).map(|i| {
                 if i == q {
@@ -401,6 +407,26 @@ impl<G: GraphLike + Clone> ToTensor for G {
 impl ToTensor for Circuit {
     fn to_tensor<A: TensorElem>(&self) -> Tensor<A> {
         use crate::gate::GType::*;
+        assert!(
+            self.gates.iter().all(|g| g.vars.is_empty()),
+            "Cannot evaluate a circuit with symbolic phases"
+        );
+        // The graph contractor tracks changing input/output dimensions and wire
+        // indices, including the normalized |0> preparations and <0| effects.
+        if self
+            .gates
+            .iter()
+            .any(|g| matches!(g.t, InitAncilla | PostSelect))
+        {
+            for gate in &self.gates {
+                assert!(
+                    !matches!(gate.t, Measure | MeasureReset),
+                    "Unsupported gate: {:?}",
+                    gate.t
+                );
+            }
+            return self.to_graph::<crate::vec_graph::Graph>().to_tensor();
+        }
         let q = self.num_qubits();
 
         // start with the identity matrix
@@ -451,12 +477,7 @@ impl ToTensor for Circuit {
                 ParityPhase => {
                     panic!("Unsupported gate: ParityPhase")
                 }
-                InitAncilla => {
-                    panic!("Unsupported gate: InitAncilla")
-                }
-                PostSelect => {
-                    panic!("Unsupported gate: PostSelect")
-                }
+                InitAncilla | PostSelect => unreachable!("handled by the graph contractor"),
                 Measure => {
                     panic!("Unsupported gate: Measure")
                 }
@@ -618,5 +639,94 @@ mod tests {
         println!("{}", c3.to_tensor4());
 
         assert_eq!(t3, c3.to_tensor4());
+    }
+}
+
+#[cfg(test)]
+mod ancilla_tests {
+    use super::*;
+    use crate::gate::{GType, Gate};
+
+    #[test]
+    fn ancilla_preparation_and_effect() {
+        for (gate, expected) in [
+            ("init_anc", vec![Scalar4::one(), Scalar4::zero()]),
+            ("post_sel", vec![Scalar4::one(), Scalar4::zero()]),
+        ] {
+            let mut c = Circuit::new(1);
+            c.add_gate(gate, vec![0]);
+            assert_eq!(
+                c.to_tensor4(),
+                Tensor4::from_shape_vec(vec![2], expected).unwrap()
+            );
+            assert_eq!(c.to_tensorf().shape(), &[2]);
+        }
+    }
+
+    #[test]
+    fn ancilla_controlled_x() {
+        let mut c = Circuit::new(2);
+        c.add_gate("init_anc", vec![1]);
+        c.add_gate("x", vec![1]);
+        c.add_gate("cx", vec![1, 0]);
+        c.add_gate("x", vec![1]);
+        c.add_gate("post_sel", vec![1]);
+        let mut expected = Circuit::new(1);
+        expected.add_gate("x", vec![0]);
+        assert_eq!(c.to_tensor4(), expected.to_tensor4());
+    }
+
+    #[test]
+    fn postselection_wire_indices() {
+        for ancilla in 0..3 {
+            let mut c = Circuit::new(3);
+            c.add_gate("init_anc", vec![ancilla]);
+            c.add_gate("post_sel", vec![ancilla]);
+            let remaining = (0..3).filter(|&q| q != ancilla).collect::<Vec<_>>();
+            c.add_gate("h", vec![remaining[0]]);
+            c.add_gate("cx", remaining);
+            let mut expected = Circuit::new(2);
+            expected.add_gate("h", vec![0]);
+            expected.add_gate("cx", vec![0, 1]);
+            assert_eq!(c.to_tensor4(), expected.to_tensor4());
+        }
+    }
+
+    #[test]
+    fn closed_ancilla_and_zero_postselection() {
+        let mut c = Circuit::new(1);
+        c.add_gate("init_anc", vec![0]);
+        c.add_gate("post_sel", vec![0]);
+        assert_eq!(c.to_tensor4(), Tensor4::ident(0));
+        c.gates.insert(1, Gate::new(GType::NOT, vec![0]));
+        assert!(c.to_tensor4().iter().all(|x| x.is_zero()));
+    }
+
+    #[test]
+    #[should_panic(expected = "symbolic phases")]
+    fn symbolic_circuit_is_rejected() {
+        let mut c = Circuit::new(1);
+        c.add_gate("init_anc", vec![0]);
+        c.push(Gate::new_with_phase_and_vars(
+            GType::ZPhase,
+            vec![0],
+            0,
+            vec![0],
+        ));
+        c.to_tensor4();
+    }
+}
+
+#[cfg(test)]
+mod ancilla_measurement_tests {
+    use super::*;
+
+    #[test]
+    #[should_panic(expected = "Unsupported gate: Measure")]
+    fn measurements_remain_unsupported() {
+        let mut c = Circuit::new(1);
+        c.add_gate("init_anc", vec![0]);
+        c.add_gate("measure_d", vec![0]);
+        c.to_tensor4();
     }
 }
