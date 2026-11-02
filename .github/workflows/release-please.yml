@@ -8,16 +8,25 @@ on:
       - master
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 
 jobs:
   release-please:
-    name: Create release PR
+    name: Create release PR or publish release
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v4
+        id: release
         with:
-            # TODO: Use a personal access token so releases created by this workflow can trigger the deployment workflow
-            token: ${{ secrets.GITHUB_TOKEN }}
-            config-file: release-please-config.json
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+      # Tag pushes made with GITHUB_TOKEN do not trigger workflows, but an
+      # explicit workflow_dispatch does. Use the new tag so wheels are published.
+      - name: Build and publish Python wheels
+        if: ${{ steps.release.outputs['pybindings--release_created'] == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs['pybindings--tag_name'] }}
+        run: gh workflow run wheels.yml --repo "$GITHUB_REPOSITORY" --ref "$RELEASE_TAG"

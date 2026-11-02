@@ -23,7 +23,8 @@ on:
     # skip the publish step
     branches:
       - master
-  # Allow manual runs
+  # Release Please dispatches this workflow on each newly created release tag.
+  # Also allow manual runs for retrying a release.
   #
   # If the target is a release tag,
   # publish the wheels to pypi
