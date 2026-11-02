@@ -1,37 +1,36 @@
 # Changelog
 
-## Unreleased
-
-## Added
-- `add_edge` method to `VecGraph` class.
-
 ## [0.4.0](https://github.com/zxcalc/quizx/compare/quizx-py-v0.3.0...quizx-py-v0.4.0) (2026-11-02)
 
+### Breaking Changes
 
-### ⚠ BREAKING CHANGES
-
-* 
-* 
-* 
+- Rename `quizx.Scalar` to `quizx.Scalar4`. `VecGraph.scalar` now uses PyZX's `Scalar`; use `VecGraph.scalar4` for native scalars without conversion. The scalar getters return copies, so assign modified scalars back to the graph. ([#170](https://github.com/zxcalc/quizx/pull/170))
+- `VecGraph.adjoint()` now returns a new graph instead of modifying the original. Use `g = g.adjoint()` to replace a graph with its adjoint. ([#198](https://github.com/zxcalc/quizx/pull/198))
 
 ### Features
 
-* Added dyadic rational type and new scalars based on this type ([#158](https://github.com/zxcalc/quizx/issues/158)) ([d6b63cb](https://github.com/zxcalc/quizx/commit/d6b63cb7d4cead3236081f12c1c2410ec55a7e22))
-* added keyword args and properties to bindings ([#169](https://github.com/zxcalc/quizx/issues/169)) ([38a9da5](https://github.com/zxcalc/quizx/commit/38a9da5defe8c325515f18f58324eb41e48d8402))
-* Extend pyzx compatibility to &gt;=0.9,&lt;0.11 ([#198](https://github.com/zxcalc/quizx/issues/198)) ([e51b5a7](https://github.com/zxcalc/quizx/commit/e51b5a72d87ccde83ee74276ea5ec8ab7145a52f))
-* Python bindings for rankwidth functions ([#168](https://github.com/zxcalc/quizx/issues/168)) ([4f7d47d](https://github.com/zxcalc/quizx/commit/4f7d47d2ad628fa448b1ffc6834fac70a6941654))
-
+- Add a dyadic rational type and scalars based on it ([#158](https://github.com/zxcalc/quizx/pull/158))
+- Add keyword arguments and properties to bindings ([#169](https://github.com/zxcalc/quizx/pull/169))
+- Extend PyZX compatibility to `>=0.9,<0.11` ([#198](https://github.com/zxcalc/quizx/pull/198))
+- Add Python bindings for rankwidth functions ([#168](https://github.com/zxcalc/quizx/pull/168))
+- Use `bitgauss` for faster GF(2) linear algebra in circuit extraction ([#161](https://github.com/zxcalc/quizx/pull/161))
+- Add wheel builds for free-threaded Python 3.14, Windows ARM64, and WebAssembly. WebAssembly wheels are distributed as GitHub release assets. ([#191](https://github.com/zxcalc/quizx/pull/191), [#196](https://github.com/zxcalc/quizx/pull/196))
 
 ### Bug Fixes
 
-* added missing methods to VecGraph bindings ([#170](https://github.com/zxcalc/quizx/issues/170)) ([5f4b111](https://github.com/zxcalc/quizx/commit/5f4b111bf7d99b57781f7e62aa9cdcaf5e609204))
-* bug in conversion from pyzx scalar ([81e198e](https://github.com/zxcalc/quizx/commit/81e198e242aa161ec03ef9a6ba5d87fd1d5e9005))
-* bug in cutrank caching ([#173](https://github.com/zxcalc/quizx/issues/173)) ([83300c6](https://github.com/zxcalc/quizx/commit/83300c6e278d77223130c3ee1b736c29b37c27b5))
-
+- Add missing methods to `VecGraph` bindings ([#170](https://github.com/zxcalc/quizx/pull/170))
+- Fix conversion from PyZX scalars ([81e198e](https://github.com/zxcalc/quizx/commit/81e198e242aa161ec03ef9a6ba5d87fd1d5e9005))
+- Fix cut-rank caching ([#173](https://github.com/zxcalc/quizx/pull/173))
+- Remove stale edges from the rank cache ([7ab591f](https://github.com/zxcalc/quizx/commit/7ab591f4802f581a57c024126465fb086d2ce433))
+- Fix rank-cache invalidation when swapping leaves or moving subtrees ([1acc52a](https://github.com/zxcalc/quizx/commit/1acc52a17d1b0dd76ab49fbbad6e81d6602f49ea))
+- Preserve inputs, outputs, and scalars in `VecGraph.copy()` ([#199](https://github.com/zxcalc/quizx/pull/199))
+- Avoid adding two edges for a self-loop in `VecGraph` ([#187](https://github.com/zxcalc/quizx/pull/187))
+- Parse Qiskit phase gates in custom QASM definitions passed to `quizx.qasm()` ([#200](https://github.com/zxcalc/quizx/pull/200))
+- Fix mantissa overflows when converting and formatting scalars ([#204](https://github.com/zxcalc/quizx/pull/204))
 
 ### Documentation
 
-* correct repository metadata and contribution links ([#197](https://github.com/zxcalc/quizx/issues/197)) ([280f3e9](https://github.com/zxcalc/quizx/commit/280f3e97cc9f43d4cb11b51ed771cf71ed42ace9))
+- Correct repository metadata and contribution links ([#197](https://github.com/zxcalc/quizx/pull/197))
 
 ## [0.3.0](https://github.com/zxcalc/quizx/compare/quizx-py-v0.2.0...quizx-py-v0.3.0) (2025-06-12)
 
@@ -99,4 +98,4 @@ This is the initial experimental release of `quizx`.
 ----
 
 This is the changelog for the `quizx` python library.
-For the changelog of the `quizx` rust library, see the separate [`CHANGELOG.md`](https://github.com/zxcalc/quizx/blob/master/CHANGELOG.md) file.
+For the changelog of the `quizx` rust library, see the separate [`CHANGELOG.md`](https://github.com/zxcalc/quizx/blob/master/quizx/CHANGELOG.md) file.
